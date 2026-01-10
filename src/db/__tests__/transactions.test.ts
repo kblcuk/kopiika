@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
+import { describe, expect, test, beforeEach } from '@jest/globals';
 import type { Transaction, Entity } from '@/src/types';
 import {
 	getAllTransactions,
@@ -11,18 +11,12 @@ import {
 	getBatchEntityActuals,
 } from '../transactions';
 import { createEntity } from '../entities';
-import { createTestDrizzleDb } from './test-utils';
-
-import { getDrizzleDb } from '../drizzle-client';
-
-jest.mock('@/src/db/drizzle-client');
+import { resetDrizzleDb } from '../drizzle-client';
 
 describe('transactions.ts', () => {
-	let testDb: ReturnType<typeof createTestDrizzleDb>;
-
 	beforeEach(async () => {
-		testDb = createTestDrizzleDb();
-		jest.mocked(getDrizzleDb).mockReturnValue(testDb as any);
+		// Reset database before each test
+		resetDrizzleDb();
 
 		// Create test entities
 		const entities: Entity[] = [
@@ -51,14 +45,9 @@ describe('transactions.ts', () => {
 
 			await createTransaction(transaction);
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-1'))
-				.limit(1);
-			expect(result[0]).toEqual(transaction);
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-1');
+			expect(result).toEqual(transaction);
 		});
 
 		test('should create transaction without note', async () => {
@@ -73,14 +62,9 @@ describe('transactions.ts', () => {
 
 			await createTransaction(transaction);
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-2'))
-				.limit(1);
-			expect(result[0]).toMatchObject({
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-2');
+			expect(result).toMatchObject({
 				...transaction,
 				note: null,
 			});
@@ -323,23 +307,13 @@ describe('transactions.ts', () => {
 
 			await createTransaction(transaction);
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const existing = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-delete'))
-				.limit(1);
-			expect(existing[0]).not.toBeUndefined();
+			const existing = await getAllTransactions();
+			expect(existing.find((tx) => tx.id === 'tx-delete')).toBeDefined();
 
 			await deleteTransaction('tx-delete');
 
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-delete'))
-				.limit(1);
-			expect(result[0]).toBeUndefined();
+			const result = await getAllTransactions();
+			expect(result.find((tx) => tx.id === 'tx-delete')).toBeUndefined();
 		});
 
 		test('should not error when deleting non-existent transaction', async () => {
@@ -366,43 +340,28 @@ describe('transactions.ts', () => {
 		test('should update amount', async () => {
 			await updateTransaction('tx-update', { amount: 200 });
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]?.amount).toBe(200);
-			expect(result[0]?.note).toBe('Original note');
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result?.amount).toBe(200);
+			expect(result?.note).toBe('Original note');
 		});
 
 		test('should update note', async () => {
 			await updateTransaction('tx-update', { note: 'Updated note' });
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]?.note).toBe('Updated note');
-			expect(result[0]?.amount).toBe(100);
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result?.note).toBe('Updated note');
+			expect(result?.amount).toBe(100);
 		});
 
 		test('should update timestamp', async () => {
 			const newTimestamp = Date.now() + 10000;
 			await updateTransaction('tx-update', { timestamp: newTimestamp });
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]?.timestamp).toBe(newTimestamp);
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result?.timestamp).toBe(newTimestamp);
 		});
 
 		test('should update multiple fields at once', async () => {
@@ -413,42 +372,27 @@ describe('transactions.ts', () => {
 				timestamp: newTimestamp,
 			});
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]?.amount).toBe(500);
-			expect(result[0]?.note).toBe('Multi update');
-			expect(result[0]?.timestamp).toBe(newTimestamp);
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result?.amount).toBe(500);
+			expect(result?.note).toBe('Multi update');
+			expect(result?.timestamp).toBe(newTimestamp);
 		});
 
 		test('should set note to null when empty string provided', async () => {
 			await updateTransaction('tx-update', { note: '' });
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]?.note).toBeNull();
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result?.note).toBeNull();
 		});
 
 		test('should do nothing when no updates provided', async () => {
 			await updateTransaction('tx-update', {});
 
-			const { transactions: txTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(txTable)
-				.where(eq(txTable.id, 'tx-update'))
-				.limit(1);
-			expect(result[0]).toEqual(originalTx);
+			const allTx = await getAllTransactions();
+			const result = allTx.find((tx) => tx.id === 'tx-update');
+			expect(result).toEqual(originalTx);
 		});
 	});
 

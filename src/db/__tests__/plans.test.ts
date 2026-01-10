@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
+import { describe, expect, test, beforeEach } from '@jest/globals';
 import type { Plan, Entity } from '@/src/types';
 import {
 	getAllPlans,
@@ -10,18 +10,12 @@ import {
 	deletePlan,
 } from '../plans';
 import { createEntity } from '../entities';
-import { createTestDrizzleDb } from './test-utils';
-
-import { getDrizzleDb } from '../drizzle-client';
-
-jest.mock('@/src/db/drizzle-client');
+import { resetDrizzleDb } from '../drizzle-client';
 
 describe('plans.ts', () => {
-	let testDb: ReturnType<typeof createTestDrizzleDb>;
-
 	beforeEach(async () => {
-		testDb = createTestDrizzleDb();
-		jest.mocked(getDrizzleDb).mockReturnValue(testDb as any);
+		// Reset database before each test
+		resetDrizzleDb();
 
 		// Create test entities for foreign key constraints
 		const entities: Entity[] = [
@@ -47,14 +41,8 @@ describe('plans.ts', () => {
 
 			await createPlan(plan);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-1'))
-				.limit(1);
-			expect(result[0]).toEqual(plan);
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result).toEqual(plan);
 		});
 
 		test('should create multiple plans for same entity in different periods', async () => {
@@ -267,14 +255,8 @@ describe('plans.ts', () => {
 
 			await updatePlan(updated);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-update'))
-				.limit(1);
-			expect(result[0]).toEqual(updated);
+			const result = await getPlanForEntity('entity-2', '2025-02');
+			expect(result).toEqual(updated);
 		});
 
 		test('should update only planned_amount', async () => {
@@ -295,16 +277,10 @@ describe('plans.ts', () => {
 
 			await updatePlan(updated);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-update-2'))
-				.limit(1);
-			expect(result[0]?.planned_amount).toBe(1500);
-			expect(result[0]?.entity_id).toBe('entity-1');
-			expect(result[0]?.period_start).toBe('2025-01');
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result?.planned_amount).toBe(1500);
+			expect(result?.entity_id).toBe('entity-1');
+			expect(result?.period_start).toBe('2025-01');
 		});
 	});
 
@@ -320,14 +296,8 @@ describe('plans.ts', () => {
 
 			await upsertPlan(plan);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-upsert-1'))
-				.limit(1);
-			expect(result[0]).toEqual(plan);
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result).toEqual(plan);
 		});
 
 		test('should update planned_amount when plan exists', async () => {
@@ -351,18 +321,12 @@ describe('plans.ts', () => {
 
 			await upsertPlan(updated);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-upsert-2'))
-				.limit(1);
+			const result = await getPlanForEntity('entity-1', '2025-01');
 
 			// Only planned_amount should be updated
-			expect(result[0]?.planned_amount).toBe(1500);
-			expect(result[0]?.entity_id).toBe('entity-1'); // Original value
-			expect(result[0]?.period_start).toBe('2025-01'); // Original value
+			expect(result?.planned_amount).toBe(1500);
+			expect(result?.entity_id).toBe('entity-1'); // Original value
+			expect(result?.period_start).toBe('2025-01'); // Original value
 		});
 
 		test('should handle multiple upserts idempotently', async () => {
@@ -381,14 +345,8 @@ describe('plans.ts', () => {
 			const allPlans = await getAllPlans();
 			expect(allPlans).toHaveLength(1);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-upsert-3'))
-				.limit(1);
-			expect(result[0]?.planned_amount).toBe(1500);
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result?.planned_amount).toBe(1500);
 		});
 	});
 
@@ -404,23 +362,13 @@ describe('plans.ts', () => {
 
 			await createPlan(plan);
 
-			const { plans: plansTable } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			const existingPlan = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-delete'))
-				.limit(1);
-			expect(existingPlan[0]).not.toBeUndefined();
+			const existingPlan = await getPlanForEntity('entity-1', '2025-01');
+			expect(existingPlan).not.toBeNull();
 
 			await deletePlan('plan-delete');
 
-			const result = await testDb
-				.select()
-				.from(plansTable)
-				.where(eq(plansTable.id, 'plan-delete'))
-				.limit(1);
-			expect(result[0]).toBeUndefined();
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result).toBeNull();
 		});
 
 		test('should not error when deleting non-existent plan', async () => {

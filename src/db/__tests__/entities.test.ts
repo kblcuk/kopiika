@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
+import { describe, expect, test, beforeEach } from '@jest/globals';
 import type { Entity, EntityType } from '@/src/types';
 import {
 	getAllEntities,
@@ -9,19 +9,13 @@ import {
 	deleteEntity,
 	getNextOrder,
 } from '../entities';
-import { createTestDrizzleDb } from './test-utils';
-
-import { getDrizzleDb } from '../drizzle-client';
-
-// Mock the drizzle-client module
-jest.mock('@/src/db/drizzle-client');
+import { createPlan, getPlanForEntity } from '../plans';
+import { resetDrizzleDb } from '../drizzle-client';
 
 describe('entities.ts', () => {
-	let testDb: ReturnType<typeof createTestDrizzleDb>;
-
 	beforeEach(() => {
-		testDb = createTestDrizzleDb();
-		jest.mocked(getDrizzleDb).mockReturnValue(testDb as any);
+		// Reset database before each test
+		resetDrizzleDb();
 	});
 
 	describe('createEntity', () => {
@@ -265,10 +259,8 @@ describe('entities.ts', () => {
 			};
 			await createEntity(entity);
 
-			// Create plan for entity using Drizzle
-			const { plans } = await import('../drizzle-schema');
-			const { eq } = await import('drizzle-orm');
-			await testDb.insert(plans).values({
+			// Create plan for entity
+			await createPlan({
 				id: 'plan-1',
 				entity_id: 'cascade-test',
 				period: 'month',
@@ -277,19 +269,15 @@ describe('entities.ts', () => {
 			});
 
 			// Verify plan exists
-			const plan = await testDb.select().from(plans).where(eq(plans.id, 'plan-1')).limit(1);
-			expect(plan[0]).not.toBeUndefined();
+			const plan = await getPlanForEntity('cascade-test', '2025-01');
+			expect(plan).not.toBeNull();
 
 			// Delete entity
 			await deleteEntity('cascade-test');
 
 			// Plan should be cascade deleted
-			const deletedPlan = await testDb
-				.select()
-				.from(plans)
-				.where(eq(plans.id, 'plan-1'))
-				.limit(1);
-			expect(deletedPlan[0]).toBeUndefined();
+			const deletedPlan = await getPlanForEntity('cascade-test', '2025-01');
+			expect(deletedPlan).toBeNull();
 		});
 	});
 
