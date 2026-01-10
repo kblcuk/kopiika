@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { View, Text } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Pressable, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
@@ -8,6 +8,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+import * as Haptics from 'expo-haptics';
 import * as Icons from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
@@ -21,7 +22,6 @@ interface EntityBubbleProps {
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
-	onLongPress?: (entity: EntityWithBalance) => void;
 }
 
 // Convert kebab-case to PascalCase for lucide icon lookup
@@ -32,13 +32,7 @@ function toIconName(name: string): string {
 		.join('');
 }
 
-export function EntityBubble({
-	entity,
-	onDragStart,
-	onDragEnd,
-	onTap,
-	onLongPress,
-}: EntityBubbleProps) {
+export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBubbleProps) {
 	const setHoveredDropZoneId = useStore((state) => state.setHoveredDropZoneId);
 
 	const translateX = useSharedValue(0);
@@ -60,6 +54,7 @@ export function EntityBubble({
 	}, [entity, onDragStart]);
 
 	const lastTargetIdRef = useRef<string | null>(null);
+	const isLongPressActiveRef = useRef(false);
 
 	const handleDragUpdate = useCallback(
 		(absoluteX: number, absoluteY: number) => {
@@ -86,13 +81,34 @@ export function EntityBubble({
 		onTap?.(entity);
 	}, [entity, onTap]);
 
-	const handleLongPress = useCallback(() => {
-		onLongPress?.(entity);
-	}, [entity, onLongPress]);
-
 	const elevation = useSharedValue(0);
 
+	// Long press gesture to enter drag mode
+	const longPressGesture = Gesture.LongPress()
+		.minDuration(500)
+		.onStart(() => {
+			isLongPressActiveRef.current = true;
+			// Visual feedback: slight scale and haptic
+			scale.value = withSpring(1.05);
+		})
+		.onFinalize(() => {
+			// If long press completes without panning, reset
+			if (!isLongPressActiveRef.current) {
+				scale.value = withSpring(1);
+			}
+		});
+
+	// Pan gesture - only activates after long press
 	const panGesture = Gesture.Pan()
+		.manualActivation(true)
+		.onTouchesMove((event, state) => {
+			// Only activate pan if long press is active
+			if (isLongPressActiveRef.current) {
+				state.activate();
+			} else {
+				state.fail();
+			}
+		})
 		.onStart(() => {
 			scale.value = withSpring(1.15);
 			zIndex.value = 1000;
@@ -112,20 +128,25 @@ export function EntityBubble({
 			zIndex.value = 0;
 			elevation.value = 0;
 			opacity.value = withTiming(1);
+			isLongPressActiveRef.current = false;
 			scheduleOnRN(handleDragEnd, event.absoluteX, event.absoluteY);
+		})
+		.onFinalize(() => {
+			isLongPressActiveRef.current = false;
 		});
 
-	const tapGesture = Gesture.Tap().onEnd(() => {
-		scheduleOnRN(handleTap);
-	});
-
-	const longPressGesture = Gesture.LongPress()
-		.minDuration(400)
+	// Tap gesture - quick tap to open detail
+	const tapGesture = Gesture.Tap()
+		.maxDuration(250)
 		.onEnd(() => {
-			scheduleOnRN(handleLongPress);
+			scheduleOnRN(handleTap);
 		});
 
-	const composedGesture = Gesture.Race(panGesture, longPressGesture, tapGesture);
+	// Compose gestures: tap is exclusive with long press, pan runs simultaneously
+	const composedGesture = Gesture.Simultaneous(
+		Gesture.Exclusive(tapGesture, longPressGesture),
+		panGesture
+	);
 
 	const animatedStyle = useAnimatedStyle(() => ({
 		transform: [
@@ -142,49 +163,55 @@ export function EntityBubble({
 
 	return (
 		<GestureDetector gesture={composedGesture}>
-			<Animated.View style={animatedStyle} className="items-center py-1.5">
-				{/* Name */}
-				<Text
-					className="mb-1.5 text-center font-sans text-xs text-ink"
-					numberOfLines={1}
-					ellipsizeMode="tail"
-				>
-					{entity.name}
-				</Text>
+			<Pressable
+				onPress={() => {
+					Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+				}}
+			>
+				<Animated.View style={animatedStyle} className="items-center py-1.5">
+					{/* Name */}
+					<Text
+						className="mb-1.5 text-center font-sans text-xs text-ink"
+						numberOfLines={1}
+						ellipsizeMode="tail"
+					>
+						{entity.name}
+					</Text>
 
-				{/* Icon circle with progress ring */}
-				<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
-					{/* Progress ring */}
-					{entity.type === 'account' || entity.planned === 0 ? null : (
-						<View className="absolute">
-							<CircularProgress
-								size={64}
-								strokeWidth={3}
-								progress={progress}
-								inverse={entity.type === 'saving'}
-							/>
+					{/* Icon circle with progress ring */}
+					<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
+						{/* Progress ring */}
+						{entity.type === 'account' || entity.planned === 0 ? null : (
+							<View className="absolute">
+								<CircularProgress
+									size={64}
+									strokeWidth={3}
+									progress={progress}
+									inverse={entity.type === 'saving'}
+								/>
+							</View>
+						)}
+						{/* Icon background */}
+						<View className="h-14 w-14 items-center justify-center rounded-full bg-paper-300">
+							<IconComponent size={24} color="#6B5D4A" />
 						</View>
-					)}
-					{/* Icon background */}
-					<View className="h-14 w-14 items-center justify-center rounded-full bg-paper-300">
-						<IconComponent size={24} color="#6B5D4A" />
 					</View>
-				</View>
 
-				{/* Main amount */}
-				<Text
-					className={`font-sans-semibold text-sm ${
-						overspent ? 'text-negative' : 'text-ink'
-					}`}
-				>
-					{mainAmount}
-				</Text>
+					{/* Main amount */}
+					<Text
+						className={`font-sans-semibold text-sm ${
+							overspent ? 'text-negative' : 'text-ink'
+						}`}
+					>
+						{mainAmount}
+					</Text>
 
-				{/* Planned amount */}
-				<Text className="font-sans text-xs text-ink-faint">
-					{formatAmount(entity.planned)}
-				</Text>
-			</Animated.View>
+					{/* Planned amount */}
+					<Text className="text-ink-faint font-sans text-xs">
+						{formatAmount(entity.planned)}
+					</Text>
+				</Animated.View>
+			</Pressable>
 		</GestureDetector>
 	);
 }

@@ -272,6 +272,7 @@ export default function HomeScreen() {
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
 					onAdd={handleAdd}
+					horizontalScroll
 				/>
 				<EntityGrid
 					title="Categories"
@@ -281,6 +282,7 @@ export default function HomeScreen() {
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
 					onAdd={handleAdd}
+					maxRows={3}
 				/>
 				<EntityGrid
 					title="Savings"
@@ -290,6 +292,7 @@ export default function HomeScreen() {
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
 					onAdd={handleAdd}
+					horizontalScroll
 				/>
 
 				{entities.length === 0 && (
