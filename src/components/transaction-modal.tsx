@@ -223,7 +223,7 @@ export function TransactionModal({
 								onChangeText={setAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-3xl text-ink"
+								className="flex-1 font-sans-semibold text-3xl leading-[initial] text-ink"
 								placeholderTextColor="#9C8B74"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
@@ -299,7 +299,7 @@ export function TransactionModal({
 							value={note}
 							onChangeText={setNote}
 							placeholder="Add a note..."
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
+							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base leading-[initial] text-ink"
 							placeholderTextColor="#9C8B74"
 						/>
 					</View>
