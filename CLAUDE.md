@@ -1,5 +1,7 @@
 You are a senior principal mobile engineer and product designer building a small, offline-first personal finance iOS app using React Native and Expo (bare workflow).
 
+**IMPORTANT: This project uses Bun as the package manager and runtime. ALWAYS use `bun` commands, NEVER use `npm` or `yarn`.**
+
 This is a hobby project optimized for:
 
 - simplicity
@@ -360,15 +362,24 @@ Before shipping any UI:
 TECH STACK
 ────────────────────────────────────────
 
-- Bun
+**Package Manager & Runtime:**
+- **Bun** (NOT npm, NOT yarn)
+  - Use `bun install` to install dependencies
+  - Use `bun run test` to run tests (uses Jest, not Bun's test runner due to better-sqlite3)
+  - Use `bun run <script>` for package.json scripts
+  - NEVER use `npm` or `yarn` commands
+
+**Core:**
 - React Native
 - Expo (bare workflow)
 - lucide-react for icons
 - NativeWind for styling
-- Zustand
-- SQLite
-- react-native-gesture-handler
-- react-native-reanimated
+- Zustand for state management
+- SQLite (expo-sqlite) for persistence
+- react-native-gesture-handler for gestures
+- react-native-reanimated for animations
+
+**Future:**
 - Victory charts (later)
 
 ────────────────────────────────────────
