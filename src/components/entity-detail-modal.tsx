@@ -169,11 +169,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20}>
+					<Pressable onPress={onClose} hitSlop={20} testID="entity-detail-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
-					<Pressable onPress={handleSave} disabled={!canSave} hitSlop={20}>
+					<Pressable onPress={handleSave} disabled={!canSave} hitSlop={20} testID="entity-detail-save-button">
 						<Text
 							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
 						>
@@ -253,6 +253,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
 							autoCapitalize="words"
+							testID="entity-detail-name-input"
 						/>
 						{nameError && (
 							<Text className="mt-1 font-sans text-xs text-negative">
@@ -294,6 +295,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								className="flex-1 font-sans-semibold text-2xl  text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
+								testID="entity-detail-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
 								{entity.currency}
@@ -305,6 +307,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					<Pressable
 						onPress={handleDelete}
 						className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
+						testID="entity-detail-delete-button"
 					>
 						<Text className="font-sans-semibold text-base text-negative">
 							Delete Entity

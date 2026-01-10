@@ -112,11 +112,11 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20}>
+					<Pressable onPress={onClose} hitSlop={20} testID="entity-create-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
-					<Pressable onPress={handleCreate} disabled={!isValid} hitSlop={20}>
+					<Pressable onPress={handleCreate} disabled={!isValid} hitSlop={20} testID="entity-create-save-button">
 						<Text
 							className={`font-sans-semibold text-base ${isValid ? 'text-accent' : 'text-ink-muted'}`}
 						>
@@ -141,6 +141,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
 							autoCapitalize="words"
+							testID="entity-create-name-input"
 						/>
 					</View>
 
@@ -190,6 +191,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								className="flex-1 font-sans-semibold text-2xl  text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
+								testID="entity-create-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">UAH</Text>
 						</View>

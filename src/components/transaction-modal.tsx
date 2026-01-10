@@ -163,7 +163,7 @@ export function TransactionModal({
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20}>
+					<Pressable onPress={onClose} hitSlop={20} testID="transaction-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">
@@ -173,6 +173,7 @@ export function TransactionModal({
 						onPress={handleSubmit}
 						disabled={!amount || parseFloat(amount) <= 0}
 						hitSlop={20}
+						testID="transaction-save-button"
 					>
 						<Text
 							className={`font-sans-semibold text-base ${
@@ -228,6 +229,7 @@ export function TransactionModal({
 								className="flex-1 font-sans-semibold text-3xl  text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
+								testID="transaction-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
 								{fromEntity.currency}
@@ -239,6 +241,7 @@ export function TransactionModal({
 							<Pressable
 								onPress={handleUseSuggested}
 								className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
+								testID="transaction-suggested-amount-button"
 							>
 								<Text className="font-sans text-sm text-ink-muted">
 									Use remaining: {formatAmount(suggestedAmount)}
@@ -305,6 +308,7 @@ export function TransactionModal({
 							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
+							testID="transaction-note-input"
 						/>
 					</View>
 				</View>
