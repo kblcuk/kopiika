@@ -13,7 +13,8 @@
 		"test:coverage": "jest --coverage",
 		"lint": "expo lint",
 		"format": "prettier --write .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"types": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@expo-google-fonts/ibm-plex-sans": "^0.4.1",
