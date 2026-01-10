@@ -9,27 +9,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import * as Haptics from 'expo-haptics';
-import * as Icons from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { CircularProgress } from './circular-progress';
 import { findDropTarget } from './drop-zone';
 import { useStore } from '@/src/store';
+import { getIcon } from '@/src/constants/icon-registry';
 
 interface EntityBubbleProps {
 	entity: EntityWithBalance;
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
-}
-
-// Convert kebab-case to PascalCase for lucide icon lookup
-function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
 }
 
 // Get background and icon colors based on entity type
@@ -73,10 +65,8 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
 
-	// Get the icon component dynamically
-	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
-	const IconComponent =
-		(Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
+	// Get the icon component from registry
+	const IconComponent = getIcon(entity.icon || 'circle');
 
 	const handleDragStart = useCallback(() => {
 		onDragStart?.(entity);

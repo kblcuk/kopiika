@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
 import { ChevronDown, X } from 'lucide-react-native';
-import * as Icons from 'lucide-react-native';
 
 import type { Entity, EntityType } from '@/src/types';
 import { useStore } from '@/src/store';
 import { useShallow } from 'zustand/react/shallow';
+import { getIcon } from '@/src/constants/icon-registry';
 
 interface EntityFilterProps {
 	selectedEntityId: string | null;
@@ -20,13 +20,6 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 };
 
 const ENTITY_TYPE_ORDER: EntityType[] = ['income', 'account', 'category', 'saving'];
-
-function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
-}
 
 export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) {
 	const [visible, setVisible] = useState(false);
@@ -53,11 +46,6 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 	const handleSelect = (entityId: string | null) => {
 		onChange(entityId);
 		setVisible(false);
-	};
-
-	const getIcon = (entity: Entity) => {
-		const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
-		return (Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
 	};
 
 	return (
@@ -115,7 +103,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 										</Text>
 									</View>
 									{typeEntities.map((entity) => {
-										const Icon = getIcon(entity);
+										const Icon = getIcon(entity.icon || 'circle');
 										const isSelected = selectedEntityId === entity.id;
 
 										return (

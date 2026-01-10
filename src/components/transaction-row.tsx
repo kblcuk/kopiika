@@ -9,23 +9,16 @@ import Animated, {
 	runOnJS,
 } from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
-import * as Icons from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
 import { useStore } from '@/src/store';
+import { getIcon } from '@/src/constants/icon-registry';
 
 interface TransactionRowProps {
 	transaction: Transaction;
 	entities: Entity[];
 	onEdit: (transaction: Transaction) => void;
-}
-
-function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
 }
 
 function formatTime(timestamp: number): string {
@@ -44,14 +37,8 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 	const fromEntity = entities.find((e) => e.id === transaction.from_entity_id);
 	const toEntity = entities.find((e) => e.id === transaction.to_entity_id);
 
-	const getIcon = (entity: Entity | undefined) => {
-		if (!entity) return Icons.Circle;
-		const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
-		return (Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
-	};
-
-	const FromIcon = getIcon(fromEntity);
-	const ToIcon = getIcon(toEntity);
+	const FromIcon = getIcon(fromEntity?.icon || 'circle');
+	const ToIcon = getIcon(toEntity?.icon || 'circle');
 
 	const confirmDelete = useCallback(() => {
 		Alert.alert(

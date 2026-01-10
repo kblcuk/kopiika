@@ -30,11 +30,3 @@ export const DEFAULT_ICONS: Record<EntityType, string> = {
 	category: 'shopping-cart',
 	saving: 'piggy-bank',
 };
-
-// Convert kebab-case to PascalCase for lucide icon lookup
-export function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
-}

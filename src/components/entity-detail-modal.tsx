@@ -11,14 +11,14 @@ import {
 	ScrollView,
 } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import * as Icons from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 
-import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
+import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
+import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
 import { generateId } from '@/src/utils/ids';
 
@@ -92,10 +92,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 	if (!entity) return null;
 
-	// Get the icon component dynamically using selectedIcon state for live preview
-	const iconName = selectedIcon ? toIconName(selectedIcon) : 'Circle';
-	const IconComponent =
-		(Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
+	// Get the icon component from registry for live preview
+	const IconComponent = getIcon(selectedIcon || 'circle');
+	const PencilIcon = getIcon('pencil');
 
 	const handleSave = async () => {
 		if (!canSave) return;
@@ -194,7 +193,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<IconComponent size={36} color="#6B5D4A" />
 								{/* Pencil edit indicator */}
 								<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
-									<Icons.Pencil size={14} color="#6B5D4A" />
+									<PencilIcon size={14} color="#6B5D4A" />
 								</View>
 							</View>
 						</Pressable>
@@ -209,11 +208,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							<View className="flex-row flex-wrap gap-2">
 								{ICON_OPTIONS[entity.type].map((icon) => {
-									const iconPascal = toIconName(icon);
-									const IconOption =
-										(Icons as unknown as Record<string, typeof Icons.Circle>)[
-											iconPascal
-										] || Icons.Circle;
+									const IconOption = getIcon(icon);
 									const isSelected = selectedIcon === icon;
 
 									return (

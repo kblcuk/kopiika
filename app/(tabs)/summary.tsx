@@ -3,7 +3,6 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useRouter } from 'expo-router';
-import * as Icons from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
@@ -12,18 +11,11 @@ import { PeriodPicker } from '@/src/components/period-picker';
 import { ProgressBar } from '@/src/components/progress-bar';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getBatchEntityActuals } from '@/src/db/transactions';
+import { getIcon } from '@/src/constants/icon-registry';
 
 interface SummaryRowProps {
 	entity: EntityWithBalance;
 	onPress: () => void;
-}
-
-// Convert kebab-case to PascalCase for lucide icon lookup
-function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
 }
 
 // Get background and icon colors based on entity type
@@ -56,9 +48,7 @@ function getEntityTypeColors(type: EntityType): {
 }
 
 function SummaryRow({ entity, onPress }: SummaryRowProps) {
-	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
-	const IconComponent =
-		(Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
+	const IconComponent = getIcon(entity.icon || 'circle');
 
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);

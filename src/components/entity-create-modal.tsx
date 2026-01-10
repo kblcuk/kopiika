@@ -10,12 +10,12 @@ import {
 	ScrollView,
 } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import * as Icons from 'lucide-react-native';
 
 import type { EntityType } from '@/src/types';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
+import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
+import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
 
 interface EntityCreateModalProps {
@@ -152,11 +152,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						</Text>
 						<View className="flex-row flex-wrap gap-2">
 							{iconOptions.map((icon) => {
-								const iconPascal = toIconName(icon);
-								const IconComponent =
-									(Icons as unknown as Record<string, typeof Icons.Circle>)[
-										iconPascal
-									] || Icons.Circle;
+								const IconComponent = getIcon(icon);
 								const isSelected = selectedIcon === icon;
 
 								return (
