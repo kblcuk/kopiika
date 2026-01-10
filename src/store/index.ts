@@ -29,6 +29,7 @@ interface AppState {
 	addEntity: (entity: Entity) => Promise<void>;
 	updateEntity: (entity: Entity) => Promise<void>;
 	deleteEntity: (id: string) => Promise<void>;
+	reorderEntity: (sourceId: string, targetId: string) => Promise<void>;
 
 	// Plan actions
 	setPlan: (plan: Plan) => Promise<void>;
@@ -92,6 +93,49 @@ export const useStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			entities: state.entities.filter((e) => e.id !== id),
 			plans: state.plans.filter((p) => p.entity_id !== id),
+		}));
+	},
+
+	reorderEntity: async (sourceId, targetId) => {
+		const state = get();
+		const sourceEntity = state.entities.find((e) => e.id === sourceId);
+		const targetEntity = state.entities.find((e) => e.id === targetId);
+
+		if (!sourceEntity || !targetEntity || sourceEntity.type !== targetEntity.type) {
+			return;
+		}
+
+		// Get all entities of the same type, sorted by current order
+		const sameTypeEntities = state.entities
+			.filter((e) => e.type === sourceEntity.type)
+			.sort((a, b) => a.order - b.order);
+
+		// Remove source from current position
+		const filtered = sameTypeEntities.filter((e) => e.id !== sourceId);
+
+		// Find target index and insert source after it
+		const targetIndex = filtered.findIndex((e) => e.id === targetId);
+		const reordered = [
+			...filtered.slice(0, targetIndex + 1),
+			sourceEntity,
+			...filtered.slice(targetIndex + 1),
+		];
+
+		// Calculate new order values and prepare updates
+		const updates = reordered.map((entity, index) => ({
+			id: entity.id,
+			order: index,
+		}));
+
+		// Update database
+		await db.updateEntityOrders(updates);
+
+		// Update state
+		set((state) => ({
+			entities: state.entities.map((e) => {
+				const update = updates.find((u) => u.id === e.id);
+				return update ? { ...e, order: update.order } : e;
+			}),
 		}));
 	},
 

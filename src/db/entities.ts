@@ -63,3 +63,11 @@ export async function getNextOrder(type: EntityType): Promise<number> {
 		.where(eq(entities.type, type));
 	return (result[0]?.maxOrder ?? -1) + 1;
 }
+
+export async function updateEntityOrders(updates: { id: string; order: number }[]): Promise<void> {
+	const db = getDrizzleDb();
+	// Update each entity's order in a transaction
+	for (const update of updates) {
+		await db.update(entities).set({ order: update.order }).where(eq(entities.id, update.id));
+	}
+}

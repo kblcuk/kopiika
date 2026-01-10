@@ -31,6 +31,7 @@ export default function HomeScreen() {
 		setPlan,
 		setDraggedEntity,
 		toggleIncomeVisible,
+		reorderEntity,
 	} = useStore();
 
 	const income = useEntitiesWithBalance('income');
@@ -90,17 +91,31 @@ export default function HomeScreen() {
 		(entity: EntityWithBalance, targetId: string | null) => {
 			setDraggedEntity(null);
 
-			// If dropped on a valid target, open transaction modal
-			if (targetId) {
-				const targetEntity = allEntities.find((e) => e.id === targetId);
-				if (targetEntity) {
-					setFromEntity(entity);
-					setToEntity(targetEntity);
-					setModalVisible(true);
-				}
+			// If dropped on a valid target
+			if (!targetId) {
+				return;
 			}
+			const targetEntity = allEntities.find((e) => e.id === targetId);
+			if (!targetEntity) {
+				return;
+			}
+			// Ignore if dropped on itself
+			if (entity.id === targetId) {
+				return;
+			}
+
+			// If same type, reorder instead of creating transaction
+			if (entity.type === targetEntity.type) {
+				reorderEntity(entity.id, targetId);
+				return;
+			}
+
+			// Different types: open transaction modal
+			setFromEntity(entity);
+			setToEntity(targetEntity);
+			setModalVisible(true);
 		},
-		[setDraggedEntity, allEntities]
+		[setDraggedEntity, allEntities, reorderEntity]
 	);
 
 	const handleCloseModal = useCallback(() => {

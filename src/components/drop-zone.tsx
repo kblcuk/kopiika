@@ -81,6 +81,9 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 		};
 	}, [entity.id, measureAndRegister]);
 
+	// Track if we're in reorder mode (dragging within same section)
+	const isReorderMode = useSharedValue(0);
+
 	// Subscribe to store changes without causing re-renders
 	useEffect(() => {
 		const unsubscribe = useStore.subscribe((state) => {
@@ -91,23 +94,34 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 			// Update dragging state for zIndex
 			const isBeingDragged = state.draggedEntity?.id === entity.id;
 			isDragging.value = isBeingDragged ? 1 : 0;
+
+			// Check if we're in reorder mode (same entity type)
+			const isSameType = state.draggedEntity?.type === entity.type;
+			isReorderMode.value = isSameType && isHovered ? 1 : 0;
 		});
 		return unsubscribe;
-	}, [entity.id, isHighlighted, isDragging]);
+	}, [entity.id, entity.type, isHighlighted, isDragging, isReorderMode]);
 
-	const animatedStyle = useAnimatedStyle(() => ({
-		backgroundColor: interpolateColor(
-			isHighlighted.value,
-			[0, 1],
-			['transparent', 'rgba(184, 92, 56, 0.15)']
-		),
-		borderRadius: 12,
-		zIndex: isDragging.value ? 1000 : 0,
-		elevation: isDragging.value ? 1000 : 0,
-		// Width and padding to maintain grid layout
-		width: '25%',
-		paddingHorizontal: 4,
-	}));
+	const animatedStyle = useAnimatedStyle(() => {
+		// Different colors: blue for reordering, orange for transaction
+		const targetColor = isReorderMode.value
+			? 'rgba(96, 165, 250, 0.2)' // Blue tint for reordering
+			: 'rgba(184, 92, 56, 0.15)'; // Orange tint for transaction
+
+		return {
+			backgroundColor: interpolateColor(
+				isHighlighted.value,
+				[0, 1],
+				['transparent', targetColor]
+			),
+			borderRadius: 12,
+			zIndex: isDragging.value ? 1000 : 0,
+			elevation: isDragging.value ? 1000 : 0,
+			// Width and padding to maintain grid layout
+			width: '25%',
+			paddingHorizontal: 4,
+		};
+	});
 
 	return (
 		<Animated.View ref={viewRef} style={animatedStyle} onLayout={measureAndRegister}>
