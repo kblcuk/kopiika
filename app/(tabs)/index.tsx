@@ -1,7 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import Animated, {
+	useAnimatedStyle,
+	useSharedValue,
+	withTiming,
+	Easing,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import {
 	EntityGrid,
 	SummaryHeader,
@@ -12,19 +18,19 @@ import {
 import { remeasureAllDropZones } from '@/src/components/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
-import { formatPeriod } from '@/src/utils/format';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 
 export default function HomeScreen() {
 	const {
 		isLoading,
-		currentPeriod,
 		entities,
 		incomeVisible,
+		draggedEntity,
 		initialize,
 		addEntity,
 		setPlan,
 		setDraggedEntity,
+		toggleIncomeVisible,
 	} = useStore();
 
 	const income = useEntitiesWithBalance('income');
@@ -146,6 +152,70 @@ export default function HomeScreen() {
 		remeasureAllDropZones();
 	}, []);
 
+	// Animation for income section
+	const [incomeContentHeight, setIncomeContentHeight] = useState<number | null>(null);
+	const animatedHeight = useSharedValue(0);
+
+	// Measure content height only once
+	const handleIncomeLayout = useCallback(
+		(event: { nativeEvent: { layout: { height: number } } }) => {
+			const height = event.nativeEvent.layout.height;
+			if (height > 0 && incomeContentHeight === null) {
+				setIncomeContentHeight(height);
+				animatedHeight.value = incomeVisible ? height : 0;
+				// Remeasure drop zones after initial layout to get correct positions
+				setTimeout(() => remeasureAllDropZones(), 100);
+			}
+		},
+		[incomeContentHeight, incomeVisible, animatedHeight]
+	);
+
+	// Once we have the content height, animate based on visibility
+	useEffect(() => {
+		if (incomeContentHeight !== null) {
+			animatedHeight.value = withTiming(
+				incomeVisible ? incomeContentHeight : 0,
+				{
+					duration: 250,
+					easing: Easing.out(Easing.cubic),
+				},
+				(finished) => {
+					// Remeasure drop zones after animation completes
+					if (finished) {
+						scheduleOnRN(remeasureAllDropZones);
+					}
+				}
+			);
+		}
+	}, [incomeVisible, incomeContentHeight, animatedHeight]);
+
+	// Check if we're dragging an income item to elevate the container
+	const isDraggingIncome = draggedEntity?.type === 'income';
+
+	// Convert to shared value for use in animated style
+	const isDraggingIncomeShared = useSharedValue(isDraggingIncome);
+
+	// Update shared value when dragging state changes
+	useEffect(() => {
+		isDraggingIncomeShared.value = isDraggingIncome;
+	}, [isDraggingIncome, isDraggingIncomeShared]);
+
+	const animatedStyle = useAnimatedStyle(() => {
+		if (incomeContentHeight === null) {
+			// During measurement phase, don't constrain height
+			return { overflow: 'hidden' };
+		}
+		return {
+			height: animatedHeight.value,
+			// Allow overflow when dragging so item doesn't get clipped
+			overflow: isDraggingIncomeShared.value ? 'visible' : 'hidden',
+		};
+	});
+
+	const handleToggleIncome = useCallback(() => {
+		toggleIncomeVisible();
+	}, [toggleIncomeVisible]);
+
 	if (isLoading) {
 		return (
 			<SafeAreaView className="flex-1 items-center justify-center bg-paper-100">
@@ -157,7 +227,10 @@ export default function HomeScreen() {
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
 			{/* Summary bar */}
-			<SummaryHeader fromEntity={!modalVisible ? fromEntity : null} />
+			<SummaryHeader
+				fromEntity={!modalVisible ? fromEntity : null}
+				onToggleIncome={handleToggleIncome}
+			/>
 
 			{/* Content */}
 			<ScrollView
@@ -166,18 +239,33 @@ export default function HomeScreen() {
 				onScrollEndDrag={handleScrollEnd}
 				onMomentumScrollEnd={handleScrollEnd}
 			>
-				{incomeVisible && (
-					<EntityGrid
-						title="Income"
-						type="income"
-						entities={income}
-						onDragStart={handleDragStart}
-						onDragEnd={handleDragEnd}
-						onTap={handleTap}
-						onLongPress={handleLongPress}
-						onAdd={handleAdd}
-					/>
-				)}
+				{/* Always render income section, control visibility with animation */}
+				<Animated.View
+					style={[
+						animatedStyle,
+						{
+							zIndex: isDraggingIncome ? 1000 : 10,
+							elevation: isDraggingIncome ? 1000 : 10,
+						},
+					]}
+				>
+					<View
+						{...(incomeContentHeight === null && { onLayout: handleIncomeLayout })}
+						pointerEvents={incomeVisible ? 'auto' : 'none'}
+					>
+						<EntityGrid
+							title="Income"
+							type="income"
+							entities={income}
+							onDragStart={handleDragStart}
+							onDragEnd={handleDragEnd}
+							onTap={handleTap}
+							onLongPress={handleLongPress}
+							onAdd={handleAdd}
+							dropZonesDisabled={!incomeVisible}
+						/>
+					</View>
+				</Animated.View>
 				<EntityGrid
 					title="Accounts"
 					type="account"

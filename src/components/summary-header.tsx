@@ -68,16 +68,12 @@ export function useSummary(): SummaryData {
 
 interface SummaryHeaderProps {
 	fromEntity?: EntityWithBalance | null;
+	onToggleIncome?: () => void;
 }
 
-export function SummaryHeader({ fromEntity }: SummaryHeaderProps) {
+export function SummaryHeader({ fromEntity, onToggleIncome }: SummaryHeaderProps) {
 	const { balance, expenses, planned } = useSummary();
-	const { incomeVisible, toggleIncomeVisible } = useStore(
-		useShallow((state) => ({
-			incomeVisible: state.incomeVisible,
-			toggleIncomeVisible: state.toggleIncomeVisible,
-		}))
-	);
+	const incomeVisible = useStore((state) => state.incomeVisible);
 
 	return (
 		<View className="border-b border-paper-300 bg-paper-100">
@@ -91,7 +87,7 @@ export function SummaryHeader({ fromEntity }: SummaryHeaderProps) {
 
 				{/* Income toggle button */}
 				<Pressable
-					onPress={toggleIncomeVisible}
+					onPress={onToggleIncome}
 					hitSlop={8}
 					className="ml-4 h-6 w-6 items-center justify-center"
 				>
