@@ -83,7 +83,6 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	}, [entity, onDragStart]);
 
 	const lastTargetIdRef = useRef<string | null>(null);
-	const isLongPressActiveRef = useRef(false);
 
 	const handleDragUpdate = useCallback(
 		(absoluteX: number, absoluteY: number) => {
@@ -112,32 +111,24 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 
 	const elevation = useSharedValue(0);
 
-	// Long press gesture to enter drag mode
+	// Long press gesture to open detail modal
 	const longPressGesture = Gesture.LongPress()
-		.minDuration(500)
+		.minDuration(400)
 		.onStart(() => {
-			isLongPressActiveRef.current = true;
-			// Visual feedback: slight scale and haptic
+			// Visual feedback: slight scale
 			scale.value = withSpring(1.05);
 		})
+		.onEnd(() => {
+			scale.value = withSpring(1);
+			scheduleOnRN(handleTap);
+		})
 		.onFinalize(() => {
-			// If long press completes without panning, reset
-			if (!isLongPressActiveRef.current) {
-				scale.value = withSpring(1);
-			}
+			scale.value = withSpring(1);
 		});
 
-	// Pan gesture - only activates after long press
+	// Pan gesture - activates immediately when dragging
 	const panGesture = Gesture.Pan()
-		.manualActivation(true)
-		.onTouchesMove((event, state) => {
-			// Only activate pan if long press is active
-			if (isLongPressActiveRef.current) {
-				state.activate();
-			} else {
-				state.fail();
-			}
-		})
+		.minDistance(10)
 		.onStart(() => {
 			scale.value = withSpring(1.15);
 			zIndex.value = 1000;
@@ -157,25 +148,11 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 			zIndex.value = 0;
 			elevation.value = 0;
 			opacity.value = withTiming(1);
-			isLongPressActiveRef.current = false;
 			scheduleOnRN(handleDragEnd, event.absoluteX, event.absoluteY);
-		})
-		.onFinalize(() => {
-			isLongPressActiveRef.current = false;
 		});
 
-	// Tap gesture - quick tap to open detail
-	const tapGesture = Gesture.Tap()
-		.maxDuration(250)
-		.onEnd(() => {
-			scheduleOnRN(handleTap);
-		});
-
-	// Compose gestures: tap is exclusive with long press, pan runs simultaneously
-	const composedGesture = Gesture.Simultaneous(
-		Gesture.Exclusive(tapGesture, longPressGesture),
-		panGesture
-	);
+	// Compose gestures: pan and long press are mutually exclusive
+	const composedGesture = Gesture.Exclusive(panGesture, longPressGesture);
 
 	const animatedStyle = useAnimatedStyle(() => ({
 		transform: [
