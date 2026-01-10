@@ -108,6 +108,10 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		opacity: opacity.value,
 	}));
 
+	const mainAmount = formatAmount(
+		['income', 'account'].includes(entity.type) ? entity.remaining : entity.actual
+	);
+
 	return (
 		<GestureDetector gesture={composedGesture}>
 			<Animated.View style={animatedStyle} className="items-center py-2">
@@ -125,13 +129,13 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 					<IconComponent size={28} color="#6B5D4A" />
 				</View>
 
-				{/* Remaining amount */}
+				{/* Main amount */}
 				<Text
 					className={`font-sans-semibold text-sm ${
 						overspent ? 'text-negative' : 'text-ink'
 					}`}
 				>
-					{formatAmount(entity.remaining)}
+					{mainAmount}
 				</Text>
 
 				{/* Planned amount */}
