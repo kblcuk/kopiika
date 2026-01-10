@@ -33,6 +33,10 @@ interface AppState {
 
 	// Transaction actions
 	addTransaction: (transaction: Transaction) => Promise<void>;
+	updateTransaction: (
+		id: string,
+		updates: { amount?: number; note?: string; timestamp?: number }
+	) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 }
 
@@ -105,6 +109,13 @@ export const useStore = create<AppState>((set, get) => ({
 	addTransaction: async (transaction) => {
 		await db.createTransaction(transaction);
 		set((state) => ({ transactions: [transaction, ...state.transactions] }));
+	},
+
+	updateTransaction: async (id, updates) => {
+		await db.updateTransaction(id, updates);
+		set((state) => ({
+			transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+		}));
 	},
 
 	deleteTransaction: async (id) => {

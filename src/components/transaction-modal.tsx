@@ -8,8 +8,10 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { ArrowRight, Calendar } from 'lucide-react-native';
 
-import type { EntityWithBalance } from '@/src/types';
+import type { EntityWithBalance, Transaction } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
 import { useStore, generateId } from '@/src/store';
 
@@ -18,6 +20,7 @@ interface TransactionModalProps {
 	fromEntity: EntityWithBalance | null;
 	toEntity: EntityWithBalance | null;
 	onClose: () => void;
+	existingTransaction?: Transaction;
 }
 
 export function TransactionModal({
@@ -25,21 +28,62 @@ export function TransactionModal({
 	fromEntity,
 	toEntity,
 	onClose,
+	existingTransaction,
 }: TransactionModalProps) {
 	const [amount, setAmount] = useState('');
 	const [note, setNote] = useState('');
+	const [selectedDate, setSelectedDate] = useState(new Date());
+	const [showDatePicker, setShowDatePicker] = useState(false);
 	const inputRef = useRef<TextInput>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
+	const updateTransaction = useStore((state) => state.updateTransaction);
+
+	const isEditing = !!existingTransaction;
 
 	// Reset and focus when modal opens
 	useEffect(() => {
 		if (visible) {
-			setAmount('');
-			setNote('');
+			if (existingTransaction) {
+				setAmount(existingTransaction.amount.toString());
+				setNote(existingTransaction.note ?? '');
+				setSelectedDate(new Date(existingTransaction.timestamp));
+			} else {
+				setAmount('');
+				setNote('');
+				setSelectedDate(new Date());
+			}
+			setShowDatePicker(false);
 			// Focus input after a short delay to ensure modal is visible
 			setTimeout(() => inputRef.current?.focus(), 100);
 		}
-	}, [visible]);
+	}, [visible, existingTransaction]);
+
+	const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
+		if (Platform.OS === 'android') {
+			setShowDatePicker(false);
+		}
+		if (date) {
+			setSelectedDate(date);
+		}
+	};
+
+	const formatDateDisplay = (date: Date): string => {
+		const today = new Date();
+		const yesterday = new Date(today);
+		yesterday.setDate(yesterday.getDate() - 1);
+
+		if (date.toDateString() === today.toDateString()) {
+			return 'Today';
+		}
+		if (date.toDateString() === yesterday.toDateString()) {
+			return 'Yesterday';
+		}
+		return date.toLocaleDateString(undefined, {
+			weekday: 'short',
+			month: 'short',
+			day: 'numeric',
+		});
+	};
 
 	if (!fromEntity || !toEntity) return null;
 
@@ -62,15 +106,38 @@ export function TransactionModal({
 		const numAmount = parseFloat(amount);
 		if (isNaN(numAmount) || numAmount <= 0) return;
 
-		await addTransaction({
-			id: generateId(),
-			from_entity_id: fromEntity.id,
-			to_entity_id: toEntity.id,
-			amount: numAmount,
-			currency: fromEntity.currency,
-			timestamp: Date.now(),
-			note: note.trim() || undefined,
-		});
+		// Use selected date but preserve current time for new transactions
+		const timestamp = isEditing
+			? selectedDate.getTime()
+			: (() => {
+					const now = new Date();
+					const result = new Date(selectedDate);
+					result.setHours(
+						now.getHours(),
+						now.getMinutes(),
+						now.getSeconds(),
+						now.getMilliseconds()
+					);
+					return result.getTime();
+				})();
+
+		if (isEditing && existingTransaction) {
+			await updateTransaction(existingTransaction.id, {
+				amount: numAmount,
+				note: note.trim() || undefined,
+				timestamp,
+			});
+		} else {
+			await addTransaction({
+				id: generateId(),
+				from_entity_id: fromEntity.id,
+				to_entity_id: toEntity.id,
+				amount: numAmount,
+				currency: fromEntity.currency,
+				timestamp,
+				note: note.trim() || undefined,
+			});
+		}
 
 		onClose();
 	};
@@ -97,7 +164,9 @@ export function TransactionModal({
 					<Pressable onPress={onClose} hitSlop={20}>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">New Transaction</Text>
+					<Text className="font-sans-semibold text-base text-ink">
+						{isEditing ? 'Edit Transaction' : 'New Transaction'}
+					</Text>
 					<Pressable
 						onPress={handleSubmit}
 						disabled={!amount || parseFloat(amount) <= 0}
@@ -116,25 +185,27 @@ export function TransactionModal({
 				{/* Content */}
 				<View className="flex-1 px-5 pt-6">
 					{/* From → To */}
-					<View className="mb-8 flex-row items-center justify-center">
-						<View className="items-center">
+					<View className="mb-8 flex-row items-start">
+						<View className="flex-1 items-center">
 							<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
 								<Text className="font-sans-medium text-xl text-ink-muted">
 									{fromEntity.name.charAt(0)}
 								</Text>
 							</View>
-							<Text className="font-sans text-sm text-ink-muted">
+							<Text className="font-sans text-sm text-ink-muted" numberOfLines={1}>
 								{fromEntity.name}
 							</Text>
 						</View>
-						<Text className="mx-4 font-sans text-2xl text-ink-faint">→</Text>
-						<View className="items-center">
+						<View className="items-center px-2 py-3">
+							<ArrowRight size={24} color="#2C2416" />
+						</View>
+						<View className="flex-1 items-center">
 							<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
 								<Text className="font-sans-medium text-xl text-ink-muted">
 									{toEntity.name.charAt(0)}
 								</Text>
 							</View>
-							<Text className="font-sans text-sm text-ink-muted">
+							<Text className="font-sans text-sm text-ink-muted" numberOfLines={1}>
 								{toEntity.name}
 							</Text>
 						</View>
@@ -160,8 +231,8 @@ export function TransactionModal({
 							</Text>
 						</View>
 
-						{/* Suggested amount button */}
-						{suggestedAmount && (
+						{/* Suggested amount button (only for new transactions) */}
+						{!isEditing && suggestedAmount && (
 							<Pressable
 								onPress={handleUseSuggested}
 								className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
@@ -170,6 +241,52 @@ export function TransactionModal({
 									Use remaining: {formatAmount(suggestedAmount)}
 								</Text>
 							</Pressable>
+						)}
+					</View>
+
+					{/* Date picker */}
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Date
+						</Text>
+						{Platform.OS === 'ios' ? (
+							<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100">
+								<View className="flex-1 flex-row items-center px-4 py-2">
+									<Calendar size={20} color="#6B5D4A" />
+									<Text className="ml-3 font-sans text-base text-ink">
+										{formatDateDisplay(selectedDate)}
+									</Text>
+								</View>
+								<DateTimePicker
+									value={selectedDate}
+									mode="date"
+									display="compact"
+									onChange={handleDateChange}
+									maximumDate={new Date()}
+									accentColor="#B85C38"
+								/>
+							</View>
+						) : (
+							<>
+								<Pressable
+									onPress={() => setShowDatePicker(true)}
+									className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3"
+								>
+									<Calendar size={20} color="#6B5D4A" />
+									<Text className="ml-3 font-sans text-base text-ink">
+										{formatDateDisplay(selectedDate)}
+									</Text>
+								</Pressable>
+								{showDatePicker && (
+									<DateTimePicker
+										value={selectedDate}
+										mode="date"
+										display="default"
+										onChange={handleDateChange}
+										maximumDate={new Date()}
+									/>
+								)}
+							</>
 						)}
 					</View>
 

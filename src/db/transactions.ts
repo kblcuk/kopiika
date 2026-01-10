@@ -70,6 +70,33 @@ export async function deleteTransaction(id: string): Promise<void> {
 	await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
 }
 
+export async function updateTransaction(
+	id: string,
+	updates: { amount?: number; note?: string; timestamp?: number }
+): Promise<void> {
+	const db = await getDatabase();
+	const fields: string[] = [];
+	const values: (number | string | null)[] = [];
+
+	if (updates.amount !== undefined) {
+		fields.push('amount = ?');
+		values.push(updates.amount);
+	}
+	if (updates.note !== undefined) {
+		fields.push('note = ?');
+		values.push(updates.note || null);
+	}
+	if (updates.timestamp !== undefined) {
+		fields.push('timestamp = ?');
+		values.push(updates.timestamp);
+	}
+
+	if (fields.length === 0) return;
+
+	values.push(id);
+	await db.runAsync(`UPDATE transactions SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
 // Calculate actual spent/received for an entity in a period
 export async function getEntityActual(
 	entityId: string,
