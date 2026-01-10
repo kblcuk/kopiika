@@ -15,6 +15,7 @@ import * as Icons from 'lucide-react-native';
 import type { EntityType } from '@/src/types';
 import { useStore, generateId } from '@/src/store';
 import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
+import { styles } from '../styles/text-input';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -133,7 +134,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							value={name}
 							onChangeText={setName}
 							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base leading-[initial] text-ink"
+							className="rounded-lg border border-paper-400 bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
+							style={styles.input}
 							placeholderTextColor="#9C8B74"
 							autoCapitalize="words"
 						/>
@@ -176,13 +178,14 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Planned Amount (optional)
 						</Text>
-						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+						<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3">
 							<TextInput
 								value={plannedAmount}
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl leading-[initial] text-ink"
+								className="flex-1 font-sans-semibold text-2xl  text-ink"
+								style={styles.input}
 								placeholderTextColor="#9C8B74"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">UAH</Text>

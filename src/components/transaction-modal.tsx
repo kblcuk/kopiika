@@ -14,6 +14,7 @@ import { ArrowRight, Calendar } from 'lucide-react-native';
 import type { EntityWithBalance, Transaction } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
 import { useStore, generateId } from '@/src/store';
+import { styles } from '../styles/text-input';
 
 interface TransactionModalProps {
 	visible: boolean;
@@ -216,14 +217,15 @@ export function TransactionModal({
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Amount
 						</Text>
-						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+						<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3">
 							<TextInput
 								ref={inputRef}
 								value={amount}
 								onChangeText={setAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-3xl leading-[initial] text-ink"
+								className="flex-1 font-sans-semibold text-3xl  text-ink"
+								style={styles.input}
 								placeholderTextColor="#9C8B74"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
@@ -250,7 +252,7 @@ export function TransactionModal({
 							Date
 						</Text>
 						{Platform.OS === 'ios' ? (
-							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100">
+							<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100">
 								<View className="flex-1 flex-row items-center px-4 py-2">
 									<Calendar size={20} color="#6B5D4A" />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -270,7 +272,7 @@ export function TransactionModal({
 							<>
 								<Pressable
 									onPress={() => setShowDatePicker(true)}
-									className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3"
+									className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3"
 								>
 									<Calendar size={20} color="#6B5D4A" />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -299,7 +301,8 @@ export function TransactionModal({
 							value={note}
 							onChangeText={setNote}
 							placeholder="Add a note..."
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base leading-[initial] text-ink"
+							className="rounded-lg border border-paper-400 bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
+							style={styles.input}
 							placeholderTextColor="#9C8B74"
 						/>
 					</View>
