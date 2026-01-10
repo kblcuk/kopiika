@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "kopiika",
 		"slug": "kopiika",
-		"version": "1.0.0",
+		"version": "0.0.1",
 		"orientation": "portrait",
 		"icon": "./assets/images/icon.png",
 		"scheme": "kopiika",
@@ -10,7 +10,11 @@
 		"newArchEnabled": true,
 		"ios": {
 			"supportsTablet": true,
-			"bundleIdentifier": "com.kopiika"
+			"bundleIdentifier": "com.kblcuk.kopiika",
+			"appleTeamId": "N84BXWAR5B",
+			"config": {
+				"usesNonExemptEncryption": false
+			}
 		},
 		"android": {
 			"adaptiveIcon": {
@@ -20,7 +24,7 @@
 				"monochromeImage": "./assets/images/android-icon-monochrome.png"
 			},
 			"edgeToEdgeEnabled": true,
-			"package": "com.kopiika"
+			"package": "com.kblcuk.kopiika"
 		},
 		"web": {
 			"output": "static",

@@ -1,0 +1,84 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Set up code signing (create/download distribution certificate and provisioning profile)"
+  lane :setup_signing do
+    # Create or download distribution certificate
+    cert(
+      team_id: "N84BXWAR5B",
+      username: ENV["APPLE_ID"]
+    )
+
+    # Create or download App Store provisioning profile
+    # This automatically installs to ~/Library/MobileDevice/Provisioning Profiles/
+    sigh(
+      app_identifier: "com.kblcuk.kopiika",
+      team_id: "N84BXWAR5B",
+      username: ENV["APPLE_ID"],
+      force: true, # Recreate if needed
+      skip_install: false # Ensure it's installed to system location
+    )
+  end
+
+  desc "Build the app"
+  lane :build do
+    gym(
+      workspace: "ios/kopiika.xcworkspace",
+      scheme: "kopiika",
+      export_method: "app-store",
+      export_team_id: "N84BXWAR5B",
+      xcargs: "DEVELOPMENT_TEAM=N84BXWAR5B",
+      export_options: {
+        provisioningProfiles: {
+          "com.kblcuk.kopiika" => "com.kblcuk.kopiika AppStore"
+        }
+      }
+    )
+  end
+
+  desc "Upload latest build to TestFlight (without rebuilding)"
+  lane :upload do
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      skip_submission: true
+    )
+  end
+
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # Build the app
+    gym(
+      workspace: "ios/kopiika.xcworkspace",
+      scheme: "kopiika",
+      export_method: "app-store",
+      export_team_id: "N84BXWAR5B",
+      xcargs: "DEVELOPMENT_TEAM=N84BXWAR5B",
+      clean: true,
+      export_options: {
+        provisioningProfiles: {
+          "com.kblcuk.kopiika" => "com.kblcuk.kopiika AppStore"
+        }
+      }
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      skip_submission: true
+      # distribute_external: false,
+      # notify_external_testers: false
+    )
+  end
+end
