@@ -103,27 +103,14 @@ export default function HomeScreen() {
 		[setDraggedEntity, allEntities]
 	);
 
-	const handleTap = useCallback(
-		(entity: EntityWithBalance) => {
-			// If already have a from entity, this becomes the to entity
-			if (fromEntity && fromEntity.id !== entity.id) {
-				setToEntity(entity);
-				setModalVisible(true);
-			} else {
-				// First tap - set as from entity
-				setFromEntity(entity);
-			}
-		},
-		[fromEntity]
-	);
-
 	const handleCloseModal = useCallback(() => {
 		setModalVisible(false);
 		setFromEntity(null);
 		setToEntity(null);
 	}, []);
 
-	const handleLongPress = useCallback((entity: EntityWithBalance) => {
+	// const handleLongPress = useCallback((entity: EntityWithBalance) => {
+	const handleTap = useCallback((entity: EntityWithBalance) => {
 		// Clear any transaction selection state
 		setFromEntity(null);
 		setToEntity(null);
@@ -227,10 +214,7 @@ export default function HomeScreen() {
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
 			{/* Summary bar */}
-			<SummaryHeader
-				fromEntity={!modalVisible ? fromEntity : null}
-				onToggleIncome={handleToggleIncome}
-			/>
+			<SummaryHeader onToggleIncome={handleToggleIncome} />
 
 			{/* Content */}
 			<ScrollView
@@ -260,7 +244,6 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 							dropZonesDisabled={!incomeVisible}
 						/>
@@ -273,7 +256,6 @@ export default function HomeScreen() {
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
-					onLongPress={handleLongPress}
 					onAdd={handleAdd}
 				/>
 				<EntityGrid
@@ -283,7 +265,6 @@ export default function HomeScreen() {
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
-					onLongPress={handleLongPress}
 					onAdd={handleAdd}
 				/>
 				<EntityGrid
@@ -293,7 +274,6 @@ export default function HomeScreen() {
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
-					onLongPress={handleLongPress}
 					onAdd={handleAdd}
 				/>
 

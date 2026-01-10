@@ -6,7 +6,6 @@ import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useStore } from '@/src/store';
 import { getPeriodRange } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
-import type { EntityWithBalance } from '@/src/types';
 
 interface SummaryData {
 	balance: number;
@@ -67,11 +66,10 @@ export function useSummary(): SummaryData {
 }
 
 interface SummaryHeaderProps {
-	fromEntity?: EntityWithBalance | null;
 	onToggleIncome?: () => void;
 }
 
-export function SummaryHeader({ fromEntity, onToggleIncome }: SummaryHeaderProps) {
+export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 	const { balance, expenses, planned } = useSummary();
 	const incomeVisible = useStore((state) => state.incomeVisible);
 
@@ -98,15 +96,6 @@ export function SummaryHeader({ fromEntity, onToggleIncome }: SummaryHeaderProps
 					)}
 				</Pressable>
 			</View>
-
-			{/* Selection indicator */}
-			{fromEntity && (
-				<View className="border-t border-accent/20 bg-accent/5 px-4 py-1.5">
-					<Text className="font-sans text-xs text-accent">
-						{fromEntity.name} → Tap or drag to another
-					</Text>
-				</View>
-			)}
 		</View>
 	);
 }
