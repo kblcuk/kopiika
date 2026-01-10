@@ -1,38 +1,28 @@
-// Entity types
-export type EntityType = 'income' | 'account' | 'category' | 'saving';
+import type { InferSelectModel } from 'drizzle-orm';
+import * as schema from '@/src/db/drizzle-schema';
 
-export interface Entity {
-	id: string;
-	type: EntityType;
-	name: string;
-	currency: string;
-	icon?: string;
-	color?: string;
-	owner_id?: string;
-	order: number;
-}
+// Drizzle-inferred types with optional fields properly typed
+// Drizzle returns `| null` for optional fields, but our app uses `| undefined`
+type DrizzleEntity = InferSelectModel<typeof schema.entities>;
+type DrizzlePlan = InferSelectModel<typeof schema.plans>;
+type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 
-// Plan types
+// Convert Drizzle's null types to optional (undefined) for better TypeScript ergonomics
+export type Entity = Omit<DrizzleEntity, 'icon' | 'color' | 'owner_id'> & {
+	icon?: string | null;
+	color?: string | null;
+	owner_id?: string | null;
+};
+
+export type Plan = DrizzlePlan;
+
+export type Transaction = Omit<DrizzleTransaction, 'note'> & {
+	note?: string | null;
+};
+
+// Extract EntityType from Drizzle schema
+export type EntityType = Entity['type'];
 export type PlanPeriod = 'month';
-
-export interface Plan {
-	id: string;
-	entity_id: string;
-	period: PlanPeriod;
-	period_start: string; // YYYY-MM format
-	planned_amount: number;
-}
-
-// Transaction types
-export interface Transaction {
-	id: string;
-	from_entity_id: string;
-	to_entity_id: string;
-	amount: number;
-	currency: string;
-	timestamp: number;
-	note?: string;
-}
 
 // Derived types for UI
 export interface EntityWithBalance extends Entity {
