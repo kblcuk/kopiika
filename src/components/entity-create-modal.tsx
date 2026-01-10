@@ -14,51 +14,12 @@ import * as Icons from 'lucide-react-native';
 
 import type { EntityType } from '@/src/types';
 import { useStore, generateId } from '@/src/store';
+import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
 
 interface EntityCreateModalProps {
 	visible: boolean;
 	entityType: EntityType | null;
 	onClose: () => void;
-}
-
-// Icon options per entity type
-const ICON_OPTIONS: Record<EntityType, string[]> = {
-	income: ['briefcase', 'building', 'gift', 'percent', 'trending-up', 'wallet'],
-	account: ['credit-card', 'banknote', 'landmark', 'piggy-bank', 'wallet', 'coins'],
-	category: [
-		'shopping-cart',
-		'car',
-		'coffee',
-		'film',
-		'utensils',
-		'home',
-		'heart',
-		'zap',
-		'smartphone',
-		'shirt',
-		'book',
-		'dumbbell',
-		'cat',
-		'dog',
-	],
-
-	saving: ['plane', 'shield', 'gift', 'home', 'graduation-cap', 'car', 'heart', 'star'],
-};
-
-// Default icons per type
-const DEFAULT_ICONS: Record<EntityType, string> = {
-	income: 'briefcase',
-	account: 'credit-card',
-	category: 'shopping-cart',
-	saving: 'piggy-bank',
-};
-
-// Convert kebab-case to PascalCase for lucide icon lookup
-function toIconName(name: string): string {
-	return name
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join('');
 }
 
 export function EntityCreateModal({ visible, entityType, onClose }: EntityCreateModalProps) {
@@ -172,7 +133,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							value={name}
 							onChangeText={setName}
 							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
+							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base leading-[initial] text-ink"
 							placeholderTextColor="#9C8B74"
 							autoCapitalize="words"
 						/>
@@ -221,7 +182,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl text-ink"
+								className="flex-1 font-sans-semibold text-2xl leading-[initial] text-ink"
 								placeholderTextColor="#9C8B74"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">UAH</Text>
