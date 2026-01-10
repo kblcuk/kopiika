@@ -9,14 +9,14 @@ interface AddEntityBubbleProps {
 
 export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 	return (
-		<Pressable onPress={() => onPress(type)} className="items-center py-1.5">
+		<Pressable onPress={() => onPress(type)} className="items-center px-3.5 py-1.5">
 			{/* Placeholder for name spacing */}
 			<View className="mb-1.5 h-4" />
 
 			{/* Dashed circle with plus icon */}
-			<View className="relative mb-1.5 h-[72px] w-[72px] items-center justify-center">
+			<View className="relative mb-1.5 h-[72px] w-[72px] items-center justify-center px-4">
 				<View
-					className="border-paper-400 h-16 w-16 items-center justify-center rounded-full border-2 border-dashed"
+					className="h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-paper-400"
 					style={{ backgroundColor: 'transparent' }}
 				>
 					<Plus size={28} color="#9A8A78" />
