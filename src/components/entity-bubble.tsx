@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { View, Text } from 'react-native';
-import { Pressable, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
@@ -82,6 +82,10 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		onDragStart?.(entity);
 	}, [entity, onDragStart]);
 
+	const handleDragBegin = useCallback(() => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+	}, []);
+
 	const lastTargetIdRef = useRef<string | null>(null);
 
 	const handleDragUpdate = useCallback(
@@ -107,6 +111,7 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 
 	const handleTap = useCallback(() => {
 		onTap?.(entity);
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 	}, [entity, onTap]);
 
 	const elevation = useSharedValue(0);
@@ -129,6 +134,9 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	// Pan gesture - activates immediately when dragging
 	const panGesture = Gesture.Pan()
 		.minDistance(10)
+		.onBegin(() => {
+			scheduleOnRN(handleDragBegin);
+		})
 		.onStart(() => {
 			scale.value = withSpring(1.15);
 			zIndex.value = 1000;
@@ -171,57 +179,51 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 
 	return (
 		<GestureDetector gesture={composedGesture}>
-			<Pressable
-				onPress={() => {
-					Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-				}}
-			>
-				<Animated.View style={animatedStyle} className="items-center py-1.5">
-					{/* Name */}
-					<Text
-						className="mb-1.5 text-center font-sans text-xs text-ink"
-						numberOfLines={1}
-						ellipsizeMode="tail"
-					>
-						{entity.name}
-					</Text>
+			<Animated.View style={animatedStyle} className="items-center py-1.5">
+				{/* Name */}
+				<Text
+					className="mb-1.5 text-center font-sans text-xs text-ink"
+					numberOfLines={1}
+					ellipsizeMode="tail"
+				>
+					{entity.name}
+				</Text>
 
-					{/* Icon circle with progress ring */}
-					<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
-						{/* Progress ring */}
-						{entity.type === 'account' || entity.planned === 0 ? null : (
-							<View className="absolute">
-								<CircularProgress
-									size={64}
-									strokeWidth={3}
-									progress={progress}
-									inverse={entity.type === 'saving'}
-								/>
-							</View>
-						)}
-						{/* Icon background */}
-						<View
-							className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
-						>
-							<IconComponent size={24} color={typeColors.iconColor} />
+				{/* Icon circle with progress ring */}
+				<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
+					{/* Progress ring */}
+					{entity.type === 'account' || entity.planned === 0 ? null : (
+						<View className="absolute">
+							<CircularProgress
+								size={64}
+								strokeWidth={3}
+								progress={progress}
+								inverse={entity.type === 'saving'}
+							/>
 						</View>
-					</View>
-
-					{/* Main amount */}
-					<Text
-						className={`font-sans-semibold text-sm ${
-							overspent ? 'text-negative' : 'text-ink'
-						}`}
+					)}
+					{/* Icon background */}
+					<View
+						className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
 					>
-						{mainAmount}
-					</Text>
+						<IconComponent size={24} color={typeColors.iconColor} />
+					</View>
+				</View>
 
-					{/* Planned amount */}
-					<Text className="font-sans text-xs text-ink-muted">
-						{formatAmount(entity.planned)}
-					</Text>
-				</Animated.View>
-			</Pressable>
+				{/* Main amount */}
+				<Text
+					className={`font-sans-semibold text-sm ${
+						overspent ? 'text-negative' : 'text-ink'
+					}`}
+				>
+					{mainAmount}
+				</Text>
+
+				{/* Planned amount */}
+				<Text className="font-sans text-xs text-ink-muted">
+					{formatAmount(entity.planned)}
+				</Text>
+			</Animated.View>
 		</GestureDetector>
 	);
 }
