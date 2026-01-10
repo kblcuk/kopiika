@@ -9,7 +9,7 @@ interface AddEntityBubbleProps {
 
 export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 	return (
-		<Pressable onPress={() => onPress(type)} className="items-center px-3.5 py-1.5">
+		<Pressable onPress={() => onPress(type)} className="items-center px-3 py-1.5">
 			{/* Placeholder for name spacing */}
 			<View className="mb-1.5 h-4" />
 
