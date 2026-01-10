@@ -2,9 +2,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EntityGrid, SummaryHeader, TransactionModal } from '@/src/components';
+import {
+	EntityGrid,
+	SummaryHeader,
+	TransactionModal,
+	EntityDetailModal,
+	EntityCreateModal,
+} from '@/src/components';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
-import type { EntityWithBalance } from '@/src/types';
+import type { EntityType, EntityWithBalance } from '@/src/types';
 import { formatPeriod } from '@/src/utils/format';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 
@@ -12,6 +18,7 @@ export default function HomeScreen() {
 	const { isLoading, currentPeriod, entities, initialize, addEntity, setPlan, setDraggedEntity } =
 		useStore();
 
+	const income = useEntitiesWithBalance('income');
 	const accounts = useEntitiesWithBalance('account');
 	const categories = useEntitiesWithBalance('category');
 	const savings = useEntitiesWithBalance('saving');
@@ -20,6 +27,14 @@ export default function HomeScreen() {
 	const [modalVisible, setModalVisible] = useState(false);
 	const [fromEntity, setFromEntity] = useState<EntityWithBalance | null>(null);
 	const [toEntity, setToEntity] = useState<EntityWithBalance | null>(null);
+
+	// Detail modal state
+	const [detailModalVisible, setDetailModalVisible] = useState(false);
+	const [detailEntity, setDetailEntity] = useState<EntityWithBalance | null>(null);
+
+	// Create modal state
+	const [createModalVisible, setCreateModalVisible] = useState(false);
+	const [createEntityType, setCreateEntityType] = useState<EntityType | null>(null);
 
 	useEffect(() => {
 		initialize();
@@ -45,8 +60,8 @@ export default function HomeScreen() {
 
 	// Combine all entities for lookup by ID
 	const allEntities = useMemo(
-		() => [...accounts, ...categories, ...savings],
-		[accounts, categories, savings]
+		() => [...income, ...accounts, ...categories, ...savings],
+		[income, accounts, categories, savings]
 	);
 
 	const handleDragStart = useCallback(
@@ -93,6 +108,30 @@ export default function HomeScreen() {
 		setToEntity(null);
 	}, []);
 
+	const handleLongPress = useCallback((entity: EntityWithBalance) => {
+		// Clear any transaction selection state
+		setFromEntity(null);
+		setToEntity(null);
+		// Open detail modal
+		setDetailEntity(entity);
+		setDetailModalVisible(true);
+	}, []);
+
+	const handleCloseDetailModal = useCallback(() => {
+		setDetailModalVisible(false);
+		setDetailEntity(null);
+	}, []);
+
+	const handleAdd = useCallback((type: EntityType) => {
+		setCreateEntityType(type);
+		setCreateModalVisible(true);
+	}, []);
+
+	const handleCloseCreateModal = useCallback(() => {
+		setCreateModalVisible(false);
+		setCreateEntityType(null);
+	}, []);
+
 	if (isLoading) {
 		return (
 			<SafeAreaView className="flex-1 items-center justify-center bg-paper-100">
@@ -126,12 +165,24 @@ export default function HomeScreen() {
 			{/* Content */}
 			<ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 16 }}>
 				<EntityGrid
+					title="Income"
+					type="income"
+					entities={income}
+					onDragStart={handleDragStart}
+					onDragEnd={handleDragEnd}
+					onTap={handleTap}
+					onLongPress={handleLongPress}
+					onAdd={handleAdd}
+				/>
+				<EntityGrid
 					title="Accounts"
 					type="account"
 					entities={accounts}
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
+					onLongPress={handleLongPress}
+					onAdd={handleAdd}
 				/>
 				<EntityGrid
 					title="Categories"
@@ -140,6 +191,8 @@ export default function HomeScreen() {
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
+					onLongPress={handleLongPress}
+					onAdd={handleAdd}
 				/>
 				<EntityGrid
 					title="Savings"
@@ -148,6 +201,8 @@ export default function HomeScreen() {
 					onDragStart={handleDragStart}
 					onDragEnd={handleDragEnd}
 					onTap={handleTap}
+					onLongPress={handleLongPress}
+					onAdd={handleAdd}
 				/>
 
 				{entities.length === 0 && (
@@ -165,6 +220,20 @@ export default function HomeScreen() {
 				fromEntity={fromEntity}
 				toEntity={toEntity}
 				onClose={handleCloseModal}
+			/>
+
+			{/* Entity Detail Modal */}
+			<EntityDetailModal
+				visible={detailModalVisible}
+				entity={detailEntity}
+				onClose={handleCloseDetailModal}
+			/>
+
+			{/* Entity Create Modal */}
+			<EntityCreateModal
+				visible={createModalVisible}
+				entityType={createEntityType}
+				onClose={handleCloseCreateModal}
 			/>
 		</SafeAreaView>
 	);

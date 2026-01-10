@@ -145,11 +145,23 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 
 			let actual = 0;
 			switch (entity.type) {
-				case 'income':
 				case 'account':
 					actual = periodTransactions
-						.filter((t) => t.from_entity_id === entity.id)
-						.reduce((sum, t) => sum + t.amount, 0);
+						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
+						.reduce(
+							(sum, t) =>
+								t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
+							0
+						);
+					break;
+				case 'income':
+					actual = periodTransactions
+						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
+						.reduce(
+							(sum, t) =>
+								t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
+							0
+						);
 					break;
 				case 'category':
 				case 'saving':

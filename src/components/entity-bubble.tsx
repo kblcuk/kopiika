@@ -20,6 +20,7 @@ interface EntityBubbleProps {
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
+	onLongPress?: (entity: EntityWithBalance) => void;
 }
 
 // Convert kebab-case to PascalCase for lucide icon lookup
@@ -30,7 +31,13 @@ function toIconName(name: string): string {
 		.join('');
 }
 
-export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBubbleProps) {
+export function EntityBubble({
+	entity,
+	onDragStart,
+	onDragEnd,
+	onTap,
+	onLongPress,
+}: EntityBubbleProps) {
 	const setHoveredDropZoneId = useStore((state) => state.setHoveredDropZoneId);
 
 	const translateX = useSharedValue(0);
@@ -71,6 +78,10 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		onTap?.(entity);
 	}, [entity, onTap]);
 
+	const handleLongPress = useCallback(() => {
+		onLongPress?.(entity);
+	}, [entity, onLongPress]);
+
 	const panGesture = Gesture.Pan()
 		.onStart(() => {
 			scale.value = withSpring(1.15);
@@ -96,7 +107,13 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		scheduleOnRN(handleTap);
 	});
 
-	const composedGesture = Gesture.Race(panGesture, tapGesture);
+	const longPressGesture = Gesture.LongPress()
+		.minDuration(400)
+		.onEnd(() => {
+			scheduleOnRN(handleLongPress);
+		});
+
+	const composedGesture = Gesture.Race(panGesture, longPressGesture, tapGesture);
 
 	const animatedStyle = useAnimatedStyle(() => ({
 		transform: [
@@ -108,9 +125,7 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		opacity: opacity.value,
 	}));
 
-	const mainAmount = formatAmount(
-		['income', 'account'].includes(entity.type) ? entity.remaining : entity.actual
-	);
+	const mainAmount = formatAmount('account' === entity.type ? entity.remaining : entity.actual);
 
 	return (
 		<GestureDetector gesture={composedGesture}>

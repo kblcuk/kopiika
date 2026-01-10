@@ -4,3 +4,5 @@ export { EntityGrid } from './entity-grid';
 export { SummaryHeader } from './summary-header';
 export { DropZone, findDropTarget } from './drop-zone';
 export { TransactionModal } from './transaction-modal';
+export { EntityDetailModal } from './entity-detail-modal';
+export { EntityCreateModal } from './entity-create-modal';
