@@ -1,73 +1,65 @@
+import { eq, max } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
-import { getDatabase } from './schema';
+import { getDrizzleDb } from './drizzle-client';
+import { entities } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
-	const db = await getDatabase();
-	const result = await db.getAllAsync<Entity>('SELECT * FROM entities ORDER BY type, "order"');
-	return result;
+	const db = getDrizzleDb();
+	return await db.select().from(entities).orderBy(entities.type, entities.order);
 }
 
 export async function getEntitiesByType(type: EntityType): Promise<Entity[]> {
-	const db = await getDatabase();
-	const result = await db.getAllAsync<Entity>(
-		'SELECT * FROM entities WHERE type = ? ORDER BY "order"',
-		[type]
-	);
-	return result;
+	const db = getDrizzleDb();
+	return await db.select().from(entities).where(eq(entities.type, type)).orderBy(entities.order);
 }
 
 export async function getEntityById(id: string): Promise<Entity | null> {
-	const db = await getDatabase();
-	const result = await db.getFirstAsync<Entity>('SELECT * FROM entities WHERE id = ?', [id]);
-	return result;
+	const db = getDrizzleDb();
+	const result = await db.select().from(entities).where(eq(entities.id, id)).limit(1);
+	return result[0] ?? null;
 }
 
 export async function createEntity(entity: Entity): Promise<void> {
-	const db = await getDatabase();
-	await db.runAsync(
-		`INSERT INTO entities (id, type, name, currency, icon, color, owner_id, "order")
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		[
-			entity.id,
-			entity.type,
-			entity.name,
-			entity.currency,
-			entity.icon ?? null,
-			entity.color ?? null,
-			entity.owner_id ?? null,
-			entity.order,
-		]
-	);
+	const db = getDrizzleDb();
+	await db.insert(entities).values({
+		id: entity.id,
+		type: entity.type,
+		name: entity.name,
+		currency: entity.currency,
+		icon: entity.icon ?? null,
+		color: entity.color ?? null,
+		owner_id: entity.owner_id ?? null,
+		order: entity.order,
+	});
 }
 
 export async function updateEntity(entity: Entity): Promise<void> {
-	const db = await getDatabase();
-	await db.runAsync(
-		`UPDATE entities SET type = ?, name = ?, currency = ?, icon = ?, color = ?, owner_id = ?, "order" = ?
-		 WHERE id = ?`,
-		[
-			entity.type,
-			entity.name,
-			entity.currency,
-			entity.icon ?? null,
-			entity.color ?? null,
-			entity.owner_id ?? null,
-			entity.order,
-			entity.id,
-		]
-	);
+	const db = getDrizzleDb();
+	await db
+		.update(entities)
+		.set({
+			type: entity.type,
+			name: entity.name,
+			currency: entity.currency,
+			icon: entity.icon ?? null,
+			color: entity.color ?? null,
+			owner_id: entity.owner_id ?? null,
+			order: entity.order,
+		})
+		.where(eq(entities.id, entity.id));
 }
 
 export async function deleteEntity(id: string): Promise<void> {
-	const db = await getDatabase();
-	await db.runAsync('DELETE FROM entities WHERE id = ?', [id]);
+	const db = getDrizzleDb();
+	// Cascade delete is handled by FK constraint in schema
+	await db.delete(entities).where(eq(entities.id, id));
 }
 
 export async function getNextOrder(type: EntityType): Promise<number> {
-	const db = await getDatabase();
-	const result = await db.getFirstAsync<{ maxOrder: number | null }>(
-		'SELECT MAX("order") as maxOrder FROM entities WHERE type = ?',
-		[type]
-	);
-	return (result?.maxOrder ?? -1) + 1;
+	const db = getDrizzleDb();
+	const result = await db
+		.select({ maxOrder: max(entities.order) })
+		.from(entities)
+		.where(eq(entities.type, type));
+	return (result[0]?.maxOrder ?? -1) + 1;
 }

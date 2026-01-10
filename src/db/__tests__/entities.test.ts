@@ -1,5 +1,4 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import type * as SQLite from 'expo-sqlite';
 import type { Entity, EntityType } from '@/src/types';
 import {
 	getAllEntities,
@@ -10,19 +9,19 @@ import {
 	deleteEntity,
 	getNextOrder,
 } from '../entities';
-import { createTestDatabase } from './test-utils';
+import { createTestDrizzleDb } from './test-utils';
 
-// Mock the schema module
-jest.mock('@/src/db/schema');
+import { getDrizzleDb } from '../drizzle-client';
 
-import { getDatabase } from '../schema';
+// Mock the drizzle-client module
+jest.mock('@/src/db/drizzle-client');
 
 describe('entities.ts', () => {
-	let testDb: SQLite.SQLiteDatabase;
+	let testDb: ReturnType<typeof createTestDrizzleDb>;
 
-	beforeEach(async () => {
-		testDb = await createTestDatabase();
-		jest.mocked(getDatabase).mockResolvedValue(testDb);
+	beforeEach(() => {
+		testDb = createTestDrizzleDb();
+		jest.mocked(getDrizzleDb).mockReturnValue(testDb as any);
 	});
 
 	describe('createEntity', () => {
@@ -266,24 +265,31 @@ describe('entities.ts', () => {
 			};
 			await createEntity(entity);
 
-			// Create plan for entity
-			await testDb.runAsync(
-				'INSERT INTO plans (id, entity_id, period, period_start, planned_amount) VALUES (?, ?, ?, ?, ?)',
-				['plan-1', 'cascade-test', 'month', '2025-01', 1000]
-			);
+			// Create plan for entity using Drizzle
+			const { plans } = await import('../drizzle-schema');
+			const { eq } = await import('drizzle-orm');
+			await testDb.insert(plans).values({
+				id: 'plan-1',
+				entity_id: 'cascade-test',
+				period: 'month',
+				period_start: '2025-01',
+				planned_amount: 1000,
+			});
 
 			// Verify plan exists
-			const plan = await testDb.getFirstAsync('SELECT * FROM plans WHERE id = ?', ['plan-1']);
-			expect(plan).not.toBeNull();
+			const plan = await testDb.select().from(plans).where(eq(plans.id, 'plan-1')).limit(1);
+			expect(plan[0]).not.toBeUndefined();
 
 			// Delete entity
 			await deleteEntity('cascade-test');
 
 			// Plan should be cascade deleted
-			const deletedPlan = await testDb.getFirstAsync('SELECT * FROM plans WHERE id = ?', [
-				'plan-1',
-			]);
-			expect(deletedPlan).toBeNull();
+			const deletedPlan = await testDb
+				.select()
+				.from(plans)
+				.where(eq(plans.id, 'plan-1'))
+				.limit(1);
+			expect(deletedPlan[0]).toBeUndefined();
 		});
 	});
 
