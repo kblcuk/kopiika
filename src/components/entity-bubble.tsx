@@ -188,7 +188,8 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 		opacity: opacity.value,
 	}));
 
-	const mainAmount = formatAmount('account' === entity.type ? entity.remaining : entity.actual);
+	// Income shows remaining (how much left to receive), everything else shows actual
+	const mainAmount = formatAmount(entity.type === 'income' ? entity.remaining : entity.actual);
 	const typeColors = getEntityTypeColors(entity.type);
 
 	return (
