@@ -1,10 +1,12 @@
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
 import { getPeriodRange } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
+import type { EntityWithBalance } from '@/src/types';
 
 interface SummaryData {
 	balance: number;
@@ -64,14 +66,51 @@ export function useSummary(): SummaryData {
 	}, [entities, plans, transactions, currentPeriod]);
 }
 
-export function SummaryHeader() {
+interface SummaryHeaderProps {
+	fromEntity?: EntityWithBalance | null;
+}
+
+export function SummaryHeader({ fromEntity }: SummaryHeaderProps) {
 	const { balance, expenses, planned } = useSummary();
+	const { incomeVisible, toggleIncomeVisible } = useStore(
+		useShallow((state) => ({
+			incomeVisible: state.incomeVisible,
+			toggleIncomeVisible: state.toggleIncomeVisible,
+		}))
+	);
 
 	return (
-		<View className="flex-row justify-between border-b border-paper-300 bg-paper-100 px-4 py-3">
-			<SummaryItem label="Balance" value={balance} />
-			<SummaryItem label="Expenses" value={expenses} />
-			<SummaryItem label="Planned" value={planned} />
+		<View className="border-b border-paper-300 bg-paper-100">
+			{/* Main summary row */}
+			<View className="flex-row items-center justify-between px-4 py-3">
+				<View className="flex-1 flex-row justify-between">
+					<SummaryItem label="Balance" value={balance} />
+					<SummaryItem label="Expenses" value={expenses} />
+					<SummaryItem label="Planned" value={planned} />
+				</View>
+
+				{/* Income toggle button */}
+				<Pressable
+					onPress={toggleIncomeVisible}
+					hitSlop={8}
+					className="ml-4 h-6 w-6 items-center justify-center"
+				>
+					{incomeVisible ? (
+						<ChevronUp size={18} color="#6B5D4A" />
+					) : (
+						<ChevronDown size={18} color="#6B5D4A" />
+					)}
+				</Pressable>
+			</View>
+
+			{/* Selection indicator */}
+			{fromEntity && (
+				<View className="border-t border-accent/20 bg-accent/5 px-4 py-1.5">
+					<Text className="font-sans text-xs text-accent">
+						{fromEntity.name} → Tap or drag to another
+					</Text>
+				</View>
+			)}
 		</View>
 	);
 }

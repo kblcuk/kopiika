@@ -16,8 +16,16 @@ import { formatPeriod } from '@/src/utils/format';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 
 export default function HomeScreen() {
-	const { isLoading, currentPeriod, entities, initialize, addEntity, setPlan, setDraggedEntity } =
-		useStore();
+	const {
+		isLoading,
+		currentPeriod,
+		entities,
+		incomeVisible,
+		initialize,
+		addEntity,
+		setPlan,
+		setDraggedEntity,
+	} = useStore();
 
 	const income = useEntitiesWithBalance('income');
 	const accounts = useEntitiesWithBalance('account');
@@ -148,25 +156,8 @@ export default function HomeScreen() {
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
-			{/* Header */}
-			<View className="border-b border-paper-300 px-5 pb-4 pt-2">
-				<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
-					{formatPeriod(currentPeriod)}
-				</Text>
-				<Text className="font-sans-bold text-2xl text-ink">Kopiika</Text>
-			</View>
-
 			{/* Summary bar */}
-			<SummaryHeader />
-
-			{/* Selection indicator */}
-			{fromEntity && !modalVisible && (
-				<View className="border-b border-accent bg-accent/10 px-4 py-2">
-					<Text className="font-sans text-sm text-accent">
-						{fromEntity.name} → Tap or drag to another
-					</Text>
-				</View>
-			)}
+			<SummaryHeader fromEntity={!modalVisible ? fromEntity : null} />
 
 			{/* Content */}
 			<ScrollView
@@ -175,16 +166,18 @@ export default function HomeScreen() {
 				onScrollEndDrag={handleScrollEnd}
 				onMomentumScrollEnd={handleScrollEnd}
 			>
-				<EntityGrid
-					title="Income"
-					type="income"
-					entities={income}
-					onDragStart={handleDragStart}
-					onDragEnd={handleDragEnd}
-					onTap={handleTap}
-					onLongPress={handleLongPress}
-					onAdd={handleAdd}
-				/>
+				{incomeVisible && (
+					<EntityGrid
+						title="Income"
+						type="income"
+						entities={income}
+						onDragStart={handleDragStart}
+						onDragEnd={handleDragEnd}
+						onTap={handleTap}
+						onLongPress={handleLongPress}
+						onAdd={handleAdd}
+					/>
+				)}
 				<EntityGrid
 					title="Accounts"
 					type="account"

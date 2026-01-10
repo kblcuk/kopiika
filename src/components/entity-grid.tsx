@@ -1,7 +1,7 @@
-import { View, Text, Pressable } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { View, Text } from 'react-native';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { EntityBubble } from './entity-bubble';
+import { AddEntityBubble } from './add-entity-bubble';
 import { DropZone } from './drop-zone';
 
 interface EntityGridProps {
@@ -27,20 +27,13 @@ export function EntityGrid({
 }: EntityGridProps) {
 	return (
 		<View className="mb-4">
-			{/* Section title with add button */}
-			<View className="mb-2 flex-row items-center justify-between px-4">
-				<Text className="font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+			{/* Inset divider with section title */}
+			<View className="mb-2 flex-row items-center px-4">
+				<View className="h-px flex-1 bg-paper-300" />
+				<Text className="px-3 font-sans text-xs uppercase tracking-wider text-ink-muted">
 					{title}
 				</Text>
-				{onAdd && (
-					<Pressable
-						onPress={() => onAdd(type)}
-						hitSlop={12}
-						className="h-6 w-6 items-center justify-center rounded-full bg-paper-200"
-					>
-						<Plus size={14} color="#6B5D4A" />
-					</Pressable>
-				)}
+				<View className="h-px flex-1 bg-paper-300" />
 			</View>
 
 			{/* Grid of bubbles */}
@@ -56,6 +49,11 @@ export function EntityGrid({
 						/>
 					</DropZone>
 				))}
+
+				{/* Add entity bubble */}
+				{onAdd && <AddEntityBubble type={type} onPress={onAdd} />}
+
+				{/* Empty state */}
 				{entities.length === 0 && (
 					<View className="w-full items-center py-4">
 						<Text className="font-sans text-sm text-ink-faint">

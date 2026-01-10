@@ -16,12 +16,14 @@ interface AppState {
 	isLoading: boolean;
 	draggedEntity: Entity | null;
 	hoveredDropZoneId: string | null;
+	incomeVisible: boolean;
 
 	// Actions
 	initialize: () => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
 	setDraggedEntity: (entity: Entity | null) => void;
 	setHoveredDropZoneId: (id: string | null) => void;
+	toggleIncomeVisible: () => void;
 
 	// Entity actions
 	addEntity: (entity: Entity) => Promise<void>;
@@ -49,6 +51,7 @@ export const useStore = create<AppState>((set, get) => ({
 	isLoading: true,
 	draggedEntity: null,
 	hoveredDropZoneId: null,
+	incomeVisible: false,
 
 	// Initialize from database
 	initialize: async () => {
@@ -69,6 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
 	setDraggedEntity: (entity) => set({ draggedEntity: entity }),
 	setHoveredDropZoneId: (id) => set({ hoveredDropZoneId: id }),
+	toggleIncomeVisible: () => set((state) => ({ incomeVisible: !state.incomeVisible })),
 
 	// Entity actions
 	addEntity: async (entity) => {

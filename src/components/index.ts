@@ -1,6 +1,7 @@
 export { ProgressBar } from './progress-bar';
 export { CircularProgress } from './circular-progress';
 export { EntityBubble } from './entity-bubble';
+export { AddEntityBubble } from './add-entity-bubble';
 export { EntityGrid } from './entity-grid';
 export { SummaryHeader } from './summary-header';
 export { DropZone, findDropTarget } from './drop-zone';
