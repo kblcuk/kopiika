@@ -175,7 +175,7 @@ export function TransactionModal({
 					>
 						<Text
 							className={`font-sans-semibold text-base ${
-								amount && parseFloat(amount) > 0 ? 'text-accent' : 'text-ink-faint'
+								amount && parseFloat(amount) > 0 ? 'text-accent' : 'text-ink-muted'
 							}`}
 						>
 							Save

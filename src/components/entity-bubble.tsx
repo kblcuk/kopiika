@@ -32,6 +32,35 @@ function toIconName(name: string): string {
 		.join('');
 }
 
+// Get background and icon colors based on entity type
+function getEntityTypeColors(type: EntityWithBalance['type']): {
+	bg: string;
+	iconColor: string;
+} {
+	switch (type) {
+		case 'income':
+			return {
+				bg: 'bg-accent/10', // Soft terracotta tint
+				iconColor: '#D4652F', // accent.DEFAULT
+			};
+		case 'account':
+			return {
+				bg: 'bg-paper-300', // Neutral beige
+				iconColor: '#6B5D4A', // ink.muted
+			};
+		case 'category':
+			return {
+				bg: 'bg-positive/10', // Soft green tint
+				iconColor: '#2F7D4A', // positive.DEFAULT
+			};
+		case 'saving':
+			return {
+				bg: 'bg-info/10', // Soft blue tint
+				iconColor: '#2B5F8A', // info.DEFAULT
+			};
+	}
+}
+
 export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBubbleProps) {
 	const setHoveredDropZoneId = useStore((state) => state.setHoveredDropZoneId);
 
@@ -160,6 +189,7 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	}));
 
 	const mainAmount = formatAmount('account' === entity.type ? entity.remaining : entity.actual);
+	const typeColors = getEntityTypeColors(entity.type);
 
 	return (
 		<GestureDetector gesture={composedGesture}>
@@ -192,8 +222,10 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 							</View>
 						)}
 						{/* Icon background */}
-						<View className="h-14 w-14 items-center justify-center rounded-full bg-paper-300">
-							<IconComponent size={24} color="#6B5D4A" />
+						<View
+							className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
+						>
+							<IconComponent size={24} color={typeColors.iconColor} />
 						</View>
 					</View>
 
@@ -207,7 +239,7 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 					</Text>
 
 					{/* Planned amount */}
-					<Text className="text-ink-faint font-sans text-xs">
+					<Text className="font-sans text-xs text-ink-muted">
 						{formatAmount(entity.planned)}
 					</Text>
 				</Animated.View>

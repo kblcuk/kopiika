@@ -55,7 +55,7 @@ export default function SettingsScreen() {
 						className="flex-row items-center justify-between border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>
 						<Text className="font-sans text-base text-ink">Export to CSV</Text>
-						<Text className="text-ink-faint font-sans text-sm">
+						<Text className="font-sans text-sm text-ink-muted">
 							{entities.length} entities, {transactions.length} transactions
 						</Text>
 					</Pressable>
@@ -76,16 +76,16 @@ export default function SettingsScreen() {
 				<View className="overflow-hidden rounded-lg bg-paper-100">
 					<View className="flex-row items-center justify-between px-4 py-3.5">
 						<Text className="font-sans text-base text-ink">Version</Text>
-						<Text className="text-ink-faint font-sans text-sm">1.0.0</Text>
+						<Text className="font-sans text-sm text-ink-muted">1.0.0</Text>
 					</View>
 				</View>
 
 				{/* Footer */}
 				<View className="mt-auto items-center pb-8 pt-6">
-					<Text className="text-ink-faint font-sans text-sm">
+					<Text className="font-sans text-sm text-ink-muted">
 						Kopiika - Personal Finance Tracker
 					</Text>
-					<Text className="text-ink-faint font-sans text-xs">
+					<Text className="font-sans text-xs text-ink-muted">
 						Built with simplicity in mind
 					</Text>
 				</View>

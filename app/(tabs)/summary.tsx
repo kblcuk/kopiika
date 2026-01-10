@@ -26,6 +26,35 @@ function toIconName(name: string): string {
 		.join('');
 }
 
+// Get background and icon colors based on entity type
+function getEntityTypeColors(type: EntityType): {
+	bg: string;
+	iconColor: string;
+} {
+	switch (type) {
+		case 'income':
+			return {
+				bg: 'bg-accent/10', // Soft terracotta tint
+				iconColor: '#D4652F', // accent.DEFAULT
+			};
+		case 'account':
+			return {
+				bg: 'bg-paper-300', // Neutral beige
+				iconColor: '#6B5D4A', // ink.muted
+			};
+		case 'category':
+			return {
+				bg: 'bg-positive/10', // Soft green tint
+				iconColor: '#2F7D4A', // positive.DEFAULT
+			};
+		case 'saving':
+			return {
+				bg: 'bg-info/10', // Soft blue tint
+				iconColor: '#2B5F8A', // info.DEFAULT
+			};
+	}
+}
+
 function SummaryRow({ entity, onPress }: SummaryRowProps) {
 	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
 	const IconComponent =
@@ -33,13 +62,16 @@ function SummaryRow({ entity, onPress }: SummaryRowProps) {
 
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
+	const typeColors = getEntityTypeColors(entity.type);
 
 	return (
 		<Pressable onPress={onPress} className="border-b border-paper-200 px-5 py-4">
 			<View className="flex-row items-center">
 				{/* Icon */}
-				<View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
-					<IconComponent size={20} color="#6B5D4A" />
+				<View
+					className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+				>
+					<IconComponent size={20} color={typeColors.iconColor} />
 				</View>
 
 				{/* Content */}
@@ -55,7 +87,7 @@ function SummaryRow({ entity, onPress }: SummaryRowProps) {
 							>
 								{formatAmount(entity.actual)}
 							</Text>
-							<Text className="text-ink-faint font-sans text-sm">
+							<Text className="font-sans text-sm text-ink-muted">
 								/ {formatAmount(entity.planned)}
 							</Text>
 						</View>

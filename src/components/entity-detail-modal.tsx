@@ -162,7 +162,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
 					<Pressable onPress={handleSave} disabled={!canSave} hitSlop={20}>
 						<Text
-							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-faint'}`}
+							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
 						>
 							Save
 						</Text>

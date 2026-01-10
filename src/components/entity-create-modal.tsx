@@ -115,7 +115,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
 					<Pressable onPress={handleCreate} disabled={!isValid} hitSlop={20}>
 						<Text
-							className={`font-sans-semibold text-base ${isValid ? 'text-accent' : 'text-ink-faint'}`}
+							className={`font-sans-semibold text-base ${isValid ? 'text-accent' : 'text-ink-muted'}`}
 						>
 							Create
 						</Text>

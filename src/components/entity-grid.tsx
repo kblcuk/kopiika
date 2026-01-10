@@ -75,7 +75,7 @@ export function EntityGrid({
 					}
 					ListEmptyComponent={
 						<View className="w-full items-center py-4">
-							<Text className="text-ink-faint font-sans text-sm">
+							<Text className="font-sans text-sm text-ink-muted">
 								No {title.toLowerCase()} yet
 							</Text>
 						</View>
@@ -117,7 +117,7 @@ export function EntityGrid({
 					}
 					ListEmptyComponent={
 						<View className="w-full items-center py-4">
-							<Text className="text-ink-faint font-sans text-sm">
+							<Text className="font-sans text-sm text-ink-muted">
 								No {title.toLowerCase()} yet
 							</Text>
 						</View>
@@ -142,7 +142,7 @@ export function EntityGrid({
 					{/* Empty state */}
 					{entities.length === 0 && (
 						<View className="w-full items-center py-4">
-							<Text className="text-ink-faint font-sans text-sm">
+							<Text className="font-sans text-sm text-ink-muted">
 								No {title.toLowerCase()} yet
 							</Text>
 						</View>

@@ -292,8 +292,32 @@ Accents (for emphasis and interaction):
 
 - Primary actions/income: accent.DEFAULT (#D4652F)
 - Overspending/warnings: negative.DEFAULT (#C23030)
-- Savings/success: positive.DEFAULT (#2F7D4A)
+- Categories/success: positive.DEFAULT (#2F7D4A - green)
+- Savings goals: info.DEFAULT (#2B5F8A - blue)
 - These must always be used on paper.50 or paper.100 for sufficient contrast
+
+Entity Type Color-Coding:
+
+To improve visual distinction, each entity type uses specific background tints and icon colors:
+
+- Income entities:
+    - Background: bg-accent/10 (soft terracotta tint)
+    - Icon color: #D4652F (accent.DEFAULT)
+- Account entities:
+    - Background: bg-paper-300 (neutral beige)
+    - Icon color: #6B5D4A (ink.muted)
+- Category entities:
+    - Background: bg-positive/10 (soft green tint)
+    - Icon color: #2F7D4A (positive.DEFAULT - green)
+- Saving entities:
+    - Background: bg-info/10 (soft blue tint)
+    - Icon color: #2B5F8A (info.DEFAULT - blue)
+
+Progress rings maintain overspent/underspent color logic (not type-specific):
+
+- Healthy progress: positive.DEFAULT (green)
+- Warning: warning.DEFAULT (amber)
+- Overspent: negative.DEFAULT (red)
 
 Dyslexia Considerations:
 

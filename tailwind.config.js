@@ -33,8 +33,12 @@ module.exports = {
 					light: '#E85555',
 				},
 				positive: {
-					DEFAULT: '#2F7D4A', // Brighter green for savings/positive
+					DEFAULT: '#2F7D4A', // Brighter green for categories/positive
 					light: '#4A9D65',
+				},
+				info: {
+					DEFAULT: '#2B5F8A', // Muted blue for savings goals
+					light: '#4A80AB',
 				},
 				warning: {
 					DEFAULT: '#D4842F', // Warm amber for approaching limits
