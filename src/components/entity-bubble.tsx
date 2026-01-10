@@ -149,7 +149,7 @@ export function EntityBubble({
 				{/* Icon circle with progress ring */}
 				<View className="relative mb-1.5 h-[72px] w-[72px] items-center justify-center">
 					{/* Progress ring */}
-					{entity.type === 'account' ? null : (
+					{entity.type === 'account' || entity.planned === 0 ? null : (
 						<View className="absolute">
 							<CircularProgress
 								size={72}
