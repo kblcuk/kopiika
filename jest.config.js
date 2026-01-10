@@ -12,17 +12,9 @@ module.exports = {
 		'^react-native-reanimated$': '<rootDir>/node_modules/react-native-reanimated/mock.js',
 	},
 	collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/__tests__/**'],
+	extensionsToTreatAsEsm: ['.ts', '.tsx'],
 	transform: {
-		'^.+\\.tsx?$': [
-			'ts-jest',
-			{
-				tsconfig: {
-					jsx: 'react',
-					esModuleInterop: true,
-					allowSyntheticDefaultImports: true,
-				},
-			},
-		],
+		'^.+\\.tsx?$': '@swc/jest',
 	},
 	transformIgnorePatterns: [
 		'node_modules/(?!(expo-sqlite|react-native|@react-native|react-native-reanimated|expo)/)',
