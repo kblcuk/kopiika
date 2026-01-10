@@ -39,7 +39,7 @@ export function EntityGrid({
 			</View>
 
 			{/* Grid of bubbles */}
-			<View className="flex-row flex-wrap px-2">
+			<View className="flex-row flex-wrap">
 				{entities.map((entity) => (
 					<DropZone key={entity.id} entity={entity} disabled={dropZonesDisabled}>
 						<EntityBubble
@@ -58,7 +58,7 @@ export function EntityGrid({
 				{/* Empty state */}
 				{entities.length === 0 && (
 					<View className="w-full items-center py-4">
-						<Text className="text-ink-faint font-sans text-sm">
+						<Text className="font-sans text-sm text-ink-faint">
 							No {title.toLowerCase()} yet
 						</Text>
 					</View>

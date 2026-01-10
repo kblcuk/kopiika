@@ -149,7 +149,6 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 			elevation: isDragging.value ? 1000 : 0,
 			// Width and padding to maintain grid layout
 			width: '25%',
-			paddingHorizontal: 4,
 		};
 	});
 

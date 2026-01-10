@@ -153,12 +153,12 @@ export function EntityBubble({
 				</Text>
 
 				{/* Icon circle with progress ring */}
-				<View className="relative mb-1.5 h-[72px] w-[72px] items-center justify-center">
+				<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
 					{/* Progress ring */}
 					{entity.type === 'account' || entity.planned === 0 ? null : (
 						<View className="absolute">
 							<CircularProgress
-								size={72}
+								size={64}
 								strokeWidth={3}
 								progress={progress}
 								inverse={entity.type === 'saving'}
@@ -166,8 +166,8 @@ export function EntityBubble({
 						</View>
 					)}
 					{/* Icon background */}
-					<View className="h-16 w-16 items-center justify-center rounded-full bg-paper-300">
-						<IconComponent size={28} color="#6B5D4A" />
+					<View className="h-14 w-14 items-center justify-center rounded-full bg-paper-300">
+						<IconComponent size={24} color="#6B5D4A" />
 					</View>
 				</View>
 
@@ -181,7 +181,7 @@ export function EntityBubble({
 				</Text>
 
 				{/* Planned amount */}
-				<Text className="text-ink-faint font-sans text-xs">
+				<Text className="font-sans text-xs text-ink-faint">
 					{formatAmount(entity.planned)}
 				</Text>
 			</Animated.View>
