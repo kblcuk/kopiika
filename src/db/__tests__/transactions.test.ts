@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from '@jest/globals';
+import { describe, expect, test, beforeEach } from 'bun:test';
 import type { Transaction, Entity } from '@/src/types';
 import {
 	getAllTransactions,
@@ -316,8 +316,8 @@ describe('transactions.ts', () => {
 			expect(result.find((tx) => tx.id === 'tx-delete')).toBeUndefined();
 		});
 
-		test('should not error when deleting non-existent transaction', async () => {
-			await expect(deleteTransaction('non-existent')).resolves.not.toThrow();
+		test('should not error when deleting non-existent transaction', () => {
+			expect(deleteTransaction('non-existent')).resolves.toBeUndefined();
 		});
 	});
 

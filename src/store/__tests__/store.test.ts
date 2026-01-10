@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from '@jest/globals';
+import { describe, expect, test, beforeEach } from 'bun:test';
 import type { Entity, Plan, Transaction } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';

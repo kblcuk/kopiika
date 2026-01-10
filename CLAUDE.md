@@ -363,13 +363,16 @@ TECH STACK
 ────────────────────────────────────────
 
 **Package Manager & Runtime:**
+
 - **Bun** (NOT npm, NOT yarn)
-  - Use `bun install` to install dependencies
-  - Use `bun run test` to run tests (uses Jest, not Bun's test runner due to better-sqlite3)
-  - Use `bun run <script>` for package.json scripts
-  - NEVER use `npm` or `yarn` commands
+    - Use `bun install` to install dependencies
+    - Use `bun test` to run unit tests (Bun's test runner)
+    - Use `bun run test` to run component tests (Jest)
+    - Use `bun run <script>` for package.json scripts
+    - NEVER use `npm` or `yarn` commands
 
 **Core:**
+
 - React Native
 - Expo (bare workflow)
 - lucide-react for icons
@@ -380,6 +383,7 @@ TECH STACK
 - react-native-reanimated for animations
 
 **Future:**
+
 - Victory charts (later)
 
 ────────────────────────────────────────

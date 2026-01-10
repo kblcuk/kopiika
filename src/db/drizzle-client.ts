@@ -3,7 +3,7 @@ import * as schema from './drizzle-schema';
 
 const DATABASE_NAME = 'kopiika.db';
 
-// Environment detection - use better-sqlite3 in tests, expo-sqlite in production
+// Environment detection - use bun:sqlite in tests, expo-sqlite in production
 const isTestEnvironment =
 	process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
 
@@ -62,10 +62,11 @@ export async function getDrizzleDb() {
 
 	if (isTestEnvironment) {
 		// Dynamic import to avoid loading Node.js modules in React Native
-		const Database = (await import('better-sqlite3')).default;
-		const { drizzle } = await import('drizzle-orm/better-sqlite3');
+		const Database = (await import('bun:sqlite')).default;
+		const { drizzle } = await import('drizzle-orm/bun-sqlite');
 
 		const sqlite = new Database(':memory:');
+		sqlite.run('PRAGMA foreign_keys = ON;');
 		sqlite.exec(SCHEMA_SQL);
 		drizzleDb = drizzle(sqlite, { schema });
 	} else {

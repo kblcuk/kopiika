@@ -244,8 +244,8 @@ describe('entities.ts', () => {
 			expect(await getEntityById('delete-test')).toBeNull();
 		});
 
-		test('should not error when deleting non-existent entity', async () => {
-			await expect(deleteEntity('non-existent')).resolves.not.toThrow();
+		test('should not error when deleting non-existent entity', () => {
+			expect(deleteEntity('non-existent')).resolves.toBeUndefined();
 		});
 
 		test('should cascade delete plans for entity', async () => {

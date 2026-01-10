@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from '@jest/globals';
+import { describe, expect, test, beforeEach } from 'bun:test';
 import type { Plan, Entity } from '@/src/types';
 import {
 	getAllPlans,
@@ -371,8 +371,8 @@ describe('plans.ts', () => {
 			expect(result).toBeNull();
 		});
 
-		test('should not error when deleting non-existent plan', async () => {
-			await expect(deletePlan('non-existent')).resolves.not.toThrow();
+		test('should not error when deleting non-existent plan', () => {
+			expect(deletePlan('non-existent')).resolves.toBeUndefined();
 		});
 	});
 });
