@@ -100,11 +100,15 @@ export function createDefaultPlans(entities: Entity[]): Plan[] {
 		'Emergency Fund': 3000,
 	};
 
-	return entities.map((entity) => ({
-		id: generateId(),
-		entity_id: entity.id,
-		period: 'month' as const,
-		period_start: period,
-		planned_amount: planAmounts[entity.name] ?? 0,
-	}));
+	return entities.map((entity) => {
+		return {
+			id: generateId(),
+			entity_id: entity.id,
+			// Savings use 'all-time' period for goals, others use 'month'
+			period: entity.type === 'saving' ? ('all-time' as const) : ('month' as const),
+			// period_start is always a date (YYYY-MM) representing when the plan started
+			period_start: period,
+			planned_amount: planAmounts[entity.name] ?? 0,
+		};
+	});
 }

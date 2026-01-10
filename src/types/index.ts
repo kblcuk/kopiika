@@ -22,7 +22,11 @@ export type Transaction = Omit<DrizzleTransaction, 'note'> & {
 
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
-export type PlanPeriod = 'month';
+export type PlanPeriod = 'month' | 'all-time';
+
+// Period semantics:
+// - period: 'month' = recurring monthly plan, period_start indicates which month (e.g., '2026-01')
+// - period: 'all-time' = cumulative goal (e.g., savings), period_start indicates when goal was created (e.g., '2026-01')
 
 // Derived types for UI
 export interface EntityWithBalance extends Entity {

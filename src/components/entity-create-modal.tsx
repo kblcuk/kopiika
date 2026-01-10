@@ -85,7 +85,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			await setPlan({
 				id: generateId(),
 				entity_id: entityId,
-				period: 'month',
+				// Savings use 'all-time' period for goals, others use 'month'
+				period: entityType === 'saving' ? 'all-time' : 'month',
+				// period_start is always a date (YYYY-MM) representing when the plan started
 				period_start: currentPeriod,
 				planned_amount: amount,
 			});

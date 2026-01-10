@@ -58,6 +58,9 @@ export const useStore = create<AppState>((set, get) => ({
 	initialize: async () => {
 		set({ isLoading: true });
 		try {
+			// Run migration for savings plans (idempotent - safe to run multiple times)
+			await db.migrateSavingsPlansToAllTime();
+
 			const [entities, plans, transactions] = await Promise.all([
 				db.getAllEntities(),
 				db.getAllPlans(),
@@ -217,28 +220,38 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 			.sort((a, b) => a.order - b.order);
 
 		return filteredEntities.map((entity) => {
-			const plan = plans.find(
-				(p) => p.entity_id === entity.id && p.period_start === currentPeriod
-			);
+			// Savings use 'all-time' period for plans, others use 'month' period with current period_start
+			const plan =
+				entity.type === 'saving'
+					? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
+					: plans.find(
+							(p) =>
+								p.entity_id === entity.id &&
+								p.period === 'month' &&
+								p.period_start === currentPeriod
+						);
 			const planned = plan?.planned_amount ?? 0;
 
-			const periodTransactions = transactions.filter(
-				(t) => t.timestamp >= start && t.timestamp <= end
-			);
+			// Accounts and savings use all transactions (all-time balance)
+			// Income and categories use current period only
+			const useAllTime = entity.type === 'account' || entity.type === 'saving';
+			const relevantTransactions = useAllTime
+				? transactions
+				: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
 
 			let actual = 0;
 			switch (entity.type) {
 				case 'account':
-					actual = periodTransactions
+					actual = relevantTransactions
 						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
 						.reduce(
 							(sum, t) =>
-								t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
+								t.from_entity_id === entity.id ? sum - t.amount : sum + t.amount,
 							0
 						);
 					break;
 				case 'income':
-					actual = periodTransactions
+					actual = relevantTransactions
 						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
 						.reduce(
 							(sum, t) =>
@@ -248,7 +261,7 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 					break;
 				case 'category':
 				case 'saving':
-					actual = periodTransactions
+					actual = relevantTransactions
 						.filter((t) => t.to_entity_id === entity.id)
 						.reduce((sum, t) => sum + t.amount, 0);
 					break;

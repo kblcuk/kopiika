@@ -47,8 +47,16 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	);
 
 	// Find existing plan for this entity
+	// Savings use 'all-time' period, others use 'month' period with current period_start
 	const existingPlan = entity
-		? plans.find((p) => p.entity_id === entity.id && p.period_start === currentPeriod)
+		? entity.type === 'saving'
+			? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
+			: plans.find(
+					(p) =>
+						p.entity_id === entity.id &&
+						p.period === 'month' &&
+						p.period_start === currentPeriod
+				)
 		: null;
 
 	// Reset when modal opens
@@ -110,8 +118,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		await setPlan({
 			id: existingPlan?.id ?? generateId(),
 			entity_id: entity.id,
-			period: 'month',
-			period_start: currentPeriod,
+			// Savings use 'all-time' period for goals, others use 'month'
+			period: entity.type === 'saving' ? 'all-time' : 'month',
+			// period_start is always a date (YYYY-MM)
+			// If updating existing plan, preserve original period_start; otherwise use current period
+			period_start: existingPlan?.period_start ?? currentPeriod,
 			planned_amount: amount,
 		});
 

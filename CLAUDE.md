@@ -55,20 +55,32 @@ order: number
 PLANNING (INTENT)
 ────────────────────────────────────────
 
-Planning is period-based (month only for v1).
+Planning supports both monthly budgets and all-time goals.
 
 Plan model:
 
 Plan {
 id: string
 entity_id: string
-period: 'month'
-period_start: string // YYYY-MM
+period: 'month' | 'all-time'
+period_start: string // YYYY-MM (when plan was created/started)
 planned_amount: number
 }
 
+Period semantics:
+
+- period: 'month' = recurring monthly budget (for income, accounts, categories)
+    - period_start indicates which month the budget applies to (e.g., '2026-01')
+- period: 'all-time' = cumulative goal (for savings)
+    - period_start indicates when the goal was created (e.g., '2026-01')
+
 Plans are compared against derived actuals.
 Plans never block transactions.
+
+Balance calculation by entity type:
+
+- Income & Categories: Use current month transactions only
+- Accounts & Savings: Use all transactions (all-time balance/progress)
 
 ────────────────────────────────────────
 TRANSACTIONS (REALITY)
@@ -136,7 +148,7 @@ Add indices on:
 - transactions.timestamp
 - transactions.from_entity_id
 - transactions.to_entity_id
-- plans.entity_id + plans.period_start
+- plans.entity_id + plans.period_start (composite index for monthly plan lookups)
 
 ────────────────────────────────────────
 STATE MANAGEMENT
@@ -155,7 +167,9 @@ All computed values (balances, remaining amounts, overspending) must be selector
 
 Selectors must support:
 
-- current month
+- Time-scoped transaction filtering:
+    - Income & Categories: current month only
+    - Accounts & Savings: all-time
 - planned vs actual
 - remaining = planned - actual
 - negative remaining allowed
@@ -164,20 +178,20 @@ Selectors must support:
 MAIN SCREEN UI
 ────────────────────────────────────────
 
-Single primary screen showing current month.
+Single primary screen showing current month for budgets, all-time for balances/goals.
 
 Four sections:
 
-- Income (can be collapsed / almost hidden)
-- Accounts
-- Categories
-- Savings
+- Income (can be collapsed / almost hidden) - shows current month
+- Accounts · Total - shows all-time balance
+- Categories - shows current month
+- Savings · Goal - shows all-time progress
 
 Each item shows:
 
 - icon + name
-- amount for the month (remaining for income/accounts, actual for categories/savings)
-- planned amount
+- actual amount (current month for income/categories, all-time for accounts/savings)
+- planned amount (monthly budget for income/categories, cumulative goal for savings)
 - a progress bar showing relation between actual and planned
 
 Formatting:
@@ -185,6 +199,12 @@ Formatting:
 - Initially show: remaining / planned (e.g. 1000 / 1000)
 - Overspend example: -25 / 1000
 - Negative values are visually emphasized, never hidden
+
+Section titles indicate time scope:
+
+- "Income", "Categories" - implicitly current month
+- "Accounts · Total" - explicitly all-time
+- "Savings · Goal" - explicitly all-time
 
 ────────────────────────────────────────
 INTERACTION RULES

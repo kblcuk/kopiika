@@ -266,7 +266,7 @@ export default function HomeScreen() {
 					</View>
 				</Animated.View>
 				<EntityGrid
-					title="Accounts"
+					title="Accounts · Total"
 					type="account"
 					entities={accounts}
 					onDragStart={handleDragStart}
@@ -286,7 +286,7 @@ export default function HomeScreen() {
 					maxRows={3}
 				/>
 				<EntityGrid
-					title="Savings"
+					title="Savings · Goal"
 					type="saving"
 					entities={savings}
 					onDragStart={handleDragStart}
