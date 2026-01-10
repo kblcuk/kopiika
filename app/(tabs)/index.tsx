@@ -9,6 +9,7 @@ import {
 	EntityDetailModal,
 	EntityCreateModal,
 } from '@/src/components';
+import { remeasureAllDropZones } from '@/src/components/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { formatPeriod } from '@/src/utils/format';
@@ -132,6 +133,11 @@ export default function HomeScreen() {
 		setCreateEntityType(null);
 	}, []);
 
+	// Re-measure drop zones when scrolling ends to account for position changes
+	const handleScrollEnd = useCallback(() => {
+		remeasureAllDropZones();
+	}, []);
+
 	if (isLoading) {
 		return (
 			<SafeAreaView className="flex-1 items-center justify-center bg-paper-100">
@@ -163,7 +169,12 @@ export default function HomeScreen() {
 			)}
 
 			{/* Content */}
-			<ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 16 }}>
+			<ScrollView
+				className="flex-1"
+				contentContainerStyle={{ paddingVertical: 16 }}
+				onScrollEndDrag={handleScrollEnd}
+				onMomentumScrollEnd={handleScrollEnd}
+			>
 				<EntityGrid
 					title="Income"
 					type="income"
