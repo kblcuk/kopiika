@@ -61,24 +61,23 @@ export async function exportAllData(
 	transactions: Transaction[]
 ): Promise<void> {
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-	const baseDir = Paths.cache + 'exports/';
 
 	// Ensure export directory exists
-	new Directory(baseDir).create({ intermediates: true });
+	const dir = new Directory(Paths.cache, 'exports');
+	if (!dir.exists) dir.create({ intermediates: true });
 
 	// Create CSV files
-	const entitiesPath = `${baseDir}entities-${timestamp}.csv`;
-	const plansPath = `${baseDir}plans-${timestamp}.csv`;
-	const transactionsPath = `${baseDir}transactions-${timestamp}.csv`;
+	const entitiesFile = new File(dir.uri, `entities-${timestamp}.csv`);
+	const plansFile = new File(dir.uri, `plans-${timestamp}.csv`);
+	const transactionsFile = new File(dir.uri, `transactions-${timestamp}.csv`);
 
-	new File(entitiesPath).write(entitiesToCsv(entities));
-	new File(plansPath).write(plansToCsv(plans));
-	new File(transactionsPath).write(transactionsToCsv(transactions));
+	entitiesFile.write(entitiesToCsv(entities));
+	plansFile.write(plansToCsv(plans));
+	transactionsFile.write(transactionsToCsv(transactions));
 
 	// Share all files (will share them one at a time on iOS)
 	if (await Sharing.isAvailableAsync()) {
 		// Create a combined export for easier sharing
-		const combinedPath = `${baseDir}kopiika-export-${timestamp}.csv`;
 		const combined = [
 			'# ENTITIES',
 			entitiesToCsv(entities),
@@ -90,8 +89,9 @@ export async function exportAllData(
 			transactionsToCsv(transactions),
 		].join('\n');
 
-		new File(combinedPath).write(combined);
-		await Sharing.shareAsync(combinedPath, {
+		const combinedFile = new File(dir.uri, `kopiika-export-${timestamp}.csv`);
+		combinedFile.write(combined);
+		await Sharing.shareAsync(combinedFile.uri, {
 			mimeType: 'text/csv',
 			dialogTitle: 'Export Kopiika Data',
 		});
