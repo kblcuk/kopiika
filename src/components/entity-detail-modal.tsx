@@ -16,9 +16,11 @@ import * as Icons from 'lucide-react-native';
 import type { EntityWithBalance } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
-import { useStore, generateId } from '@/src/store';
+import { useStore } from '@/src/store';
+
 import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
 import { styles } from '../styles/text-input';
+import { generateId } from '@/src/utils/ids';
 
 interface EntityDetailModalProps {
 	visible: boolean;

@@ -289,8 +289,3 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 		[entities, plans, transactions, currentPeriod, type]
 	);
 }
-
-// Utility for generating IDs
-export function generateId(): string {
-	return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}

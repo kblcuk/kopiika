@@ -13,7 +13,8 @@ import { ArrowRight, Calendar } from 'lucide-react-native';
 
 import type { EntityWithBalance, Transaction } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
-import { useStore, generateId } from '@/src/store';
+import { useStore } from '@/src/store';
+import { generateId } from '@/src/utils/ids';
 import { styles } from '../styles/text-input';
 
 interface TransactionModalProps {

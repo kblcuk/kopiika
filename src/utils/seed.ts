@@ -1,6 +1,6 @@
 import type { Entity, Plan } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
-import { generateId } from '@/src/store';
+import { generateId } from '@/src/utils/ids';
 
 // Default entities for a fresh start
 export function createDefaultEntities(): Entity[] {

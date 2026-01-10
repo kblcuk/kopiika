@@ -13,7 +13,8 @@ import { useShallow } from 'zustand/react/shallow';
 import * as Icons from 'lucide-react-native';
 
 import type { EntityType } from '@/src/types';
-import { useStore, generateId } from '@/src/store';
+import { useStore } from '@/src/store';
+import { generateId } from '@/src/utils/ids';
 import { ICON_OPTIONS, DEFAULT_ICONS, toIconName } from '@/src/constants/icons';
 import { styles } from '../styles/text-input';
 

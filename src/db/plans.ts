@@ -2,7 +2,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import type { Plan } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { plans, entities } from './drizzle-schema';
-import { generateId } from '@/src/store';
+import { generateId } from '@/src/utils/ids';
 
 export async function getAllPlans(): Promise<Plan[]> {
 	const db = await getDrizzleDb();
