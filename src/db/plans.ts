@@ -5,12 +5,12 @@ import { plans, entities } from './drizzle-schema';
 import { generateId } from '@/src/store';
 
 export async function getAllPlans(): Promise<Plan[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db.select().from(plans).orderBy(desc(plans.period_start));
 }
 
 export async function getPlansByPeriod(periodStart: string): Promise<Plan[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db.select().from(plans).where(eq(plans.period_start, periodStart));
 }
 
@@ -18,7 +18,7 @@ export async function getPlanForEntity(
 	entityId: string,
 	periodStart: string
 ): Promise<Plan | null> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	const result = await db
 		.select()
 		.from(plans)
@@ -28,12 +28,12 @@ export async function getPlanForEntity(
 }
 
 export async function createPlan(plan: Plan): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db.insert(plans).values(plan);
 }
 
 export async function updatePlan(plan: Plan): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db
 		.update(plans)
 		.set({
@@ -46,7 +46,7 @@ export async function updatePlan(plan: Plan): Promise<void> {
 }
 
 export async function upsertPlan(plan: Plan): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db
 		.insert(plans)
 		.values(plan)
@@ -57,7 +57,7 @@ export async function upsertPlan(plan: Plan): Promise<void> {
 }
 
 export async function deletePlan(id: string): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db.delete(plans).where(eq(plans.id, id));
 }
 
@@ -73,7 +73,7 @@ export async function deletePlan(id: string): Promise<void> {
  * 5. Deletes the old monthly plans
  */
 export async function migrateSavingsPlansToAllTime(): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 
 	// Get all saving entities
 	const savingEntities = await db.select().from(entities).where(eq(entities.type, 'saving'));

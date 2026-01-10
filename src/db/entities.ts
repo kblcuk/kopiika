@@ -4,23 +4,23 @@ import { getDrizzleDb } from './drizzle-client';
 import { entities } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db.select().from(entities).orderBy(entities.type, entities.order);
 }
 
 export async function getEntitiesByType(type: EntityType): Promise<Entity[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db.select().from(entities).where(eq(entities.type, type)).orderBy(entities.order);
 }
 
 export async function getEntityById(id: string): Promise<Entity | null> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	const result = await db.select().from(entities).where(eq(entities.id, id)).limit(1);
 	return result[0] ?? null;
 }
 
 export async function createEntity(entity: Entity): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db.insert(entities).values({
 		id: entity.id,
 		type: entity.type,
@@ -34,7 +34,7 @@ export async function createEntity(entity: Entity): Promise<void> {
 }
 
 export async function updateEntity(entity: Entity): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db
 		.update(entities)
 		.set({
@@ -50,13 +50,13 @@ export async function updateEntity(entity: Entity): Promise<void> {
 }
 
 export async function deleteEntity(id: string): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	// Cascade delete is handled by FK constraint in schema
 	await db.delete(entities).where(eq(entities.id, id));
 }
 
 export async function getNextOrder(type: EntityType): Promise<number> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	const result = await db
 		.select({ maxOrder: max(entities.order) })
 		.from(entities)
@@ -65,7 +65,7 @@ export async function getNextOrder(type: EntityType): Promise<number> {
 }
 
 export async function updateEntityOrders(updates: { id: string; order: number }[]): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	// Update each entity's order in a transaction
 	for (const update of updates) {
 		await db.update(entities).set({ order: update.order }).where(eq(entities.id, update.id));

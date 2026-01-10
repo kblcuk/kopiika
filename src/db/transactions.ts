@@ -4,7 +4,7 @@ import { getDrizzleDb } from './drizzle-client';
 import { transactions } from './drizzle-schema';
 
 export async function getAllTransactions(): Promise<Transaction[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db.select().from(transactions).orderBy(desc(transactions.timestamp));
 }
 
@@ -12,7 +12,7 @@ export async function getTransactionsByPeriod(
 	startTimestamp: number,
 	endTimestamp: number
 ): Promise<Transaction[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	return await db
 		.select()
 		.from(transactions)
@@ -25,7 +25,7 @@ export async function getTransactionsForEntity(
 	startTimestamp?: number,
 	endTimestamp?: number
 ): Promise<Transaction[]> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 
 	const entityCondition = or(
 		eq(transactions.from_entity_id, entityId),
@@ -50,7 +50,7 @@ export async function getTransactionsForEntity(
 }
 
 export async function createTransaction(transaction: Transaction): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db.insert(transactions).values({
 		id: transaction.id,
 		from_entity_id: transaction.from_entity_id,
@@ -63,7 +63,7 @@ export async function createTransaction(transaction: Transaction): Promise<void>
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 	await db.delete(transactions).where(eq(transactions.id, id));
 }
 
@@ -71,7 +71,7 @@ export async function updateTransaction(
 	id: string,
 	updates: { amount?: number; note?: string; timestamp?: number }
 ): Promise<void> {
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 
 	// Build update object, filtering out undefined values
 	const updateData: Partial<typeof transactions.$inferInsert> = {};
@@ -99,7 +99,7 @@ export async function getBatchEntityActuals(
 		return new Map();
 	}
 
-	const db = getDrizzleDb();
+	const db = await getDrizzleDb();
 
 	// Money coming INTO entities (to_entity_id in entityIds)
 	const inflowResults = await db

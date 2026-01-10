@@ -1,8 +1,4 @@
-import { drizzle as drizzleExpo } from 'drizzle-orm/expo-sqlite';
-import { drizzle as drizzleBetterSqlite3 } from 'drizzle-orm/better-sqlite3';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import Database from 'better-sqlite3';
-import { openDatabaseSync } from 'expo-sqlite';
 import * as schema from './drizzle-schema';
 
 const DATABASE_NAME = 'kopiika.db';
@@ -59,45 +55,42 @@ const SCHEMA_SQL = `
 	CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
 `;
 
-export function getDrizzleDb() {
+export async function getDrizzleDb() {
 	if (drizzleDb) {
 		return drizzleDb;
 	}
 
 	if (isTestEnvironment) {
-		// Use better-sqlite3 for tests (works in Node.js)
+		// Dynamic import to avoid loading Node.js modules in React Native
+		const Database = (await import('better-sqlite3')).default;
+		const { drizzle } = await import('drizzle-orm/better-sqlite3');
+
 		const sqlite = new Database(':memory:');
 		sqlite.exec(SCHEMA_SQL);
-		drizzleDb = drizzleBetterSqlite3(sqlite, { schema });
+		drizzleDb = drizzle(sqlite, { schema });
 	} else {
+		// Dynamic import to avoid bundling Expo modules in tests
+		const { openDatabaseSync } = await import('expo-sqlite');
+		const { drizzle } = await import('drizzle-orm/expo-sqlite');
+
 		const expoDb = openDatabaseSync(DATABASE_NAME, {
 			enableChangeListener: true,
 		});
 		expoDb.execSync(SCHEMA_SQL);
-		drizzleDb = drizzleExpo(expoDb, { schema });
+		drizzleDb = drizzle(expoDb, { schema });
 	}
 	return drizzleDb;
 }
 
-export function getExpoDb() {
+export async function getExpoDb() {
 	if (isTestEnvironment) {
 		throw new Error('getExpoDb() is not available in test environment');
 	}
+	const { openDatabaseSync } = await import('expo-sqlite');
 	return openDatabaseSync(DATABASE_NAME, { enableChangeListener: true });
 }
 
 export function resetDrizzleDb(): void {
-	drizzleDb = null;
-	if (isTestEnvironment) {
-		// For tests, just reset the singleton and let next call recreate
-		return;
-	}
-	const db = getExpoDb();
-	db.execSync(`
-			DROP TABLE IF EXISTS transactions;
-			DROP TABLE IF EXISTS plans;
-			DROP TABLE IF EXISTS entities;
-		`);
-	db.execSync(SCHEMA_SQL);
+	// Reset singleton - next call to getDrizzleDb() will recreate
 	drizzleDb = null;
 }
