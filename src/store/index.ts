@@ -63,7 +63,12 @@ export const useStore = create<AppState>((set, get) => ({
 				db.getAllPlans(),
 				db.getAllTransactions(),
 			]);
-			set({ entities, plans, transactions, isLoading: false });
+
+			// Filter out orphaned plans that reference non-existent entities
+			const entityIds = new Set(entities.map((e) => e.id));
+			const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
+
+			set({ entities, plans: validPlans, transactions, isLoading: false });
 		} catch (error) {
 			console.error('Failed to initialize store:', error);
 			set({ isLoading: false });
@@ -141,6 +146,14 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Plan actions
 	setPlan: async (plan) => {
+		// Validate that the entity exists before setting the plan
+		const state = get();
+		const entityExists = state.entities.some((e) => e.id === plan.entity_id);
+		if (!entityExists) {
+			console.warn(`Cannot set plan for non-existent entity: ${plan.entity_id}`);
+			return;
+		}
+
 		await db.upsertPlan(plan);
 		set((state) => {
 			const existingIndex = state.plans.findIndex((p) => p.id === plan.id);
@@ -155,6 +168,17 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Transaction actions
 	addTransaction: async (transaction) => {
+		// Validate that both entities exist before creating transaction
+		const state = get();
+		const fromExists = state.entities.some((e) => e.id === transaction.from_entity_id);
+		const toExists = state.entities.some((e) => e.id === transaction.to_entity_id);
+		if (!fromExists || !toExists) {
+			console.warn(
+				`Cannot create transaction with non-existent entities: from=${transaction.from_entity_id}, to=${transaction.to_entity_id}`
+			);
+			return;
+		}
+
 		await db.createTransaction(transaction);
 		set((state) => ({ transactions: [transaction, ...state.transactions] }));
 	},
