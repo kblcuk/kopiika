@@ -1,25 +1,34 @@
 import Svg, { Circle } from 'react-native-svg';
+import { getProgressState } from '@/constants/progress';
 
 interface CircularProgressProps {
 	size: number;
 	strokeWidth?: number;
-	progress: number; // 0-100
-	isOverspent?: boolean;
+	progress: number; // 0-100+, can exceed 100 for overspending
+	inverse?: boolean; // For savings/goals where higher progress is better
 	children?: React.ReactNode;
 }
 
 // Theme colors from tailwind config
 const COLORS = {
-	track: '#F5F1EB', // paper-200 (light, subtle)
-	progress: '#6B5D4A', // ink-muted (matches icon color)
-	overspent: '#9B2C2C', // negative
+	track: {
+		default: '#F5F1EB', // paper-200 (light, subtle)
+		healthy: '#E8F5EC', // Light green tint
+		warning: '#FFF4E6', // Light amber tint
+		overspent: '#FDEAEA', // Light red tint
+	},
+	progress: {
+		healthy: '#2F7D4A', // positive.DEFAULT
+		warning: '#D4842F', // warning.DEFAULT
+		overspent: '#C23030', // negative.DEFAULT
+	},
 };
 
 export function CircularProgress({
 	size,
 	strokeWidth = 3,
 	progress,
-	isOverspent = false,
+	inverse = false,
 	children,
 }: CircularProgressProps) {
 	const radius = (size - strokeWidth) / 2;
@@ -29,7 +38,29 @@ export function CircularProgress({
 	// Calculate stroke dash offset (progress starts from bottom, fills clockwise)
 	const strokeDashoffset = circumference - (clampedProgress / 100) * circumference;
 
-	const progressColor = isOverspent ? COLORS.overspent : COLORS.progress;
+	const progressState = getProgressState(progress, inverse);
+
+	const getColors = () => {
+		switch (progressState) {
+			case 'healthy':
+				return {
+					track: COLORS.track.healthy,
+					progress: COLORS.progress.healthy,
+				};
+			case 'warning':
+				return {
+					track: COLORS.track.warning,
+					progress: COLORS.progress.warning,
+				};
+			case 'overspent':
+				return {
+					track: COLORS.track.overspent,
+					progress: COLORS.progress.overspent,
+				};
+		}
+	};
+
+	const colors = getColors();
 
 	return (
 		<Svg width={size} height={size}>
@@ -38,7 +69,7 @@ export function CircularProgress({
 				cx={size / 2}
 				cy={size / 2}
 				r={radius}
-				stroke={COLORS.track}
+				stroke={colors.track}
 				strokeWidth={strokeWidth}
 				fill="transparent"
 			/>
@@ -47,7 +78,7 @@ export function CircularProgress({
 				cx={size / 2}
 				cy={size / 2}
 				r={radius}
-				stroke={progressColor}
+				stroke={colors.progress}
 				strokeWidth={strokeWidth}
 				fill="transparent"
 				strokeDasharray={circumference}

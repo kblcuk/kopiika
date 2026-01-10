@@ -60,7 +60,7 @@ function SummaryRow({ entity }: SummaryRowProps) {
 					</View>
 
 					{/* Progress bar */}
-					<ProgressBar progress={progress} isOverspent={overspent} />
+					<ProgressBar progress={progress} inverse={entity.type === 'saving'} />
 				</View>
 			</View>
 		</View>

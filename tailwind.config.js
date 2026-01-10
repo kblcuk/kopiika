@@ -36,6 +36,10 @@ module.exports = {
 					DEFAULT: '#2F7D4A', // Brighter green for savings/positive
 					light: '#4A9D65',
 				},
+				warning: {
+					DEFAULT: '#D4842F', // Warm amber for approaching limits
+					light: '#E8A55F',
+				},
 				border: {
 					DEFAULT: '#D4C8B3', // Clear, visible borders
 					light: '#EBE3D5', // Subtle divisions

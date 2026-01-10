@@ -274,12 +274,14 @@ Contrast Requirements:
 Color Usage Rules:
 
 Text:
+
 - Primary content: ink.DEFAULT (#1A1410)
 - Secondary labels: ink.light (#3D3426)
 - Tertiary/hints: ink.muted (#6B5D4A)
 - NEVER use ink.muted on paper.DEFAULT - only on paper.50 or darker
 
 Backgrounds:
+
 - Main surface: paper.100 (#F8F4ED)
 - Highlights/cards: paper.50 (#FFFEFA)
 - Borders: border.DEFAULT (#D4C8B3)
@@ -287,6 +289,7 @@ Backgrounds:
 - Disabled states: paper.300 (#D4C8B3)
 
 Accents (for emphasis and interaction):
+
 - Primary actions/income: accent.DEFAULT (#D4652F)
 - Overspending/warnings: negative.DEFAULT (#C23030)
 - Savings/success: positive.DEFAULT (#2F7D4A)
@@ -304,6 +307,7 @@ Dyslexia Considerations:
 Testing:
 
 Before shipping any UI:
+
 - Verify contrast ratios using a contrast checker
 - Test with reduced visual acuity (blur test)
 - Ensure functionality is clear without relying solely on color

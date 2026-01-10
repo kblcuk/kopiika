@@ -155,7 +155,7 @@ export function EntityBubble({
 								size={72}
 								strokeWidth={3}
 								progress={progress}
-								isOverspent={overspent}
+								inverse={entity.type === 'saving'}
 							/>
 						</View>
 					)}

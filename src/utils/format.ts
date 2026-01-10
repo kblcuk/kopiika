@@ -17,10 +17,10 @@ export function formatPeriod(period: string): string {
 	return date.toLocaleDateString(void 0, { month: 'long', year: 'numeric' });
 }
 
-// Get progress percentage (capped at 100 for display, but can exceed)
+// Get progress percentage (can exceed 100% to properly detect overspending)
 export function getProgressPercent(actual: number, planned: number): number {
 	if (planned === 0) return actual > 0 ? 100 : 0;
-	return Math.min((actual / planned) * 100, 100);
+	return (actual / planned) * 100;
 }
 
 // Check if overspent
