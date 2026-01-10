@@ -13,6 +13,7 @@ import { useStore } from '@/src/store';
 interface DropZoneProps {
 	entity: EntityWithBalance;
 	children: React.ReactNode;
+	disabled?: boolean;
 }
 
 // Global registry for drop zones
@@ -54,20 +55,27 @@ export function findDropTarget(x: number, y: number, excludeId: string): string 
 	return null;
 }
 
-export function DropZone({ entity, children }: DropZoneProps) {
+export function DropZone({ entity, children, disabled = false }: DropZoneProps) {
 	const viewRef = useRef<View>(null);
 	const isHighlighted = useSharedValue(0);
 	const isDragging = useSharedValue(0);
 
 	const measureAndRegister = useCallback(() => {
-		viewRef.current?.measureInWindow((x, y, width, height) => {
-			registerDropZone(entity.id, { x, y, width, height });
-		});
-	}, [entity.id]);
+		if (disabled) {
+			// Unregister when disabled
+			unregisterDropZone(entity.id);
+		} else {
+			viewRef.current?.measureInWindow((x, y, width, height) => {
+				registerDropZone(entity.id, { x, y, width, height });
+			});
+		}
+	}, [entity.id, disabled]);
 
 	// Register remeasure callback and clean up on unmount
 	useEffect(() => {
 		registerRemeasureCallback(entity.id, measureAndRegister);
+		// Initial measurement
+		measureAndRegister();
 		return () => {
 			unregisterDropZone(entity.id);
 		};
@@ -95,6 +103,7 @@ export function DropZone({ entity, children }: DropZoneProps) {
 		),
 		borderRadius: 12,
 		zIndex: isDragging.value ? 1000 : 0,
+		elevation: isDragging.value ? 1000 : 0,
 		// Width and padding to maintain grid layout
 		width: '25%',
 		paddingHorizontal: 4,

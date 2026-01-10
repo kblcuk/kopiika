@@ -13,6 +13,7 @@ interface EntityGridProps {
 	onTap?: (entity: EntityWithBalance) => void;
 	onLongPress?: (entity: EntityWithBalance) => void;
 	onAdd?: (type: EntityType) => void;
+	dropZonesDisabled?: boolean;
 }
 
 export function EntityGrid({
@@ -24,6 +25,7 @@ export function EntityGrid({
 	onTap,
 	onLongPress,
 	onAdd,
+	dropZonesDisabled = false,
 }: EntityGridProps) {
 	return (
 		<View className="mb-3">
@@ -39,7 +41,7 @@ export function EntityGrid({
 			{/* Grid of bubbles */}
 			<View className="flex-row flex-wrap px-2">
 				{entities.map((entity) => (
-					<DropZone key={entity.id} entity={entity}>
+					<DropZone key={entity.id} entity={entity} disabled={dropZonesDisabled}>
 						<EntityBubble
 							entity={entity}
 							onDragStart={onDragStart}
