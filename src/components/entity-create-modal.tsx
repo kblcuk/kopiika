@@ -38,7 +38,10 @@ const ICON_OPTIONS: Record<EntityType, string[]> = {
 		'shirt',
 		'book',
 		'dumbbell',
+		'cat',
+		'dog',
 	],
+
 	saving: ['plane', 'shield', 'gift', 'home', 'graduation-cap', 'car', 'heart', 'star'],
 };
 
