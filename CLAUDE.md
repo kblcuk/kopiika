@@ -259,6 +259,56 @@ Character:
 - No gamification tropes
 
 ────────────────────────────────────────
+ACCESSIBILITY
+────────────────────────────────────────
+
+The app must be accessible, particularly for dyslexia and visual clarity.
+
+Contrast Requirements:
+
+- All text must meet WCAG AA standards (4.5:1 for normal text, 3:1 for large text)
+- Primary text (ink.DEFAULT) on paper backgrounds: minimum 7:1
+- Secondary text (ink.light) on paper backgrounds: minimum 4.5:1
+- Interactive elements must be clearly distinguishable from non-interactive
+
+Color Usage Rules:
+
+Text:
+- Primary content: ink.DEFAULT (#1A1410)
+- Secondary labels: ink.light (#3D3426)
+- Tertiary/hints: ink.muted (#6B5D4A)
+- NEVER use ink.muted on paper.DEFAULT - only on paper.50 or darker
+
+Backgrounds:
+- Main surface: paper.100 (#F8F4ED)
+- Highlights/cards: paper.50 (#FFFEFA)
+- Borders: border.DEFAULT (#D4C8B3)
+- Subtle dividers: border.light (#EBE3D5)
+- Disabled states: paper.300 (#D4C8B3)
+
+Accents (for emphasis and interaction):
+- Primary actions/income: accent.DEFAULT (#D4652F)
+- Overspending/warnings: negative.DEFAULT (#C23030)
+- Savings/success: positive.DEFAULT (#2F7D4A)
+- These must always be used on paper.50 or paper.100 for sufficient contrast
+
+Dyslexia Considerations:
+
+- High contrast between text and background
+- Clear color differentiation between interactive states
+- Avoid red/green as the only distinguishing factor
+- Use Space Grotesk font (already configured) - clean, geometric, dyslexia-friendly
+- Generous spacing and tap targets (minimum 44px)
+- Clear visual hierarchy with size/weight, not just color
+
+Testing:
+
+Before shipping any UI:
+- Verify contrast ratios using a contrast checker
+- Test with reduced visual acuity (blur test)
+- Ensure functionality is clear without relying solely on color
+
+────────────────────────────────────────
 TECH STACK
 ────────────────────────────────────────
 
