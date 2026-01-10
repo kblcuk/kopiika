@@ -40,17 +40,14 @@ export function remeasureAllDropZones() {
 	remeasureCallbacks.forEach((callback) => callback());
 }
 
+// Optimized drop target detection with early exit
 export function findDropTarget(x: number, y: number, excludeId: string): string | null {
 	for (const [id, layout] of dropZoneRegistry) {
 		if (id === excludeId) continue;
-		if (
-			x >= layout.x &&
-			x <= layout.x + layout.width &&
-			y >= layout.y &&
-			y <= layout.y + layout.height
-		) {
-			return id;
-		}
+		// Early exit optimizations: check simple conditions first
+		if (x < layout.x || x > layout.x + layout.width) continue;
+		if (y < layout.y || y > layout.y + layout.height) continue;
+		return id;
 	}
 	return null;
 }
@@ -59,15 +56,26 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 	const viewRef = useRef<View>(null);
 	const isHighlighted = useSharedValue(0);
 	const isDragging = useSharedValue(0);
+	const isReorderMode = useSharedValue(0);
+
+	// Debounce measure calls to avoid excessive measurements during rapid layout changes
+	const measureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const measureAndRegister = useCallback(() => {
 		if (disabled) {
 			// Unregister when disabled
 			unregisterDropZone(entity.id);
 		} else {
-			viewRef.current?.measureInWindow((x, y, width, height) => {
-				registerDropZone(entity.id, { x, y, width, height });
-			});
+			// Clear any pending measurement
+			if (measureTimeoutRef.current) {
+				clearTimeout(measureTimeoutRef.current);
+			}
+			// Debounce to avoid excessive measurements
+			measureTimeoutRef.current = setTimeout(() => {
+				viewRef.current?.measureInWindow((x, y, width, height) => {
+					registerDropZone(entity.id, { x, y, width, height });
+				});
+			}, 16); // ~1 frame at 60fps
 		}
 	}, [entity.id, disabled]);
 
@@ -77,42 +85,64 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 		// Initial measurement
 		measureAndRegister();
 		return () => {
+			// Cleanup: clear any pending measurements and unregister
+			if (measureTimeoutRef.current) {
+				clearTimeout(measureTimeoutRef.current);
+			}
 			unregisterDropZone(entity.id);
 		};
 	}, [entity.id, measureAndRegister]);
 
-	// Track if we're in reorder mode (dragging within same section)
-	const isReorderMode = useSharedValue(0);
-
-	// Subscribe to store changes without causing re-renders
+	// Subscribe to store changes without causing React re-renders
+	// Track previous values to implement custom equality check
 	useEffect(() => {
+		let prevHoveredId: string | null = null;
+		let prevDraggedId: string | undefined = undefined;
+		let prevDraggedType: string | undefined = undefined;
+
 		const unsubscribe = useStore.subscribe((state) => {
-			// Update hover highlight
-			const isHovered = state.hoveredDropZoneId === entity.id;
+			const hoveredId = state.hoveredDropZoneId;
+			const draggedId = state.draggedEntity?.id;
+			const draggedType = state.draggedEntity?.type;
+
+			// Only update if relevant state has changed
+			if (
+				hoveredId === prevHoveredId &&
+				draggedId === prevDraggedId &&
+				draggedType === prevDraggedType
+			) {
+				return;
+			}
+
+			prevHoveredId = hoveredId;
+			prevDraggedId = draggedId;
+			prevDraggedType = draggedType;
+
+			const isHovered = hoveredId === entity.id;
+			const isBeingDragged = draggedId === entity.id;
+			const isSameType = draggedType === entity.type;
+
 			isHighlighted.value = withTiming(isHovered ? 1 : 0, { duration: 150 });
-
-			// Update dragging state for zIndex
-			const isBeingDragged = state.draggedEntity?.id === entity.id;
 			isDragging.value = isBeingDragged ? 1 : 0;
-
-			// Check if we're in reorder mode (same entity type)
-			const isSameType = state.draggedEntity?.type === entity.type;
 			isReorderMode.value = isSameType && isHovered ? 1 : 0;
 		});
 		return unsubscribe;
 	}, [entity.id, entity.type, isHighlighted, isDragging, isReorderMode]);
 
 	const animatedStyle = useAnimatedStyle(() => {
-		// Different colors: blue for reordering, orange for transaction
-		const targetColor = isReorderMode.value
-			? 'rgba(96, 165, 250, 0.2)' // Blue tint for reordering
-			: 'rgba(184, 92, 56, 0.15)'; // Orange tint for transaction
+		// Pre-define colors to avoid string concatenation in worklet
+		const REORDER_COLOR = 'rgba(96, 165, 250, 0.2)'; // Blue tint for reordering
+		const TRANSACTION_COLOR = 'rgba(184, 92, 56, 0.15)'; // Orange tint for transaction
+		const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+
+		// Choose target color based on mode
+		const targetColor = isReorderMode.value ? REORDER_COLOR : TRANSACTION_COLOR;
 
 		return {
 			backgroundColor: interpolateColor(
 				isHighlighted.value,
 				[0, 1],
-				['transparent', targetColor]
+				[TRANSPARENT, targetColor]
 			),
 			borderRadius: 12,
 			zIndex: isDragging.value ? 1000 : 0,

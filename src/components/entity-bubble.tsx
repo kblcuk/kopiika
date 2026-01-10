@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -59,10 +59,16 @@ export function EntityBubble({
 		onDragStart?.(entity);
 	}, [entity, onDragStart]);
 
+	const lastTargetIdRef = useRef<string | null>(null);
+
 	const handleDragUpdate = useCallback(
 		(absoluteX: number, absoluteY: number) => {
 			const targetId = findDropTarget(absoluteX, absoluteY, entity.id);
-			setHoveredDropZoneId(targetId);
+			// Only update store if target actually changed to avoid unnecessary re-renders
+			if (targetId !== lastTargetIdRef.current) {
+				lastTargetIdRef.current = targetId;
+				setHoveredDropZoneId(targetId);
+			}
 		},
 		[entity.id, setHoveredDropZoneId]
 	);
