@@ -53,8 +53,7 @@ export function CircularProgress({
 				strokeDasharray={circumference}
 				strokeDashoffset={strokeDashoffset}
 				strokeLinecap="round"
-				rotation={90} // Start from bottom (6 o'clock)
-				origin={`${size / 2}, ${size / 2}`}
+				transform={`rotate(90 ${size / 2} ${size / 2})`} // Rotate to start from bottom
 			/>
 		</Svg>
 	);
