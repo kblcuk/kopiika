@@ -145,6 +145,7 @@ export function DropZone({ entity, children, disabled = false }: DropZoneProps) 
 				[TRANSPARENT, targetColor]
 			),
 			borderRadius: 12,
+			// Elevate when being dragged so child can escape parent's stacking context
 			zIndex: isDragging.value ? 1000 : 0,
 			elevation: isDragging.value ? 1000 : 0,
 			width: 96,

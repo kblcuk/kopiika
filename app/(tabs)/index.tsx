@@ -227,13 +227,14 @@ export default function HomeScreen() {
 	}
 
 	return (
-		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
+		<SafeAreaView className="flex-1 overflow-visible bg-paper-50" edges={['top']}>
 			{/* Summary bar */}
 			<SummaryHeader onToggleIncome={handleToggleIncome} />
 
 			{/* Content */}
 			<ScrollView
-				className="flex-1"
+				className="flex-1 overflow-visible"
+				contentContainerClassName="overflow-visible"
 				contentContainerStyle={{ paddingVertical: 12 }}
 				onScrollEndDrag={handleScrollEnd}
 				onMomentumScrollEnd={handleScrollEnd}

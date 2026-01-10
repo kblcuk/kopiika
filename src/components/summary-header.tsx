@@ -74,7 +74,7 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 	const incomeVisible = useStore((state) => state.incomeVisible);
 
 	return (
-		<View className="border-b border-paper-300 bg-paper-100">
+		<View className="z-[1001] border-b border-paper-300 bg-paper-100">
 			{/* Main summary row */}
 			<View className="flex-row items-center justify-between px-4 py-2">
 				<View className="flex-1 flex-row justify-between">

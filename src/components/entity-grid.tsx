@@ -40,7 +40,7 @@ export function EntityGrid({
 				}, [] as EntityWithBalance[][]);
 
 	return (
-		<View className="mb-3">
+		<View className="mb-3 overflow-visible">
 			{/* Inset divider with section title */}
 			<View className="mb-2 flex-row items-center px-4">
 				<View className="h-px flex-1 bg-paper-300" />
@@ -57,6 +57,8 @@ export function EntityGrid({
 					showsHorizontalScrollIndicator={false}
 					data={entities}
 					keyExtractor={(item) => item.id}
+					contentContainerClassName="overflow-visible"
+					className="overflow-visible"
 					contentContainerStyle={{ paddingHorizontal: 16 }}
 					renderItem={({ item: entity }) => (
 						<DropZone entity={entity} disabled={dropZonesDisabled}>
@@ -85,9 +87,11 @@ export function EntityGrid({
 					showsHorizontalScrollIndicator={false}
 					data={columns}
 					keyExtractor={(_, index) => `column-${index}`}
+					contentContainerClassName="overflow-visible"
+					className="overflow-visible"
 					contentContainerStyle={{ paddingHorizontal: 16 }}
 					renderItem={({ item: column }) => (
-						<View className="flex-col">
+						<View className="flex-col overflow-visible">
 							{column.map((entity) => (
 								<DropZone
 									key={entity.id}
@@ -120,7 +124,7 @@ export function EntityGrid({
 					}
 				/>
 			) : (
-				<View className={`flex-row flex-wrap`}>
+				<View className="flex-row flex-wrap overflow-visible">
 					{entities.map((entity) => (
 						<DropZone key={entity.id} entity={entity} disabled={dropZonesDisabled}>
 							<EntityBubble
