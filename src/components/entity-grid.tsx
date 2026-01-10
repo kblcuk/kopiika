@@ -26,7 +26,7 @@ export function EntityGrid({
 	onAdd,
 }: EntityGridProps) {
 	return (
-		<View className="mb-4">
+		<View className="mb-3">
 			{/* Inset divider with section title */}
 			<View className="mb-2 flex-row items-center px-4">
 				<View className="h-px flex-1 bg-paper-300" />
@@ -56,7 +56,7 @@ export function EntityGrid({
 				{/* Empty state */}
 				{entities.length === 0 && (
 					<View className="w-full items-center py-4">
-						<Text className="font-sans text-sm text-ink-faint">
+						<Text className="text-ink-faint font-sans text-sm">
 							No {title.toLowerCase()} yet
 						</Text>
 					</View>

@@ -53,7 +53,7 @@ function SummaryRow({ entity }: SummaryRowProps) {
 							>
 								{formatAmount(entity.actual)}
 							</Text>
-							<Text className="font-sans text-sm text-ink-faint">
+							<Text className="text-ink-faint font-sans text-sm">
 								/ {formatAmount(entity.planned)}
 							</Text>
 						</View>

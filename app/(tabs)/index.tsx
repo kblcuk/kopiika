@@ -162,7 +162,7 @@ export default function HomeScreen() {
 			{/* Content */}
 			<ScrollView
 				className="flex-1"
-				contentContainerStyle={{ paddingVertical: 16 }}
+				contentContainerStyle={{ paddingVertical: 12 }}
 				onScrollEndDrag={handleScrollEnd}
 				onMomentumScrollEnd={handleScrollEnd}
 			>

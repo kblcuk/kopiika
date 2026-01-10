@@ -158,7 +158,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Planned Amount ({getCurrentPeriod()})
 						</Text>
-						<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3">
+						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
 							<TextInput
 								ref={inputRef}
 								value={plannedAmount}

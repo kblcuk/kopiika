@@ -133,11 +133,11 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 					<View className="items-end">
 						<Text className="font-sans-semibold text-base text-ink">
 							{formatAmount(transaction.amount, transaction.currency)}{' '}
-							<Text className="font-sans text-sm text-ink-faint">
+							<Text className="text-ink-faint font-sans text-sm">
 								{transaction.currency}
 							</Text>
 						</Text>
-						<Text className="font-sans text-sm text-ink-faint">
+						<Text className="text-ink-faint font-sans text-sm">
 							{formatTime(transaction.timestamp)}
 						</Text>
 					</View>

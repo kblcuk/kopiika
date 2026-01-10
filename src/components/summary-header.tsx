@@ -82,7 +82,7 @@ export function SummaryHeader({ fromEntity }: SummaryHeaderProps) {
 	return (
 		<View className="border-b border-paper-300 bg-paper-100">
 			{/* Main summary row */}
-			<View className="flex-row items-center justify-between px-4 py-3">
+			<View className="flex-row items-center justify-between px-4 py-2">
 				<View className="flex-1 flex-row justify-between">
 					<SummaryItem label="Balance" value={balance} />
 					<SummaryItem label="Expenses" value={expenses} />

@@ -10,32 +10,35 @@ module.exports = {
 		extend: {
 			colors: {
 				// Ledger paper theme - warm cream with ink-like typography
+				// Adjusted for higher contrast and dyslexia accessibility
 				paper: {
-					50: '#FDFCFA',
-					100: '#FAF8F5',
-					200: '#F5F1EB',
-					300: '#EBE5DB',
-					400: '#DDD4C4',
-					500: '#C9BDAA',
+					DEFAULT: '#F8F4ED',
+					50: '#FFFEFA', // Reserved for highlights
+					100: '#F8F4ED', // Main background
+					200: '#EBE3D5', // Subtle borders/dividers
+					300: '#D4C8B3', // Disabled states
 				},
 				ink: {
-					DEFAULT: '#2C2416',
-					light: '#4A3F2E',
-					muted: '#6B5D4A',
-					faint: '#9C8B74',
+					DEFAULT: '#1A1410', // Darker for better contrast
+					light: '#3D3426', // Secondary text
+					muted: '#6B5D4A', // Tertiary text
 				},
 				accent: {
-					DEFAULT: '#B85C38', // Terracotta/rust - for positive/income
-					dark: '#8B4429',
-					light: '#D4896A',
+					DEFAULT: '#D4652F', // Brighter terracotta for better visibility
+					dark: '#9B4621',
+					light: '#E8926A',
 				},
 				negative: {
-					DEFAULT: '#9B2C2C', // Deep red for overspending
-					light: '#C53030',
+					DEFAULT: '#C23030', // Brighter red for overspending
+					light: '#E85555',
 				},
 				positive: {
-					DEFAULT: '#2D5A3D', // Forest green for savings/positive
-					light: '#3D7A52',
+					DEFAULT: '#2F7D4A', // Brighter green for savings/positive
+					light: '#4A9D65',
+				},
+				border: {
+					DEFAULT: '#D4C8B3', // Clear, visible borders
+					light: '#EBE3D5', // Subtle divisions
 				},
 			},
 			fontFamily: {

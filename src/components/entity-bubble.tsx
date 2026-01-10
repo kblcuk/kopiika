@@ -84,10 +84,13 @@ export function EntityBubble({
 		onLongPress?.(entity);
 	}, [entity, onLongPress]);
 
+	const elevation = useSharedValue(0);
+
 	const panGesture = Gesture.Pan()
 		.onStart(() => {
 			scale.value = withSpring(1.15);
 			zIndex.value = 1000;
+			elevation.value = 1000;
 			opacity.value = 0.95;
 			scheduleOnRN(handleDragStart);
 		})
@@ -101,6 +104,7 @@ export function EntityBubble({
 			translateY.value = withSpring(0);
 			scale.value = withSpring(1);
 			zIndex.value = 0;
+			elevation.value = 0;
 			opacity.value = withTiming(1);
 			scheduleOnRN(handleDragEnd, event.absoluteX, event.absoluteY);
 		});
@@ -124,6 +128,7 @@ export function EntityBubble({
 			{ scale: scale.value },
 		],
 		zIndex: zIndex.value,
+		elevation: elevation.value,
 		opacity: opacity.value,
 	}));
 
@@ -131,7 +136,7 @@ export function EntityBubble({
 
 	return (
 		<GestureDetector gesture={composedGesture}>
-			<Animated.View style={animatedStyle} className="items-center py-2">
+			<Animated.View style={animatedStyle} className="items-center py-1.5">
 				{/* Name */}
 				<Text
 					className="mb-1.5 text-center font-sans text-xs text-ink"
@@ -170,7 +175,7 @@ export function EntityBubble({
 				</Text>
 
 				{/* Planned amount */}
-				<Text className="font-sans text-xs text-ink-faint">
+				<Text className="text-ink-faint font-sans text-xs">
 					{formatAmount(entity.planned)}
 				</Text>
 			</Animated.View>
