@@ -16,9 +16,7 @@ export const entities = sqliteTable(
 		owner_id: text('owner_id'),
 		order: integer('order').notNull(),
 	},
-	(table) => ({
-		typeIdx: index('idx_entities_type').on(table.type),
-	})
+	(table) => [index('idx_entities_type').on(table.type)]
 );
 
 // Plans table
@@ -33,9 +31,7 @@ export const plans = sqliteTable(
 		period_start: text('period_start').notNull(),
 		planned_amount: real('planned_amount').notNull(),
 	},
-	(table) => ({
-		entityPeriodIdx: index('idx_plans_entity_period').on(table.entity_id, table.period_start),
-	})
+	(table) => [index('idx_plans_entity_period').on(table.entity_id, table.period_start)]
 );
 
 // Transactions table
@@ -54,11 +50,11 @@ export const transactions = sqliteTable(
 		timestamp: integer('timestamp').notNull(),
 		note: text('note'),
 	},
-	(table) => ({
-		timestampIdx: index('idx_transactions_timestamp').on(table.timestamp),
-		fromIdx: index('idx_transactions_from').on(table.from_entity_id),
-		toIdx: index('idx_transactions_to').on(table.to_entity_id),
-	})
+	(table) => [
+		index('idx_transactions_timestamp').on(table.timestamp),
+		index('idx_transactions_from').on(table.from_entity_id),
+		index('idx_transactions_to').on(table.to_entity_id),
+	]
 );
 
 // Relations for cascade deletes and joins
