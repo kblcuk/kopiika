@@ -1,15 +1,4 @@
-import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import * as schema from './drizzle-schema';
-
-const DATABASE_NAME = 'kopiika.db';
-
-// Environment detection - use bun:sqlite in tests, expo-sqlite in production
-const isTestEnvironment =
-	process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-
-// Singleton pattern for database instance
-// Both BetterSQLite3Database and ExpoSQLiteDatabase extend BaseSQLiteDatabase
-let drizzleDb: BaseSQLiteDatabase<'sync', unknown, typeof schema> | null = null;
+import getPlatformSpecificDb, { resetDb } from './db';
 
 const SCHEMA_SQL = `
 	-- Entities table
@@ -56,42 +45,10 @@ const SCHEMA_SQL = `
 `;
 
 export async function getDrizzleDb() {
-	if (drizzleDb) {
-		return drizzleDb;
-	}
-
-	if (isTestEnvironment) {
-		// Dynamic import to avoid loading Node.js modules in React Native
-		const Database = (await import('bun:sqlite')).default;
-		const { drizzle } = await import('drizzle-orm/bun-sqlite');
-
-		const sqlite = new Database(':memory:');
-		sqlite.run('PRAGMA foreign_keys = ON;');
-		sqlite.exec(SCHEMA_SQL);
-		drizzleDb = drizzle(sqlite, { schema });
-	} else {
-		// Dynamic import to avoid bundling Expo modules in tests
-		const { openDatabaseSync } = await import('expo-sqlite');
-		const { drizzle } = await import('drizzle-orm/expo-sqlite');
-
-		const expoDb = openDatabaseSync(DATABASE_NAME, {
-			enableChangeListener: true,
-		});
-		expoDb.execSync(SCHEMA_SQL);
-		drizzleDb = drizzle(expoDb, { schema });
-	}
-	return drizzleDb;
-}
-
-export async function getExpoDb() {
-	if (isTestEnvironment) {
-		throw new Error('getExpoDb() is not available in test environment');
-	}
-	const { openDatabaseSync } = await import('expo-sqlite');
-	return openDatabaseSync(DATABASE_NAME, { enableChangeListener: true });
+	return getPlatformSpecificDb(SCHEMA_SQL);
 }
 
 export function resetDrizzleDb(): void {
 	// Reset singleton - next call to getDrizzleDb() will recreate
-	drizzleDb = null;
+	resetDb();
 }
