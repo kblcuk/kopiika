@@ -1,98 +1,171 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { EntityGrid, SummaryHeader, TransactionModal } from '@/src/components';
+import { useStore, useEntitiesWithBalance } from '@/src/store';
+import type { EntityWithBalance } from '@/src/types';
+import { formatPeriod } from '@/src/utils/format';
+import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+	const { isLoading, currentPeriod, entities, initialize, addEntity, setPlan, setDraggedEntity } =
+		useStore();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+	const accounts = useEntitiesWithBalance('account');
+	const categories = useEntitiesWithBalance('category');
+	const savings = useEntitiesWithBalance('saving');
+
+	// Transaction modal state
+	const [modalVisible, setModalVisible] = useState(false);
+	const [fromEntity, setFromEntity] = useState<EntityWithBalance | null>(null);
+	const [toEntity, setToEntity] = useState<EntityWithBalance | null>(null);
+
+	useEffect(() => {
+		initialize();
+	}, [initialize]);
+
+	// Seed default data if empty
+	useEffect(() => {
+		async function seedData() {
+			if (!isLoading && entities.length === 0) {
+				const defaultEntities = createDefaultEntities();
+				const defaultPlans = createDefaultPlans(defaultEntities);
+
+				for (const entity of defaultEntities) {
+					await addEntity(entity);
+				}
+				for (const plan of defaultPlans) {
+					await setPlan(plan);
+				}
+			}
+		}
+		seedData();
+	}, [isLoading, entities.length, addEntity, setPlan]);
+
+	// Combine all entities for lookup by ID
+	const allEntities = useMemo(
+		() => [...accounts, ...categories, ...savings],
+		[accounts, categories, savings]
+	);
+
+	const handleDragStart = useCallback(
+		(entity: EntityWithBalance) => {
+			setDraggedEntity(entity);
+		},
+		[setDraggedEntity]
+	);
+
+	const handleDragEnd = useCallback(
+		(entity: EntityWithBalance, targetId: string | null) => {
+			setDraggedEntity(null);
+
+			// If dropped on a valid target, open transaction modal
+			if (targetId) {
+				const targetEntity = allEntities.find((e) => e.id === targetId);
+				if (targetEntity) {
+					setFromEntity(entity);
+					setToEntity(targetEntity);
+					setModalVisible(true);
+				}
+			}
+		},
+		[setDraggedEntity, allEntities]
+	);
+
+	const handleTap = useCallback(
+		(entity: EntityWithBalance) => {
+			// If already have a from entity, this becomes the to entity
+			if (fromEntity && fromEntity.id !== entity.id) {
+				setToEntity(entity);
+				setModalVisible(true);
+			} else {
+				// First tap - set as from entity
+				setFromEntity(entity);
+			}
+		},
+		[fromEntity]
+	);
+
+	const handleCloseModal = useCallback(() => {
+		setModalVisible(false);
+		setFromEntity(null);
+		setToEntity(null);
+	}, []);
+
+	if (isLoading) {
+		return (
+			<SafeAreaView className="flex-1 items-center justify-center bg-paper-100">
+				<ActivityIndicator size="large" color="#6B5D4A" />
+			</SafeAreaView>
+		);
+	}
+
+	return (
+		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
+			{/* Header */}
+			<View className="border-b border-paper-300 px-5 pb-4 pt-2">
+				<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+					{formatPeriod(currentPeriod)}
+				</Text>
+				<Text className="font-sans-bold text-2xl text-ink">Kopiika</Text>
+			</View>
+
+			{/* Summary bar */}
+			<SummaryHeader />
+
+			{/* Selection indicator */}
+			{fromEntity && !modalVisible && (
+				<View className="border-b border-accent bg-accent/10 px-4 py-2">
+					<Text className="font-sans text-sm text-accent">
+						{fromEntity.name} → Tap or drag to another
+					</Text>
+				</View>
+			)}
+
+			{/* Content */}
+			<ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 16 }}>
+				<EntityGrid
+					title="Accounts"
+					type="account"
+					entities={accounts}
+					onDragStart={handleDragStart}
+					onDragEnd={handleDragEnd}
+					onTap={handleTap}
+				/>
+				<EntityGrid
+					title="Categories"
+					type="category"
+					entities={categories}
+					onDragStart={handleDragStart}
+					onDragEnd={handleDragEnd}
+					onTap={handleTap}
+				/>
+				<EntityGrid
+					title="Savings"
+					type="saving"
+					entities={savings}
+					onDragStart={handleDragStart}
+					onDragEnd={handleDragEnd}
+					onTap={handleTap}
+				/>
+
+				{entities.length === 0 && (
+					<View className="items-center px-4 py-10">
+						<Text className="text-center font-sans text-ink-muted">
+							Setting up your dashboard...
+						</Text>
+					</View>
+				)}
+			</ScrollView>
+
+			{/* Transaction Modal */}
+			<TransactionModal
+				visible={modalVisible}
+				fromEntity={fromEntity}
+				toEntity={toEntity}
+				onClose={handleCloseModal}
+			/>
+		</SafeAreaView>
+	);
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

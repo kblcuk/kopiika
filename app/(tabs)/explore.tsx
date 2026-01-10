@@ -1,112 +1,95 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { useStore } from '@/src/store';
+import { exportAllData } from '@/src/utils/export';
+import { resetDatabase } from '@/src/db';
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
-  );
+export default function SettingsScreen() {
+	const { entities, plans, transactions, initialize } = useStore();
+
+	const handleExport = async () => {
+		try {
+			await exportAllData(entities, plans, transactions);
+		} catch (error) {
+			console.error('Failed to export data', error);
+			Alert.alert('Export Failed', 'Could not export data. Please try again.');
+		}
+	};
+
+	const handleResetData = () => {
+		Alert.alert(
+			'Reset All Data',
+			'This will delete all your entities, plans, and transactions. This cannot be undone.',
+			[
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Reset',
+					style: 'destructive',
+					onPress: async () => {
+						await resetDatabase();
+						await initialize();
+					},
+				},
+			]
+		);
+	};
+
+	return (
+		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
+			{/* Header */}
+			<View className="border-b border-paper-300 px-5 pb-4 pt-2">
+				<Text className="font-sans-bold text-2xl text-ink">Settings</Text>
+			</View>
+
+			{/* Content */}
+			<View className="flex-1 px-5 pt-6">
+				{/* Data Section */}
+				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					Data
+				</Text>
+
+				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
+					<Pressable
+						onPress={handleExport}
+						className="flex-row items-center justify-between border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Export to CSV</Text>
+						<Text className="font-sans text-sm text-ink-faint">
+							{entities.length} entities, {transactions.length} transactions
+						</Text>
+					</Pressable>
+
+					<Pressable
+						onPress={handleResetData}
+						className="flex-row items-center px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-negative">Reset All Data</Text>
+					</Pressable>
+				</View>
+
+				{/* About Section */}
+				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					About
+				</Text>
+
+				<View className="overflow-hidden rounded-lg bg-paper-100">
+					<View className="flex-row items-center justify-between px-4 py-3.5">
+						<Text className="font-sans text-base text-ink">Version</Text>
+						<Text className="font-sans text-sm text-ink-faint">1.0.0</Text>
+					</View>
+				</View>
+
+				{/* Footer */}
+				<View className="mt-auto items-center pb-8 pt-6">
+					<Text className="font-sans text-sm text-ink-faint">
+						Kopiika - Personal Finance Tracker
+					</Text>
+					<Text className="font-sans text-xs text-ink-faint">
+						Built with simplicity in mind
+					</Text>
+				</View>
+			</View>
+		</SafeAreaView>
+	);
 }
-
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-});

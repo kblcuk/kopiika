@@ -1,24 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import '@/src/global.css';
+
+import {
+	SpaceGrotesk_400Regular,
+	SpaceGrotesk_500Medium,
+	SpaceGrotesk_600SemiBold,
+	SpaceGrotesk_700Bold,
+	useFonts,
+} from '@expo-google-fonts/space-grotesk';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+	anchor: '(tabs)',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+	const [fontsLoaded] = useFonts({
+		SpaceGrotesk_400Regular,
+		SpaceGrotesk_500Medium,
+		SpaceGrotesk_600SemiBold,
+		SpaceGrotesk_700Bold,
+	});
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+	useEffect(() => {
+		if (fontsLoaded) {
+			SplashScreen.hideAsync();
+		}
+	}, [fontsLoaded]);
+
+	if (!fontsLoaded) {
+		return null;
+	}
+
+	return (
+		<GestureHandlerRootView style={{ flex: 1 }}>
+			<Stack screenOptions={{ headerShown: false }}>
+				<Stack.Screen name="(tabs)" />
+				<Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+			</Stack>
+			<StatusBar style="dark" />
+		</GestureHandlerRootView>
+	);
 }

@@ -1,0 +1,144 @@
+import { useCallback } from 'react';
+import { View, Text } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+	useAnimatedStyle,
+	useSharedValue,
+	withSpring,
+	withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import * as Icons from 'lucide-react-native';
+
+import type { EntityWithBalance } from '@/src/types';
+import { formatAmount, isOverspent } from '@/src/utils/format';
+import { findDropTarget } from './drop-zone';
+import { useStore } from '@/src/store';
+
+interface EntityBubbleProps {
+	entity: EntityWithBalance;
+	onDragStart?: (entity: EntityWithBalance) => void;
+	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
+	onTap?: (entity: EntityWithBalance) => void;
+}
+
+// Convert kebab-case to PascalCase for lucide icon lookup
+function toIconName(name: string): string {
+	return name
+		.split('-')
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join('');
+}
+
+export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBubbleProps) {
+	const setHoveredDropZoneId = useStore((state) => state.setHoveredDropZoneId);
+
+	const translateX = useSharedValue(0);
+	const translateY = useSharedValue(0);
+	const scale = useSharedValue(1);
+	const zIndex = useSharedValue(0);
+	const opacity = useSharedValue(1);
+
+	const overspent = isOverspent(entity.actual, entity.planned);
+
+	// Get the icon component dynamically
+	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
+	const IconComponent =
+		(Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
+
+	const handleDragStart = useCallback(() => {
+		onDragStart?.(entity);
+	}, [entity, onDragStart]);
+
+	const handleDragUpdate = useCallback(
+		(absoluteX: number, absoluteY: number) => {
+			const targetId = findDropTarget(absoluteX, absoluteY, entity.id);
+			setHoveredDropZoneId(targetId);
+		},
+		[entity.id, setHoveredDropZoneId]
+	);
+
+	const handleDragEnd = useCallback(
+		(absoluteX: number, absoluteY: number) => {
+			const targetId = findDropTarget(absoluteX, absoluteY, entity.id);
+			setHoveredDropZoneId(null);
+			onDragEnd?.(entity, targetId);
+		},
+		[entity, onDragEnd, setHoveredDropZoneId]
+	);
+
+	const handleTap = useCallback(() => {
+		onTap?.(entity);
+	}, [entity, onTap]);
+
+	const panGesture = Gesture.Pan()
+		.onStart(() => {
+			scale.value = withSpring(1.15);
+			zIndex.value = 1000;
+			opacity.value = 0.95;
+			scheduleOnRN(handleDragStart);
+		})
+		.onUpdate((event) => {
+			translateX.value = event.translationX;
+			translateY.value = event.translationY;
+			scheduleOnRN(handleDragUpdate, event.absoluteX, event.absoluteY);
+		})
+		.onEnd((event) => {
+			translateX.value = withSpring(0);
+			translateY.value = withSpring(0);
+			scale.value = withSpring(1);
+			zIndex.value = 0;
+			opacity.value = withTiming(1);
+			scheduleOnRN(handleDragEnd, event.absoluteX, event.absoluteY);
+		});
+
+	const tapGesture = Gesture.Tap().onEnd(() => {
+		scheduleOnRN(handleTap);
+	});
+
+	const composedGesture = Gesture.Race(panGesture, tapGesture);
+
+	const animatedStyle = useAnimatedStyle(() => ({
+		transform: [
+			{ translateX: translateX.value },
+			{ translateY: translateY.value },
+			{ scale: scale.value },
+		],
+		zIndex: zIndex.value,
+		opacity: opacity.value,
+	}));
+
+	return (
+		<GestureDetector gesture={composedGesture}>
+			<Animated.View style={animatedStyle} className="items-center py-2">
+				{/* Name */}
+				<Text
+					className="mb-1.5 text-center font-sans text-xs text-ink"
+					numberOfLines={1}
+					ellipsizeMode="tail"
+				>
+					{entity.name}
+				</Text>
+
+				{/* Icon circle */}
+				<View className="mb-1.5 h-16 w-16 items-center justify-center rounded-full bg-paper-300">
+					<IconComponent size={28} color="#6B5D4A" />
+				</View>
+
+				{/* Remaining amount */}
+				<Text
+					className={`font-sans-semibold text-sm ${
+						overspent ? 'text-negative' : 'text-ink'
+					}`}
+				>
+					{formatAmount(entity.remaining)}
+				</Text>
+
+				{/* Planned amount */}
+				<Text className="font-sans text-xs text-ink-faint">
+					{formatAmount(entity.planned)}
+				</Text>
+			</Animated.View>
+		</GestureDetector>
+	);
+}
