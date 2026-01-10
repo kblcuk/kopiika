@@ -49,17 +49,19 @@ export function useSummary(): SummaryData {
 
 		// Expenses: sum of category actuals
 		let expenses = 0;
+		// Planned: sum of all plans for _categories_ that we show in summary header
+		let planned = 0;
 		for (const category of categories) {
 			const spent = periodTransactions
 				.filter((t) => t.to_entity_id === category.id)
 				.reduce((sum, t) => sum + t.amount, 0);
 			expenses += spent;
-		}
 
-		// Planned: sum of all plans for current period
-		const planned = plans
-			.filter((p) => p.period_start === currentPeriod)
-			.reduce((sum, p) => sum + p.planned_amount, 0);
+			const plan = plans.find(
+				(p) => p.period_start === currentPeriod && p.entity_id === category.id
+			);
+			planned += plan ? plan.planned_amount : 0;
+		}
 
 		return { balance, expenses, planned };
 	}, [entities, plans, transactions, currentPeriod]);
