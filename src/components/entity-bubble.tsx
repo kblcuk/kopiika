@@ -11,7 +11,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 import * as Icons from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
-import { formatAmount, isOverspent } from '@/src/utils/format';
+import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
+import { CircularProgress } from './circular-progress';
 import { findDropTarget } from './drop-zone';
 import { useStore } from '@/src/store';
 
@@ -47,6 +48,7 @@ export function EntityBubble({
 	const opacity = useSharedValue(1);
 
 	const overspent = isOverspent(entity.actual, entity.planned);
+	const progress = getProgressPercent(entity.actual, entity.planned);
 
 	// Get the icon component dynamically
 	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
@@ -139,9 +141,23 @@ export function EntityBubble({
 					{entity.name}
 				</Text>
 
-				{/* Icon circle */}
-				<View className="mb-1.5 h-16 w-16 items-center justify-center rounded-full bg-paper-300">
-					<IconComponent size={28} color="#6B5D4A" />
+				{/* Icon circle with progress ring */}
+				<View className="relative mb-1.5 h-[72px] w-[72px] items-center justify-center">
+					{/* Progress ring */}
+					{entity.type === 'account' ? null : (
+						<View className="absolute">
+							<CircularProgress
+								size={72}
+								strokeWidth={3}
+								progress={progress}
+								isOverspent={overspent}
+							/>
+						</View>
+					)}
+					{/* Icon background */}
+					<View className="h-16 w-16 items-center justify-center rounded-full bg-paper-300">
+						<IconComponent size={28} color="#6B5D4A" />
+					</View>
 				</View>
 
 				{/* Main amount */}
