@@ -8,6 +8,8 @@ module.exports = {
 	moduleNameMapper: {
 		'^@/(.*)$': '<rootDir>/$1',
 		'^expo-sqlite$': '<rootDir>/src/db/__tests__/__mocks__/expo-sqlite.ts',
+		'^react-native$': '<rootDir>/node_modules/react-native',
+		'^react-native-reanimated$': '<rootDir>/node_modules/react-native-reanimated/mock.js',
 	},
 	collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/__tests__/**'],
 	transform: {
@@ -22,5 +24,7 @@ module.exports = {
 			},
 		],
 	},
-	transformIgnorePatterns: ['node_modules/(?!expo-sqlite)'],
+	transformIgnorePatterns: [
+		'node_modules/(?!(expo-sqlite|react-native|@react-native|react-native-reanimated|expo)/)',
+	],
 };

@@ -1,4 +1,4 @@
-import { eq, and, between, or, desc, sum } from 'drizzle-orm';
+import { eq, and, between, or, desc, sum, inArray } from 'drizzle-orm';
 import type { Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { transactions } from './drizzle-schema';
@@ -90,40 +90,74 @@ export async function updateTransaction(
 	}
 }
 
+export async function getBatchEntityActuals(
+	entityIds: string[],
+	startTimestamp: number,
+	endTimestamp: number
+): Promise<Map<string, number>> {
+	if (entityIds.length === 0) {
+		return new Map();
+	}
+
+	const db = getDrizzleDb();
+
+	// Money coming INTO entities (to_entity_id in entityIds)
+	const inflowResults = await db
+		.select({
+			entity_id: transactions.to_entity_id,
+			total: sum(transactions.amount),
+		})
+		.from(transactions)
+		.where(
+			and(
+				inArray(transactions.to_entity_id, entityIds),
+				between(transactions.timestamp, startTimestamp, endTimestamp)
+			)
+		)
+		.groupBy(transactions.to_entity_id);
+
+	// Money going OUT of entities (from_entity_id in entityIds)
+	const outflowResults = await db
+		.select({
+			entity_id: transactions.from_entity_id,
+			total: sum(transactions.amount),
+		})
+		.from(transactions)
+		.where(
+			and(
+				inArray(transactions.from_entity_id, entityIds),
+				between(transactions.timestamp, startTimestamp, endTimestamp)
+			)
+		)
+		.groupBy(transactions.from_entity_id);
+
+	// Build maps for quick lookup
+	const inflowMap = new Map<string, number>();
+	for (const row of inflowResults) {
+		inflowMap.set(row.entity_id, Number(row.total ?? 0));
+	}
+
+	const outflowMap = new Map<string, number>();
+	for (const row of outflowResults) {
+		outflowMap.set(row.entity_id, Number(row.total ?? 0));
+	}
+
+	// Calculate actual for each entity (inflow - outflow)
+	const results = new Map<string, number>();
+	for (const entityId of entityIds) {
+		const inflow = inflowMap.get(entityId) ?? 0;
+		const outflow = outflowMap.get(entityId) ?? 0;
+		results.set(entityId, inflow - outflow);
+	}
+
+	return results;
+}
+
 export async function getEntityActual(
 	entityId: string,
 	startTimestamp: number,
 	endTimestamp: number
 ): Promise<number> {
-	const db = getDrizzleDb();
-
-	// Money coming INTO this entity (to_entity_id = entityId)
-	const inflowResult = await db
-		.select({ total: sum(transactions.amount) })
-		.from(transactions)
-		.where(
-			and(
-				eq(transactions.to_entity_id, entityId),
-				between(transactions.timestamp, startTimestamp, endTimestamp)
-			)
-		);
-
-	// Money going OUT of this entity (from_entity_id = entityId)
-	const outflowResult = await db
-		.select({ total: sum(transactions.amount) })
-		.from(transactions)
-		.where(
-			and(
-				eq(transactions.from_entity_id, entityId),
-				between(transactions.timestamp, startTimestamp, endTimestamp)
-			)
-		);
-
-	const inflow = Number(inflowResult[0]?.total ?? 0);
-	const outflow = Number(outflowResult[0]?.total ?? 0);
-
-	// For categories/savings: actual = inflow (money received)
-	// For accounts: actual = inflow - outflow (balance change)
-	// For income: actual = outflow (money distributed), which becomes negative
-	return inflow - outflow;
+	const results = await getBatchEntityActuals([entityId], startTimestamp, endTimestamp);
+	return results.get(entityId) ?? 0;
 }

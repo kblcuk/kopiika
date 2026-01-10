@@ -8,6 +8,7 @@ import {
 	deleteTransaction,
 	updateTransaction,
 	getEntityActual,
+	getBatchEntityActuals,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { createTestDrizzleDb } from './test-utils';
@@ -621,6 +622,243 @@ describe('transactions.ts', () => {
 
 			const actual = await getEntityActual('account-1', jan2025Start, jan2025End);
 			expect(actual).toBe(-400); // Overspent by 400
+		});
+	});
+
+	describe('getBatchEntityActuals', () => {
+		const jan2025Start = new Date('2025-01-01').getTime();
+		const jan2025End = new Date('2025-01-31 23:59:59').getTime();
+
+		test('should return empty Map when given empty array', async () => {
+			const results = await getBatchEntityActuals([], jan2025Start, jan2025End);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.size).toBe(0);
+		});
+
+		test('should return results for multiple entities', async () => {
+			// Create transactions for multiple entities
+			await createTransaction({
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2025-01-20').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2025-01-25').getTime(),
+			});
+
+			const results = await getBatchEntityActuals(
+				['income-1', 'account-1', 'category-1', 'saving-1'],
+				jan2025Start,
+				jan2025End
+			);
+
+			expect(results.size).toBe(4);
+			expect(results.get('income-1')).toBe(-1000); // Outflow
+			expect(results.get('account-1')).toBe(500); // 1000 in - 500 out
+			expect(results.get('category-1')).toBe(200); // Inflow only
+			expect(results.get('saving-1')).toBe(300); // Inflow only
+		});
+
+		test('should return 0 for entities with no transactions', async () => {
+			await createTransaction({
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			const results = await getBatchEntityActuals(
+				['income-1', 'account-1', 'category-1', 'saving-1'],
+				jan2025Start,
+				jan2025End
+			);
+
+			// category-1 and saving-1 have no transactions
+			expect(results.get('category-1')).toBe(0);
+			expect(results.get('saving-1')).toBe(0);
+		});
+
+		test('should only include transactions within period', async () => {
+			// January transaction
+			await createTransaction({
+				id: 'tx-jan',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			// February transaction (outside period)
+			await createTransaction({
+				id: 'tx-feb',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 2000,
+				currency: 'USD',
+				timestamp: new Date('2025-02-15').getTime(),
+			});
+
+			const results = await getBatchEntityActuals(
+				['account-1'],
+				jan2025Start,
+				jan2025End
+			);
+
+			expect(results.get('account-1')).toBe(1000); // Only January transaction
+		});
+
+		test('should be consistent with getEntityActual', async () => {
+			// Create various transactions
+			await createTransaction({
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-05').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 150,
+				currency: 'USD',
+				timestamp: new Date('2025-01-10').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 250,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			const entityIds = ['income-1', 'account-1', 'category-1', 'saving-1'];
+
+			// Get results from batch function
+			const batchResults = await getBatchEntityActuals(entityIds, jan2025Start, jan2025End);
+
+			// Get results from individual function for each entity
+			for (const entityId of entityIds) {
+				const individualResult = await getEntityActual(entityId, jan2025Start, jan2025End);
+				expect(batchResults.get(entityId)).toBe(individualResult);
+			}
+		});
+
+		test('should handle complex transaction flows', async () => {
+			// Multiple transactions for the same entities
+			await createTransaction({
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-01').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2025-01-05').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: new Date('2025-01-10').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-4',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-5',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 150,
+				currency: 'USD',
+				timestamp: new Date('2025-01-20').getTime(),
+			});
+
+			const results = await getBatchEntityActuals(
+				['income-1', 'account-1', 'category-1', 'saving-1'],
+				jan2025Start,
+				jan2025End
+			);
+
+			expect(results.get('income-1')).toBe(-5000);
+			expect(results.get('account-1')).toBe(4500); // 5000 in - 500 out
+			expect(results.get('category-1')).toBe(150); // 100 + 50
+			expect(results.get('saving-1')).toBe(350); // 200 + 150
+		});
+
+		test('should handle subset of entities', async () => {
+			await createTransaction({
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-01-15').getTime(),
+			});
+
+			await createTransaction({
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2025-01-20').getTime(),
+			});
+
+			// Only ask for account and category, not income and saving
+			const results = await getBatchEntityActuals(
+				['account-1', 'category-1'],
+				jan2025Start,
+				jan2025End
+			);
+
+			expect(results.size).toBe(2);
+			expect(results.get('account-1')).toBe(900); // 1000 in - 100 out
+			expect(results.get('category-1')).toBe(100);
+			expect(results.has('income-1')).toBe(false);
+			expect(results.has('saving-1')).toBe(false);
 		});
 	});
 });
