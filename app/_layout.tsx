@@ -1,12 +1,12 @@
 import '@/src/global.css';
 
 import {
-	SpaceGrotesk_400Regular,
-	SpaceGrotesk_500Medium,
-	SpaceGrotesk_600SemiBold,
-	SpaceGrotesk_700Bold,
+	IBMPlexSans_400Regular,
+	IBMPlexSans_500Medium,
+	IBMPlexSans_600SemiBold,
+	IBMPlexSans_700Bold,
 	useFonts,
-} from '@expo-google-fonts/space-grotesk';
+} from '@expo-google-fonts/ibm-plex-sans';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -22,10 +22,10 @@ export const unstable_settings = {
 
 export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
-		SpaceGrotesk_400Regular,
-		SpaceGrotesk_500Medium,
-		SpaceGrotesk_600SemiBold,
-		SpaceGrotesk_700Bold,
+		IBMPlexSans_400Regular,
+		IBMPlexSans_500Medium,
+		IBMPlexSans_600SemiBold,
+		IBMPlexSans_700Bold,
 	});
 
 	useEffect(() => {
