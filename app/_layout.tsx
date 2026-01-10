@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { useStore } from '@/src/store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,6 +28,12 @@ export default function RootLayout() {
 		IBMPlexSans_600SemiBold,
 		IBMPlexSans_700Bold,
 	});
+	const initialize = useStore((state) => state.initialize);
+
+	// Initialize store from database on app start
+	useEffect(() => {
+		initialize();
+	}, [initialize]);
 
 	useEffect(() => {
 		if (fontsLoaded) {
