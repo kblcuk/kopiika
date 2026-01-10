@@ -217,7 +217,7 @@ export function TransactionModal({
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Amount
 						</Text>
-						<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3">
+						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
 							<TextInput
 								ref={inputRef}
 								value={amount}
@@ -252,7 +252,7 @@ export function TransactionModal({
 							Date
 						</Text>
 						{Platform.OS === 'ios' ? (
-							<View className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100">
+							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100">
 								<View className="flex-1 flex-row items-center px-4 py-2">
 									<Calendar size={20} color="#6B5D4A" />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -272,7 +272,7 @@ export function TransactionModal({
 							<>
 								<Pressable
 									onPress={() => setShowDatePicker(true)}
-									className="flex-row items-center rounded-lg border border-paper-400 bg-paper-100 px-4 py-3"
+									className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3"
 								>
 									<Calendar size={20} color="#6B5D4A" />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -301,7 +301,7 @@ export function TransactionModal({
 							value={note}
 							onChangeText={setNote}
 							placeholder="Add a note..."
-							className="rounded-lg border border-paper-400 bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
+							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
 						/>

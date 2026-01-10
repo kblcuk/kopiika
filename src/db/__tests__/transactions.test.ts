@@ -719,11 +719,7 @@ describe('transactions.ts', () => {
 				timestamp: new Date('2025-02-15').getTime(),
 			});
 
-			const results = await getBatchEntityActuals(
-				['account-1'],
-				jan2025Start,
-				jan2025End
-			);
+			const results = await getBatchEntityActuals(['account-1'], jan2025Start, jan2025End);
 
 			expect(results.get('account-1')).toBe(1000); // Only January transaction
 		});
