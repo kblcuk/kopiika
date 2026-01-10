@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
 import { resetDrizzleDb } from '@/src/db';
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
 	const { entities, plans, transactions, initialize } = useStore();
+
+	const version = Constants.expoConfig?.version || 'unknown';
 
 	const handleExport = async () => {
 		try {
@@ -76,7 +79,7 @@ export default function SettingsScreen() {
 				<View className="overflow-hidden rounded-lg bg-paper-100">
 					<View className="flex-row items-center justify-between px-4 py-3.5">
 						<Text className="font-sans text-base text-ink">Version</Text>
-						<Text className="font-sans text-sm text-ink-muted">1.0.0</Text>
+						<Text className="font-sans text-sm text-ink-muted">{version}</Text>
 					</View>
 				</View>
 
