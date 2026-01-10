@@ -227,7 +227,7 @@ export default function HomeScreen() {
 	}
 
 	return (
-		<SafeAreaView className="flex-1 overflow-visible bg-paper-50" edges={['top']}>
+		<SafeAreaView className="flex-1 overflow-visible bg-paper-50" edges={[]}>
 			{/* Summary bar */}
 			<SummaryHeader onToggleIncome={handleToggleIncome} />
 

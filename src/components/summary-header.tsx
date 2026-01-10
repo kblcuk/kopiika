@@ -2,6 +2,7 @@ import { View, Text, Pressable } from 'react-native';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '@/src/store';
 import { getPeriodRange } from '@/src/types';
@@ -74,9 +75,13 @@ interface SummaryHeaderProps {
 export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 	const { balance, expenses, planned } = useSummary();
 	const incomeVisible = useStore((state) => state.incomeVisible);
+	const insets = useSafeAreaInsets();
 
 	return (
-		<View className="z-[1001] border-b border-paper-300 bg-paper-100">
+		<View
+			className="z-[1001] border-b border-paper-300 bg-paper-100"
+			style={{ paddingTop: insets.top }}
+		>
 			{/* Main summary row */}
 			<View className="flex-row items-center justify-between px-4 py-2">
 				<View className="flex-1 flex-row justify-between">
