@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
-import { resetDatabase } from '@/src/db';
+import { resetDrizzleDb } from '@/src/db';
 
 export default function SettingsScreen() {
 	const { entities, plans, transactions, initialize } = useStore();
@@ -27,7 +27,7 @@ export default function SettingsScreen() {
 					text: 'Reset',
 					style: 'destructive',
 					onPress: async () => {
-						await resetDatabase();
+						resetDrizzleDb();
 						await initialize();
 					},
 				},
