@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
 import type { Entity, Plan, Transaction } from '@/src/types';
-import { useStore } from '../index';
+import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 
@@ -694,6 +694,1323 @@ describe('Store Data Integrity', () => {
 
 			// Verify that both plans exist but we expect the implementation to use period='all-time'
 			expect(state.plans).toHaveLength(2);
+		});
+	});
+
+	describe('Balance calculations with transaction changes', () => {
+		test('should update balances when adding current period transactions', async () => {
+			// Set up entities
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 0,
+			};
+
+			// Create entities in store
+			useStore.setState({
+				entities: [income, account, category, saving],
+				plans: [],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			// Create them in DB
+			for (const entity of [income, account, category, saving]) {
+				await db.createEntity(entity);
+			}
+
+			// Add transaction: Income -> Account (5000)
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+			await useStore.getState().addTransaction(tx1);
+
+			let state = useStore.getState();
+			expect(state.transactions).toHaveLength(1);
+
+			// Expected balances after tx1:
+			// Income: -5000 (money out, for current period)
+			// Account: +5000 (money in, all-time)
+			const jan2026Start = new Date('2026-01-01').getTime();
+			const jan2026End = new Date('2026-01-31T23:59:59.999').getTime();
+
+			const incomeTx = state.transactions.filter(
+				(t) =>
+					t.timestamp >= jan2026Start &&
+					t.timestamp <= jan2026End &&
+					[t.from_entity_id, t.to_entity_id].includes('income-1')
+			);
+			const incomeBalance = incomeTx.reduce(
+				(sum, t) => (t.from_entity_id === 'income-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(incomeBalance).toBe(5000);
+
+			const accountTx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const accountBalance = accountTx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(5000);
+
+			// Add transaction: Account -> Category (300)
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+			await useStore.getState().addTransaction(tx2);
+
+			state = useStore.getState();
+			expect(state.transactions).toHaveLength(2);
+
+			// Expected balances after tx2:
+			// Account: +5000 -300 = 4700 (all-time)
+			// Category: +300 (current period)
+			const accountTx2 = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const accountBalance2 = accountTx2.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance2).toBe(4700);
+
+			const categoryTx = state.transactions.filter(
+				(t) =>
+					t.timestamp >= jan2026Start &&
+					t.timestamp <= jan2026End &&
+					t.to_entity_id === 'category-1'
+			);
+			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount, 0);
+			expect(categoryBalance).toBe(300);
+
+			// Add transaction: Account -> Saving (1000)
+			const tx3: Transaction = {
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-25').getTime(),
+			};
+			await useStore.getState().addTransaction(tx3);
+
+			state = useStore.getState();
+			expect(state.transactions).toHaveLength(3);
+
+			// Expected balances after tx3:
+			// Account: +5000 -300 -1000 = 3700 (all-time)
+			// Saving: +1000 (all-time)
+			const accountTx3 = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const accountBalance3 = accountTx3.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance3).toBe(3700);
+
+			const savingTx = state.transactions.filter((t) => t.to_entity_id === 'saving-1');
+			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount, 0);
+			expect(savingBalance).toBe(1000);
+		});
+
+		test('should handle previous period transactions correctly for different entity types', async () => {
+			// Set up entities
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 0,
+			};
+
+			useStore.setState({
+				entities: [account, category, saving],
+				plans: [],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			for (const entity of [account, category, saving]) {
+				await db.createEntity(entity);
+			}
+
+			// Add current period transaction: Account -> Category (500)
+			const currentTx: Transaction = {
+				id: 'tx-current',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+			await useStore.getState().addTransaction(currentTx);
+
+			// Add previous period transaction: Account -> Category (300)
+			const previousTx: Transaction = {
+				id: 'tx-previous',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2025-12-15').getTime(),
+			};
+			await useStore.getState().addTransaction(previousTx);
+
+			// Add previous period transaction: Account -> Saving (1000)
+			const previousSavingTx: Transaction = {
+				id: 'tx-prev-saving',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2025-12-20').getTime(),
+			};
+			await useStore.getState().addTransaction(previousSavingTx);
+
+			const state = useStore.getState();
+			expect(state.transactions).toHaveLength(3);
+
+			// Verify account uses all transactions (all-time)
+			const accountTx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			expect(accountTx).toHaveLength(3);
+			const accountBalance = accountTx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			// Account: -500 (current) -300 (previous) -1000 (previous) = -1800
+			expect(accountBalance).toBe(-1800);
+
+			// Verify category uses only current period
+			const jan2026Start = new Date('2026-01-01').getTime();
+			const jan2026End = new Date('2026-01-31T23:59:59.999').getTime();
+			const categoryTx = state.transactions.filter(
+				(t) =>
+					t.timestamp >= jan2026Start &&
+					t.timestamp <= jan2026End &&
+					t.to_entity_id === 'category-1'
+			);
+			expect(categoryTx).toHaveLength(1); // Only current period transaction
+			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount, 0);
+			expect(categoryBalance).toBe(500); // Not 800!
+
+			// Verify saving uses all transactions (all-time)
+			const savingTx = state.transactions.filter((t) => t.to_entity_id === 'saving-1');
+			expect(savingTx).toHaveLength(1);
+			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount, 0);
+			expect(savingBalance).toBe(1000);
+		});
+
+		test('should update balances when deleting transactions', async () => {
+			// Set up entities
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Add multiple transactions
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			};
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+			const tx3: Transaction = {
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			await useStore.getState().addTransaction(tx1);
+			await useStore.getState().addTransaction(tx2);
+			await useStore.getState().addTransaction(tx3);
+
+			let state = useStore.getState();
+			expect(state.transactions).toHaveLength(3);
+
+			// Initial balance: -1000 for account, +1000 for category
+			let accountBalance = state.transactions.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(-1000);
+
+			// Delete one transaction
+			await useStore.getState().deleteTransaction('tx-2');
+
+			state = useStore.getState();
+			expect(state.transactions).toHaveLength(2);
+
+			// Balance after deletion: -700 for account, +700 for category
+			accountBalance = state.transactions.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(-700);
+
+			const categoryBalance = state.transactions
+				.filter((t) => t.to_entity_id === 'category-1')
+				.reduce((sum, t) => sum + t.amount, 0);
+			expect(categoryBalance).toBe(700);
+		});
+
+		test('should update balances when updating transaction amounts', async () => {
+			// Set up entities
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Add transaction
+			const tx: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+			await useStore.getState().addTransaction(tx);
+
+			let state = useStore.getState();
+			let accountBalance = state.transactions.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(-500);
+
+			// Update transaction amount
+			await useStore.getState().updateTransaction('tx-1', { amount: 750 });
+
+			state = useStore.getState();
+			expect(state.transactions).toHaveLength(1);
+			expect(state.transactions[0].amount).toBe(750);
+
+			// Balance should reflect updated amount
+			accountBalance = state.transactions.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(-750);
+
+			const categoryBalance = state.transactions
+				.filter((t) => t.to_entity_id === 'category-1')
+				.reduce((sum, t) => sum + t.amount, 0);
+			expect(categoryBalance).toBe(750);
+		});
+
+		test('should correctly calculate negative balance when account spends money', async () => {
+			// This tests the specific bug report: account value increases when spending
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Start with 0 balance
+			let state = useStore.getState();
+			let accountBalance = state.transactions
+				.filter((t) => [t.from_entity_id, t.to_entity_id].includes('account-1'))
+				.reduce(
+					(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+					0
+				);
+			expect(accountBalance).toBe(0);
+
+			// Spend money: Account -> Category (500)
+			const tx: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+			await useStore.getState().addTransaction(tx);
+
+			state = useStore.getState();
+
+			// Account balance should be NEGATIVE (spent money)
+			accountBalance = state.transactions
+				.filter((t) => [t.from_entity_id, t.to_entity_id].includes('account-1'))
+				.reduce(
+					(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+					0
+				);
+			expect(accountBalance).toBe(-500); // Should be -500, NOT +500!
+
+			// Category should have received the money
+			const categoryBalance = state.transactions
+				.filter((t) => t.to_entity_id === 'category-1')
+				.reduce((sum, t) => sum + t.amount, 0);
+			expect(categoryBalance).toBe(500);
+		});
+	});
+
+	describe('getEntitiesWithBalance function', () => {
+		test('should filter entities by type and calculate balances correctly', () => {
+			// Set up entities of different types
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 2,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 3,
+			};
+
+			// Set up plans
+			const incomePlan: Plan = {
+				id: 'plan-income',
+				entity_id: 'income-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 5000,
+			};
+
+			const categoryPlan: Plan = {
+				id: 'plan-category',
+				entity_id: 'category-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 300,
+			};
+
+			const savingPlan: Plan = {
+				id: 'plan-saving',
+				entity_id: 'saving-1',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 10000,
+			};
+
+			// Set up transactions (January 2026)
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			const tx3: Transaction = {
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-25').getTime(),
+			};
+
+			useStore.setState({
+				entities: [income, account, category, saving],
+				plans: [incomePlan, categoryPlan, savingPlan],
+				transactions: [tx1, tx2, tx3],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			// Test income entities
+			const state = useStore.getState();
+			const incomeEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'income'
+			);
+			expect(incomeEntities).toHaveLength(1);
+			expect(incomeEntities[0].id).toBe('income-1');
+			expect(incomeEntities[0].planned).toBe(5000);
+			expect(incomeEntities[0].actual).toBe(5000); // Money out from income
+			expect(incomeEntities[0].remaining).toBe(0);
+
+			// Test account entities (all-time balance)
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			expect(accountEntities).toHaveLength(1);
+			expect(accountEntities[0].id).toBe('account-1');
+			expect(accountEntities[0].planned).toBe(0); // No plan
+			expect(accountEntities[0].actual).toBe(3800); // +5000 -200 -1000 = 3800
+			expect(accountEntities[0].remaining).toBe(-3800);
+
+			// Test category entities (current period only)
+			const categoryEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			expect(categoryEntities).toHaveLength(1);
+			expect(categoryEntities[0].id).toBe('category-1');
+			expect(categoryEntities[0].planned).toBe(300);
+			expect(categoryEntities[0].actual).toBe(200);
+			expect(categoryEntities[0].remaining).toBe(100);
+
+			// Test saving entities (all-time balance)
+			const savingEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'saving'
+			);
+			expect(savingEntities).toHaveLength(1);
+			expect(savingEntities[0].id).toBe('saving-1');
+			expect(savingEntities[0].planned).toBe(10000);
+			expect(savingEntities[0].actual).toBe(1000);
+			expect(savingEntities[0].remaining).toBe(9000);
+		});
+
+		test('should use all-time transactions for accounts and savings, current period for income and categories', () => {
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 2,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 3,
+			};
+
+			// December 2025 transactions (previous month)
+			const txDec1: Transaction = {
+				id: 'tx-dec-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 4000,
+				currency: 'USD',
+				timestamp: new Date('2025-12-15').getTime(),
+			};
+
+			const txDec2: Transaction = {
+				id: 'tx-dec-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2025-12-20').getTime(),
+			};
+
+			const txDec3: Transaction = {
+				id: 'tx-dec-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: new Date('2025-12-25').getTime(),
+			};
+
+			// January 2026 transactions (current month)
+			const txJan1: Transaction = {
+				id: 'tx-jan-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			const txJan2: Transaction = {
+				id: 'tx-jan-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			const txJan3: Transaction = {
+				id: 'tx-jan-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-25').getTime(),
+			};
+
+			useStore.setState({
+				entities: [income, account, category, saving],
+				plans: [],
+				transactions: [txDec1, txDec2, txDec3, txJan1, txJan2, txJan3],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			// Income: only January transactions (5000)
+			const state = useStore.getState();
+			const incomeEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'income'
+			);
+			expect(incomeEntities[0].actual).toBe(5000); // Only Jan, not Dec
+
+			// Account: all transactions (4000 - 300 - 500 + 5000 - 200 - 1000 = 7000)
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			expect(accountEntities[0].actual).toBe(7000); // All-time
+
+			// Category: only January transactions (200)
+			const categoryEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			expect(categoryEntities[0].actual).toBe(200); // Only Jan, not Dec
+
+			// Saving: all transactions (500 + 1000 = 1500)
+			const savingEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'saving'
+			);
+			expect(savingEntities[0].actual).toBe(1500); // All-time
+		});
+
+		test('should look up plans with correct period type', () => {
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 1,
+			};
+
+			// Category has monthly plan for current period
+			const categoryPlanCurrent: Plan = {
+				id: 'plan-cat-jan',
+				entity_id: 'category-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 300,
+			};
+
+			// Category also has monthly plan for different period (should be ignored)
+			const categoryPlanOld: Plan = {
+				id: 'plan-cat-dec',
+				entity_id: 'category-1',
+				period: 'month',
+				period_start: '2025-12',
+				planned_amount: 250,
+			};
+
+			// Saving has all-time plan
+			const savingPlanAllTime: Plan = {
+				id: 'plan-saving-alltime',
+				entity_id: 'saving-1',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 10000,
+			};
+
+			// Saving also has monthly plan (should be ignored)
+			const savingPlanMonthly: Plan = {
+				id: 'plan-saving-monthly',
+				entity_id: 'saving-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 500,
+			};
+
+			useStore.setState({
+				entities: [category, saving],
+				plans: [categoryPlanCurrent, categoryPlanOld, savingPlanAllTime, savingPlanMonthly],
+				transactions: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			// Category should use monthly plan for current period (300), not old period (250)
+			const state = useStore.getState();
+			const categoryEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			expect(categoryEntities[0].planned).toBe(300);
+
+			// Saving should use all-time plan (10000), not monthly plan (500)
+			const savingEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'saving'
+			);
+			expect(savingEntities[0].planned).toBe(10000);
+		});
+
+		test('should handle entities with no plans', () => {
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const tx: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			useStore.setState({
+				entities: [income, account],
+				plans: [], // No plans
+				transactions: [tx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const incomeEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'income'
+			);
+			expect(incomeEntities[0].planned).toBe(0);
+			expect(incomeEntities[0].actual).toBe(1000);
+			expect(incomeEntities[0].remaining).toBe(-1000);
+
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			expect(accountEntities[0].planned).toBe(0);
+			expect(accountEntities[0].actual).toBe(1000);
+			expect(accountEntities[0].remaining).toBe(-1000);
+		});
+
+		test('should handle entities with no transactions', () => {
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const categoryPlan: Plan = {
+				id: 'plan-1',
+				entity_id: 'category-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 500,
+			};
+
+			useStore.setState({
+				entities: [category],
+				plans: [categoryPlan],
+				transactions: [], // No transactions
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const categoryEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			expect(categoryEntities[0].planned).toBe(500);
+			expect(categoryEntities[0].actual).toBe(0);
+			expect(categoryEntities[0].remaining).toBe(500);
+		});
+
+		test('should handle multiple entities of the same type', () => {
+			const cat1: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const cat2: Entity = {
+				id: 'category-2',
+				type: 'category',
+				name: 'Transport',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const cat3: Entity = {
+				id: 'category-3',
+				type: 'category',
+				name: 'Entertainment',
+				currency: 'USD',
+				order: 2,
+			};
+
+			const plan1: Plan = {
+				id: 'plan-1',
+				entity_id: 'category-1',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 300,
+			};
+
+			const plan2: Plan = {
+				id: 'plan-2',
+				entity_id: 'category-2',
+				period: 'month',
+				period_start: '2026-01',
+				planned_amount: 150,
+			};
+
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'category-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			};
+
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'income-1',
+				to_entity_id: 'category-2',
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			useStore.setState({
+				entities: [cat1, cat2, cat3],
+				plans: [plan1, plan2],
+				transactions: [tx1, tx2],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const categories = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			expect(categories).toHaveLength(3);
+
+			// Check they're sorted by order
+			expect(categories[0].id).toBe('category-1');
+			expect(categories[1].id).toBe('category-2');
+			expect(categories[2].id).toBe('category-3');
+
+			// Check balances
+			expect(categories[0].planned).toBe(300);
+			expect(categories[0].actual).toBe(200);
+			expect(categories[0].remaining).toBe(100);
+
+			expect(categories[1].planned).toBe(150);
+			expect(categories[1].actual).toBe(100);
+			expect(categories[1].remaining).toBe(50);
+
+			expect(categories[2].planned).toBe(0); // No plan
+			expect(categories[2].actual).toBe(0); // No transactions
+			expect(categories[2].remaining).toBe(0);
+		});
+
+		test('should calculate income balance correctly (money flowing out is positive)', () => {
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 1,
+			};
+
+			// Income -> Account (money out from income = positive)
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			// Account -> Income (money in to income = negative, unusual but possible)
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'income-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			useStore.setState({
+				entities: [income, account],
+				plans: [],
+				transactions: [tx1, tx2],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const incomeEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'income'
+			);
+			// Income: +5000 (out) -100 (in) = 4900
+			expect(incomeEntities[0].actual).toBe(4900);
+		});
+
+		test('should calculate account balance correctly (money in is positive, money out is negative)', () => {
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 2,
+			};
+
+			// Income -> Account (money in = positive)
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			// Account -> Category (money out = negative)
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 1500,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			useStore.setState({
+				entities: [income, account, category],
+				plans: [],
+				transactions: [tx1, tx2],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			// Account: +5000 (in) -1500 (out) = 3500
+			expect(accountEntities[0].actual).toBe(3500);
+		});
+
+		test('should only count incoming transactions for categories and savings', () => {
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const category: Entity = {
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				order: 1,
+			};
+
+			const saving: Entity = {
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				order: 2,
+			};
+
+			// Account -> Category (should count)
+			const tx1: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 300,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			};
+
+			// Category -> Account (unusual, should NOT count for category)
+			const tx2: Transaction = {
+				id: 'tx-2',
+				from_entity_id: 'category-1',
+				to_entity_id: 'account-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			// Account -> Saving (should count)
+			const tx3: Transaction = {
+				id: 'tx-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20').getTime(),
+			};
+
+			// Saving -> Account (withdrawal, should NOT count for saving)
+			const tx4: Transaction = {
+				id: 'tx-4',
+				from_entity_id: 'saving-1',
+				to_entity_id: 'account-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: new Date('2026-01-25').getTime(),
+			};
+
+			useStore.setState({
+				entities: [account, category, saving],
+				plans: [],
+				transactions: [tx1, tx2, tx3, tx4],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const categoryEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'category'
+			);
+			// Category: only incoming (300), not outgoing (50)
+			expect(categoryEntities[0].actual).toBe(300);
+
+			const savingEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'saving'
+			);
+			// Saving: only incoming (1000), not outgoing (200)
+			expect(savingEntities[0].actual).toBe(1000);
 		});
 	});
 });

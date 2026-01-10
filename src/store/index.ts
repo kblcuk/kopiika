@@ -203,6 +203,77 @@ export const useStore = create<AppState>((set, get) => ({
 
 // Selectors - using useShallow and useMemo to prevent infinite loops
 
+// Pure function to calculate balances for entities (testable without React)
+export function getEntitiesWithBalance(
+	entities: Entity[],
+	plans: Plan[],
+	transactions: Transaction[],
+	currentPeriod: string,
+	type: EntityType
+): EntityWithBalance[] {
+	const { start, end } = getPeriodRange(currentPeriod);
+	const filteredEntities = entities
+		.filter((e) => e.type === type)
+		.sort((a, b) => a.order - b.order);
+
+	return filteredEntities.map((entity) => {
+		// Savings use 'all-time' period for plans, others use 'month' period with current period_start
+		const plan =
+			entity.type === 'saving'
+				? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
+				: plans.find(
+						(p) =>
+							p.entity_id === entity.id &&
+							p.period === 'month' &&
+							p.period_start === currentPeriod
+					);
+		const planned = plan?.planned_amount ?? 0;
+
+		// Accounts and savings use all transactions (all-time balance)
+		// Income and categories use current period only
+		const useAllTime = entity.type === 'account' || entity.type === 'saving';
+		const relevantTransactions = useAllTime
+			? transactions
+			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
+
+		let actual = 0;
+		switch (entity.type) {
+			case 'account':
+				actual = relevantTransactions
+					.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
+					.reduce(
+						(sum, t) =>
+							t.from_entity_id === entity.id ? sum - t.amount : sum + t.amount,
+						0
+					);
+				break;
+			case 'income':
+				actual = relevantTransactions
+					.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
+					.reduce(
+						(sum, t) =>
+							t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
+						0
+					);
+				break;
+			case 'category':
+			case 'saving':
+				actual = relevantTransactions
+					.filter((t) => t.to_entity_id === entity.id)
+					.reduce((sum, t) => sum + t.amount, 0);
+				break;
+		}
+
+		return {
+			...entity,
+			planned,
+			actual,
+			remaining: planned - actual,
+		};
+	});
+}
+
+// React hook that wraps the pure function
 export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 	const { entities, plans, transactions, currentPeriod } = useStore(
 		useShallow((state) => ({
@@ -213,68 +284,10 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 		}))
 	);
 
-	return useMemo(() => {
-		const { start, end } = getPeriodRange(currentPeriod);
-		const filteredEntities = entities
-			.filter((e) => e.type === type)
-			.sort((a, b) => a.order - b.order);
-
-		return filteredEntities.map((entity) => {
-			// Savings use 'all-time' period for plans, others use 'month' period with current period_start
-			const plan =
-				entity.type === 'saving'
-					? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
-					: plans.find(
-							(p) =>
-								p.entity_id === entity.id &&
-								p.period === 'month' &&
-								p.period_start === currentPeriod
-						);
-			const planned = plan?.planned_amount ?? 0;
-
-			// Accounts and savings use all transactions (all-time balance)
-			// Income and categories use current period only
-			const useAllTime = entity.type === 'account' || entity.type === 'saving';
-			const relevantTransactions = useAllTime
-				? transactions
-				: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
-
-			let actual = 0;
-			switch (entity.type) {
-				case 'account':
-					actual = relevantTransactions
-						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
-						.reduce(
-							(sum, t) =>
-								t.from_entity_id === entity.id ? sum - t.amount : sum + t.amount,
-							0
-						);
-					break;
-				case 'income':
-					actual = relevantTransactions
-						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
-						.reduce(
-							(sum, t) =>
-								t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
-							0
-						);
-					break;
-				case 'category':
-				case 'saving':
-					actual = relevantTransactions
-						.filter((t) => t.to_entity_id === entity.id)
-						.reduce((sum, t) => sum + t.amount, 0);
-					break;
-			}
-
-			return {
-				...entity,
-				planned,
-				actual,
-				remaining: planned - actual,
-			};
-		});
-	}, [entities, plans, transactions, currentPeriod, type]);
+	return useMemo(
+		() => getEntitiesWithBalance(entities, plans, transactions, currentPeriod, type),
+		[entities, plans, transactions, currentPeriod, type]
+	);
 }
 
 // Utility for generating IDs
