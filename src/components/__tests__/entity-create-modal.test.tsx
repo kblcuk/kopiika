@@ -193,7 +193,7 @@ describe('EntityCreateModal', () => {
 			const setPlanSpy = jest.fn();
 			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
 
-			const types: Array<'income' | 'account' | 'category'> = ['income', 'account', 'category'];
+			const types: ('income' | 'account' | 'category')[] = ['income', 'account', 'category'];
 
 			for (const type of types) {
 				jest.clearAllMocks();
