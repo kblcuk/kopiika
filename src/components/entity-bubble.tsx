@@ -178,52 +178,54 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	const typeColors = getEntityTypeColors(entity.type);
 
 	return (
-		<GestureDetector gesture={composedGesture}>
-			<Animated.View style={animatedStyle} className="items-center py-1.5">
-				{/* Name */}
-				<Text
-					className="mb-1.5 text-center font-sans text-xs text-ink"
-					numberOfLines={1}
-					ellipsizeMode="tail"
-				>
-					{entity.name}
-				</Text>
-
-				{/* Icon circle with progress ring */}
-				<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
-					{/* Progress ring */}
-					{entity.type === 'account' || entity.planned === 0 ? null : (
-						<View className="absolute">
-							<CircularProgress
-								size={64}
-								strokeWidth={3}
-								progress={progress}
-								inverse={entity.type === 'saving'}
-							/>
-						</View>
-					)}
-					{/* Icon background */}
-					<View
-						className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
+		<View className="items-center py-1.5">
+			<GestureDetector gesture={composedGesture}>
+				<Animated.View style={animatedStyle} className="items-center">
+					{/* Name */}
+					<Text
+						className="mb-1.5 text-center font-sans text-xs text-ink"
+						numberOfLines={1}
+						ellipsizeMode="tail"
 					>
-						<IconComponent size={24} color={typeColors.iconColor} />
+						{entity.name}
+					</Text>
+
+					{/* Icon circle with progress ring */}
+					<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
+						{/* Progress ring */}
+						{entity.type === 'account' || entity.planned === 0 ? null : (
+							<View className="absolute">
+								<CircularProgress
+									size={64}
+									strokeWidth={3}
+									progress={progress}
+									inverse={entity.type === 'saving'}
+								/>
+							</View>
+						)}
+						{/* Icon background */}
+						<View
+							className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
+						>
+							<IconComponent size={24} color={typeColors.iconColor} />
+						</View>
 					</View>
-				</View>
 
-				{/* Main amount */}
-				<Text
-					className={`font-sans-semibold text-sm ${
-						overspent ? 'text-negative' : 'text-ink'
-					}`}
-				>
-					{mainAmount}
-				</Text>
+					{/* Main amount */}
+					<Text
+						className={`font-sans-semibold text-sm ${
+							overspent ? 'text-negative' : 'text-ink'
+						}`}
+					>
+						{mainAmount}
+					</Text>
 
-				{/* Planned amount */}
-				<Text className="font-sans text-xs text-ink-muted">
-					{formatAmount(entity.planned)}
-				</Text>
-			</Animated.View>
-		</GestureDetector>
+					{/* Planned amount */}
+					<Text className="font-sans text-xs text-ink-muted">
+						{formatAmount(entity.planned)}
+					</Text>
+				</Animated.View>
+			</GestureDetector>
+		</View>
 	);
 }
