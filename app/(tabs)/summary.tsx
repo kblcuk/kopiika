@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
+import { useRouter } from 'expo-router';
 import * as Icons from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
@@ -14,6 +15,7 @@ import { getBatchEntityActuals } from '@/src/db/transactions';
 
 interface SummaryRowProps {
 	entity: EntityWithBalance;
+	onPress: () => void;
 }
 
 // Convert kebab-case to PascalCase for lucide icon lookup
@@ -24,7 +26,7 @@ function toIconName(name: string): string {
 		.join('');
 }
 
-function SummaryRow({ entity }: SummaryRowProps) {
+function SummaryRow({ entity, onPress }: SummaryRowProps) {
 	const iconName = entity.icon ? toIconName(entity.icon) : 'Circle';
 	const IconComponent =
 		(Icons as unknown as Record<string, typeof Icons.Circle>)[iconName] || Icons.Circle;
@@ -33,7 +35,7 @@ function SummaryRow({ entity }: SummaryRowProps) {
 	const progress = getProgressPercent(entity.actual, entity.planned);
 
 	return (
-		<View className="border-b border-paper-200 px-5 py-4">
+		<Pressable onPress={onPress} className="border-b border-paper-200 px-5 py-4">
 			<View className="flex-row items-center">
 				{/* Icon */}
 				<View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
@@ -63,16 +65,17 @@ function SummaryRow({ entity }: SummaryRowProps) {
 					<ProgressBar progress={progress} inverse={entity.type === 'saving'} />
 				</View>
 			</View>
-		</View>
+		</Pressable>
 	);
 }
 
 interface SectionProps {
 	title: string;
 	entities: EntityWithBalance[];
+	onEntityPress: (entity: EntityWithBalance) => void;
 }
 
-function Section({ title, entities }: SectionProps) {
+function Section({ title, entities, onEntityPress }: SectionProps) {
 	if (entities.length === 0) return null;
 
 	return (
@@ -86,13 +89,14 @@ function Section({ title, entities }: SectionProps) {
 
 			{/* Section items */}
 			{entities.map((entity) => (
-				<SummaryRow key={entity.id} entity={entity} />
+				<SummaryRow key={entity.id} entity={entity} onPress={() => onEntityPress(entity)} />
 			))}
 		</View>
 	);
 }
 
 export default function SummaryScreen() {
+	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
 	const [actuals, setActuals] = useState<Map<string, number>>(new Map());
 
@@ -102,6 +106,10 @@ export default function SummaryScreen() {
 			plans: state.plans,
 		}))
 	);
+
+	const handleEntityPress = (entity: EntityWithBalance) => {
+		router.push(`/history?period=${selectedPeriod}&entityId=${entity.id}`);
+	};
 
 	// Fetch actuals when period changes
 	useEffect(() => {
@@ -173,8 +181,16 @@ export default function SummaryScreen() {
 					</View>
 				) : (
 					<>
-						<Section title="Categories" entities={groupedEntities.category} />
-						<Section title="Savings" entities={groupedEntities.saving} />
+						<Section
+							title="Categories"
+							entities={groupedEntities.category}
+							onEntityPress={handleEntityPress}
+						/>
+						<Section
+							title="Savings"
+							entities={groupedEntities.saving}
+							onEntityPress={handleEntityPress}
+						/>
 					</>
 				)}
 			</ScrollView>

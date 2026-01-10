@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
+import { useLocalSearchParams } from 'expo-router';
 
 import { useStore } from '@/src/store';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
@@ -57,8 +58,11 @@ function groupTransactionsByDay(transactions: Transaction[]): TransactionGroup[]
 }
 
 export default function HistoryScreen() {
-	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
-	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+	const params = useLocalSearchParams<{ period?: string; entityId?: string }>();
+	const [selectedPeriod, setSelectedPeriod] = useState(params.period || getCurrentPeriod());
+	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
+		params.entityId || null
+	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
 	const { transactions, entities } = useStore(
@@ -67,6 +71,16 @@ export default function HistoryScreen() {
 			entities: state.entities,
 		}))
 	);
+
+	// Sync state with URL params when navigating from other screens
+	useEffect(() => {
+		if (params.period) {
+			setSelectedPeriod(params.period);
+		}
+		if (params.entityId) {
+			setSelectedEntityId(params.entityId);
+		}
+	}, [params.period, params.entityId]);
 
 	const filteredTransactions = useMemo(() => {
 		const { start, end } = getPeriodRange(selectedPeriod);
