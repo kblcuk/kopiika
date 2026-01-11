@@ -12,7 +12,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { ArrowRight, Calendar } from 'lucide-react-native';
 
 import type { EntityWithBalance, Transaction } from '@/src/types';
-import { formatAmount } from '@/src/utils/format';
+import { formatAmount, reverseFormatCurrency } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { styles } from '../styles/text-input';
@@ -105,7 +105,7 @@ export function TransactionModal({
 	const suggestedAmount = getSuggestedAmount();
 
 	const handleSubmit = async () => {
-		const numAmount = parseFloat(amount);
+		const numAmount = reverseFormatCurrency(amount);
 		if (isNaN(numAmount) || numAmount <= 0) return;
 
 		// Use selected date but preserve current time for new transactions
@@ -171,13 +171,15 @@ export function TransactionModal({
 					</Text>
 					<Pressable
 						onPress={handleSubmit}
-						disabled={!amount || parseFloat(amount) <= 0}
+						disabled={!amount || reverseFormatCurrency(amount) <= 0}
 						hitSlop={20}
 						testID="transaction-save-button"
 					>
 						<Text
 							className={`font-sans-semibold text-base ${
-								amount && parseFloat(amount) > 0 ? 'text-accent' : 'text-ink-muted'
+								amount && reverseFormatCurrency(amount) > 0
+									? 'text-accent'
+									: 'text-ink-muted'
 							}`}
 						>
 							Save
