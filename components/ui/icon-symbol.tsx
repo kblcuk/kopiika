@@ -20,6 +20,7 @@ const MAPPING = {
 	'chevron.right': 'chevron-right',
 	'gearshape.fill': 'settings',
 	'clock.fill': 'schedule',
+	'chart.bar.fill': 'bar-chart',
 } as IconMapping;
 
 /**
