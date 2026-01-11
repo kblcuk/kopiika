@@ -168,12 +168,12 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 	const typeColors = getEntityTypeColors(entity.type);
 
 	return (
-		<View className="items-center py-1.5">
+		<View className="items-center">
 			<GestureDetector gesture={composedGesture}>
-				<Animated.View style={animatedStyle} className="items-center">
+				<Animated.View style={animatedStyle} className="flex items-center gap-2.5">
 					{/* Name */}
 					<Text
-						className="mb-1.5 text-center font-sans text-xs text-ink"
+						className="text-center font-sans text-xs text-ink"
 						numberOfLines={1}
 						ellipsizeMode="tail"
 					>
@@ -181,7 +181,7 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 					</Text>
 
 					{/* Icon circle with progress ring */}
-					<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
+					<View className="relative h-14 w-14 items-center justify-center">
 						{/* Progress ring */}
 						{entity.type === 'account' || entity.planned === 0 ? null : (
 							<View className="absolute">
@@ -201,19 +201,19 @@ export function EntityBubble({ entity, onDragStart, onDragEnd, onTap }: EntityBu
 						</View>
 					</View>
 
-					{/* Main amount */}
-					<Text
-						className={`font-sans-semibold text-sm ${
-							overspent ? 'text-negative' : 'text-ink'
-						}`}
-					>
-						{mainAmount}
-					</Text>
+					<View className="items-center">
+						<Text
+							className={`font-sans-semibold text-sm ${
+								overspent ? 'text-negative' : 'text-ink'
+							}`}
+						>
+							{mainAmount}
+						</Text>
 
-					{/* Planned amount */}
-					<Text className="font-sans text-xs text-ink-muted">
-						{formatAmount(entity.planned)}
-					</Text>
+						<Text className="font-sans text-xs text-ink-muted">
+							{formatAmount(entity.planned)}
+						</Text>
+					</View>
 				</Animated.View>
 			</GestureDetector>
 		</View>

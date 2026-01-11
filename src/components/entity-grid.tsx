@@ -91,7 +91,7 @@ export function EntityGrid({
 					className="overflow-visible"
 					contentContainerStyle={{ paddingHorizontal: 16 }}
 					renderItem={({ item: column }) => (
-						<View className="flex-col overflow-visible">
+						<View className="flex-col gap-4 overflow-visible">
 							{column.map((entity) => (
 								<DropZone
 									key={entity.id}

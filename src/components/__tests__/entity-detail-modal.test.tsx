@@ -50,7 +50,9 @@ describe('EntityDetailModal', () => {
 		});
 
 		it('returns null when entity is null', () => {
-			const { toJSON } = render(<EntityDetailModal visible={true} entity={null} onClose={mockOnClose} />);
+			const { toJSON } = render(
+				<EntityDetailModal visible={true} entity={null} onClose={mockOnClose} />
+			);
 
 			expect(toJSON()).toBeNull();
 		});
