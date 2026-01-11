@@ -40,6 +40,13 @@ import {
 	Wallet,
 	X,
 	Zap,
+	BottleWine,
+	BriefcaseConveyorBelt,
+	Bus,
+	Sofa,
+	Users,
+	TentTree,
+	SoapDispenserDroplet,
 } from 'lucide-react-native';
 
 // Icon registry mapping kebab-case names to icon components
@@ -60,27 +67,32 @@ export const iconRegistry: Record<string, LucideIcon> = {
 	'piggy-bank': PiggyBank,
 	coins: Coins,
 
-	// Category icons
+	// Category and savings icons
+	'bottle-wine': BottleWine,
+	'briefcase-conveyor-belt': BriefcaseConveyorBelt,
+	'graduation-cap': GraduationCap,
 	'shopping-cart': ShoppingCart,
-	car: Car,
-	coffee: Coffee,
-	film: Film,
-	utensils: Utensils,
-	home: Home,
-	heart: Heart,
-	zap: Zap,
-	smartphone: Smartphone,
-	shirt: Shirt,
+	'soap-dispenser-droplet': SoapDispenserDroplet,
+	'tent-tree': TentTree,
 	book: Book,
-	dumbbell: Dumbbell,
+	bus: Bus,
+	car: Car,
 	cat: Cat,
+	coffee: Coffee,
 	dog: Dog,
-
-	// Saving icons
+	dumbbell: Dumbbell,
+	film: Film,
+	heart: Heart,
+	home: Home,
 	plane: Plane,
 	shield: Shield,
-	'graduation-cap': GraduationCap,
+	shirt: Shirt,
+	smartphone: Smartphone,
+	sofa: Sofa,
 	star: Star,
+	users: Users,
+	utensils: Utensils,
+	zap: Zap,
 
 	// UI icons
 	'chevron-left': ChevronLeft,
@@ -102,12 +114,4 @@ export const iconRegistry: Record<string, LucideIcon> = {
  */
 export function getIcon(name: string): LucideIcon {
 	return iconRegistry[name.toLowerCase()] || Circle;
-}
-
-/**
- * Get icon component by kebab-case name, converting to PascalCase internally
- * This maintains compatibility with the old toIconName approach
- */
-export function getIconByKebabCase(name: string): LucideIcon {
-	return getIcon(name);
 }
