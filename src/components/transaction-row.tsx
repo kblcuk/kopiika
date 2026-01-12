@@ -6,8 +6,8 @@ import Animated, {
 	useSharedValue,
 	withSpring,
 	withTiming,
-	runOnJS,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Trash2 } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
@@ -63,14 +63,14 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 		})
 		.onEnd(() => {
 			if (translateX.value < DELETE_THRESHOLD) {
-				runOnJS(confirmDelete)();
+				scheduleOnRN(confirmDelete);
 			}
 			translateX.value = withSpring(0);
 			deleteOpacity.value = withTiming(0);
 		});
 
 	const tapGesture = Gesture.Tap().onEnd(() => {
-		runOnJS(onEdit)(transaction);
+		scheduleOnRN(onEdit, transaction);
 	});
 
 	const composedGesture = Gesture.Race(panGesture, tapGesture);
@@ -102,14 +102,14 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 					{/* From/To entities */}
 					<View className="flex-1 flex-row items-center">
 						<View className="mr-2 h-8 w-8 items-center justify-center rounded-full bg-paper-200">
-							<FromIcon size={16} color="#6B5D4A" />
+							<FromIcon size={16} />
 						</View>
 						<Text className="font-sans text-ink" numberOfLines={1}>
 							{fromEntity?.name ?? 'Unknown'}
 						</Text>
 						<Text className="mx-2 font-sans text-ink">→</Text>
 						<View className="mr-2 h-8 w-8 items-center justify-center rounded-full bg-paper-200">
-							<ToIcon size={16} color="#6B5D4A" />
+							<ToIcon size={16} />
 						</View>
 						<Text className="flex-1 font-sans text-ink" numberOfLines={1}>
 							{toEntity?.name ?? 'Unknown'}
