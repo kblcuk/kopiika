@@ -19,6 +19,7 @@ import { remeasureAllDropZones } from '@/src/components/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 export default function HomeScreen() {
 	const {
@@ -56,10 +57,11 @@ export default function HomeScreen() {
 		initialize();
 	}, [initialize]);
 
-	// Seed default data if empty
+	// Seed default data if empty (excluding system entities)
 	useEffect(() => {
 		async function seedData() {
-			if (!isLoading && entities.length === 0) {
+			const userEntities = entities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID);
+			if (!isLoading && userEntities.length === 0) {
 				const defaultEntities = createDefaultEntities();
 				const defaultPlans = createDefaultPlans(defaultEntities);
 

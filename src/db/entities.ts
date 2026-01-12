@@ -2,6 +2,10 @@ import { eq, max } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { entities } from './drizzle-schema';
+import {
+	BALANCE_ADJUSTMENT_ENTITY_ID,
+	createBalanceAdjustmentEntity,
+} from '@/src/constants/system-entities';
 
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
@@ -69,5 +73,16 @@ export async function updateEntityOrders(updates: { id: string; order: number }[
 	// Update each entity's order in a transaction
 	for (const update of updates) {
 		await db.update(entities).set({ order: update.order }).where(eq(entities.id, update.id));
+	}
+}
+
+/**
+ * Ensures the balance adjustment system entity exists.
+ * This is idempotent and safe to call multiple times.
+ */
+export async function ensureBalanceAdjustmentEntity(): Promise<void> {
+	const existing = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
+	if (!existing) {
+		await createEntity(createBalanceAdjustmentEntity());
 	}
 }

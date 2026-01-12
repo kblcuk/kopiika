@@ -5,6 +5,7 @@ import { EntityDetailModal } from '../entity-detail-modal';
 import { setupStoreForTest, fireEvent, waitFor } from '@/src/test-utils-component';
 import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
@@ -324,6 +325,220 @@ describe('EntityDetailModal', () => {
 						period: 'month',
 					})
 				);
+			});
+		});
+	});
+
+	describe('Balance Adjustment (Account Entities)', () => {
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			icon: 'wallet',
+			order: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+		};
+
+		it('shows editable actual amount field for account entities', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Should have an input for actual amount
+			const actualInput = getByTestId('entity-detail-actual-input');
+			expect(actualInput).toBeTruthy();
+			expect(actualInput.props.value).toBe('1000');
+		});
+
+		it('does not show editable actual amount for non-account entities', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			// Should NOT have an input for actual amount
+			const actualInput = queryByTestId('entity-detail-actual-input');
+			expect(actualInput).toBeNull();
+		});
+
+		it('creates positive adjustment transaction when increasing balance', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Change balance from 1000 to 1500
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '1500');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500, // 1500 - 1000
+						currency: 'USD',
+						note: expect.stringContaining('Balance correction'),
+					})
+				);
+			});
+		});
+
+		it('creates negative adjustment transaction when decreasing balance', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Change balance from 1000 to 800
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '800');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						amount: 200, // 1000 - 800
+						currency: 'USD',
+						note: expect.stringContaining('Balance correction'),
+					})
+				);
+			});
+		});
+
+		it('does not create adjustment transaction when balance unchanged', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Don't change balance (or change to same value)
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '1000');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				// Should not create adjustment transaction
+				expect(addTransactionSpy).not.toHaveBeenCalled();
+				// But should still update entity and plan
+				expect(updateEntitySpy).toHaveBeenCalled();
+				expect(setPlanSpy).toHaveBeenCalled();
+			});
+		});
+
+		it('does not create adjustment transaction if actual amount was not edited', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Only change name, don't touch actual amount
+			fireEvent.changeText(getByTestId('entity-detail-name-input'), 'Savings Account');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				// Should not create adjustment transaction
+				expect(addTransactionSpy).not.toHaveBeenCalled();
+				// But should still update entity
+				expect(updateEntitySpy).toHaveBeenCalled();
+			});
+		});
+
+		it('includes correct note in adjustment transaction', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Change balance
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '1250');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				const call = addTransactionSpy.mock.calls[0][0];
+				expect(call.note).toContain('Balance correction');
+				expect(call.note).toContain('1,000'); // formatAmount adds commas
+				expect(call.note).toContain('1,250');
+			});
+		});
+
+		it('handles zero as target balance', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+			);
+
+			// Change balance to 0
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '0');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						amount: 1000,
+					})
+				);
+				// Check note separately to avoid exact format matching
+				const call = addTransactionSpy.mock.calls[0][0];
+				expect(call.note).toContain('Balance correction');
 			});
 		});
 	});

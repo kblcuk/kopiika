@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import type { EntityWithBalance } from '@/src/types';
+import type { EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { formatAmount } from '@/src/utils/format';
 import { useStore } from '@/src/store';
@@ -21,6 +21,7 @@ import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
 import { generateId } from '@/src/utils/ids';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 interface EntityDetailModalProps {
 	visible: boolean;
@@ -36,15 +37,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [showIconPicker, setShowIconPicker] = useState(false);
 	const [plannedAmount, setPlannedAmount] = useState('');
+	const [actualAmount, setActualAmount] = useState('');
+	const [isEditingActual, setIsEditingActual] = useState(false);
 	const inputRef = useRef<TextInput>(null);
 
-	const { plans, currentPeriod, setPlan, deleteEntity, updateEntity } = useStore(
+	const { plans, currentPeriod, setPlan, deleteEntity, updateEntity, addTransaction } = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
 			currentPeriod: state.currentPeriod,
 			setPlan: state.setPlan,
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
+			addTransaction: state.addTransaction,
 		}))
 	);
 
@@ -67,6 +71,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setName(entity.name);
 			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
 			setPlannedAmount(existingPlan?.planned_amount?.toString() ?? '');
+			setActualAmount(entity.actual.toString());
+			setIsEditingActual(false);
 			setNameError(null);
 			setShowIconPicker(false);
 		}
@@ -126,6 +132,27 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			period_start: existingPlan?.period_start ?? currentPeriod,
 			planned_amount: amount,
 		});
+
+		// Handle balance adjustment for accounts
+		if (entity.type === 'account' && isEditingActual) {
+			const currentBalance = entity.actual;
+			const targetBalance = parseFloat(actualAmount) || 0;
+			const adjustment = targetBalance - currentBalance;
+
+			if (adjustment !== 0) {
+				const adjustmentTransaction: Transaction = {
+					id: generateId(),
+					from_entity_id: adjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
+					to_entity_id: adjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
+					amount: Math.abs(adjustment),
+					currency: entity.currency,
+					timestamp: Date.now(),
+					note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,
+				};
+
+				await addTransaction(adjustmentTransaction);
+			}
+		}
 
 		onClose();
 	};
@@ -262,23 +289,65 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						)}
 					</View>
 
-					{/* Current status */}
-					<View className="mb-6 flex-row justify-around rounded-lg bg-paper-100 px-4 py-4">
-						<View className="items-center">
-							<Text className="font-sans text-xs text-ink-muted">Actual</Text>
-							<Text className="font-sans-semibold text-lg text-ink">
-								{formatAmount(entity.actual)}
+					{/* Current status - editable for accounts */}
+					{entity.type === 'account' ? (
+						<View className="mb-6">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Current Balance
 							</Text>
-						</View>
-						<View className="items-center">
-							<Text className="font-sans text-xs text-ink-muted">Remaining</Text>
-							<Text
-								className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
-							>
-								{formatAmount(entity.remaining)}
+							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+								<TextInput
+									value={actualAmount}
+									onChangeText={(text) => {
+										setActualAmount(text);
+										setIsEditingActual(true);
+									}}
+									placeholder="0"
+									keyboardType="numeric"
+									className="flex-1 font-sans-semibold text-2xl text-ink"
+									style={styles.input}
+									placeholderTextColor="#9C8B74"
+									testID="entity-detail-actual-input"
+								/>
+								<Text className="font-sans text-lg text-ink-muted">
+									{entity.currency}
+								</Text>
+							</View>
+							<Text className="mt-1 font-sans text-xs text-ink-muted">
+								Correct your account balance. An adjustment transaction will be created.
 							</Text>
+
+							{/* Show remaining below */}
+							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
+								<Text className="font-sans text-xs text-ink-muted">
+									Remaining Budget
+								</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.remaining)}
+								</Text>
+							</View>
 						</View>
-					</View>
+					) : (
+						/* Original read-only status for other entity types */
+						<View className="mb-6 flex-row justify-around rounded-lg bg-paper-100 px-4 py-4">
+							<View className="items-center">
+								<Text className="font-sans text-xs text-ink-muted">Actual</Text>
+								<Text className="font-sans-semibold text-lg text-ink">
+									{formatAmount(entity.actual)}
+								</Text>
+							</View>
+							<View className="items-center">
+								<Text className="font-sans text-xs text-ink-muted">Remaining</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.remaining)}
+								</Text>
+							</View>
+						</View>
+					)}
 
 					{/* Planned amount input */}
 					<View className="mb-6">

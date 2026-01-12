@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 interface AppState {
 	// Data
@@ -61,6 +62,9 @@ export const useStore = create<AppState>((set, get) => ({
 			// Run migration for savings plans (idempotent - safe to run multiple times)
 			await db.migrateSavingsPlansToAllTime();
 
+			// Ensure balance adjustment system entity exists
+			await db.ensureBalanceAdjustmentEntity();
+
 			const [entities, plans, transactions] = await Promise.all([
 				db.getAllEntities(),
 				db.getAllPlans(),
@@ -97,6 +101,12 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	deleteEntity: async (id) => {
+		// Prevent deleting system entities
+		if (id === BALANCE_ADJUSTMENT_ENTITY_ID) {
+			console.warn('Cannot delete system entity');
+			return;
+		}
+
 		await db.deleteEntity(id);
 		set((state) => ({
 			entities: state.entities.filter((e) => e.id !== id),
@@ -212,8 +222,9 @@ export function getEntitiesWithBalance(
 	type: EntityType
 ): EntityWithBalance[] {
 	const { start, end } = getPeriodRange(currentPeriod);
+	// Filter by type and exclude system entities (balance adjustments)
 	const filteredEntities = entities
-		.filter((e) => e.type === type)
+		.filter((e) => e.type === type && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
 		.sort((a, b) => a.order - b.order);
 
 	return filteredEntities.map((entity) => {

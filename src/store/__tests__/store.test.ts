@@ -3,6 +3,7 @@ import type { Entity, Plan, Transaction } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 describe('Store Data Integrity', () => {
 	beforeEach(() => {
@@ -72,7 +73,8 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().initialize();
 
 			const state = useStore.getState();
-			expect(state.entities).toHaveLength(1);
+			// Should have entity-1 + system entity
+			expect(state.entities).toHaveLength(2);
 			// Should filter out orphaned plan
 			expect(state.plans).toHaveLength(1);
 			expect(state.plans[0].id).toBe('plan-1');
@@ -124,7 +126,8 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().initialize();
 
 			const state = useStore.getState();
-			expect(state.entities).toHaveLength(2);
+			// Should have entity-1, entity-2 + system entity
+			expect(state.entities).toHaveLength(3);
 			expect(state.plans).toHaveLength(2);
 			expect(state.transactions).toHaveLength(0);
 		});
@@ -2011,6 +2014,282 @@ describe('Store Data Integrity', () => {
 			);
 			// Saving: only incoming (1000), not outgoing (200)
 			expect(savingEntities[0].actual).toBe(1000);
+		});
+	});
+
+	describe('Balance Adjustment System Entity', () => {
+		test('should include balance adjustment entity in store but filter from account lists', async () => {
+			// Create a regular account
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+			await db.createEntity(account);
+
+			// Initialize store (this should create the system entity)
+			await useStore.getState().initialize();
+
+			const state = useStore.getState();
+
+			// System entity should be in state.entities
+			const systemEntity = state.entities.find((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(systemEntity).toBeDefined();
+			expect(systemEntity?.name).toBe('Balance Adjustments');
+
+			// System entity should exist in database
+			const dbSystemEntity = await db.getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(dbSystemEntity).not.toBeNull();
+
+			// Should have both the regular account AND the system entity
+			expect(state.entities).toHaveLength(2);
+
+			// But getEntitiesWithBalance should filter out the system entity
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			expect(accountEntities).toHaveLength(1);
+			expect(accountEntities[0].id).toBe('account-1');
+		});
+
+		test('should prevent deletion of system entity', async () => {
+			// Initialize to create system entity
+			await useStore.getState().initialize();
+
+			// Try to delete system entity
+			await useStore.getState().deleteEntity(BALANCE_ADJUSTMENT_ENTITY_ID);
+
+			// System entity should still exist in database
+			const dbEntity = await db.getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(dbEntity).not.toBeNull();
+		});
+
+		test('should allow transactions with balance adjustment entity to affect account balance', async () => {
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			// Set up store
+			await db.createEntity(account);
+			await useStore.getState().initialize();
+
+			// Create adjustment transaction: system -> account (+500)
+			const adjustment: Transaction = {
+				id: 'tx-adjust',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: Date.now(),
+				note: 'Balance correction: 0 → 500',
+			};
+
+			await useStore.getState().addTransaction(adjustment);
+
+			const state = useStore.getState();
+
+			// Account balance should be +500
+			const accountTx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const accountBalance = accountTx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(500);
+		});
+
+		test('should handle multiple adjustments correctly', async () => {
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			await db.createEntity(account);
+			await useStore.getState().initialize();
+
+			// First adjustment: +1000
+			const adjustment1: Transaction = {
+				id: 'tx-adjust-1',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-1',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: Date.now(),
+				note: 'Balance correction: 0 → 1000',
+			};
+			await useStore.getState().addTransaction(adjustment1);
+
+			// Second adjustment: -200 (correction downward)
+			const adjustment2: Transaction = {
+				id: 'tx-adjust-2',
+				from_entity_id: 'account-1',
+				to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				amount: 200,
+				currency: 'USD',
+				timestamp: Date.now() + 1000,
+				note: 'Balance correction: 1000 → 800',
+			};
+			await useStore.getState().addTransaction(adjustment2);
+
+			const state = useStore.getState();
+
+			// Account balance should be +1000 -200 = 800
+			const accountTx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const accountBalance = accountTx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(accountBalance).toBe(800);
+
+			// Should have 2 transactions
+			expect(state.transactions).toHaveLength(2);
+		});
+
+		test('should handle adjustments for multiple accounts independently', async () => {
+			const account1: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const account2: Entity = {
+				id: 'account-2',
+				type: 'account',
+				name: 'Savings',
+				currency: 'USD',
+				order: 1,
+			};
+
+			await db.createEntity(account1);
+			await db.createEntity(account2);
+			await useStore.getState().initialize();
+
+			// Adjustment for account 1: +500
+			const adjustment1: Transaction = {
+				id: 'tx-adjust-1',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: Date.now(),
+				note: 'Balance correction for account 1',
+			};
+			await useStore.getState().addTransaction(adjustment1);
+
+			// Adjustment for account 2: +1000
+			const adjustment2: Transaction = {
+				id: 'tx-adjust-2',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-2',
+				amount: 1000,
+				currency: 'USD',
+				timestamp: Date.now() + 1000,
+				note: 'Balance correction for account 2',
+			};
+			await useStore.getState().addTransaction(adjustment2);
+
+			const state = useStore.getState();
+
+			// Account 1 balance should be +500
+			const account1Tx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-1')
+			);
+			const account1Balance = account1Tx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(account1Balance).toBe(500);
+
+			// Account 2 balance should be +1000
+			const account2Tx = state.transactions.filter((t) =>
+				[t.from_entity_id, t.to_entity_id].includes('account-2')
+			);
+			const account2Balance = account2Tx.reduce(
+				(sum, t) => (t.to_entity_id === 'account-2' ? sum + t.amount : sum - t.amount),
+				0
+			);
+			expect(account2Balance).toBe(1000);
+
+			// Should have 2 transactions
+			expect(state.transactions).toHaveLength(2);
+		});
+
+		test('should include adjustment transactions in account balance calculations via getEntitiesWithBalance', async () => {
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				order: 0,
+			};
+
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+			};
+
+			await db.createEntity(account);
+			await db.createEntity(income);
+			await useStore.getState().initialize();
+
+			// Regular transaction: income -> account (5000)
+			const regularTx: Transaction = {
+				id: 'tx-regular',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 5000,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+			await useStore.getState().addTransaction(regularTx);
+
+			// Adjustment transaction: system -> account (+200)
+			const adjustmentTx: Transaction = {
+				id: 'tx-adjust',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-1',
+				amount: 200,
+				currency: 'USD',
+				timestamp: Date.now() + 1000,
+				note: 'Balance correction',
+			};
+			await useStore.getState().addTransaction(adjustmentTx);
+
+			const state = useStore.getState();
+
+			// Use getEntitiesWithBalance to get account with calculated balance
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+
+			// Account balance should include both regular and adjustment transactions
+			// +5000 (from income) +200 (adjustment) = 5200
+			expect(accountEntities[0].actual).toBe(5200);
 		});
 	});
 });

@@ -43,6 +43,7 @@ import {
 	BottleWine,
 	BriefcaseConveyorBelt,
 	Bus,
+	RefreshCw,
 	Sofa,
 	Users,
 	TentTree,
@@ -106,6 +107,7 @@ export const iconRegistry: Record<string, LucideIcon> = {
 	pencil: Pencil,
 	x: X,
 	circle: Circle,
+	'refresh-cw': RefreshCw,
 };
 
 /**

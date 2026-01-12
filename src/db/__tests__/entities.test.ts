@@ -8,9 +8,11 @@ import {
 	updateEntity,
 	deleteEntity,
 	getNextOrder,
+	ensureBalanceAdjustmentEntity,
 } from '../entities';
 import { createPlan, getPlanForEntity } from '../plans';
 import { resetDrizzleDb } from '../drizzle-client';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 describe('entities.ts', () => {
 	beforeEach(() => {
@@ -307,6 +309,43 @@ describe('entities.ts', () => {
 
 			const incomeOrder = await getNextOrder('income');
 			expect(incomeOrder).toBe(0); // no income entities
+		});
+	});
+
+	describe('ensureBalanceAdjustmentEntity', () => {
+		test('should create balance adjustment entity on first call', async () => {
+			// Ensure entity doesn't exist yet
+			const before = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(before).toBeNull();
+
+			// Call the function
+			await ensureBalanceAdjustmentEntity();
+
+			// Verify entity was created
+			const after = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(after).not.toBeNull();
+			expect(after?.id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(after?.type).toBe('account');
+			expect(after?.name).toBe('Balance Adjustments');
+		});
+
+		test('should be idempotent (not create duplicate on second call)', async () => {
+			// Call twice
+			await ensureBalanceAdjustmentEntity();
+			await ensureBalanceAdjustmentEntity();
+
+			// Should only have one system entity
+			const allEntities = await getAllEntities();
+			const systemEntities = allEntities.filter((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID);
+			expect(systemEntities).toHaveLength(1);
+		});
+
+		test('should not error if entity already exists', async () => {
+			// Call once
+			await ensureBalanceAdjustmentEntity();
+
+			// Call again should not throw
+			await expect(ensureBalanceAdjustmentEntity()).resolves.toBeUndefined();
 		});
 	});
 });
