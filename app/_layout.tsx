@@ -1,4 +1,5 @@
 import '@/src/global.css';
+import 'react-native-reanimated';
 
 import {
 	IBMPlexSans_400Regular,
@@ -12,8 +13,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import 'react-native-reanimated';
 import { useStore } from '@/src/store';
+import DatabaseProvider from '@/src/components/database-provider';
+import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
+import { getRawDb } from '@/src/db/db';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,7 +24,7 @@ export const unstable_settings = {
 	anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function App() {
 	const [fontsLoaded] = useFonts({
 		IBMPlexSans_400Regular,
 		IBMPlexSans_500Medium,
@@ -30,8 +33,11 @@ export default function RootLayout() {
 	});
 	const initialize = useStore((state) => state.initialize);
 
+	useDrizzleStudio(getRawDb());
+
 	// Initialize store from database on app start
 	useEffect(() => {
+		console.info('Initializing store from database...');
 		initialize();
 	}, [initialize]);
 
@@ -53,5 +59,13 @@ export default function RootLayout() {
 			</Stack>
 			<StatusBar style="dark" />
 		</GestureHandlerRootView>
+	);
+}
+
+export default function RootLayoutNav() {
+	return (
+		<DatabaseProvider>
+			<App />
+		</DatabaseProvider>
 	);
 }

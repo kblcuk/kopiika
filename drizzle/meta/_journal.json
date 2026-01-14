@@ -1,0 +1,20 @@
+{
+	"version": "7",
+	"dialect": "sqlite",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "6",
+			"when": 1768320646847,
+			"tag": "0000_groovy_lorna_dane",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1768383098881,
+			"tag": "0001_add-balance-adjustment",
+			"breakpoints": true
+		}
+	]
+}

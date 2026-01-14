@@ -8,7 +8,6 @@ import {
 	updateEntity,
 	deleteEntity,
 	getNextOrder,
-	ensureBalanceAdjustmentEntity,
 } from '../entities';
 import { createPlan, getPlanForEntity } from '../plans';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -74,17 +73,17 @@ describe('entities.ts', () => {
 			}
 
 			const allEntities = await getAllEntities();
-			expect(allEntities).toHaveLength(4);
-			expect(allEntities.map((e) => e.type).sort()).toEqual(types.sort());
+			expect(allEntities).toHaveLength(5); // 4 entities + system one
+			expect(
+				allEntities
+					.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
+					.map((e) => e.type)
+					.sort()
+			).toEqual(types.sort());
 		});
 	});
 
 	describe('getAllEntities', () => {
-		test('should return empty array when no entities exist', async () => {
-			const result = await getAllEntities();
-			expect(result).toEqual([]);
-		});
-
 		test('should return all entities ordered by type and order', async () => {
 			const entities: Entity[] = [
 				{ id: '1', type: 'category', name: 'Cat 1', currency: 'USD', order: 1 },
@@ -97,8 +96,10 @@ describe('entities.ts', () => {
 				await createEntity(entity);
 			}
 
-			const result = await getAllEntities();
-			expect(result).toHaveLength(4);
+			const allEntities = await getAllEntities();
+			expect(allEntities).toHaveLength(5); // entities + system one
+
+			const result = allEntities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID);
 
 			// Should be ordered by type, then by order within type
 			// account (0, 1), category (0, 1)
@@ -115,8 +116,9 @@ describe('entities.ts', () => {
 				{ id: '1', type: 'income', name: 'Salary', currency: 'USD', order: 0 },
 				{ id: '2', type: 'account', name: 'Checking', currency: 'USD', order: 0 },
 				{ id: '3', type: 'account', name: 'Savings', currency: 'USD', order: 1 },
-				{ id: '4', type: 'category', name: 'Food', currency: 'USD', order: 0 },
-				{ id: '5', type: 'saving', name: 'Vacation', currency: 'USD', order: 0 },
+				{ id: '4', type: 'category', name: 'Food', currency: 'USD', order: 1 },
+				{ id: '5', type: 'category', name: 'Coffee', currency: 'USD', order: 0 },
+				{ id: '6', type: 'saving', name: 'Vacation', currency: 'USD', order: 0 },
 			];
 
 			for (const entity of entities) {
@@ -126,19 +128,19 @@ describe('entities.ts', () => {
 
 		test('should return only entities of specified type', async () => {
 			const accounts = await getEntitiesByType('account');
-			expect(accounts).toHaveLength(2);
+			expect(accounts).toHaveLength(3); // 2 accounts + system one
 			expect(accounts.every((e) => e.type === 'account')).toBe(true);
 		});
 
 		test('should return entities ordered by order field', async () => {
-			const accounts = await getEntitiesByType('account');
-			expect(accounts[0].id).toBe('2'); // order 0
-			expect(accounts[1].id).toBe('3'); // order 1
+			const categories = await getEntitiesByType('category');
+			expect(categories[0].id).toBe('5'); // order 0
+			expect(categories[1].id).toBe('4'); // order 1
 		});
 
 		test('should return empty array for type with no entities', async () => {
 			// Delete all savings
-			await deleteEntity('5');
+			await deleteEntity('6');
 			const savings = await getEntitiesByType('saving');
 			expect(savings).toEqual([]);
 		});
@@ -309,43 +311,6 @@ describe('entities.ts', () => {
 
 			const incomeOrder = await getNextOrder('income');
 			expect(incomeOrder).toBe(0); // no income entities
-		});
-	});
-
-	describe('ensureBalanceAdjustmentEntity', () => {
-		test('should create balance adjustment entity on first call', async () => {
-			// Ensure entity doesn't exist yet
-			const before = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
-			expect(before).toBeNull();
-
-			// Call the function
-			await ensureBalanceAdjustmentEntity();
-
-			// Verify entity was created
-			const after = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
-			expect(after).not.toBeNull();
-			expect(after?.id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
-			expect(after?.type).toBe('account');
-			expect(after?.name).toBe('Balance Adjustments');
-		});
-
-		test('should be idempotent (not create duplicate on second call)', async () => {
-			// Call twice
-			await ensureBalanceAdjustmentEntity();
-			await ensureBalanceAdjustmentEntity();
-
-			// Should only have one system entity
-			const allEntities = await getAllEntities();
-			const systemEntities = allEntities.filter((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID);
-			expect(systemEntities).toHaveLength(1);
-		});
-
-		test('should not error if entity already exists', async () => {
-			// Call once
-			await ensureBalanceAdjustmentEntity();
-
-			// Call again should not throw
-			await expect(ensureBalanceAdjustmentEntity()).resolves.toBeUndefined();
 		});
 	});
 });

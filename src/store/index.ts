@@ -59,12 +59,6 @@ export const useStore = create<AppState>((set, get) => ({
 	initialize: async () => {
 		set({ isLoading: true });
 		try {
-			// Run migration for savings plans (idempotent - safe to run multiple times)
-			await db.migrateSavingsPlansToAllTime();
-
-			// Ensure balance adjustment system entity exists
-			await db.ensureBalanceAdjustmentEntity();
-
 			const [entities, plans, transactions] = await Promise.all([
 				db.getAllEntities(),
 				db.getAllPlans(),

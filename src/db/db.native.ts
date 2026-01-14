@@ -1,25 +1,53 @@
-import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from './drizzle-schema';
-import { openDatabaseSync } from 'expo-sqlite';
+import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 import { drizzle } from 'drizzle-orm/expo-sqlite';
+import { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
+import migrations from '@/drizzle/migrations';
 
 const DATABASE_NAME = 'kopiika.db';
 
-let drizzleDb: BaseSQLiteDatabase<'sync', unknown, typeof schema> | null = null;
+type DrizzleDb = BaseSQLiteDatabase<'sync', unknown, typeof schema>;
+let rawExpoDb: SQLiteDatabase | null = null;
 
-export default function getExpoDb(SCHEMA_SQL: string) {
-	if (drizzleDb) {
-		return drizzleDb;
+// Cache the initialization promise to prevent race conditions.
+// All concurrent calls will await the same promise.
+let dbPromise: Promise<DrizzleDb> | null = null;
+
+export default function getDrizzleDb(runMigrations = true): Promise<DrizzleDb> {
+	if (!dbPromise) {
+		console.info('Initializing new database connection');
+		dbPromise = initializeDb(runMigrations);
 	}
+	return dbPromise;
+}
 
-	const expoDb = openDatabaseSync(DATABASE_NAME, {
+async function initializeDb(runMigrations: boolean): Promise<DrizzleDb> {
+	rawExpoDb = openDatabaseSync(DATABASE_NAME, {
 		enableChangeListener: true,
 	});
-	expoDb.execSync(SCHEMA_SQL);
-	drizzleDb = drizzle(expoDb, { schema });
-	return drizzleDb;
+
+	const db = drizzle(rawExpoDb, { schema });
+
+	if (runMigrations) {
+		try {
+			console.info('Running database migrations');
+			await migrate(db, migrations);
+			console.info('run successfully');
+		} catch (e) {
+			console.error('Migration error:', e);
+			throw e;
+		}
+	}
+
+	return db;
+}
+
+export function getRawDb(): SQLiteDatabase | null {
+	return rawExpoDb;
 }
 
 export function resetDb() {
-	drizzleDb = null;
+	dbPromise = null;
+	rawExpoDb = null;
 }

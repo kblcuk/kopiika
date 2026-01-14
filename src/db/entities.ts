@@ -75,14 +75,3 @@ export async function updateEntityOrders(updates: { id: string; order: number }[
 		await db.update(entities).set({ order: update.order }).where(eq(entities.id, update.id));
 	}
 }
-
-/**
- * Ensures the balance adjustment system entity exists.
- * This is idempotent and safe to call multiple times.
- */
-export async function ensureBalanceAdjustmentEntity(): Promise<void> {
-	const existing = await getEntityById(BALANCE_ADJUSTMENT_ENTITY_ID);
-	if (!existing) {
-		await createEntity(createBalanceAdjustmentEntity());
-	}
-}
