@@ -175,9 +175,12 @@ export default function SummaryScreen() {
 			groups[entity.type].push(entity);
 		}
 
-		// Sort by order within each group
+		// Sort by row then position within each group
 		for (const type in groups) {
-			groups[type as EntityType].sort((a, b) => a.order - b.order);
+			groups[type as EntityType].sort((a, b) => {
+				if (a.row !== b.row) return a.row - b.row;
+				return a.position - b.position;
+			});
 		}
 
 		return groups;

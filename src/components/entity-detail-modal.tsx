@@ -167,8 +167,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					text: 'Delete',
 					style: 'destructive',
 					onPress: async () => {
-						await deleteEntity(entity.id);
+						// Close modal first so user can see the gap-closing animation
 						onClose();
+						// Small delay to allow modal close animation to complete
+						await new Promise((resolve) => setTimeout(resolve, 300));
+						// Now delete - user will see entities slide to close the gap
+						await deleteEntity(entity.id);
 					},
 				},
 			]
@@ -314,7 +318,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								</Text>
 							</View>
 							<Text className="mt-1 font-sans text-xs text-ink-muted">
-								Correct your account balance. An adjustment transaction will be created.
+								Correct your account balance. An adjustment transaction will be
+								created.
 							</Text>
 
 							{/* Show remaining below */}

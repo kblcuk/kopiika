@@ -11,6 +11,7 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 			try {
 				await getDrizzleDb();
 			} catch (err) {
+				console.error('Database initialization error:', err);
 				setError(err instanceof Error ? err.message : 'Failed to initialize database');
 			} finally {
 				setDbInitialized(true);

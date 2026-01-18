@@ -14,7 +14,8 @@ export function entitiesToCsv(entities: Entity[]): string {
 			e.icon ?? '',
 			e.color ?? '',
 			e.owner_id ?? '',
-			e.order,
+			e.row,
+			e.position,
 		].join(',')
 	);
 	return [headers.join(','), ...rows].join('\n');

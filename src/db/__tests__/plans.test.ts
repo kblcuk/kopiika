@@ -19,9 +19,33 @@ describe('plans.ts', () => {
 
 		// Create test entities for foreign key constraints
 		const entities: Entity[] = [
-			{ id: 'entity-1', type: 'account', name: 'Account 1', currency: 'USD', order: 0 },
-			{ id: 'entity-2', type: 'category', name: 'Category 1', currency: 'USD', order: 0 },
-			{ id: 'entity-3', type: 'saving', name: 'Saving 1', currency: 'USD', order: 0 },
+			{
+				id: 'entity-1',
+				type: 'account',
+				name: 'Account 1',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'entity-2',
+				type: 'category',
+				name: 'Category 1',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'entity-3',
+				type: 'saving',
+				name: 'Saving 1',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
 		];
 
 		for (const entity of entities) {

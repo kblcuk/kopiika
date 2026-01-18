@@ -7,7 +7,7 @@ import {
 	createEntity,
 	updateEntity,
 	deleteEntity,
-	getNextOrder,
+	getNextPosition,
 } from '../entities';
 import { createPlan, getPlanForEntity } from '../plans';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -29,6 +29,8 @@ describe('entities.ts', () => {
 				icon: 'wallet',
 				color: '#4CAF50',
 				owner_id: 'user-1',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -44,6 +46,8 @@ describe('entities.ts', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -68,6 +72,8 @@ describe('entities.ts', () => {
 					name: `Test ${types[i]}`,
 					currency: 'USD',
 					order: i,
+					row: 0,
+					position: i,
 				};
 				await createEntity(entity);
 			}
@@ -86,10 +92,42 @@ describe('entities.ts', () => {
 	describe('getAllEntities', () => {
 		test('should return all entities ordered by type and order', async () => {
 			const entities: Entity[] = [
-				{ id: '1', type: 'category', name: 'Cat 1', currency: 'USD', order: 1 },
-				{ id: '2', type: 'account', name: 'Acc 1', currency: 'USD', order: 0 },
-				{ id: '3', type: 'category', name: 'Cat 2', currency: 'USD', order: 0 },
-				{ id: '4', type: 'account', name: 'Acc 2', currency: 'USD', order: 1 },
+				{
+					id: '1',
+					type: 'category',
+					name: 'Cat 1',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+				{
+					id: '2',
+					type: 'account',
+					name: 'Acc 1',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '3',
+					type: 'category',
+					name: 'Cat 2',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '4',
+					type: 'account',
+					name: 'Acc 2',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
 			];
 
 			for (const entity of entities) {
@@ -113,12 +151,60 @@ describe('entities.ts', () => {
 	describe('getEntitiesByType', () => {
 		beforeEach(async () => {
 			const entities: Entity[] = [
-				{ id: '1', type: 'income', name: 'Salary', currency: 'USD', order: 0 },
-				{ id: '2', type: 'account', name: 'Checking', currency: 'USD', order: 0 },
-				{ id: '3', type: 'account', name: 'Savings', currency: 'USD', order: 1 },
-				{ id: '4', type: 'category', name: 'Food', currency: 'USD', order: 1 },
-				{ id: '5', type: 'category', name: 'Coffee', currency: 'USD', order: 0 },
-				{ id: '6', type: 'saving', name: 'Vacation', currency: 'USD', order: 0 },
+				{
+					id: '1',
+					type: 'income',
+					name: 'Salary',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '2',
+					type: 'account',
+					name: 'Checking',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '3',
+					type: 'account',
+					name: 'Savings',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+				{
+					id: '4',
+					type: 'category',
+					name: 'Food',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+				{
+					id: '5',
+					type: 'category',
+					name: 'Coffee',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '6',
+					type: 'saving',
+					name: 'Vacation',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
 			];
 
 			for (const entity of entities) {
@@ -153,6 +239,8 @@ describe('entities.ts', () => {
 				type: 'account',
 				name: 'Test Account',
 				currency: 'EUR',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -178,6 +266,8 @@ describe('entities.ts', () => {
 				type: 'account',
 				name: 'Original',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -191,6 +281,8 @@ describe('entities.ts', () => {
 				icon: 'star',
 				color: '#FF0000',
 				owner_id: 'owner-1',
+				row: 0,
+				position: 5,
 				order: 5,
 			};
 
@@ -209,6 +301,8 @@ describe('entities.ts', () => {
 				icon: 'wallet',
 				color: '#000000',
 				owner_id: 'owner',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -219,6 +313,8 @@ describe('entities.ts', () => {
 				type: 'account',
 				name: 'Without Fields',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -238,6 +334,8 @@ describe('entities.ts', () => {
 				type: 'account',
 				name: 'To Delete',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -259,6 +357,8 @@ describe('entities.ts', () => {
 				type: 'account',
 				name: 'Test',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 			await createEntity(entity);
@@ -285,31 +385,63 @@ describe('entities.ts', () => {
 		});
 	});
 
-	describe('getNextOrder', () => {
+	describe('getNextPosition', () => {
 		test('should return 0 when no entities of type exist', async () => {
-			const order = await getNextOrder('account');
-			expect(order).toBe(0);
+			const position = await getNextPosition('account', 4);
+			expect(position).toBe(0);
 		});
 
 		test('should return max order + 1 for type', async () => {
 			const entities: Entity[] = [
-				{ id: '1', type: 'account', name: 'Account 1', currency: 'USD', order: 0 },
-				{ id: '2', type: 'account', name: 'Account 2', currency: 'USD', order: 5 },
-				{ id: '3', type: 'account', name: 'Account 3', currency: 'USD', order: 2 },
-				{ id: '4', type: 'category', name: 'Category 1', currency: 'USD', order: 10 },
+				{
+					id: '1',
+					type: 'account',
+					name: 'Account 1',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: '2',
+					type: 'account',
+					name: 'Account 2',
+					currency: 'USD',
+					row: 0,
+					position: 5,
+					order: 5,
+				},
+				{
+					id: '3',
+					type: 'account',
+					name: 'Account 3',
+					currency: 'USD',
+					row: 0,
+					position: 2,
+					order: 2,
+				},
+				{
+					id: '4',
+					type: 'category',
+					name: 'Category 1',
+					currency: 'USD',
+					row: 0,
+					position: 10,
+					order: 10,
+				},
 			];
 
 			for (const entity of entities) {
 				await createEntity(entity);
 			}
 
-			const accountOrder = await getNextOrder('account');
+			const accountOrder = await getNextPosition('account', 0);
 			expect(accountOrder).toBe(6); // max is 5, so next is 6
 
-			const categoryOrder = await getNextOrder('category');
+			const categoryOrder = await getNextPosition('category', 0);
 			expect(categoryOrder).toBe(11); // max is 10, so next is 11
 
-			const incomeOrder = await getNextOrder('income');
+			const incomeOrder = await getNextPosition('income', 0);
 			expect(incomeOrder).toBe(0); // no income entities
 		});
 	});

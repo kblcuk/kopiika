@@ -63,10 +63,34 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const handleCreate = async () => {
 		if (!name.trim()) return;
 
-		// Get next order number
+		// Determine max rows for this entity type
+		const maxRows = entityType === 'category' ? 3 : 1;
+
+		// Find the row with fewest items to auto-balance
 		const sameTypeEntities = entities.filter((e) => e.type === entityType);
-		const nextOrder =
-			sameTypeEntities.length > 0 ? Math.max(...sameTypeEntities.map((e) => e.order)) + 1 : 0;
+		const rowCounts = new Map<number, number>();
+		for (let i = 0; i < maxRows; i++) {
+			rowCounts.set(i, 0);
+		}
+		sameTypeEntities.forEach((e) => {
+			rowCounts.set(e.row, (rowCounts.get(e.row) || 0) + 1);
+		});
+
+		// Pick the row with the fewest items
+		let targetRow = 0;
+		let minCount = rowCounts.get(0) || 0;
+		for (let i = 1; i < maxRows; i++) {
+			const count = rowCounts.get(i) || 0;
+			if (count < minCount) {
+				minCount = count;
+				targetRow = i;
+			}
+		}
+
+		// Get next position in the target row
+		const sameTypeInRow = entities.filter((e) => e.type === entityType && e.row === targetRow);
+		const nextPosition =
+			sameTypeInRow.length > 0 ? Math.max(...sameTypeInRow.map((e) => e.position)) + 1 : 0;
 
 		const entityId = generateId();
 
@@ -77,7 +101,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			name: name.trim(),
 			currency: 'UAH',
 			icon: selectedIcon,
-			order: nextOrder,
+			order: nextPosition,
+			row: targetRow,
+			position: nextPosition,
 		});
 
 		// Create plan if amount specified

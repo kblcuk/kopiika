@@ -35,6 +35,10 @@ export function registerRemeasureCallback(id: string, callback: () => void) {
 	remeasureCallbacks.set(id, callback);
 }
 
+export function unregisterRemeasureCallback(id: string) {
+	remeasureCallbacks.delete(id);
+}
+
 // Call this when scroll position changes to update all drop zone positions
 export function remeasureAllDropZones() {
 	remeasureCallbacks.forEach((callback) => callback());

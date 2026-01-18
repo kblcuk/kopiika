@@ -17,6 +17,8 @@ export function createBalanceAdjustmentEntity(): Entity {
 		name: 'Balance Adjustments',
 		currency: 'EUR', // Default currency, actual adjustments use account's currency
 		icon: 'refresh-cw',
-		order: -1, // Negative order keeps it first if accidentally shown
+		order: 0,
+		row: 0,
+		position: -1, // Negative position ensures it appears first if accidentally shown
 	};
 }

@@ -20,10 +20,42 @@ describe('transactions.ts', () => {
 
 		// Create test entities
 		const entities: Entity[] = [
-			{ id: 'income-1', type: 'income', name: 'Salary', currency: 'USD', order: 0 },
-			{ id: 'account-1', type: 'account', name: 'Checking', currency: 'USD', order: 0 },
-			{ id: 'category-1', type: 'category', name: 'Groceries', currency: 'USD', order: 0 },
-			{ id: 'saving-1', type: 'saving', name: 'Vacation', currency: 'USD', order: 0 },
+			{
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'category-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
 		];
 
 		for (const entity of entities) {
@@ -286,6 +318,8 @@ describe('transactions.ts', () => {
 				type: 'account',
 				name: 'New',
 				currency: 'USD',
+				row: 0,
+				position: 10,
 				order: 10,
 			});
 
@@ -379,12 +413,12 @@ describe('transactions.ts', () => {
 			expect(result?.timestamp).toBe(newTimestamp);
 		});
 
-		test('should set note to null when empty string provided', async () => {
+		test('should set note to empty string when empty string provided', async () => {
 			await updateTransaction('tx-update', { note: '' });
 
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-update');
-			expect(result?.note).toBeNull();
+			expect(result?.note).toBe('');
 		});
 
 		test('should do nothing when no updates provided', async () => {

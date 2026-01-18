@@ -26,6 +26,8 @@ describe('EntityDetailModal', () => {
 		currency: 'UAH',
 		icon: 'shopping-bag',
 		order: 0,
+		row: 0,
+		position: 0,
 		actual: 250,
 		planned: 500,
 		remaining: 250,
@@ -337,6 +339,8 @@ describe('EntityDetailModal', () => {
 			currency: 'USD',
 			icon: 'wallet',
 			order: 0,
+			row: 0,
+			position: 0,
 			actual: 1000,
 			planned: 0,
 			remaining: -1000,
@@ -344,7 +348,11 @@ describe('EntityDetailModal', () => {
 
 		it('shows editable actual amount field for account entities', () => {
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Should have an input for actual amount
@@ -375,7 +383,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Change balance from 1000 to 1500
@@ -407,7 +419,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Change balance from 1000 to 800
@@ -439,7 +455,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Don't change balance (or change to same value)
@@ -467,7 +487,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Only change name, don't touch actual amount
@@ -494,7 +518,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Change balance
@@ -521,7 +549,11 @@ describe('EntityDetailModal', () => {
 			});
 
 			const { getByTestId } = render(
-				<EntityDetailModal visible={true} entity={mockAccountEntity} onClose={mockOnClose} />
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
 			);
 
 			// Change balance to 0

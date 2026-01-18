@@ -8,18 +8,14 @@ interface AddEntityBubbleProps {
 	width?: DimensionValue;
 }
 
-export function AddEntityBubble({ type, onPress, width = '25%' }: AddEntityBubbleProps) {
+export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 	return (
-		<Pressable
-			onPress={() => onPress(type)}
-			className="items-center px-2 py-1.5"
-			style={{ width }}
-		>
+		<Pressable onPress={() => onPress(type)} className="w-24 items-center py-1">
 			{/* Placeholder for name spacing */}
-			<View className="mb-1.5 h-4" />
+			<View className="mb-2.5 h-4" />
 
 			{/* Dashed circle with plus icon */}
-			<View className="relative mb-1.5 h-14 w-14 items-center justify-center">
+			<View className="relative h-14 w-14 items-center justify-center">
 				<View
 					className="border-paper-400 h-14 w-14 items-center justify-center rounded-full border-2 border-dashed"
 					style={{ backgroundColor: 'transparent' }}

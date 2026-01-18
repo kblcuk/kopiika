@@ -34,7 +34,10 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 		(acc, type) => {
 			const filtered = entities
 				.filter((e) => e.type === type)
-				.sort((a, b) => a.order - b.order);
+				.sort((a, b) => {
+					if (a.row !== b.row) return a.row - b.row;
+					return a.position - b.position;
+				});
 			if (filtered.length > 0) {
 				acc[type] = filtered;
 			}

@@ -15,6 +15,13 @@
 			"when": 1768383098881,
 			"tag": "0001_add-balance-adjustment",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1768734568442,
+			"tag": "0002_row-and-position-for-entities",
+			"breakpoints": true
 		}
 	]
 }

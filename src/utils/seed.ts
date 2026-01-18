@@ -4,82 +4,84 @@ import { generateId } from '@/src/utils/ids';
 
 // Default entities for a fresh start
 export function createDefaultEntities(): Entity[] {
+	// Categories will be distributed across 3 rows (maxRows=3)
+	// 4 categories: categoriesPerRow = ceil(4/3) = 2
+	// Row 0: Groceries, Transport
+	// Row 1: Coffee, Entertainment
+	const categories = [
+		{ name: 'Groceries', icon: 'shopping-cart' },
+		{ name: 'Transport', icon: 'car' },
+		{ name: 'Coffee', icon: 'coffee' },
+		{ name: 'Entertainment', icon: 'film' },
+	];
+
+	const maxRows = 3;
+	const categoriesPerRow = Math.ceil(categories.length / maxRows);
+
 	return [
-		// Income
+		// Income (row=0 for all single-row types)
 		{
 			id: generateId(),
-			type: 'income',
+			type: 'income' as const,
 			name: 'Salary',
 			currency: 'UAH',
 			icon: 'briefcase',
+			row: 0,
+			position: 0,
 			order: 0,
 		},
 		// Accounts
 		{
 			id: generateId(),
-			type: 'account',
+			type: 'account' as const,
 			name: 'Main Card',
 			currency: 'UAH',
 			icon: 'credit-card',
+			row: 0,
+			position: 1,
 			order: 0,
 		},
 		{
 			id: generateId(),
-			type: 'account',
+			type: 'account' as const,
 			name: 'Cash',
 			currency: 'UAH',
 			icon: 'banknote',
-			order: 1,
-		},
-		// Categories
-		{
-			id: generateId(),
-			type: 'category',
-			name: 'Groceries',
-			currency: 'UAH',
-			icon: 'shopping-cart',
+			row: 0,
+			position: 2,
 			order: 0,
 		},
-		{
+		// Categories (distributed across rows)
+		...categories.map((cat, index) => ({
 			id: generateId(),
-			type: 'category',
-			name: 'Transport',
+			type: 'category' as const,
+			name: cat.name,
 			currency: 'UAH',
-			icon: 'car',
-			order: 1,
-		},
-		{
-			id: generateId(),
-			type: 'category',
-			name: 'Coffee',
-			currency: 'UAH',
-			icon: 'coffee',
-			order: 2,
-		},
-		{
-			id: generateId(),
-			type: 'category',
-			name: 'Entertainment',
-			currency: 'UAH',
-			icon: 'film',
-			order: 3,
-		},
+			icon: cat.icon,
+			row: Math.floor(index / categoriesPerRow),
+			position: index % categoriesPerRow,
+			order: 0,
+		})),
 		// Savings
 		{
 			id: generateId(),
-			type: 'saving',
+			type: 'saving' as const,
 			name: 'Vacation',
 			currency: 'UAH',
 			icon: 'plane',
+			row: 0,
+			position: 0,
 			order: 0,
 		},
 		{
 			id: generateId(),
-			type: 'saving',
+			type: 'saving' as const,
 			name: 'Emergency Fund',
 			currency: 'UAH',
 			icon: 'shield',
-			order: 1,
+			row: 0,
+			position: 1,
+			order: 0,
 		},
 	];
 }

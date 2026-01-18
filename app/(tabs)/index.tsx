@@ -8,8 +8,9 @@ import Animated, {
 	Easing,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+import Sortable from 'react-native-sortables';
 import {
-	EntityGrid,
+	SortableEntityGrid,
 	SummaryHeader,
 	TransactionModal,
 	EntityDetailModal,
@@ -74,7 +75,12 @@ export default function HomeScreen() {
 			}
 		}
 		seedData();
-	}, [isLoading, entities.length, addEntity, setPlan]);
+	}, [isLoading, entities, addEntity, setPlan]);
+
+	// Reset initial layout flag when entities change (e.g., after seeding)
+	useEffect(() => {
+		setHasInitialLayout(false);
+	}, [entities.length]);
 
 	// Combine all entities for lookup by ID
 	const allEntities = useMemo(
@@ -156,6 +162,21 @@ export default function HomeScreen() {
 		remeasureAllDropZones();
 	}, []);
 
+	// Track if we've done the initial layout measurement
+	const [hasInitialLayout, setHasInitialLayout] = useState(false);
+
+	// Remeasure drop zones after initial content layout
+	const handleContentLayout = useCallback(() => {
+		if (!hasInitialLayout && !isLoading && entities.length > 0) {
+			setHasInitialLayout(true);
+			// Small delay to ensure all drop zones are mounted
+			const t = setTimeout(() => {
+				remeasureAllDropZones();
+			}, 100);
+			return () => clearTimeout(t);
+		}
+	}, [hasInitialLayout, isLoading, entities.length]);
+
 	// Animation for income section
 	const [incomeContentHeight, setIncomeContentHeight] = useState<number | null>(null);
 	const animatedHeight = useSharedValue(0);
@@ -233,79 +254,84 @@ export default function HomeScreen() {
 			{/* Summary bar */}
 			<SummaryHeader onToggleIncome={handleToggleIncome} />
 
-			{/* Content */}
-			<ScrollView
-				className="flex-1 overflow-visible"
-				contentContainerClassName="overflow-visible"
-				contentContainerStyle={{ paddingVertical: 12 }}
-				onScrollEndDrag={handleScrollEnd}
-				onMomentumScrollEnd={handleScrollEnd}
-			>
-				{/* Always render income section, control visibility with animation */}
-				<Animated.View
-					style={[
-						animatedStyle,
-						{
-							zIndex: isDraggingIncome ? 1000 : 10,
-							elevation: isDraggingIncome ? 1000 : 10,
-						},
-					]}
+			{/* PortalProvider ensures dragged items render above all other content */}
+			<Sortable.PortalProvider>
+				{/* Content */}
+				<ScrollView
+					className="flex-1 overflow-visible"
+					contentContainerClassName="overflow-visible"
+					contentContainerStyle={{ paddingVertical: 12 }}
+					onScrollEndDrag={handleScrollEnd}
+					onMomentumScrollEnd={handleScrollEnd}
 				>
-					<View
-						{...(incomeContentHeight === null && { onLayout: handleIncomeLayout })}
-						pointerEvents={incomeVisible ? 'auto' : 'none'}
-					>
-						<EntityGrid
-							title="Income"
-							type="income"
-							entities={income}
+					<View onLayout={handleContentLayout}>
+						{/* Always render income section, control visibility with animation */}
+						<Animated.View
+							style={[
+								animatedStyle,
+								{
+									zIndex: isDraggingIncome ? 1000 : 10,
+									elevation: isDraggingIncome ? 1000 : 10,
+								},
+							]}
+						>
+							<View
+								{...(incomeContentHeight === null && {
+									onLayout: handleIncomeLayout,
+								})}
+								pointerEvents={incomeVisible ? 'auto' : 'none'}
+							>
+								<SortableEntityGrid
+									title="Income"
+									type="income"
+									entities={income}
+									onDragStart={handleDragStart}
+									onDragEnd={handleDragEnd}
+									onTap={handleTap}
+									onAdd={handleAdd}
+									dropZonesDisabled={!incomeVisible}
+								/>
+							</View>
+						</Animated.View>
+						<SortableEntityGrid
+							title="Accounts · Total"
+							type="account"
+							entities={accounts}
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
 							onAdd={handleAdd}
-							dropZonesDisabled={!incomeVisible}
 						/>
-					</View>
-				</Animated.View>
-				<EntityGrid
-					title="Accounts · Total"
-					type="account"
-					entities={accounts}
-					onDragStart={handleDragStart}
-					onDragEnd={handleDragEnd}
-					onTap={handleTap}
-					onAdd={handleAdd}
-					horizontalScroll
-				/>
-				<EntityGrid
-					title="Categories"
-					type="category"
-					entities={categories}
-					onDragStart={handleDragStart}
-					onDragEnd={handleDragEnd}
-					onTap={handleTap}
-					onAdd={handleAdd}
-					maxRows={3}
-				/>
-				<EntityGrid
-					title="Savings · Goal"
-					type="saving"
-					entities={savings}
-					onDragStart={handleDragStart}
-					onDragEnd={handleDragEnd}
-					onTap={handleTap}
-					onAdd={handleAdd}
-					horizontalScroll
-				/>
+						<SortableEntityGrid
+							title="Categories"
+							type="category"
+							entities={categories}
+							onDragStart={handleDragStart}
+							onDragEnd={handleDragEnd}
+							onTap={handleTap}
+							onAdd={handleAdd}
+							maxRows={3}
+						/>
+						<SortableEntityGrid
+							title="Savings · Goal"
+							type="saving"
+							entities={savings}
+							onDragStart={handleDragStart}
+							onDragEnd={handleDragEnd}
+							onTap={handleTap}
+							onAdd={handleAdd}
+						/>
 
-				{entities.length === 0 && (
-					<View className="items-center px-4 py-10">
-						<Text className="text-center font-sans text-ink-muted">
-							Setting up your dashboard...
-						</Text>
+						{entities.length === 0 && (
+							<View className="items-center px-4 py-10">
+								<Text className="text-center font-sans text-ink-muted">
+									Setting up your dashboard...
+								</Text>
+							</View>
+						)}
 					</View>
-				)}
-			</ScrollView>
+				</ScrollView>
+			</Sortable.PortalProvider>
 
 			{/* Transaction Modal */}
 			<TransactionModal

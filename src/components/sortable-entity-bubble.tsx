@@ -1,0 +1,190 @@
+import { useCallback, useEffect, useState, memo, createContext, useContext } from 'react';
+import { View, Text } from 'react-native';
+import Sortable from 'react-native-sortables';
+import Animated, {
+	useAnimatedStyle,
+	useSharedValue,
+	withTiming,
+	withSpring,
+	useAnimatedReaction,
+	type SharedValue,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import * as Haptics from 'expo-haptics';
+
+import type { EntityWithBalance } from '@/src/types';
+import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
+import { CircularProgress } from './circular-progress';
+import { getIcon } from '@/src/constants/icon-registry';
+import { useStore } from '@/src/store';
+
+// Context to pass hovered ID shared value to bubbles without prop drilling through Sortable
+export const HoveredIdContext = createContext<SharedValue<string> | null>(null);
+
+// Context to signal bubbles to use fixed-order mode (when drag is outside grid bounds)
+// Using a ref-based pub/sub approach to avoid re-rendering the Grid when this changes
+export type FixedOrderContextType = {
+	subscribe: (callback: (isFixed: boolean) => void) => () => void;
+	getIsFixed: () => boolean;
+};
+export const FixedOrderContext = createContext<FixedOrderContextType | null>(null);
+
+// Get background and icon colors based on entity type
+export function getEntityTypeColors(type: EntityWithBalance['type']): {
+	bg: string;
+	iconColor: string;
+} {
+	switch (type) {
+		case 'income':
+			return { bg: 'bg-accent/10', iconColor: '#D4652F' };
+		case 'account':
+			return { bg: 'bg-paper-300', iconColor: '#6B5D4A' };
+		case 'category':
+			return { bg: 'bg-positive/10', iconColor: '#2F7D4A' };
+		case 'saving':
+			return { bg: 'bg-info/10', iconColor: '#2B5F8A' };
+	}
+}
+
+// Haptics helper that can be called from worklet via runOnJS
+const triggerLightHaptic = () => {
+	Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+};
+
+interface SortableEntityBubbleProps {
+	entity: EntityWithBalance;
+	onTap?: (entity: EntityWithBalance) => void;
+}
+
+// Individual entity bubble for the sortable grid - memoized to prevent re-renders during drag
+export const SortableEntityBubble = memo(function SortableEntityBubble({
+	entity,
+	onTap,
+}: SortableEntityBubbleProps) {
+	const overspent = isOverspent(entity.actual, entity.planned);
+	const progress = getProgressPercent(entity.actual, entity.planned);
+	const IconComponent = getIcon(entity.icon || 'circle');
+	const typeColors = getEntityTypeColors(entity.type);
+	const mainAmount = formatAmount(entity.type === 'income' ? entity.remaining : entity.actual);
+
+	// Get hovered ID shared value from context
+	const hoveredIdShared = useContext(HoveredIdContext);
+
+	// Subscribe to fixed order mode changes - this allows the mode to change mid-drag
+	// without re-rendering the entire Grid (only this bubble re-renders)
+	const fixedOrderContext = useContext(FixedOrderContext);
+	const [mode, setMode] = useState<'draggable' | 'fixed-order'>('draggable');
+
+	useEffect(() => {
+		if (!fixedOrderContext) {
+			return;
+		}
+
+		const newMode = fixedOrderContext.getIsFixed() ? 'fixed-order' : 'draggable';
+		setMode(newMode);
+		// Subscribe to changes
+		return fixedOrderContext.subscribe((isFixed) => {
+			const draggedEntityId = useStore.getState().draggedEntity?.id;
+			// Don't change mode for the item being dragged
+			if (entity.id === draggedEntityId) {
+				return;
+			}
+			setMode(isFixed ? 'fixed-order' : 'draggable');
+		});
+	}, [entity.id, fixedOrderContext]);
+
+	// Animation values for drop target highlight
+	const highlightProgress = useSharedValue(0);
+	const highlightScale = useSharedValue(1);
+
+	// Store entity ID as a constant for use in worklet
+	const entityId = entity.id;
+
+	// React to hovered ID changes entirely on UI thread - no JS thread involvement
+	useAnimatedReaction(
+		() => hoveredIdShared?.value ?? '',
+		(hoveredId, prevHoveredId) => {
+			const isHovered = hoveredId === entityId;
+			const wasHovered = prevHoveredId === entityId;
+
+			// Only animate if hover state for THIS entity changed
+			if (isHovered && !wasHovered) {
+				highlightProgress.value = withTiming(1, { duration: 150 });
+				highlightScale.value = withSpring(1.08, { damping: 15, stiffness: 300 });
+				scheduleOnRN(triggerLightHaptic);
+			} else if (!isHovered && wasHovered) {
+				highlightProgress.value = withTiming(0, { duration: 150 });
+				highlightScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+			}
+		},
+		[entityId]
+	);
+
+	const highlightStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: highlightScale.value }],
+		opacity: 1 - highlightProgress.value * 0.1,
+	}));
+
+	const glowStyle = useAnimatedStyle(() => ({
+		position: 'absolute' as const,
+		top: -4,
+		left: -4,
+		right: -4,
+		bottom: -4,
+		borderRadius: 16,
+		backgroundColor: 'rgba(212, 101, 47, 0.25)', // accent color with transparency
+		opacity: highlightProgress.value,
+	}));
+
+	const handleTap = useCallback(() => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		onTap?.(entity);
+	}, [entity, onTap]);
+
+	return (
+		<Sortable.Touchable onLongPress={handleTap}>
+			<Sortable.Handle mode={mode}>
+				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
+					{/* Glow effect for drop target */}
+					<Animated.View style={glowStyle} pointerEvents="none" />
+					<Text
+						className="mb-2.5 text-center font-sans text-xs text-ink"
+						numberOfLines={1}
+						ellipsizeMode="tail"
+					>
+						{entity.name}
+					</Text>
+
+					<View className="relative h-14 w-14 items-center justify-center">
+						{entity.type === 'account' || entity.planned === 0 ? null : (
+							<View className="absolute">
+								<CircularProgress
+									size={64}
+									strokeWidth={3}
+									progress={progress}
+									inverse={entity.type === 'saving'}
+								/>
+							</View>
+						)}
+						<View
+							className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
+						>
+							<IconComponent size={24} color={typeColors.iconColor} />
+						</View>
+					</View>
+
+					<View className="mt-2.5 items-center">
+						<Text
+							className={`font-sans-semibold text-sm ${overspent ? 'text-negative' : 'text-ink'}`}
+						>
+							{mainAmount}
+						</Text>
+						<Text className="font-sans text-xs text-ink-muted">
+							{formatAmount(entity.planned)}
+						</Text>
+					</View>
+				</Animated.View>
+			</Sortable.Handle>
+		</Sortable.Touchable>
+	);
+});

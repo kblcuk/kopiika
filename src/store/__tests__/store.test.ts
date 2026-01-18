@@ -31,6 +31,8 @@ describe('Store Data Integrity', () => {
 					type: 'account',
 					name: 'Checking',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 				{
@@ -38,6 +40,8 @@ describe('Store Data Integrity', () => {
 					type: 'category',
 					name: 'Temp',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 			];
@@ -87,6 +91,8 @@ describe('Store Data Integrity', () => {
 					type: 'account',
 					name: 'Checking',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 				{
@@ -94,6 +100,8 @@ describe('Store Data Integrity', () => {
 					type: 'category',
 					name: 'Groceries',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 			];
@@ -159,6 +167,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -190,6 +200,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -231,6 +243,8 @@ describe('Store Data Integrity', () => {
 						type: 'account',
 						name: 'Checking',
 						currency: 'USD',
+						row: 0,
+						position: 0,
 						order: 0,
 					},
 				],
@@ -263,6 +277,8 @@ describe('Store Data Integrity', () => {
 						type: 'account',
 						name: 'Checking',
 						currency: 'USD',
+						row: 0,
+						position: 0,
 						order: 0,
 					},
 				],
@@ -294,6 +310,8 @@ describe('Store Data Integrity', () => {
 					type: 'income',
 					name: 'Salary',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 				{
@@ -301,6 +319,8 @@ describe('Store Data Integrity', () => {
 					type: 'account',
 					name: 'Checking',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 			];
@@ -340,6 +360,8 @@ describe('Store Data Integrity', () => {
 					type: 'account',
 					name: 'Checking',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 				{
@@ -347,6 +369,8 @@ describe('Store Data Integrity', () => {
 					type: 'category',
 					name: 'Groceries',
 					currency: 'USD',
+					row: 0,
+					position: 0,
 					order: 0,
 				},
 			];
@@ -379,8 +403,8 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().deleteEntity('entity-1');
 
 			const state = useStore.getState();
-			expect(state.entities).toHaveLength(1);
-			expect(state.entities[0].id).toBe('entity-2');
+			expect(state.entities).toHaveLength(2);
+			expect(state.entities.find((e) => e.id === 'entity-2')).toBeTruthy();
 			expect(state.plans).toHaveLength(1);
 			expect(state.plans[0].id).toBe('plan-2');
 
@@ -400,6 +424,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -408,6 +434,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -416,6 +444,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -534,6 +564,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -542,6 +574,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -550,6 +584,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -649,6 +685,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -708,6 +746,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -716,6 +756,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -724,6 +766,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -732,6 +776,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -866,6 +912,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -874,6 +922,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -882,6 +932,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -975,6 +1027,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -983,6 +1037,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1067,6 +1123,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1075,6 +1133,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1138,6 +1198,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1146,6 +1208,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1212,6 +1276,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1220,6 +1286,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1228,6 +1296,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 2,
 				order: 2,
 			};
 
@@ -1236,6 +1306,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 3,
 				order: 3,
 			};
 
@@ -1367,6 +1439,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1375,6 +1449,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1383,6 +1459,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 2,
 				order: 2,
 			};
 
@@ -1391,6 +1469,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 3,
 				order: 3,
 			};
 
@@ -1509,6 +1589,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1517,6 +1599,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1595,6 +1679,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1603,6 +1689,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1656,6 +1744,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1697,6 +1787,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1705,6 +1797,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Transport',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1713,6 +1807,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Entertainment',
 				currency: 'USD',
+				row: 0,
+				position: 2,
 				order: 2,
 			};
 
@@ -1796,6 +1892,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1804,6 +1902,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1856,6 +1956,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1864,6 +1966,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1872,6 +1976,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 2,
 				order: 2,
 			};
 
@@ -1924,6 +2030,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -1932,6 +2040,8 @@ describe('Store Data Integrity', () => {
 				type: 'category',
 				name: 'Groceries',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -1940,6 +2050,8 @@ describe('Store Data Integrity', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
+				row: 0,
+				position: 2,
 				order: 2,
 			};
 
@@ -2025,6 +2137,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 			await db.createEntity(account);
@@ -2076,6 +2190,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -2115,6 +2231,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -2167,6 +2285,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -2175,6 +2295,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Savings',
 				currency: 'USD',
+				row: 0,
+				position: 1,
 				order: 1,
 			};
 
@@ -2238,6 +2360,8 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 
@@ -2246,6 +2370,8 @@ describe('Store Data Integrity', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
+				row: 0,
+				position: 0,
 				order: 0,
 			};
 

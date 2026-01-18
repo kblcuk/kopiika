@@ -15,8 +15,13 @@ export const entities = sqliteTable(
 		color: text('color'),
 		owner_id: text('owner_id'),
 		order: integer('order').notNull(),
+		row: integer('row').notNull(),
+		position: integer('position').notNull(),
 	},
-	(table) => [index('idx_entities_type').on(table.type)]
+	(table) => [
+		index('idx_entities_type').on(table.type),
+		index('idx_entities_type_row_position').on(table.type, table.row, table.position),
+	]
 );
 
 // Plans table
