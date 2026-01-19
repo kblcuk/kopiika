@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 
 import type { EntityWithBalance } from '@/src/types';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
+import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { CircularProgress } from './circular-progress';
 import { getIcon } from '@/src/constants/icon-registry';
 import { useStore } from '@/src/store';
@@ -28,23 +29,6 @@ export type FixedOrderContextType = {
 	getIsFixed: () => boolean;
 };
 export const FixedOrderContext = createContext<FixedOrderContextType | null>(null);
-
-// Get background and icon colors based on entity type
-export function getEntityTypeColors(type: EntityWithBalance['type']): {
-	bg: string;
-	iconColor: string;
-} {
-	switch (type) {
-		case 'income':
-			return { bg: 'bg-accent/10', iconColor: '#D4652F' };
-		case 'account':
-			return { bg: 'bg-paper-300', iconColor: '#6B5D4A' };
-		case 'category':
-			return { bg: 'bg-positive/10', iconColor: '#2F7D4A' };
-		case 'saving':
-			return { bg: 'bg-info/10', iconColor: '#2B5F8A' };
-	}
-}
 
 // Haptics helper that can be called from worklet via runOnJS
 const triggerLightHaptic = () => {

@@ -12,39 +12,11 @@ import { ProgressBar } from '@/src/components/progress-bar';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getBatchEntityActuals } from '@/src/db/transactions';
 import { getIcon } from '@/src/constants/icon-registry';
+import { getEntityTypeColors } from '@/src/utils/entity-colors';
 
 interface SummaryRowProps {
 	entity: EntityWithBalance;
 	onPress: () => void;
-}
-
-// Get background and icon colors based on entity type
-function getEntityTypeColors(type: EntityType): {
-	bg: string;
-	iconColor: string;
-} {
-	switch (type) {
-		case 'income':
-			return {
-				bg: 'bg-accent/10', // Soft terracotta tint
-				iconColor: '#D4652F', // accent.DEFAULT
-			};
-		case 'account':
-			return {
-				bg: 'bg-paper-300', // Neutral beige
-				iconColor: '#6B5D4A', // ink.muted
-			};
-		case 'category':
-			return {
-				bg: 'bg-positive/10', // Soft green tint
-				iconColor: '#2F7D4A', // positive.DEFAULT
-			};
-		case 'saving':
-			return {
-				bg: 'bg-info/10', // Soft blue tint
-				iconColor: '#2B5F8A', // info.DEFAULT
-			};
-	}
 }
 
 function SummaryRow({ entity, onPress }: SummaryRowProps) {
