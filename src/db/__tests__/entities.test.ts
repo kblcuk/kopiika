@@ -9,7 +9,7 @@ import {
 	deleteEntity,
 	getNextPosition,
 } from '../entities';
-import { createPlan, getPlanForEntity } from '../plans';
+import { upsertPlan, getPlanForEntity } from '../plans';
 import { resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -364,7 +364,7 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			// Create plan for entity
-			await createPlan({
+			await upsertPlan({
 				id: 'plan-1',
 				entity_id: 'cascade-test',
 				period: 'month',

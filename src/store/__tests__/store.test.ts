@@ -68,7 +68,7 @@ describe('Store Data Integrity', () => {
 				await db.createEntity(entity);
 			}
 			for (const plan of plans) {
-				await db.createPlan(plan);
+				await db.upsertPlan(plan);
 			}
 
 			// Delete entity-temp (cascade deletes plan-2)
@@ -128,7 +128,7 @@ describe('Store Data Integrity', () => {
 				await db.createEntity(entity);
 			}
 			for (const plan of plans) {
-				await db.createPlan(plan);
+				await db.upsertPlan(plan);
 			}
 
 			await useStore.getState().initialize();
@@ -215,7 +215,7 @@ describe('Store Data Integrity', () => {
 
 			useStore.setState({ entities: [entity], plans: [plan] });
 			await db.createEntity(entity);
-			await db.createPlan(plan);
+			await db.upsertPlan(plan);
 
 			const updatedPlan: Plan = {
 				...plan,
@@ -397,7 +397,7 @@ describe('Store Data Integrity', () => {
 				await db.createEntity(entity);
 			}
 			for (const plan of plans) {
-				await db.createPlan(plan);
+				await db.upsertPlan(plan);
 			}
 
 			await useStore.getState().deleteEntity('entity-1');

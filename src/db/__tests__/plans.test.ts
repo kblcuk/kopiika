@@ -1,14 +1,6 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
 import type { Plan, Entity } from '@/src/types';
-import {
-	getAllPlans,
-	getPlansByPeriod,
-	getPlanForEntity,
-	createPlan,
-	updatePlan,
-	upsertPlan,
-	deletePlan,
-} from '../plans';
+import { getAllPlans, getPlanForEntity, upsertPlan } from '../plans';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
 
@@ -53,71 +45,6 @@ describe('plans.ts', () => {
 		}
 	});
 
-	describe('createPlan', () => {
-		test('should create a new plan', async () => {
-			const plan: Plan = {
-				id: 'plan-1',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			await createPlan(plan);
-
-			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result).toEqual(plan);
-		});
-
-		test('should create multiple plans for same entity in different periods', async () => {
-			const plan1: Plan = {
-				id: 'plan-1',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			const plan2: Plan = {
-				id: 'plan-2',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-02',
-				planned_amount: 1200,
-			};
-
-			await createPlan(plan1);
-			await createPlan(plan2);
-
-			const plans = await getAllPlans();
-			expect(plans).toHaveLength(2);
-		});
-
-		test('should create plans for different entities in same period', async () => {
-			const plan1: Plan = {
-				id: 'plan-1',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			const plan2: Plan = {
-				id: 'plan-2',
-				entity_id: 'entity-2',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 500,
-			};
-
-			await createPlan(plan1);
-			await createPlan(plan2);
-
-			const plans = await getPlansByPeriod('2025-01');
-			expect(plans).toHaveLength(2);
-		});
-	});
-
 	describe('getAllPlans', () => {
 		test('should return empty array when no plans exist', async () => {
 			const result = await getAllPlans();
@@ -150,7 +77,7 @@ describe('plans.ts', () => {
 			];
 
 			for (const plan of plans) {
-				await createPlan(plan);
+				await upsertPlan(plan);
 			}
 
 			const result = await getAllPlans();
@@ -159,49 +86,6 @@ describe('plans.ts', () => {
 			expect(result[0].period_start).toBe('2025-03');
 			expect(result[1].period_start).toBe('2025-02');
 			expect(result[2].period_start).toBe('2025-01');
-		});
-	});
-
-	describe('getPlansByPeriod', () => {
-		beforeEach(async () => {
-			const plans: Plan[] = [
-				{
-					id: 'plan-1',
-					entity_id: 'entity-1',
-					period: 'month',
-					period_start: '2025-01',
-					planned_amount: 1000,
-				},
-				{
-					id: 'plan-2',
-					entity_id: 'entity-2',
-					period: 'month',
-					period_start: '2025-01',
-					planned_amount: 500,
-				},
-				{
-					id: 'plan-3',
-					entity_id: 'entity-3',
-					period: 'month',
-					period_start: '2025-02',
-					planned_amount: 1200,
-				},
-			];
-
-			for (const plan of plans) {
-				await createPlan(plan);
-			}
-		});
-
-		test('should return only plans for specified period', async () => {
-			const result = await getPlansByPeriod('2025-01');
-			expect(result).toHaveLength(2);
-			expect(result.every((p) => p.period_start === '2025-01')).toBe(true);
-		});
-
-		test('should return empty array for period with no plans', async () => {
-			const result = await getPlansByPeriod('2025-12');
-			expect(result).toEqual([]);
 		});
 	});
 
@@ -232,7 +116,7 @@ describe('plans.ts', () => {
 			];
 
 			for (const plan of plans) {
-				await createPlan(plan);
+				await upsertPlan(plan);
 			}
 		});
 
@@ -256,58 +140,6 @@ describe('plans.ts', () => {
 			expect(feb?.planned_amount).toBe(1200);
 		});
 	});
-
-	describe('updatePlan', () => {
-		test('should update existing plan', async () => {
-			const original: Plan = {
-				id: 'plan-update',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			await createPlan(original);
-
-			const updated: Plan = {
-				id: 'plan-update',
-				entity_id: 'entity-2',
-				period: 'month',
-				period_start: '2025-02',
-				planned_amount: 2000,
-			};
-
-			await updatePlan(updated);
-
-			const result = await getPlanForEntity('entity-2', '2025-02');
-			expect(result).toEqual(updated);
-		});
-
-		test('should update only planned_amount', async () => {
-			const original: Plan = {
-				id: 'plan-update-2',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			await createPlan(original);
-
-			const updated: Plan = {
-				...original,
-				planned_amount: 1500,
-			};
-
-			await updatePlan(updated);
-
-			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result?.planned_amount).toBe(1500);
-			expect(result?.entity_id).toBe('entity-1');
-			expect(result?.period_start).toBe('2025-01');
-		});
-	});
-
 	describe('upsertPlan', () => {
 		test('should insert plan when it does not exist', async () => {
 			const plan: Plan = {
@@ -333,7 +165,7 @@ describe('plans.ts', () => {
 				planned_amount: 1000,
 			};
 
-			await createPlan(original);
+			await upsertPlan(original);
 
 			const updated: Plan = {
 				id: 'plan-upsert-2',
@@ -371,32 +203,6 @@ describe('plans.ts', () => {
 
 			const result = await getPlanForEntity('entity-1', '2025-01');
 			expect(result?.planned_amount).toBe(1500);
-		});
-	});
-
-	describe('deletePlan', () => {
-		test('should delete existing plan', async () => {
-			const plan: Plan = {
-				id: 'plan-delete',
-				entity_id: 'entity-1',
-				period: 'month',
-				period_start: '2025-01',
-				planned_amount: 1000,
-			};
-
-			await createPlan(plan);
-
-			const existingPlan = await getPlanForEntity('entity-1', '2025-01');
-			expect(existingPlan).not.toBeNull();
-
-			await deletePlan('plan-delete');
-
-			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result).toBeNull();
-		});
-
-		test('should not error when deleting non-existent plan', () => {
-			expect(deletePlan('non-existent')).resolves.toBeUndefined();
 		});
 	});
 });
