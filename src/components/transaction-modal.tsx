@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
 	View,
 	Text,
@@ -7,15 +7,20 @@ import {
 	Modal,
 	KeyboardAvoidingView,
 	Platform,
+	ScrollView,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ArrowRight, Calendar } from 'lucide-react-native';
+import { ArrowRight, Calendar, Pencil } from 'lucide-react-native';
 
-import type { EntityWithBalance, Transaction } from '@/src/types';
+import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import { formatAmount, reverseFormatCurrency } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { styles } from '../styles/text-input';
+import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
+import { EntitySelectionSheet } from './entity-selection-sheet';
+import { getIcon } from '@/src/constants/icon-registry';
+import { getEntityTypeColors } from '@/src/utils/entity-colors';
 
 interface TransactionModalProps {
 	visible: boolean;
@@ -36,11 +41,49 @@ export function TransactionModal({
 	const [note, setNote] = useState('');
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [showDatePicker, setShowDatePicker] = useState(false);
+	const [selectedFromId, setSelectedFromId] = useState<string | null>(null);
+	const [selectedToId, setSelectedToId] = useState<string | null>(null);
+	const [showFromSheet, setShowFromSheet] = useState(false);
+	const [showToSheet, setShowToSheet] = useState(false);
 	const inputRef = useRef<TextInput>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
+	const entities = useStore((state) => state.entities);
 
 	const isEditing = !!existingTransaction;
+
+	// Get current currency (from existingTransaction when editing, or from fromEntity for new)
+	const currency = existingTransaction?.currency ?? fromEntity?.currency ?? 'EUR';
+
+	// Look up selected entities for display
+	const selectedFromEntity = useMemo(() => {
+		if (!selectedFromId) return null;
+		return entities.find((e) => e.id === selectedFromId) ?? null;
+	}, [selectedFromId, entities]);
+
+	const selectedToEntity = useMemo(() => {
+		if (!selectedToId) return null;
+		return entities.find((e) => e.id === selectedToId) ?? null;
+	}, [selectedToId, entities]);
+
+	// Filter valid "from" entities based on selected "to" entity
+	const validFromEntities = useMemo(() => {
+		if (!isEditing || !selectedToEntity) return [];
+		const valid = getValidFromEntities(entities, selectedToEntity, currency);
+		// Include balance adjustment entity at the beginning
+		return valid;
+	}, [isEditing, selectedToEntity, entities, currency]);
+
+	// Filter valid "to" entities based on selected "from" entity
+	const validToEntities = useMemo(() => {
+		if (!isEditing || !selectedFromEntity) return [];
+		return getValidToEntities(
+			entities,
+			selectedFromEntity,
+			currency,
+			selectedFromId ?? undefined
+		);
+	}, [isEditing, selectedFromEntity, entities, currency, selectedFromId]);
 
 	// Reset and focus when modal opens
 	useEffect(() => {
@@ -49,16 +92,41 @@ export function TransactionModal({
 				setAmount(existingTransaction.amount.toString());
 				setNote(existingTransaction.note ?? '');
 				setSelectedDate(new Date(existingTransaction.timestamp));
+				setSelectedFromId(existingTransaction.from_entity_id);
+				setSelectedToId(existingTransaction.to_entity_id);
 			} else {
 				setAmount('');
 				setNote('');
 				setSelectedDate(new Date());
+				setSelectedFromId(null);
+				setSelectedToId(null);
 			}
 			setShowDatePicker(false);
+			setShowFromSheet(false);
+			setShowToSheet(false);
 			// Focus input after a short delay to ensure modal is visible
 			setTimeout(() => inputRef.current?.focus(), 100);
 		}
 	}, [visible, existingTransaction]);
+
+	// Handle "from" entity selection
+	const handleFromSelect = (entity: Entity) => {
+		setSelectedFromId(entity.id);
+
+		// Check if current "to" is still valid with new "from"
+		if (selectedToId) {
+			const validTos = getValidToEntities(entities, entity, currency, entity.id);
+			const stillValid = validTos.some((e) => e.id === selectedToId);
+			if (!stillValid) {
+				setSelectedToId(null);
+			}
+		}
+	};
+
+	// Handle "to" entity selection
+	const handleToSelect = (entity: Entity) => {
+		setSelectedToId(entity.id);
+	};
 
 	const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
 		if (Platform.OS === 'android') {
@@ -87,10 +155,21 @@ export function TransactionModal({
 		});
 	};
 
-	if (!fromEntity || !toEntity) return null;
+	// For new transactions, require fromEntity and toEntity props
+	// For editing, require existingTransaction with valid selections
+	if (isEditing) {
+		if (!existingTransaction || !selectedFromId || !selectedToId) return null;
+	} else {
+		if (!fromEntity || !toEntity) return null;
+	}
 
-	// Suggest remaining planned amount for certain flows
+	// Determine which entities to display
+	const displayFromEntity = isEditing ? selectedFromEntity : fromEntity;
+	const displayToEntity = isEditing ? selectedToEntity : toEntity;
+
+	// Suggest remaining planned amount for certain flows (only for new transactions)
 	const getSuggestedAmount = (): number | null => {
+		if (isEditing || !fromEntity || !toEntity) return null;
 		// Income → Account: suggest remaining income to distribute
 		if (fromEntity.type === 'income') {
 			return fromEntity.remaining > 0 ? fromEntity.remaining : null;
@@ -124,12 +203,28 @@ export function TransactionModal({
 				})();
 
 		if (isEditing && existingTransaction) {
-			await updateTransaction(existingTransaction.id, {
+			const updates: {
+				amount?: number;
+				note?: string;
+				timestamp?: number;
+				from_entity_id?: string;
+				to_entity_id?: string;
+			} = {
 				amount: numAmount,
 				note: note.trim() || undefined,
 				timestamp,
-			});
-		} else {
+			};
+
+			// Include entity changes if they differ from original
+			if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id) {
+				updates.from_entity_id = selectedFromId;
+			}
+			if (selectedToId && selectedToId !== existingTransaction.to_entity_id) {
+				updates.to_entity_id = selectedToId;
+			}
+
+			await updateTransaction(existingTransaction.id, updates);
+		} else if (fromEntity && toEntity) {
 			await addTransaction({
 				id: generateId(),
 				from_entity_id: fromEntity.id,
@@ -148,6 +243,41 @@ export function TransactionModal({
 		if (suggestedAmount) {
 			setAmount(suggestedAmount.toString());
 		}
+	};
+
+	// Render entity bubble (reused for both from and to)
+	const renderEntityBubble = (
+		entity: Entity | EntityWithBalance | null,
+		onPress?: () => void
+	) => {
+		if (!entity) return null;
+
+		const IconComponent = getIcon(entity.icon || 'circle');
+		const typeColors = getEntityTypeColors(entity.type);
+		const isTappable = !!onPress;
+
+		return (
+			<Pressable onPress={onPress} disabled={!isTappable} className="flex-1 items-center">
+				<View className="relative">
+					<View
+						className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+					>
+						<IconComponent size={20} color={typeColors.iconColor} />
+					</View>
+					{isTappable && (
+						<View className="absolute -bottom-0.5 -right-0.5 h-5 w-5 items-center justify-center rounded-full bg-paper-300">
+							<Pencil size={10} color="#6B5D4A" />
+						</View>
+					)}
+				</View>
+				<Text
+					className={`text-center font-sans text-sm ${isTappable ? 'text-ink' : 'text-ink-muted'}`}
+					numberOfLines={1}
+				>
+					{entity.name}
+				</Text>
+			</Pressable>
+		);
 	};
 
 	return (
@@ -188,32 +318,20 @@ export function TransactionModal({
 				</View>
 
 				{/* Content */}
-				<View className="flex-1 px-5 pt-6">
+				<ScrollView className="flex-1 px-5 pt-6">
 					{/* From → To */}
 					<View className="mb-8 flex-row items-start">
-						<View className="flex-1 items-center">
-							<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
-								<Text className="font-sans-medium text-xl text-ink-muted">
-									{fromEntity.name.charAt(0)}
-								</Text>
-							</View>
-							<Text className="font-sans text-sm text-ink-muted" numberOfLines={1}>
-								{fromEntity.name}
-							</Text>
-						</View>
+						{renderEntityBubble(
+							displayFromEntity,
+							isEditing ? () => setShowFromSheet(true) : undefined
+						)}
 						<View className="items-center px-2 py-3">
 							<ArrowRight size={24} color="#2C2416" />
 						</View>
-						<View className="flex-1 items-center">
-							<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-300">
-								<Text className="font-sans-medium text-xl text-ink-muted">
-									{toEntity.name.charAt(0)}
-								</Text>
-							</View>
-							<Text className="font-sans text-sm text-ink-muted" numberOfLines={1}>
-								{toEntity.name}
-							</Text>
-						</View>
+						{renderEntityBubble(
+							displayToEntity,
+							isEditing ? () => setShowToSheet(true) : undefined
+						)}
 					</View>
 
 					{/* Amount input */}
@@ -233,9 +351,7 @@ export function TransactionModal({
 								placeholderTextColor="#9C8B74"
 								testID="transaction-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">
-								{fromEntity.currency}
-							</Text>
+							<Text className="font-sans text-lg text-ink-muted">{currency}</Text>
 						</View>
 
 						{/* Suggested amount button (only for new transactions) */}
@@ -299,7 +415,7 @@ export function TransactionModal({
 					</View>
 
 					{/* Note input */}
-					<View>
+					<View className="pb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Note (optional)
 						</Text>
@@ -313,8 +429,26 @@ export function TransactionModal({
 							testID="transaction-note-input"
 						/>
 					</View>
-				</View>
+				</ScrollView>
 			</KeyboardAvoidingView>
+
+			{/* Entity selection sheets */}
+			<EntitySelectionSheet
+				visible={showFromSheet}
+				title="Select Source"
+				entities={validFromEntities}
+				selectedId={selectedFromId}
+				onSelect={handleFromSelect}
+				onClose={() => setShowFromSheet(false)}
+			/>
+			<EntitySelectionSheet
+				visible={showToSheet}
+				title="Select Destination"
+				entities={validToEntities}
+				selectedId={selectedToId}
+				onSelect={handleToSelect}
+				onClose={() => setShowToSheet(false)}
+			/>
 		</Modal>
 	);
 }

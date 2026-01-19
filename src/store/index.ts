@@ -45,10 +45,7 @@ interface AppState {
 
 	// Transaction actions
 	addTransaction: (transaction: Transaction) => Promise<void>;
-	updateTransaction: (
-		id: string,
-		updates: { amount?: number; note?: string; timestamp?: number }
-	) => Promise<void>;
+	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 }
 
@@ -225,6 +222,36 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	updateTransaction: async (id, updates) => {
+		const state = get();
+		const transaction = state.transactions.find((t) => t.id === id);
+		if (!transaction) {
+			console.warn(`Cannot update non-existent transaction: ${id}`);
+			return;
+		}
+
+		// Determine final from/to entity IDs after update
+		const finalFromId = updates.from_entity_id ?? transaction.from_entity_id;
+		const finalToId = updates.to_entity_id ?? transaction.to_entity_id;
+
+		// Prevent same entity on both sides
+		if (finalFromId === finalToId) {
+			console.warn('Cannot update transaction: from and to entities cannot be the same');
+			return;
+		}
+
+		// Validate entities exist (allow BALANCE_ADJUSTMENT as special case)
+		const fromExists =
+			finalFromId === BALANCE_ADJUSTMENT_ENTITY_ID ||
+			state.entities.some((e) => e.id === finalFromId);
+		const toExists = state.entities.some((e) => e.id === finalToId);
+
+		if (!fromExists || !toExists) {
+			console.warn(
+				`Cannot update transaction with non-existent entities: from=${finalFromId}, to=${finalToId}`
+			);
+			return;
+		}
+
 		await db.updateTransaction(id, updates);
 		set((state) => ({
 			transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),

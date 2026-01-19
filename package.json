@@ -12,7 +12,7 @@
 		"ios:beta": "fnox exec -- bundle exec fastlane beta",
 		"web": "expo start --web",
 		"test": "bun run test:unit && bun run test:component",
-		"test:unit": "bun test src/db src/store",
+		"test:unit": "bun test src/db src/store src/utils",
 		"test:component": "jest",
 		"test:watch": "jest --watch",
 		"test:coverage": "bun test --coverage && jest --coverage",

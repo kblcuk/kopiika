@@ -2,7 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest, fireEvent, waitFor } from '@/src/test-utils-component';
-import type { EntityWithBalance } from '@/src/types';
+import type { Entity, EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 
 jest.mock('expo-haptics', () => ({
@@ -425,6 +425,351 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-cancel-button'));
 
 			expect(mockOnClose).toHaveBeenCalled();
+		});
+	});
+
+	describe('Entity Editing', () => {
+		// Additional entities for testing entity changes
+		const account2: Entity = {
+			id: 'account-2',
+			type: 'account',
+			name: 'Savings',
+			currency: 'USD',
+			order: 1,
+			row: 1,
+			position: 1,
+		};
+
+		const category2: Entity = {
+			id: 'category-2',
+			type: 'category',
+			name: 'Transport',
+			currency: 'USD',
+			order: 1,
+			row: 2,
+			position: 1,
+		};
+
+		const incomeEntity: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+
+		beforeEach(() => {
+			// Set up store with multiple entities for selection
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+		});
+
+		it('displays entity names in edit mode', () => {
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			expect(getByText('Checking')).toBeTruthy();
+			expect(getByText('Groceries')).toBeTruthy();
+		});
+
+		it('opens from entity selection sheet when tapping from bubble in edit mode', () => {
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Tap on the from entity bubble (Checking)
+			fireEvent.press(getByText('Checking'));
+
+			// Selection sheet should open with "Select Source" title
+			expect(getByText('Select Source')).toBeTruthy();
+		});
+
+		it('opens to entity selection sheet when tapping to bubble in edit mode', () => {
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Tap on the to entity bubble (Groceries)
+			fireEvent.press(getByText('Groceries'));
+
+			// Selection sheet should open with "Select Destination" title
+			expect(getByText('Select Destination')).toBeTruthy();
+		});
+
+		it('updates transaction with new from_entity_id when changed', async () => {
+			const updateTransactionSpy = jest.fn();
+			useStore.setState({
+				updateTransaction: updateTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Open from selection sheet
+			fireEvent.press(getByText('Checking'));
+
+			// Select a different account (Savings)
+			fireEvent.press(getByText('Savings'));
+
+			// Save the transaction
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(updateTransactionSpy).toHaveBeenCalledWith(
+					'txn-1',
+					expect.objectContaining({
+						from_entity_id: 'account-2',
+					})
+				);
+			});
+		});
+
+		it('updates transaction with new to_entity_id when changed', async () => {
+			const updateTransactionSpy = jest.fn();
+			useStore.setState({
+				updateTransaction: updateTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Open to selection sheet
+			fireEvent.press(getByText('Groceries'));
+
+			// Select a different category (Transport)
+			fireEvent.press(getByText('Transport'));
+
+			// Save the transaction
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(updateTransactionSpy).toHaveBeenCalledWith(
+					'txn-1',
+					expect.objectContaining({
+						to_entity_id: 'category-2',
+					})
+				);
+			});
+		});
+
+		it('does not include entity IDs in update when unchanged', async () => {
+			const updateTransactionSpy = jest.fn();
+			useStore.setState({
+				updateTransaction: updateTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2],
+			});
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Just change the amount, don't change entities
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '200');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(updateTransactionSpy).toHaveBeenCalledWith(
+					'txn-1',
+					expect.objectContaining({
+						amount: 200,
+					})
+				);
+			});
+
+			// Should NOT include from_entity_id or to_entity_id since they weren't changed
+			const callArgs = updateTransactionSpy.mock.calls[0][1];
+			expect(callArgs.from_entity_id).toBeUndefined();
+			expect(callArgs.to_entity_id).toBeUndefined();
+		});
+
+		it('entity bubbles are not tappable in new transaction mode', () => {
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Try to tap on the from entity bubble
+			fireEvent.press(getByText('Checking'));
+
+			// Selection sheet should NOT open
+			expect(queryByText('Select Source')).toBeNull();
+		});
+
+		it('shows only valid entity options in from selection sheet', () => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Open from selection sheet
+			fireEvent.press(getByText('Checking'));
+
+			// Should show accounts (valid: account -> category)
+			expect(getByText('Savings')).toBeTruthy();
+
+			// Should NOT show income (invalid: income -> category)
+			// Note: Income entities shouldn't appear because income can only go to accounts
+			expect(queryByText('Salary')).toBeNull();
+
+			// Should NOT show categories (invalid: category -> category)
+			expect(queryByText('Transport')).toBeNull();
+		});
+
+		it('shows only valid entity options in to selection sheet', () => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			// Open to selection sheet
+			fireEvent.press(getByText('Groceries'));
+
+			// Should show other categories (valid: account -> category)
+			expect(getByText('Transport')).toBeTruthy();
+
+			// Should show accounts (valid: account -> account)
+			expect(getByText('Savings')).toBeTruthy();
+
+			// Should NOT show income (invalid: account -> income)
+			expect(queryByText('Salary')).toBeNull();
 		});
 	});
 });

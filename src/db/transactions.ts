@@ -69,21 +69,14 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 export async function updateTransaction(
 	id: string,
-	updates: { amount?: number; note?: string; timestamp?: number }
+	updates: Omit<Partial<Transaction>, 'id'>
 ): Promise<void> {
 	const db = await getDrizzleDb();
 
-	// Build update object, filtering out undefined values
-	const updateData: Partial<typeof transactions.$inferInsert> = {};
-	if (updates.amount !== undefined) {
-		updateData.amount = updates.amount;
-	}
-	if (updates.note !== undefined) {
-		updateData.note = updates.note || null;
-	}
-	if (updates.timestamp !== undefined) {
-		updateData.timestamp = updates.timestamp;
-	}
+	// Purge undefined values from updates
+	const updateData: Partial<typeof transactions.$inferInsert> = Object.fromEntries(
+		Object.entries(updates).filter(([, value]) => value !== undefined)
+	);
 
 	if (Object.keys(updateData).length > 0) {
 		await db.update(transactions).set(updateData).where(eq(transactions.id, id));
