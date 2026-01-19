@@ -21,11 +21,6 @@ interface TransactionRowProps {
 	onEdit: (transaction: Transaction) => void;
 }
 
-function formatTime(timestamp: number): string {
-	const date = new Date(timestamp);
-	return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
-
 const DELETE_THRESHOLD = -80;
 
 export function TransactionRow({ transaction, entities, onEdit }: TransactionRowProps) {
@@ -123,9 +118,6 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 							<Text className="font-sans text-sm text-ink-muted">
 								{transaction.currency}
 							</Text>
-						</Text>
-						<Text className="font-sans text-sm text-ink-muted">
-							{formatTime(transaction.timestamp)}
 						</Text>
 					</View>
 				</Animated.View>
