@@ -79,7 +79,7 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 	}));
 
 	return (
-		<View className="relative">
+		<View className="relative border-b border-paper-300">
 			{/* Delete background */}
 			<Animated.View
 				style={deleteStyle}
@@ -92,7 +92,7 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 			<GestureDetector gesture={composedGesture}>
 				<Animated.View
 					style={rowStyle}
-					className="flex-row items-center border-b border-paper-300 bg-paper-50 px-5 py-3"
+					className="flex-row items-center bg-paper-50 px-5 py-3"
 				>
 					{/* From/To entities */}
 					<View className="flex-1 flex-row items-center">
@@ -125,7 +125,7 @@ export function TransactionRow({ transaction, entities, onEdit }: TransactionRow
 
 			{/* Note if present */}
 			{transaction.note && (
-				<View className="border-b border-paper-300 bg-paper-100 px-5 py-2">
+				<View className="px-5 py-2">
 					<Text className="font-sans text-sm italic text-ink">{transaction.note}</Text>
 				</View>
 			)}

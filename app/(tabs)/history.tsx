@@ -147,10 +147,12 @@ export default function HistoryScreen() {
 						</Text>
 					</View>
 				) : (
-					groupedTransactions.map((group) => (
+					groupedTransactions.map((group, i) => (
 						<View key={group.label}>
 							{/* Day header */}
-							<View className="bg-paper-100 px-5 py-2">
+							<View
+								className={`border-paper-300 bg-paper-100 px-5 py-2 ${i === 0 ? 'border-t' : ''}`}
+							>
 								<Text className="font-sans text-xs uppercase tracking-wider text-ink-muted">
 									{group.label}
 								</Text>
