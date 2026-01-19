@@ -16,7 +16,7 @@ import {
 	EntityDetailModal,
 	EntityCreateModal,
 } from '@/src/components';
-import { remeasureAllDropZones } from '@/src/components/drop-zone';
+import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';

@@ -12,7 +12,7 @@ import {
 	registerDropZone,
 	registerRemeasureCallback,
 	unregisterRemeasureCallback,
-} from './drop-zone';
+} from '@/src/utils/drop-zone';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
 import {
