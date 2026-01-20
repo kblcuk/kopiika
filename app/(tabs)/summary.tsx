@@ -94,10 +94,11 @@ export default function SummaryScreen() {
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
 	const [actuals, setActuals] = useState<Map<string, number>>(new Map());
 
-	const { entities, plans } = useStore(
+	const { entities, plans, transactions } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
+			transactions: state.transactions,
 		}))
 	);
 
@@ -114,7 +115,7 @@ export default function SummaryScreen() {
 			setActuals(results);
 		}
 		fetchActuals();
-	}, [selectedPeriod, entities]);
+	}, [selectedPeriod, entities, transactions]);
 
 	// Combine entities with their actuals and plans
 	const entitiesWithBalance = useMemo(() => {

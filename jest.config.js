@@ -1,8 +1,8 @@
 /** @type {import('jest').Config} */
 module.exports = {
 	preset: 'jest-expo',
-	// Only run component tests (unit tests handled by Bun)
-	testMatch: ['**/components/__tests__/**/*.test.tsx'],
+	// Only run component/screen tests (unit tests handled by Bun)
+	testMatch: ['**/components/__tests__/**/*.test.tsx', '**/app/**/__tests__/**/*.test.tsx'],
 	testPathIgnorePatterns: ['/node_modules/', '/.worktrees/'],
 	moduleNameMapper: {
 		'^@/(.*)$': '<rootDir>/$1',
