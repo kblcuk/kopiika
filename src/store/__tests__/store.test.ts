@@ -2417,5 +2417,70 @@ describe('Store Data Integrity', () => {
 			// +5000 (from income) +200 (adjustment) = 5200
 			expect(accountEntities[0].actual).toBe(5200);
 		});
+
+		test('should handle decimal amounts without floating point precision issues', async () => {
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'EUR',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+			await db.createEntity(account);
+			await useStore.getState().initialize();
+
+			// Create multiple small decimal transactions that can cause floating point issues
+			// Classic example: 0.1 + 0.2 = 0.30000000000000004 in JavaScript
+			const transactions: Transaction[] = [
+				{
+					id: 'tx-1',
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-1',
+					amount: 0.1,
+					currency: 'EUR',
+					timestamp: Date.now(),
+				},
+				{
+					id: 'tx-2',
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-1',
+					amount: 0.2,
+					currency: 'EUR',
+					timestamp: Date.now() + 1000,
+				},
+				{
+					id: 'tx-3',
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-1',
+					amount: 1.15,
+					currency: 'EUR',
+					timestamp: Date.now() + 2000,
+				},
+			];
+
+			for (const tx of transactions) {
+				await useStore.getState().addTransaction(tx);
+			}
+
+			const state = useStore.getState();
+			const accountEntities = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+
+			const account1 = accountEntities.find((e) => e.id === 'account-1');
+			expect(account1).toBeDefined();
+
+			// Raw sum would be 1.4500000000000002 due to floating point
+			// We expect the balance to be usable without precision artifacts
+			// Note: This test documents the current behavior - the actual value
+			// may have floating point issues which is handled at display time
+			expect(account1!.actual).toBeCloseTo(1.45, 2);
+		});
 	});
 });

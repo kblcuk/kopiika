@@ -13,7 +13,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { ArrowRight, Calendar, Pencil } from 'lucide-react-native';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
-import { formatAmount, reverseFormatCurrency } from '@/src/utils/format';
+import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { styles } from '../styles/text-input';
@@ -89,7 +89,7 @@ export function TransactionModal({
 	useEffect(() => {
 		if (visible) {
 			if (existingTransaction) {
-				setAmount(existingTransaction.amount.toString());
+				setAmount(roundMoney(existingTransaction.amount).toString());
 				setNote(existingTransaction.note ?? '');
 				setSelectedDate(new Date(existingTransaction.timestamp));
 				setSelectedFromId(existingTransaction.from_entity_id);
@@ -241,7 +241,7 @@ export function TransactionModal({
 
 	const handleUseSuggested = () => {
 		if (suggestedAmount) {
-			setAmount(suggestedAmount.toString());
+			setAmount(roundMoney(suggestedAmount).toString());
 		}
 	};
 

@@ -1,3 +1,8 @@
+// Round monetary value to 2 decimal places to avoid floating point precision issues
+export function roundMoney(amount: number): number {
+	return Math.round(amount * 100) / 100;
+}
+
 // Format currency amounts
 export function formatAmount(amount: number, currency: string = 'UAH'): string {
 	const absAmount = Math.abs(amount);

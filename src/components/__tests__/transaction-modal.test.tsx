@@ -374,6 +374,33 @@ describe('TransactionModal', () => {
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
+		it('rounds floating point amounts when editing', () => {
+			// Simulate a transaction amount with floating point precision issues
+			// This can happen when amounts are stored/retrieved from SQLite REAL columns
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 1.1500000000091, // Floating point precision artifact
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			const amountInput = getByTestId('transaction-amount-input');
+			// Should display "1.15", not "1.1500000000091"
+			expect(amountInput.props.value).toBe('1.15');
+		});
+
 		it('does not show suggested amount in edit mode', () => {
 			const incomeEntity: EntityWithBalance = {
 				id: 'income-1',
