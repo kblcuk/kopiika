@@ -17,7 +17,6 @@ import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/forma
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { CircularProgress } from './circular-progress';
 import { getIcon } from '@/src/constants/icon-registry';
-import { useStore } from '@/src/store';
 
 // Context to pass hovered ID shared value to bubbles without prop drilling through Sortable
 export const HoveredIdContext = createContext<SharedValue<string> | null>(null);
@@ -27,6 +26,7 @@ export const HoveredIdContext = createContext<SharedValue<string> | null>(null);
 export type FixedOrderContextType = {
 	subscribe: (callback: (isFixed: boolean) => void) => () => void;
 	getIsFixed: () => boolean;
+	getDraggedId: () => string | null;
 };
 export const FixedOrderContext = createContext<FixedOrderContextType | null>(null);
 
@@ -60,17 +60,17 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const [mode, setMode] = useState<'draggable' | 'fixed-order'>('draggable');
 
 	useEffect(() => {
-		if (!fixedOrderContext) {
-			return;
-		}
+		if (!fixedOrderContext) return;
 
 		const newMode = fixedOrderContext.getIsFixed() ? 'fixed-order' : 'draggable';
 		setMode(newMode);
-		// Subscribe to changes
+
 		return fixedOrderContext.subscribe((isFixed) => {
-			const draggedEntityId = useStore.getState().draggedEntity?.id;
-			// Don't change mode for the item being dragged
-			if (entity.id === draggedEntityId) {
+			// Check if this bubble is the one being dragged (via context, not store)
+			// This avoids timing issues - grid sets draggedId before calling setIsFixed
+			const draggedId = fixedOrderContext.getDraggedId();
+			if (entity.id === draggedId) {
+				// Dragged item must stay 'draggable' so it can be moved
 				return;
 			}
 			setMode(isFixed ? 'fixed-order' : 'draggable');

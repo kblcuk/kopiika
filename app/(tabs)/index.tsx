@@ -33,7 +33,6 @@ export default function HomeScreen() {
 		setPlan,
 		setDraggedEntity,
 		toggleIncomeVisible,
-		reorderEntity,
 	} = useStore();
 
 	const income = useEntitiesWithBalance('income');
@@ -53,6 +52,9 @@ export default function HomeScreen() {
 	// Create modal state
 	const [createModalVisible, setCreateModalVisible] = useState(false);
 	const [createEntityType, setCreateEntityType] = useState<EntityType | null>(null);
+
+	// Accounts reorder mode - when false, account-to-account drags create transfers
+	const [accountsReorderMode, setAccountsReorderMode] = useState(false);
 
 	useEffect(() => {
 		initialize();
@@ -99,7 +101,7 @@ export default function HomeScreen() {
 		(entity: EntityWithBalance, targetId: string | null) => {
 			setDraggedEntity(null);
 
-			// If dropped on a valid target
+			// If no target, drag was cancelled or same-type reorder was handled by grid
 			if (!targetId) {
 				return;
 			}
@@ -112,18 +114,15 @@ export default function HomeScreen() {
 				return;
 			}
 
-			// If same type, reorder instead of creating transaction
-			if (entity.type === targetEntity.type) {
-				reorderEntity(entity.id, targetId);
-				return;
-			}
-
-			// Different types: open transaction modal
+			// Grid passes targetId when a transaction should be created:
+			// - Cross-type drops (always)
+			// - Account-to-account drops when not in reorder mode
+			// For same-type reorder, grid handles internally and passes null
 			setFromEntity(entity);
 			setToEntity(targetEntity);
 			setModalVisible(true);
 		},
-		[setDraggedEntity, allEntities, reorderEntity]
+		[setDraggedEntity, allEntities]
 	);
 
 	const handleCloseModal = useCallback(() => {
@@ -155,6 +154,10 @@ export default function HomeScreen() {
 	const handleCloseCreateModal = useCallback(() => {
 		setCreateModalVisible(false);
 		setCreateEntityType(null);
+	}, []);
+
+	const handleToggleAccountsReorderMode = useCallback(() => {
+		setAccountsReorderMode((prev) => !prev);
 	}, []);
 
 	// Re-measure drop zones when scrolling ends to account for position changes
@@ -301,6 +304,8 @@ export default function HomeScreen() {
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
 							onAdd={handleAdd}
+							reorderMode={accountsReorderMode}
+							onToggleReorderMode={handleToggleAccountsReorderMode}
 						/>
 						<SortableEntityGrid
 							title="Categories"
