@@ -14,7 +14,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import type { EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
-import { formatAmount } from '@/src/utils/format';
+import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
@@ -70,8 +70,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		if (visible && entity) {
 			setName(entity.name);
 			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
-			setPlannedAmount(existingPlan?.planned_amount?.toString() ?? '');
-			setActualAmount(entity.actual.toString());
+			setPlannedAmount(
+				existingPlan?.planned_amount != null
+					? roundMoney(existingPlan.planned_amount).toString()
+					: ''
+			);
+			setActualAmount(roundMoney(entity.actual).toString());
 			setIsEditingActual(false);
 			setNameError(null);
 			setShowIconPicker(false);
@@ -121,7 +125,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		});
 
 		// Update plan
-		const amount = parseFloat(plannedAmount) || 0;
+		const amount = reverseFormatCurrency(plannedAmount) || 0;
 		await setPlan({
 			id: existingPlan?.id ?? generateId(),
 			entity_id: entity.id,
@@ -136,15 +140,17 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		// Handle balance adjustment for accounts
 		if (entity.type === 'account' && isEditingActual) {
 			const currentBalance = entity.actual;
-			const targetBalance = parseFloat(actualAmount) || 0;
+			const targetBalance = reverseFormatCurrency(actualAmount) || 0;
 			const adjustment = targetBalance - currentBalance;
 
-			if (adjustment !== 0) {
+			const roundedAdjustment = roundMoney(adjustment);
+			if (roundedAdjustment !== 0) {
 				const adjustmentTransaction: Transaction = {
 					id: generateId(),
-					from_entity_id: adjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
-					to_entity_id: adjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
-					amount: Math.abs(adjustment),
+					from_entity_id:
+						roundedAdjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
+					to_entity_id: roundedAdjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
+					amount: Math.abs(roundedAdjustment),
 					currency: entity.currency,
 					timestamp: Date.now(),
 					note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,

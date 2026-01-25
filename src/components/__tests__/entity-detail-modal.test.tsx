@@ -573,5 +573,89 @@ describe('EntityDetailModal', () => {
 				expect(call.note).toContain('Balance correction');
 			});
 		});
+
+		it('handles decimal balance with dot separator', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change balance to 1001.15 (increase by 1.15)
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '1001.15');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						amount: 1.15,
+					})
+				);
+			});
+		});
+
+		it('handles decimal balance with comma separator (European format)', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change balance to 1001,15 (European format, increase by 1.15)
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '1001,15');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						amount: 1.15,
+					})
+				);
+			});
+		});
+
+		it('rounds floating point amounts when displaying', () => {
+			// Test that floating point precision issues are handled when displaying
+			const entityWithFloatingPointAmount = {
+				...mockAccountEntity,
+				actual: 1000.1500000000091, // Floating point artifact
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={entityWithFloatingPointAmount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const actualInput = getByTestId('entity-detail-actual-input');
+			// Should display "1000.15", not "1000.1500000000091"
+			expect(actualInput.props.value).toBe('1000.15');
+		});
 	});
 });

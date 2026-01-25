@@ -14,6 +14,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { EntityType } from '@/src/types';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
+import { reverseFormatCurrency } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
@@ -107,7 +108,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		});
 
 		// Create plan if amount specified
-		const amount = parseFloat(plannedAmount);
+		const amount = reverseFormatCurrency(plannedAmount);
 		if (!isNaN(amount) && amount > 0) {
 			await setPlan({
 				id: generateId(),

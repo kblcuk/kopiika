@@ -33,32 +33,50 @@ export function isOverspent(actual: number, planned: number): boolean {
 	return actual > planned && planned > 0;
 }
 
-// Make sure we parse decimals correctly regardless of locale
-// We use undefined for locale to use the user's default locale
-export function reverseFormatCurrency(amount: string, currency = 'EUR') {
-	const separatorDecimal = new Intl.NumberFormat(undefined, {
-		style: 'decimal',
-	})
-		.format(11.11)
-		.replace(/\d/g, '');
+// Parse a currency string to a number, handling both European (1.234,56) and US (1,234.56) formats.
+// Detects the decimal separator from the input pattern rather than relying on locale.
+export function reverseFormatCurrency(amount: string, _currency = 'EUR') {
+	// Check for negative sign
+	const isNegative = amount.trim().startsWith('-');
 
-	const separatorThousands = new Intl.NumberFormat(undefined, {
-		style: 'decimal',
-	})
-		.format(1111)
-		.replace(/\d/g, '');
+	// Remove any non-numeric characters except . and ,
+	const cleaned = amount.replace(/[^\d.,]/g, '');
 
-	const symbolOnLeft = new Intl.NumberFormat(undefined, {
-		style: 'currency',
-		currency,
-	})
-		.format(1)
-		.replace(new RegExp(`\\d|[${separatorDecimal}${separatorThousands}]*`, 'g'), '');
+	if (!cleaned) return NaN;
 
-	const stringNumber = amount
-		.replace(new RegExp(`[${separatorThousands}]`, 'g'), '')
-		.replace(separatorDecimal, '.')
-		.replace(new RegExp(`[${symbolOnLeft}]`, 'g'), '');
+	const lastDot = cleaned.lastIndexOf('.');
+	const lastComma = cleaned.lastIndexOf(',');
 
-	return parseFloat(stringNumber);
+	let result: number;
+
+	if (lastDot === -1 && lastComma === -1) {
+		// No separators - just a whole number
+		result = parseFloat(cleaned);
+	} else if (lastDot === -1) {
+		// Only commas - comma is decimal if followed by 1-2 digits at end
+		const afterComma = cleaned.length - lastComma - 1;
+		if (afterComma <= 2) {
+			result = parseFloat(cleaned.replace(',', '.'));
+		} else {
+			// Otherwise it's a thousands separator
+			result = parseFloat(cleaned.replace(/,/g, ''));
+		}
+	} else if (lastComma === -1) {
+		// Only dots - dot is decimal if followed by 1-2 digits at end
+		const afterDot = cleaned.length - lastDot - 1;
+		if (afterDot <= 2) {
+			result = parseFloat(cleaned);
+		} else {
+			// Otherwise it's a thousands separator (European style without decimals)
+			result = parseFloat(cleaned.replace(/\./g, ''));
+		}
+	} else if (lastComma > lastDot) {
+		// Both separators, comma last: European format 1.234,56
+		result = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+	} else {
+		// Both separators, dot last: US format 1,234.56
+		result = parseFloat(cleaned.replace(/,/g, ''));
+	}
+
+	return isNegative ? -result : result;
 }

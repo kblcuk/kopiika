@@ -181,6 +181,57 @@ describe('TransactionModal', () => {
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
+		it('creates transaction with decimal amount using dot separator', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({ addTransaction: addTransactionSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '1.15');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						amount: 1.15,
+					})
+				);
+			});
+		});
+
+		it('creates transaction with decimal amount using comma separator', async () => {
+			// This tests the European locale input format where comma is decimal separator
+			const addTransactionSpy = jest.fn();
+			useStore.setState({ addTransaction: addTransactionSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '1,15');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						amount: 1.15,
+					})
+				);
+			});
+		});
+
 		it('includes note when provided', async () => {
 			const addTransactionSpy = jest.fn();
 			useStore.setState({ addTransaction: addTransactionSpy });

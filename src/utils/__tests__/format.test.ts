@@ -1,4 +1,10 @@
-import { roundMoney, formatAmount, getProgressPercent, isOverspent } from '../format';
+import {
+	roundMoney,
+	formatAmount,
+	getProgressPercent,
+	isOverspent,
+	reverseFormatCurrency,
+} from '../format';
 
 describe('roundMoney', () => {
 	test('should round to 2 decimal places', () => {
@@ -68,5 +74,32 @@ describe('isOverspent', () => {
 
 	test('should return false when planned is zero', () => {
 		expect(isOverspent(50, 0)).toBe(false);
+	});
+});
+
+describe('reverseFormatCurrency', () => {
+	test('should parse amounts with dot as decimal separator', () => {
+		expect(reverseFormatCurrency('1.15')).toBe(1.15);
+		expect(reverseFormatCurrency('100.50')).toBe(100.5);
+		expect(reverseFormatCurrency('1234.56')).toBe(1234.56);
+	});
+
+	test('should parse whole numbers', () => {
+		expect(reverseFormatCurrency('100')).toBe(100);
+		expect(reverseFormatCurrency('1')).toBe(1);
+	});
+
+	test('should parse amounts with comma as decimal separator', () => {
+		// This is the bug case: user types "1,15" expecting 1.15
+		// On European locales, comma is the decimal separator
+		expect(reverseFormatCurrency('1,15')).toBe(1.15);
+		expect(reverseFormatCurrency('100,50')).toBe(100.5);
+	});
+
+	test('should handle amounts with thousands separators', () => {
+		// US style: 1,234.56
+		expect(reverseFormatCurrency('1,234.56')).toBeCloseTo(1234.56, 2);
+		// European style: 1.234,56
+		expect(reverseFormatCurrency('1.234,56')).toBeCloseTo(1234.56, 2);
 	});
 });
