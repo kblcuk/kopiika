@@ -150,10 +150,9 @@ export default function SummaryScreen() {
 
 		// Sort by row then position within each group
 		for (const type in groups) {
-			groups[type as EntityType].sort((a, b) => {
-				if (a.row !== b.row) return a.row - b.row;
-				return a.position - b.position;
-			});
+			groups[type as EntityType].sort(
+				(a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position
+			);
 		}
 
 		return groups;
