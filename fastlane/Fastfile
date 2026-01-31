@@ -67,6 +67,10 @@ platform :ios do
       build_number: latest_testflight_build_number + 1
     })
     build(clean: true)
-    upload
+    upload(
+      changelog: changelog_from_git_commits(
+        pretty: "- %s",# Optional, lets you provide a custom format to apply to each commit when generating the changelog text
+      )
+    )
   end
 end
