@@ -4,8 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useStore } from '@/src/store';
-import { getPeriodRange } from '@/src/types';
+import { useStore, getEntitiesWithBalance } from '@/src/store';
 import { formatAmount } from '@/src/utils/format';
 
 interface SummaryData {
@@ -26,43 +25,30 @@ export function useSummary(): SummaryData {
 	);
 
 	return useMemo(() => {
-		const { start, end } = getPeriodRange(currentPeriod);
-		const periodTransactions = transactions.filter(
-			(t) => t.timestamp >= start && t.timestamp <= end
+		// Use getEntitiesWithBalance for correct balance calculation (handles both in/out transactions)
+		const accountsWithBalance = getEntitiesWithBalance(
+			entities,
+			plans,
+			transactions,
+			currentPeriod,
+			'account'
+		);
+		const categoriesWithBalance = getEntitiesWithBalance(
+			entities,
+			plans,
+			transactions,
+			currentPeriod,
+			'category'
 		);
 
-		// Get accounts
-		const accounts = entities.filter((e) => e.type === 'account');
-		const categories = entities.filter((e) => e.type === 'category');
-
-		// Balance: sum of account remaining (planned - spent from accounts)
-		let balance = 0;
-		for (const account of accounts) {
-			const plan = plans.find(
-				(p) => p.entity_id === account.id && p.period_start === currentPeriod
-			);
-			const planned = plan?.planned_amount ?? 0;
-			const spent = periodTransactions
-				.filter((t) => t.from_entity_id === account.id)
-				.reduce((sum, t) => sum + t.amount, 0);
-			balance += planned - spent;
-		}
+		// Balance: sum of all account actuals (total money across all accounts)
+		const balance = accountsWithBalance.reduce((sum, a) => sum + a.actual, 0);
 
 		// Expenses: sum of category actuals
-		let expenses = 0;
-		// Planned: sum of all plans for _categories_ that we show in summary header
-		let planned = 0;
-		for (const category of categories) {
-			const spent = periodTransactions
-				.filter((t) => t.to_entity_id === category.id)
-				.reduce((sum, t) => sum + t.amount, 0);
-			expenses += spent;
+		const expenses = categoriesWithBalance.reduce((sum, c) => sum + c.actual, 0);
 
-			const plan = plans.find(
-				(p) => p.period_start === currentPeriod && p.entity_id === category.id
-			);
-			planned += plan ? plan.planned_amount : 0;
-		}
+		// Planned: sum of category plans
+		const planned = categoriesWithBalance.reduce((sum, c) => sum + c.planned, 0);
 
 		return { balance, expenses, planned };
 	}, [entities, plans, transactions, currentPeriod]);
