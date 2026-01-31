@@ -47,6 +47,7 @@ interface SortableEntityGridProps {
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
+	onLongPress?: (entity: EntityWithBalance) => void;
 	onAdd?: (type: EntityType) => void;
 	dropZonesDisabled?: boolean;
 	maxRows?: number;
@@ -63,6 +64,7 @@ export function SortableEntityGrid({
 	onDragStart,
 	onDragEnd,
 	onTap,
+	onLongPress,
 	onAdd,
 	dropZonesDisabled = false,
 	maxRows = 1,
@@ -359,7 +361,11 @@ export function SortableEntityGrid({
 												<AddEntityBubble type={type} onPress={onAdd} />
 											</Sortable.Handle>
 										) : (
-											<SortableEntityBubble entity={item} onTap={onTap} />
+											<SortableEntityBubble
+												entity={item}
+												onTap={onTap}
+												onLongPress={onLongPress}
+											/>
 										)
 									}
 									keyExtractor={(item: EntityWithBalance) => item.id}

@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Sortable from 'react-native-sortables';
+import { useRouter } from 'expo-router';
 import {
 	SortableEntityGrid,
 	SummaryHeader,
@@ -19,10 +20,12 @@ import {
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
+import { getCurrentPeriod } from '@/src/types';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 export default function HomeScreen() {
+	const router = useRouter();
 	const {
 		isLoading,
 		entities,
@@ -131,8 +134,14 @@ export default function HomeScreen() {
 		setToEntity(null);
 	}, []);
 
-	// const handleLongPress = useCallback((entity: EntityWithBalance) => {
-	const handleTap = useCallback((entity: EntityWithBalance) => {
+	const handleTap = useCallback(
+		(entity: EntityWithBalance) => {
+			router.push(`/history?period=${getCurrentPeriod()}&entityId=${entity.id}`);
+		},
+		[router]
+	);
+
+	const handleLongPress = useCallback((entity: EntityWithBalance) => {
 		// Clear any transaction selection state
 		setFromEntity(null);
 		setToEntity(null);
@@ -291,6 +300,7 @@ export default function HomeScreen() {
 									onDragStart={handleDragStart}
 									onDragEnd={handleDragEnd}
 									onTap={handleTap}
+									onLongPress={handleLongPress}
 									onAdd={handleAdd}
 									dropZonesDisabled={!incomeVisible}
 								/>
@@ -303,6 +313,7 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
+							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 							reorderMode={accountsReorderMode}
 							onToggleReorderMode={handleToggleAccountsReorderMode}
@@ -314,6 +325,7 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
+							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 							maxRows={3}
 						/>
@@ -324,6 +336,7 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
+							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 						/>
 

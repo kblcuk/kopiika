@@ -38,12 +38,14 @@ const triggerLightHaptic = () => {
 interface SortableEntityBubbleProps {
 	entity: EntityWithBalance;
 	onTap?: (entity: EntityWithBalance) => void;
+	onLongPress?: (entity: EntityWithBalance) => void;
 }
 
 // Individual entity bubble for the sortable grid - memoized to prevent re-renders during drag
 export const SortableEntityBubble = memo(function SortableEntityBubble({
 	entity,
 	onTap,
+	onLongPress,
 }: SortableEntityBubbleProps) {
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
@@ -121,12 +123,17 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	}));
 
 	const handleTap = useCallback(() => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onTap?.(entity);
 	}, [entity, onTap]);
 
+	const handleLongPress = useCallback(() => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		onLongPress?.(entity);
+	}, [entity, onLongPress]);
+
 	return (
-		<Sortable.Touchable onLongPress={handleTap}>
+		<Sortable.Touchable onTap={handleTap} onLongPress={handleLongPress}>
 			<Sortable.Handle mode={mode}>
 				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
 					{/* Glow effect for drop target */}
