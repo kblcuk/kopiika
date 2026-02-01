@@ -10,7 +10,7 @@ export const PROGRESS_THRESHOLDS = {
 	/** Progress above limit shows as overspent (red) */
 } as const;
 
-export type ProgressState = 'healthy' | 'warning' | 'overspent';
+export type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral';
 
 /**
  * Determines the progress state based on percentage

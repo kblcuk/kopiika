@@ -6,6 +6,7 @@ interface CircularProgressProps {
 	strokeWidth?: number;
 	progress: number; // 0-100+, can exceed 100 for overspending
 	inverse?: boolean; // For savings/goals where higher progress is better
+	planned?: number; // When 0 or undefined with activity, shows neutral state
 	children?: React.ReactNode;
 }
 
@@ -16,11 +17,13 @@ const COLORS = {
 		healthy: '#E8F5EC', // Light green tint
 		warning: '#FFF4E6', // Light amber tint
 		overspent: '#FDEAEA', // Light red tint
+		neutral: '#F5F1EB', // paper-200
 	},
 	progress: {
 		healthy: '#2F7D4A', // positive.DEFAULT
 		warning: '#D4842F', // warning.DEFAULT
 		overspent: '#C23030', // negative.DEFAULT
+		neutral: '#6B5D4A', // ink.muted
 	},
 };
 
@@ -29,6 +32,7 @@ export function CircularProgress({
 	strokeWidth = 3,
 	progress,
 	inverse = false,
+	planned,
 	children,
 }: CircularProgressProps) {
 	const radius = (size - strokeWidth) / 2;
@@ -38,7 +42,8 @@ export function CircularProgress({
 	// Calculate stroke dash offset (progress starts from bottom, fills clockwise)
 	const strokeDashoffset = circumference - (clampedProgress / 100) * circumference;
 
-	const progressState = getProgressState(progress, inverse);
+	const hasNoPlan = planned === 0 || planned === undefined;
+	const progressState = hasNoPlan && progress > 0 ? 'neutral' : getProgressState(progress, inverse);
 
 	const getColors = () => {
 		switch (progressState) {
@@ -56,6 +61,11 @@ export function CircularProgress({
 				return {
 					track: COLORS.track.overspent,
 					progress: COLORS.progress.overspent,
+				};
+			case 'neutral':
+				return {
+					track: COLORS.track.neutral,
+					progress: COLORS.progress.neutral,
 				};
 		}
 	};

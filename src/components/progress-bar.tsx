@@ -4,11 +4,14 @@ import { getProgressState } from '@/constants/progress';
 interface ProgressBarProps {
 	progress: number; // 0-100+, can exceed 100 for overspending
 	inverse?: boolean; // For savings/goals where higher progress is better
+	planned?: number; // When 0 or undefined with activity, shows neutral state
 }
 
-export function ProgressBar({ progress, inverse = false }: ProgressBarProps) {
+export function ProgressBar({ progress, inverse = false, planned }: ProgressBarProps) {
 	const clampedProgress = Math.min(Math.max(progress, 0), 100);
-	const progressState = getProgressState(progress, inverse);
+	const hasNoPlan = planned === 0 || planned === undefined;
+	const progressState =
+		hasNoPlan && progress > 0 ? 'neutral' : getProgressState(progress, inverse);
 
 	const getProgressColor = () => {
 		switch (progressState) {
@@ -18,6 +21,8 @@ export function ProgressBar({ progress, inverse = false }: ProgressBarProps) {
 				return 'bg-warning';
 			case 'overspent':
 				return 'bg-negative';
+			case 'neutral':
+				return 'bg-ink-muted';
 		}
 	};
 
