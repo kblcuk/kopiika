@@ -41,9 +41,9 @@ export function useSummary(): SummaryData {
 			'category'
 		);
 
-		// Balance: sum of account actuals with include_in_total as true
+		// Balance: sum of account actuals with include_in_total as true (default)
 		const balance = accountsWithBalance
-			.filter((a) => a.include_in_total)
+			.filter((a) => a.include_in_total ?? true)
 			.reduce((sum, a) => sum + a.actual, 0);
 
 		// Expenses: sum of category actuals
