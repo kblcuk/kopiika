@@ -18,7 +18,7 @@ let capturedBlurCallback: (() => void) | null = null;
 jest.mock('@react-navigation/native', () => ({
 	useFocusEffect: (createCallback: () => (() => void) | void) => {
 		// Use React.useEffect to properly handle the focus effect mock
-		const React = require('react');
+		const React = jest.requireActual('react');
 		React.useEffect(() => {
 			const cleanup = createCallback();
 			if (typeof cleanup === 'function') {
@@ -35,14 +35,14 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('@/src/components/period-picker', () => ({
 	PeriodPicker: ({ period }: { period: string }) => {
-		const { Text } = require('react-native');
+		const { Text } = jest.requireActual('react-native');
 		return <Text testID="period-picker">{period}</Text>;
 	},
 }));
 
 jest.mock('@/src/components/entity-filter', () => ({
 	EntityFilter: ({ selectedEntityId }: { selectedEntityId: string | null }) => {
-		const { Text } = require('react-native');
+		const { Text } = jest.requireActual('react-native');
 		return <Text testID="entity-filter">{selectedEntityId || 'all'}</Text>;
 	},
 }));
