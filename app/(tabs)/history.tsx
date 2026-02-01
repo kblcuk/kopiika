@@ -59,6 +59,7 @@ function groupTransactionsByDay(transactions: Transaction[]): TransactionGroup[]
 
 export default function HistoryScreen() {
 	const params = useLocalSearchParams<{ period?: string; entityId?: string }>();
+	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(params.period || getCurrentPeriod());
 	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
 		params.entityId || null
@@ -72,15 +73,17 @@ export default function HistoryScreen() {
 		}))
 	);
 
-	// Sync state with URL params when navigating from other screens
-	useEffect(() => {
-		if (params.period) {
-			setSelectedPeriod(params.period);
-		}
-		if (params.entityId) {
-			setSelectedEntityId(params.entityId);
-		}
-	}, [params.period, params.entityId]);
+	// Apply URL params on focus, clear on blur
+	useFocusEffect(
+		useCallback(() => {
+			setSelectedPeriod(params.period || getCurrentPeriod());
+			setSelectedEntityId(params.entityId || null);
+
+			return () => {
+				router.setParams({ period: '', entityId: '' });
+			};
+		}, [params.period, params.entityId, router])
+	);
 
 	const filteredTransactions = useMemo(() => {
 		const { start, end } = getPeriodRange(selectedPeriod);
