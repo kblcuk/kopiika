@@ -124,9 +124,8 @@ export default function SummaryScreen() {
 	// Combine entities with their actuals and plans
 	const entitiesWithBalance = useMemo(() => {
 		return entities.map((entity) => {
-			const plan = plans.find(
-				(p) => p.entity_id === entity.id && p.period_start === selectedPeriod
-			);
+			// All plans use 'all-time' period - same planned amount for all months
+			const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
 			const planned = plan?.planned_amount ?? 0;
 			const actual = actuals.get(entity.id) ?? 0;
 
@@ -137,7 +136,7 @@ export default function SummaryScreen() {
 				remaining: planned - actual,
 			} as EntityWithBalance;
 		});
-	}, [entities, plans, actuals, selectedPeriod]);
+	}, [entities, plans, actuals]);
 
 	// Group entities by type
 	const groupedEntities = useMemo(() => {

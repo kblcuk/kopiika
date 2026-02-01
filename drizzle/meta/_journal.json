@@ -29,6 +29,14 @@
 			"when": 1769971201881,
 			"tag": "0003_add-include-in-total",
 			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "6",
+			"when": 1769976686631,
+			"tag": "0004_migrate_plans_to_alltime",
+			"breakpoints": true
 		}
 	]
 }
+

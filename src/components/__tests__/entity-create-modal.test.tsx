@@ -112,7 +112,7 @@ describe('EntityCreateModal', () => {
 				);
 				expect(setPlanSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
-						period: 'month',
+						period: 'all-time',
 						period_start: '2026-01',
 						planned_amount: 500,
 					})
@@ -188,7 +188,7 @@ describe('EntityCreateModal', () => {
 			});
 		});
 
-		it('uses month period for non-saving entities', async () => {
+		it('uses all-time period for all entity types', async () => {
 			const addEntitySpy = jest.fn();
 			const setPlanSpy = jest.fn();
 			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
@@ -209,7 +209,7 @@ describe('EntityCreateModal', () => {
 				await waitFor(() => {
 					expect(setPlanSpy).toHaveBeenCalledWith(
 						expect.objectContaining({
-							period: 'month',
+							period: 'all-time',
 						})
 					);
 				});

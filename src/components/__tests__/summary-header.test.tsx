@@ -199,7 +199,7 @@ describe('useSummary', () => {
 		const plan1: Plan = {
 			id: 'plan-1',
 			entity_id: 'category-1',
-			period: 'month',
+			period: 'all-time',
 			period_start: currentPeriod,
 			planned_amount: 500,
 		};
@@ -207,7 +207,7 @@ describe('useSummary', () => {
 		const plan2: Plan = {
 			id: 'plan-2',
 			entity_id: 'category-2',
-			period: 'month',
+			period: 'all-time',
 			period_start: currentPeriod,
 			planned_amount: 300,
 		};

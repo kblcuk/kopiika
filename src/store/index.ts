@@ -283,16 +283,8 @@ export function getEntitiesWithBalance(
 		.sort((a, b) => a.row - b.row || a.position - b.position);
 
 	return filteredEntities.map((entity) => {
-		// Savings use 'all-time' period for plans, others use 'month' period with current period_start
-		const plan =
-			entity.type === 'saving'
-				? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
-				: plans.find(
-						(p) =>
-							p.entity_id === entity.id &&
-							p.period === 'month' &&
-							p.period_start === currentPeriod
-					);
+		// All plans use 'all-time' period - static budget/goal that applies every month
+		const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
 		const planned = plan?.planned_amount ?? 0;
 
 		// Accounts and savings use all transactions (all-time balance)

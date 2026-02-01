@@ -1311,11 +1311,11 @@ describe('Store Data Integrity', () => {
 				order: 3,
 			};
 
-			// Set up plans
+			// Set up plans - all plans use 'all-time' period
 			const incomePlan: Plan = {
 				id: 'plan-income',
 				entity_id: 'income-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 5000,
 			};
@@ -1323,7 +1323,7 @@ describe('Store Data Integrity', () => {
 			const categoryPlan: Plan = {
 				id: 'plan-category',
 				entity_id: 'category-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 300,
 			};
@@ -1604,21 +1604,21 @@ describe('Store Data Integrity', () => {
 				order: 1,
 			};
 
-			// Category has monthly plan for current period
-			const categoryPlanCurrent: Plan = {
-				id: 'plan-cat-jan',
+			// Category has all-time plan (the standard)
+			const categoryPlanAllTime: Plan = {
+				id: 'plan-cat-alltime',
 				entity_id: 'category-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 300,
 			};
 
-			// Category also has monthly plan for different period (should be ignored)
-			const categoryPlanOld: Plan = {
-				id: 'plan-cat-dec',
+			// Category also has a monthly plan (should be ignored - kept for potential future override feature)
+			const categoryPlanMonthly: Plan = {
+				id: 'plan-cat-monthly',
 				entity_id: 'category-1',
 				period: 'month',
-				period_start: '2025-12',
+				period_start: '2026-01',
 				planned_amount: 250,
 			};
 
@@ -1631,7 +1631,7 @@ describe('Store Data Integrity', () => {
 				planned_amount: 10000,
 			};
 
-			// Saving also has monthly plan (should be ignored)
+			// Saving also has monthly plan (should be ignored - kept for potential future override feature)
 			const savingPlanMonthly: Plan = {
 				id: 'plan-saving-monthly',
 				entity_id: 'saving-1',
@@ -1642,7 +1642,12 @@ describe('Store Data Integrity', () => {
 
 			useStore.setState({
 				entities: [category, saving],
-				plans: [categoryPlanCurrent, categoryPlanOld, savingPlanAllTime, savingPlanMonthly],
+				plans: [
+					categoryPlanAllTime,
+					categoryPlanMonthly,
+					savingPlanAllTime,
+					savingPlanMonthly,
+				],
 				transactions: [],
 				currentPeriod: '2026-01',
 				isLoading: false,
@@ -1651,7 +1656,7 @@ describe('Store Data Integrity', () => {
 				incomeVisible: false,
 			});
 
-			// Category should use monthly plan for current period (300), not old period (250)
+			// Category should use all-time plan (300), not monthly plan (250)
 			const state = useStore.getState();
 			const categoryEntities = getEntitiesWithBalance(
 				state.entities,
@@ -1752,7 +1757,7 @@ describe('Store Data Integrity', () => {
 			const categoryPlan: Plan = {
 				id: 'plan-1',
 				entity_id: 'category-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 500,
 			};
@@ -1815,7 +1820,7 @@ describe('Store Data Integrity', () => {
 			const plan1: Plan = {
 				id: 'plan-1',
 				entity_id: 'category-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 300,
 			};
@@ -1823,7 +1828,7 @@ describe('Store Data Integrity', () => {
 			const plan2: Plan = {
 				id: 'plan-2',
 				entity_id: 'category-2',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 150,
 			};

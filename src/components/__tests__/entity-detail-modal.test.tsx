@@ -168,7 +168,7 @@ describe('EntityDetailModal', () => {
 					{
 						id: 'plan-1',
 						entity_id: 'entity-1',
-						period: 'month',
+						period: 'all-time',
 						period_start: '2026-01',
 						planned_amount: 500,
 					},
@@ -197,14 +197,14 @@ describe('EntityDetailModal', () => {
 			const setPlanSpy = jest.fn();
 			const updateEntitySpy = jest.fn();
 
-			// Set up with plan for current period
+			// Set up with plan for current period - all plans use 'all-time' period
 			useStore.setState({
 				currentPeriod: '2026-01',
 				plans: [
 					{
 						id: 'plan-1',
 						entity_id: 'entity-1',
-						period: 'month',
+						period: 'all-time',
 						period_start: '2026-01',
 						planned_amount: 500,
 					},
@@ -311,7 +311,7 @@ describe('EntityDetailModal', () => {
 			});
 		});
 
-		it('uses month period for non-saving entities', async () => {
+		it('uses all-time period for all entity types', async () => {
 			const setPlanSpy = jest.fn();
 			useStore.setState({ setPlan: setPlanSpy });
 
@@ -324,7 +324,7 @@ describe('EntityDetailModal', () => {
 			await waitFor(() => {
 				expect(setPlanSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
-						period: 'month',
+						period: 'all-time',
 					})
 				);
 			});

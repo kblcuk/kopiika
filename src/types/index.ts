@@ -23,11 +23,13 @@ export type Transaction = Omit<DrizzleTransaction, 'note'> & {
 
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
+// Period type kept for backwards compatibility - all plans now use 'all-time'
 export type PlanPeriod = 'month' | 'all-time';
 
 // Period semantics:
-// - period: 'month' = recurring monthly plan, period_start indicates which month (e.g., '2026-01')
-// - period: 'all-time' = cumulative goal (e.g., savings), period_start indicates when goal was created (e.g., '2026-01')
+// All plans use period='all-time' - a static budget/goal that applies the same way every month.
+// The period_start field indicates when the plan was created (YYYY-MM format).
+// Transaction actuals are still calculated per-month for income/categories.
 
 // Derived types for UI
 export interface EntityWithBalance extends Entity {
