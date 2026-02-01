@@ -9,6 +9,7 @@ import {
 	Platform,
 	Alert,
 	ScrollView,
+	Switch,
 } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -39,6 +40,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
+	const [includeInTotal, setIncludeInTotal] = useState(true);
 	const inputRef = useRef<TextInput>(null);
 
 	const { plans, currentPeriod, setPlan, deleteEntity, updateEntity, addTransaction } = useStore(
@@ -77,6 +79,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			);
 			setActualAmount(roundMoney(entity.actual).toString());
 			setIsEditingActual(false);
+			setIncludeInTotal(entity.include_in_total !== false);
 			setNameError(null);
 			setShowIconPicker(false);
 		}
@@ -122,6 +125,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			...entity,
 			name: trimmedName,
 			icon: validIcon,
+			include_in_total: includeInTotal,
 		});
 
 		// Update plan
@@ -338,6 +342,25 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								>
 									{formatAmount(entity.remaining)}
 								</Text>
+							</View>
+
+							{/* Include in total toggle */}
+							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+								<View className="flex-1 pr-4">
+									<Text className="font-sans text-base text-ink">
+										Include in total balance
+									</Text>
+									<Text className="font-sans text-xs text-ink-muted">
+										Turn off to exclude from summary header
+									</Text>
+								</View>
+								<Switch
+									value={includeInTotal}
+									onValueChange={setIncludeInTotal}
+									trackColor={{ false: '#D4C8B3', true: '#D4652F' }}
+									thumbColor="#FFFBF5"
+									testID="entity-detail-include-in-total-switch"
+								/>
 							</View>
 						</View>
 					) : (

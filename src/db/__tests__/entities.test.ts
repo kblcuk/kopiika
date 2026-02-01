@@ -37,7 +37,7 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			const result = await getEntityById('entity-1');
-			expect(result).toEqual(entity);
+			expect(result).toEqual({ ...entity, include_in_total: true });
 		});
 
 		test('should create entity with optional fields as null', async () => {
@@ -59,6 +59,7 @@ describe('entities.ts', () => {
 				icon: null,
 				color: null,
 				owner_id: null,
+				include_in_total: true,
 			});
 		});
 
@@ -289,7 +290,7 @@ describe('entities.ts', () => {
 			await updateEntity(updated);
 
 			const result = await getEntityById('update-test');
-			expect(result).toEqual(updated);
+			expect(result).toEqual({ ...updated, include_in_total: true });
 		});
 
 		test('should be able to set optional fields to null', async () => {

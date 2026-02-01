@@ -22,6 +22,13 @@
 			"when": 1768734568442,
 			"tag": "0002_row-and-position-for-entities",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "6",
+			"when": 1769971201881,
+			"tag": "0003_add-include-in-total",
+			"breakpoints": true
 		}
 	]
 }

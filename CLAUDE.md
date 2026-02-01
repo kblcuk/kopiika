@@ -368,6 +368,7 @@ TECH STACK
     - Use `bun install` to install dependencies
     - Use `bun test` to run unit tests (Bun's test runner)
     - Use `bun run test` to run component tests (Jest)
+    - Use `bun run format` to format code with Prettier
     - Use `bun run <script>` for package.json scripts
     - NEVER use `npm` or `yarn` commands
 

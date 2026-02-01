@@ -36,6 +36,7 @@ export async function createEntity(entity: Entity): Promise<void> {
 		row: entity.row,
 		position: entity.position,
 		order: entity.order ?? 0,
+		include_in_total: entity.include_in_total ?? true,
 	});
 }
 
@@ -53,6 +54,7 @@ export async function updateEntity(entity: Entity): Promise<void> {
 			row: entity.row,
 			position: entity.position,
 			order: entity.order ?? 0,
+			include_in_total: entity.include_in_total ?? true,
 		})
 		.where(eq(entities.id, entity.id));
 }

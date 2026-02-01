@@ -43,7 +43,8 @@ export function CircularProgress({
 	const strokeDashoffset = circumference - (clampedProgress / 100) * circumference;
 
 	const hasNoPlan = planned === 0 || planned === undefined;
-	const progressState = hasNoPlan && progress > 0 ? 'neutral' : getProgressState(progress, inverse);
+	const progressState =
+		hasNoPlan && progress > 0 ? 'neutral' : getProgressState(progress, inverse);
 
 	const getColors = () => {
 		switch (progressState) {

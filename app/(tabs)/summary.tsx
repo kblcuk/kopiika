@@ -56,7 +56,11 @@ function SummaryRow({ entity, onPress }: SummaryRowProps) {
 					</View>
 
 					{/* Progress bar */}
-					<ProgressBar progress={progress} inverse={entity.type === 'saving'} planned={entity.planned} />
+					<ProgressBar
+						progress={progress}
+						inverse={entity.type === 'saving'}
+						planned={entity.planned}
+					/>
 				</View>
 			</View>
 		</Pressable>

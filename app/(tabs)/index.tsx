@@ -307,7 +307,7 @@ export default function HomeScreen() {
 							</View>
 						</Animated.View>
 						<SortableEntityGrid
-							title="Accounts · Total"
+							title="Accounts"
 							type="account"
 							entities={accounts}
 							onDragStart={handleDragStart}
