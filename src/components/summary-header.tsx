@@ -49,10 +49,12 @@ export function useSummary(): SummaryData {
 		// Expenses: sum of category actuals
 		const expenses = categoriesWithBalance.reduce((sum, c) => sum + c.actual, 0);
 
-		// Planned: sum of category plans
-		const planned = categoriesWithBalance.reduce((sum, c) => sum + c.planned, 0);
+		// Remaining: how much is left to spend across categories that have a plan
+		const remaining = categoriesWithBalance
+			.filter((c) => c.planned > 0)
+			.reduce((sum, c) => sum + (c.planned - c.actual), 0);
 
-		return { balance, expenses, remaining: planned - expenses };
+		return { balance, expenses, remaining };
 	}, [entities, plans, transactions, currentPeriod]);
 }
 
@@ -75,7 +77,7 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 				<View className="flex-1 flex-row justify-between">
 					<SummaryItem label="Balance" value={balance} />
 					<SummaryItem label="Expenses" value={expenses} />
-					<SummaryItem label="Available" value={remaining} />
+					<SummaryItem label="Remaining" value={remaining} />
 				</View>
 
 				{/* Income toggle button */}

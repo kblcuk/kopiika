@@ -263,6 +263,100 @@ describe('useSummary', () => {
 		expect(result.current.remaining).toBe(-150);
 	});
 
+	it('should exclude accounts with include_in_total false from balance', () => {
+		const hiddenAccount: Entity = {
+			id: 'account-hidden',
+			type: 'account',
+			name: 'Hidden',
+			currency: 'USD',
+			row: 0,
+			position: 2,
+			order: 2,
+			include_in_total: false,
+		};
+
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount: 3000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		const tx2: Transaction = {
+			id: 'tx-2',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-hidden',
+			amount: 2000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		useStore.setState({
+			entities: [mockIncome, mockAccount, hiddenAccount],
+			transactions: [tx1, tx2],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		// Only account-1 (3000) should count; hidden account (2000) excluded
+		expect(result.current.balance).toBe(3000);
+	});
+
+	it('should not include unplanned categories in remaining', () => {
+		const mockCategory2: Entity = {
+			id: 'category-2',
+			type: 'category',
+			name: 'Unplanned',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+
+		const plan1: Plan = {
+			id: 'plan-1',
+			entity_id: 'category-1',
+			period: 'all-time',
+			period_start: currentPeriod,
+			planned_amount: 500,
+		};
+
+		// Spending on the planned category
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		// Spending on the unplanned category — should NOT drag remaining negative
+		const tx2: Transaction = {
+			id: 'tx-2',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-2',
+			amount: 300,
+			currency: 'USD',
+			timestamp: periodStart + 1000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory, mockCategory2],
+			plans: [plan1],
+			transactions: [tx1, tx2],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		// Remaining: only category-1 counts → 500 - 200 = 300
+		expect(result.current.remaining).toBe(300);
+		// Expenses: both categories count → 200 + 300 = 500
+		expect(result.current.expenses).toBe(500);
+	});
+
 	it('should return zeros when no entities exist', () => {
 		const { result } = renderHook(() => useSummary());
 
