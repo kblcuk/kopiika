@@ -163,12 +163,13 @@ export default function HistoryScreen() {
 							</View>
 
 							{/* Transactions */}
-							{group.transactions.map((tx) => (
+							{group.transactions.map((tx, txIndex) => (
 								<TransactionRow
 									key={tx.id}
 									transaction={tx}
 									entities={entities}
 									onEdit={handleEdit}
+									index={txIndex}
 								/>
 							))}
 						</View>
