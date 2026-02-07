@@ -185,7 +185,7 @@ describe('useSummary', () => {
 		expect(result.current.expenses).toBe(350);
 	});
 
-	it('should calculate planned as sum of category plans', () => {
+	it('should calculate remaining as planned minus expenses', () => {
 		const mockCategory2: Entity = {
 			id: 'category-2',
 			type: 'category',
@@ -212,15 +212,55 @@ describe('useSummary', () => {
 			planned_amount: 300,
 		};
 
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
 		useStore.setState({
-			entities: [mockCategory, mockCategory2],
+			entities: [mockAccount, mockCategory, mockCategory2],
 			plans: [plan1, plan2],
+			transactions: [tx1],
 		});
 
 		const { result } = renderHook(() => useSummary());
 
-		// Planned should be 500 + 300 = 800
-		expect(result.current.planned).toBe(800);
+		// Remaining should be (500 + 300) - 200 = 600
+		expect(result.current.remaining).toBe(600);
+	});
+
+	it('should return negative remaining when expenses exceed planned', () => {
+		const plan1: Plan = {
+			id: 'plan-1',
+			entity_id: 'category-1',
+			period: 'all-time',
+			period_start: currentPeriod,
+			planned_amount: 100,
+		};
+
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 250,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [plan1],
+			transactions: [tx1],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		// Remaining should be 100 - 250 = -150
+		expect(result.current.remaining).toBe(-150);
 	});
 
 	it('should return zeros when no entities exist', () => {
@@ -228,6 +268,6 @@ describe('useSummary', () => {
 
 		expect(result.current.balance).toBe(0);
 		expect(result.current.expenses).toBe(0);
-		expect(result.current.planned).toBe(0);
+		expect(result.current.remaining).toBe(0);
 	});
 });

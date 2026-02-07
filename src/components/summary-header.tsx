@@ -10,7 +10,7 @@ import { formatAmount } from '@/src/utils/format';
 interface SummaryData {
 	balance: number;
 	expenses: number;
-	planned: number;
+	remaining: number;
 }
 
 // Hook to compute summary values
@@ -52,7 +52,7 @@ export function useSummary(): SummaryData {
 		// Planned: sum of category plans
 		const planned = categoriesWithBalance.reduce((sum, c) => sum + c.planned, 0);
 
-		return { balance, expenses, planned };
+		return { balance, expenses, remaining: planned - expenses };
 	}, [entities, plans, transactions, currentPeriod]);
 }
 
@@ -61,7 +61,7 @@ interface SummaryHeaderProps {
 }
 
 export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
-	const { balance, expenses, planned } = useSummary();
+	const { balance, expenses, remaining } = useSummary();
 	const incomeVisible = useStore((state) => state.incomeVisible);
 	const insets = useSafeAreaInsets();
 
@@ -75,7 +75,7 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 				<View className="flex-1 flex-row justify-between">
 					<SummaryItem label="Balance" value={balance} />
 					<SummaryItem label="Expenses" value={expenses} />
-					<SummaryItem label="Planned" value={planned} />
+					<SummaryItem label="Available" value={remaining} />
 				</View>
 
 				{/* Income toggle button */}
