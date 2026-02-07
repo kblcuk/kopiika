@@ -1,5 +1,4 @@
-fastlane documentation
-----
+## fastlane documentation
 
 # Installation
 
@@ -47,7 +46,7 @@ Upload latest build to TestFlight (without rebuilding)
 
 Push a new beta build to TestFlight
 
-----
+---
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
