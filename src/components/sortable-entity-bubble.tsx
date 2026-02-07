@@ -153,6 +153,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 									size={64}
 									strokeWidth={3}
 									progress={progress}
+									planned={entity.planned}
 									inverse={entity.type === 'saving'}
 								/>
 							</View>
