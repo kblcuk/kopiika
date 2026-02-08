@@ -2,12 +2,12 @@ import '@/src/global.css';
 import 'react-native-reanimated';
 
 import {
-	IBMPlexSans_400Regular,
-	IBMPlexSans_500Medium,
-	IBMPlexSans_600SemiBold,
-	IBMPlexSans_700Bold,
+	Lexend_400Regular,
+	Lexend_500Medium,
+	Lexend_600SemiBold,
+	Lexend_700Bold,
 	useFonts,
-} from '@expo-google-fonts/ibm-plex-sans';
+} from '@expo-google-fonts/lexend';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -26,10 +26,10 @@ export const unstable_settings = {
 
 function App() {
 	const [fontsLoaded] = useFonts({
-		IBMPlexSans_400Regular,
-		IBMPlexSans_500Medium,
-		IBMPlexSans_600SemiBold,
-		IBMPlexSans_700Bold,
+		Lexend_400Regular,
+		Lexend_500Medium,
+		Lexend_600SemiBold,
+		Lexend_700Bold,
 	});
 	const initialize = useStore((state) => state.initialize);
 
