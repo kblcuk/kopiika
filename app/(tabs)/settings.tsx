@@ -1,13 +1,16 @@
 import { View, Text, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { File } from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
+import { parseImportCsv, formatImportErrors } from '@/src/utils/import';
 import { resetDrizzleDb } from '@/src/db';
 import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
-	const { entities, plans, transactions, initialize } = useStore();
+	const { entities, plans, transactions, initialize, replaceAllData } = useStore();
 
 	const version = Constants.expoConfig?.version || 'unknown';
 
@@ -17,6 +20,58 @@ export default function SettingsScreen() {
 		} catch (error) {
 			console.error('Failed to export data', error);
 			Alert.alert('Export Failed', 'Could not export data. Please try again.');
+		}
+	};
+
+	const handleImport = async () => {
+		try {
+			const result = await DocumentPicker.getDocumentAsync({
+				type: ['text/csv', 'text/comma-separated-values', 'text/plain'],
+				copyToCacheDirectory: true,
+			});
+
+			if (result.canceled) return;
+
+			const file = new File(result.assets[0].uri);
+			const content = await file.text();
+
+			const parsed = parseImportCsv(content);
+			if (!parsed.ok) {
+				Alert.alert('Import Failed', formatImportErrors(parsed.errors));
+				return;
+			}
+
+			const { data } = parsed;
+			Alert.alert(
+				'Replace All Data?',
+				`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, and ${data.transactions.length} transactions.\n\nThis cannot be undone.`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Replace',
+						style: 'destructive',
+						onPress: async () => {
+							try {
+								await replaceAllData(
+									data.entities,
+									data.plans,
+									data.transactions
+								);
+								Alert.alert('Import Complete', 'All data has been replaced.');
+							} catch (error) {
+								console.error('Failed to import data', error);
+								Alert.alert(
+									'Import Failed',
+									'An error occurred during import. Your previous data should be intact.'
+								);
+							}
+						},
+					},
+				]
+			);
+		} catch (error) {
+			console.error('Failed to pick document', error);
+			Alert.alert('Import Failed', 'Could not read the selected file.');
 		}
 	};
 
@@ -61,6 +116,13 @@ export default function SettingsScreen() {
 						<Text className="font-sans text-sm text-ink-muted">
 							{entities.length} entities, {transactions.length} transactions
 						</Text>
+					</Pressable>
+
+					<Pressable
+						onPress={handleImport}
+						className="flex-row items-center border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Import from CSV</Text>
 					</Pressable>
 
 					<Pressable

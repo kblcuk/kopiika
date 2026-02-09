@@ -48,6 +48,13 @@ export function getRawDb(): SQLiteDatabase | null {
 }
 
 export function resetDb() {
+	// Delete all data from the persistent DB file before dropping references.
+	// Just nulling dbPromise/rawExpoDb would reconnect to the same file with data intact.
+	if (rawExpoDb) {
+		rawExpoDb.execSync('DELETE FROM transactions');
+		rawExpoDb.execSync('DELETE FROM plans');
+		rawExpoDb.execSync('DELETE FROM entities');
+	}
 	dbPromise = null;
 	rawExpoDb = null;
 }

@@ -4,18 +4,32 @@ import type { Entity, Plan, Transaction } from '@/src/types';
 
 // Convert entities to CSV
 export function entitiesToCsv(entities: Entity[]): string {
-	const headers = ['id', 'type', 'name', 'currency', 'icon', 'color', 'owner_id', 'order'];
+	const headers = [
+		'id',
+		'type',
+		'name',
+		'currency',
+		'icon',
+		'color',
+		'owner_id',
+		'order',
+		'row',
+		'position',
+		'include_in_total',
+	];
 	const rows = entities.map((e) =>
 		[
 			e.id,
 			e.type,
-			e.name,
+			e.name ? `"${e.name.replace(/"/g, '""')}"` : '',
 			e.currency,
 			e.icon ?? '',
 			e.color ?? '',
 			e.owner_id ?? '',
+			e.order ?? 0,
 			e.row,
 			e.position,
+			e.include_in_total !== false,
 		].join(',')
 	);
 	return [headers.join(','), ...rows].join('\n');

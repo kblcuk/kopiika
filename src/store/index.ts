@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
+import * as schema from '@/src/db/drizzle-schema';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 interface AppState {
@@ -22,6 +23,11 @@ interface AppState {
 
 	// Actions
 	initialize: () => Promise<void>;
+	replaceAllData: (
+		entities: Entity[],
+		plans: Plan[],
+		transactions: Transaction[]
+	) => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
 	setDraggedEntity: (entity: Entity | null) => void;
 	setHoveredDropZoneId: (id: string | null) => void;
@@ -81,6 +87,62 @@ export const useStore = create<AppState>((set, get) => ({
 			console.error('Failed to initialize store:', error);
 			set({ isLoading: false });
 		}
+	},
+
+	// Replace all data atomically — used by CSV import
+	replaceAllData: async (newEntities, newPlans, newTransactions) => {
+		const drizzleDb = await db.getDrizzleDb();
+
+		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
+		drizzleDb.transaction((tx) => {
+			// Delete in FK-safe order: transactions → plans → entities
+			tx.delete(schema.transactions).run();
+			tx.delete(schema.plans).run();
+			tx.delete(schema.entities).run();
+
+			// Insert in FK-safe order: entities → plans → transactions
+			for (const entity of newEntities) {
+				tx.insert(schema.entities)
+					.values({
+						id: entity.id,
+						type: entity.type,
+						name: entity.name,
+						currency: entity.currency,
+						icon: entity.icon ?? null,
+						color: entity.color ?? null,
+						owner_id: entity.owner_id ?? null,
+						row: entity.row,
+						position: entity.position,
+						order: entity.order ?? 0,
+						include_in_total: entity.include_in_total ?? true,
+					})
+					.run();
+			}
+			for (const plan of newPlans) {
+				tx.insert(schema.plans).values(plan).run();
+			}
+			for (const txn of newTransactions) {
+				tx.insert(schema.transactions)
+					.values({
+						id: txn.id,
+						from_entity_id: txn.from_entity_id,
+						to_entity_id: txn.to_entity_id,
+						amount: txn.amount,
+						currency: txn.currency,
+						timestamp: txn.timestamp,
+						note: txn.note ?? null,
+					})
+					.run();
+			}
+		});
+
+		// Re-read all data from DB into store state
+		const [entities, plans, transactions] = await Promise.all([
+			db.getAllEntities(),
+			db.getAllPlans(),
+			db.getAllTransactions(),
+		]);
+		set({ entities, plans, transactions });
 	},
 
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
