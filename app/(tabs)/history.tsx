@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import { View, Text, SectionList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,9 +13,9 @@ import { EntityFilter } from '@/src/components/entity-filter';
 import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 
-interface TransactionGroup {
-	label: string;
-	transactions: Transaction[];
+interface TransactionSection {
+	title: string;
+	data: Transaction[];
 }
 
 function formatDayLabel(timestamp: number): string {
@@ -37,7 +37,7 @@ function formatDayLabel(timestamp: number): string {
 	});
 }
 
-function groupTransactionsByDay(transactions: Transaction[]): TransactionGroup[] {
+function groupTransactionsByDay(transactions: Transaction[]): TransactionSection[] {
 	const groups: Map<string, Transaction[]> = new Map();
 
 	for (const tx of transactions) {
@@ -53,8 +53,8 @@ function groupTransactionsByDay(transactions: Transaction[]): TransactionGroup[]
 	return Array.from(groups.entries())
 		.sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
 		.map(([_, txs]) => ({
-			label: formatDayLabel(txs[0].timestamp),
-			transactions: txs.sort((a, b) => b.timestamp - a.timestamp),
+			title: formatDayLabel(txs[0].timestamp),
+			data: txs.sort((a, b) => b.timestamp - a.timestamp),
 		}));
 }
 
@@ -66,6 +66,7 @@ export default function HistoryScreen() {
 		params.entityId || null
 	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const deferredPeriod = useDeferredValue(selectedPeriod);
 
 	const { transactions, entities } = useStore(
 		useShallow((state) => ({
@@ -86,14 +87,14 @@ export default function HistoryScreen() {
 		}, [params.period, params.entityId, router])
 	);
 
+	const isStale = deferredPeriod !== selectedPeriod;
+
 	const filteredTransactions = useMemo(() => {
-		const { start, end } = getPeriodRange(selectedPeriod);
+		const { start, end } = getPeriodRange(deferredPeriod);
 
 		return transactions.filter((tx) => {
-			// Period filter
 			if (tx.timestamp < start || tx.timestamp > end) return false;
 
-			// Entity filter
 			if (selectedEntityId) {
 				if (
 					tx.from_entity_id !== selectedEntityId &&
@@ -105,16 +106,21 @@ export default function HistoryScreen() {
 
 			return true;
 		});
-	}, [transactions, selectedPeriod, selectedEntityId]);
+	}, [transactions, deferredPeriod, selectedEntityId]);
 
-	const groupedTransactions = useMemo(
+	const sections = useMemo(
 		() => groupTransactionsByDay(filteredTransactions),
 		[filteredTransactions]
 	);
 
-	const handleEdit = (transaction: Transaction) => {
+	const entityMap = useMemo(
+		() => new Map(entities.map((e) => [e.id, e])),
+		[entities]
+	);
+
+	const handleEdit = useCallback((transaction: Transaction) => {
 		setEditingTransaction(transaction);
-	};
+	}, []);
 
 	const handleCloseEdit = () => {
 		setEditingTransaction(null);
@@ -122,10 +128,35 @@ export default function HistoryScreen() {
 
 	// For the edit modal, we need EntityWithBalance objects
 	const getEntityWithBalance = (entityId: string): EntityWithBalance | null => {
-		const entity = entities.find((e) => e.id === entityId);
+		const entity = entityMap.get(entityId);
 		if (!entity) return null;
 		return { ...entity, planned: 0, actual: 0, remaining: 0 };
 	};
+
+	const renderItem = useCallback(
+		({ item, index }: { item: Transaction; index: number }) => (
+			<TransactionRow
+				transaction={item}
+				entityMap={entityMap}
+				onEdit={handleEdit}
+				index={index}
+			/>
+		),
+		[entityMap, handleEdit]
+	);
+
+	const renderSectionHeader = useCallback(
+		({ section }: { section: TransactionSection }) => (
+			<View className="border-paper-300 bg-paper-100 px-5 py-2">
+				<Text className="font-sans text-xs uppercase tracking-wider text-ink-muted">
+					{section.title}
+				</Text>
+			</View>
+		),
+		[]
+	);
+
+	const keyExtractor = useCallback((tx: Transaction) => tx.id, []);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
@@ -143,39 +174,35 @@ export default function HistoryScreen() {
 			</View>
 
 			{/* Transaction list */}
-			<ScrollView className="flex-1">
-				{groupedTransactions.length === 0 ? (
-					<View className="flex-1 items-center justify-center px-5 py-16">
-						<Text className="font-sans text-base text-ink-muted">
-							No transactions this period
-						</Text>
-					</View>
-				) : (
-					groupedTransactions.map((group, i) => (
-						<View key={group.label}>
-							{/* Day header */}
-							<View
-								className={`border-paper-300 bg-paper-100 px-5 py-2 ${i === 0 ? 'border-t' : ''}`}
-							>
-								<Text className="font-sans text-xs uppercase tracking-wider text-ink-muted">
-									{group.label}
-								</Text>
-							</View>
-
-							{/* Transactions */}
-							{group.transactions.map((tx, txIndex) => (
-								<TransactionRow
-									key={tx.id}
-									transaction={tx}
-									entities={entities}
-									onEdit={handleEdit}
-									index={txIndex}
-								/>
-							))}
+			<View className="flex-1">
+				<SectionList
+					sections={sections}
+					renderItem={renderItem}
+					renderSectionHeader={renderSectionHeader}
+					keyExtractor={keyExtractor}
+					stickySectionHeadersEnabled={false}
+					initialNumToRender={10}
+					maxToRenderPerBatch={6}
+					windowSize={5}
+					removeClippedSubviews
+					className="flex-1"
+					style={isStale ? { opacity: 0.6 } : undefined}
+					ListEmptyComponent={
+						<View className="flex-1 items-center justify-center px-5 py-16">
+							<Text className="font-sans text-base text-ink-muted">
+								No transactions this period
+							</Text>
 						</View>
-					))
+					}
+				/>
+				{isStale && (
+					<ActivityIndicator
+						size="small"
+						color="#6B5D4A"
+						className="absolute bottom-0 left-0 right-0 top-0 items-center justify-center"
+					/>
 				)}
-			</ScrollView>
+			</View>
 
 			{/* Edit transaction modal */}
 			{editingTransaction && (

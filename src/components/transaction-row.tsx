@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { useCallback, memo } from 'react';
+import { View, Text, Alert, Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	useAnimatedStyle,
@@ -18,7 +18,7 @@ import { getEntityTypeColors } from '@/src/utils/entity-colors';
 
 interface TransactionRowProps {
 	transaction: Transaction;
-	entities: Entity[];
+	entityMap: Map<string, Entity>;
 	onEdit: (transaction: Transaction) => void;
 	index: number;
 }
@@ -26,14 +26,19 @@ interface TransactionRowProps {
 const DELETE_THRESHOLD = -80;
 const FALLBACK_ICON_COLOR = '#6B5D4A';
 
-export function TransactionRow({ transaction, entities, onEdit, index }: TransactionRowProps) {
+export const TransactionRow = memo(function TransactionRow({
+	transaction,
+	entityMap,
+	onEdit,
+	index,
+}: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 
 	const translateX = useSharedValue(0);
 	const deleteOpacity = useSharedValue(0);
 
-	const fromEntity = entities.find((e) => e.id === transaction.from_entity_id);
-	const toEntity = entities.find((e) => e.id === transaction.to_entity_id);
+	const fromEntity = entityMap.get(transaction.from_entity_id);
+	const toEntity = entityMap.get(transaction.to_entity_id);
 
 	const FromIcon = getIcon(fromEntity?.icon || 'circle');
 	const ToIcon = getIcon(toEntity?.icon || 'circle');
@@ -56,6 +61,10 @@ export function TransactionRow({ transaction, entities, onEdit, index }: Transac
 		);
 	}, [transaction, fromEntity, toEntity, deleteTransaction]);
 
+	const handlePress = useCallback(() => {
+		onEdit(transaction);
+	}, [onEdit, transaction]);
+
 	const panGesture = Gesture.Pan()
 		.activeOffsetX([-10, 10])
 		.onUpdate((event) => {
@@ -69,12 +78,6 @@ export function TransactionRow({ transaction, entities, onEdit, index }: Transac
 			translateX.value = withSpring(0);
 			deleteOpacity.value = withTiming(0);
 		});
-
-	const tapGesture = Gesture.Tap().onEnd(() => {
-		scheduleOnRN(onEdit, transaction);
-	});
-
-	const composedGesture = Gesture.Race(panGesture, tapGesture);
 
 	const rowStyle = useAnimatedStyle(() => ({
 		transform: [{ translateX: translateX.value }],
@@ -97,62 +100,64 @@ export function TransactionRow({ transaction, entities, onEdit, index }: Transac
 			</Animated.View>
 
 			{/* Row content */}
-			<GestureDetector gesture={composedGesture}>
-				<Animated.View
-					style={rowStyle}
-					className={`flex-row items-center ${rowBg} px-5 py-3`}
-				>
-					{/* Left side: entity flow + optional note */}
-					<View className="flex-1">
-						{/* Entity flow row */}
-						<View className="flex-row items-center">
-							<View
-								className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
-							>
-								<FromIcon
-									size={16}
-									color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
-								/>
+			<GestureDetector gesture={panGesture}>
+				<Animated.View style={rowStyle}>
+					<Pressable
+						onPress={handlePress}
+						className={`flex-row items-center ${rowBg} px-5 py-3`}
+					>
+						{/* Left side: entity flow + optional note */}
+						<View className="flex-1">
+							{/* Entity flow row */}
+							<View className="flex-row items-center">
+								<View
+									className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+								>
+									<FromIcon
+										size={16}
+										color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
+									/>
+								</View>
+								<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
+									{fromEntity?.name ?? 'Unknown'}
+								</Text>
+								<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
+								<View
+									className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
+								>
+									<ToIcon
+										size={16}
+										color={toColors?.iconColor ?? FALLBACK_ICON_COLOR}
+									/>
+								</View>
+								<Text
+									className="flex-1 font-sans text-base text-ink-light"
+									numberOfLines={1}
+								>
+									{toEntity?.name ?? 'Unknown'}
+								</Text>
 							</View>
-							<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
-								{fromEntity?.name ?? 'Unknown'}
-							</Text>
-							<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
-							<View
-								className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
-							>
-								<ToIcon
-									size={16}
-									color={toColors?.iconColor ?? FALLBACK_ICON_COLOR}
-								/>
-							</View>
-							<Text
-								className="flex-1 font-sans text-base text-ink-light"
-								numberOfLines={1}
-							>
-								{toEntity?.name ?? 'Unknown'}
-							</Text>
+
+							{/* Note */}
+							{transaction.note && (
+								<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
+									{transaction.note}
+								</Text>
+							)}
 						</View>
 
-						{/* Note */}
-						{transaction.note && (
-							<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
-								{transaction.note}
+						{/* Amount and currency */}
+						<View className="items-end">
+							<Text className="font-sans-semibold text-base text-ink">
+								{formatAmount(transaction.amount, transaction.currency)}{' '}
+								<Text className="font-sans text-sm text-ink-muted">
+									{transaction.currency}
+								</Text>
 							</Text>
-						)}
-					</View>
-
-					{/* Amount and currency */}
-					<View className="items-end">
-						<Text className="font-sans-semibold text-base text-ink">
-							{formatAmount(transaction.amount, transaction.currency)}{' '}
-							<Text className="font-sans text-sm text-ink-muted">
-								{transaction.currency}
-							</Text>
-						</Text>
-					</View>
+						</View>
+					</Pressable>
 				</Animated.View>
 			</GestureDetector>
 		</View>
 	);
-}
+});
