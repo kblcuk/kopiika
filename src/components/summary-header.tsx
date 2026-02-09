@@ -78,7 +78,7 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 				<View className="flex-1 flex-row justify-between">
 					<SummaryItem label="Balance" value={balance} />
 					<SummaryItem label="Expenses" value={expenses} />
-					<SummaryItem label="Remaining" value={remaining} />
+					<SummaryItem label="Planned" value={remaining} />
 				</View>
 
 				{/* Income toggle button */}
