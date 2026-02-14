@@ -4,6 +4,8 @@ import {
 	getProgressPercent,
 	isOverspent,
 	reverseFormatCurrency,
+	getCurrencySymbol,
+	DEFAULT_CURRENCY,
 } from '../format';
 
 describe('roundMoney', () => {
@@ -74,6 +76,30 @@ describe('isOverspent', () => {
 
 	test('should return false when planned is zero', () => {
 		expect(isOverspent(50, 0)).toBe(false);
+	});
+});
+
+describe('DEFAULT_CURRENCY', () => {
+	test('should be EUR', () => {
+		expect(DEFAULT_CURRENCY).toBe('EUR');
+	});
+});
+
+describe('getCurrencySymbol', () => {
+	test('should return symbol for known currencies', () => {
+		expect(getCurrencySymbol('EUR')).toBe('€');
+		expect(getCurrencySymbol('USD')).toBe('$');
+		expect(getCurrencySymbol('GBP')).toBe('£');
+		expect(getCurrencySymbol('UAH')).toBe('₴');
+	});
+
+	test('should be case-insensitive', () => {
+		expect(getCurrencySymbol('eur')).toBe('€');
+		expect(getCurrencySymbol('usd')).toBe('$');
+	});
+
+	test('should fall back to the code for unknown currencies', () => {
+		expect(getCurrencySymbol('XYZ')).toBe('XYZ');
 	});
 });
 

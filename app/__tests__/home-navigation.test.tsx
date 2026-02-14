@@ -132,7 +132,7 @@ describe('HomeScreen entity interactions', () => {
 		id: 'cat-1',
 		type: 'category',
 		name: 'Groceries',
-		currency: 'UAH',
+		currency: 'EUR',
 		icon: 'shopping-cart',
 		order: 0,
 		row: 0,

@@ -15,7 +15,12 @@ import { useShallow } from 'zustand/react/shallow';
 
 import type { EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
-import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
+import {
+	formatAmount,
+	reverseFormatCurrency,
+	roundMoney,
+	getCurrencySymbol,
+} from '@/src/utils/format';
 import { useStore } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
@@ -315,7 +320,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									testID="entity-detail-actual-input"
 								/>
 								<Text className="font-sans text-lg text-ink-muted">
-									{entity.currency}
+									{getCurrencySymbol(entity.currency)}
 								</Text>
 							</View>
 							<Text className="mt-1 font-sans text-xs text-ink-muted">
@@ -392,7 +397,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								testID="entity-detail-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
-								{entity.currency}
+								{getCurrencySymbol(entity.currency)}
 							</Text>
 						</View>
 					</View>

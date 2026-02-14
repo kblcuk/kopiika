@@ -81,7 +81,7 @@ describe('EntityCreateModal', () => {
 					expect.objectContaining({
 						type: 'account',
 						name: 'Checking',
-						currency: 'UAH',
+						currency: 'EUR',
 					})
 				);
 			});

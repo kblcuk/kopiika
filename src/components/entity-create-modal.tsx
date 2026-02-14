@@ -14,7 +14,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { EntityType } from '@/src/types';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { reverseFormatCurrency } from '@/src/utils/format';
+import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
@@ -100,7 +100,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			id: entityId,
 			type: entityType,
 			name: name.trim(),
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: selectedIcon,
 			order: nextPosition,
 			row: targetRow,
@@ -221,7 +221,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								placeholderTextColor="#9C8B74"
 								testID="entity-create-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">UAH</Text>
+							<Text className="font-sans text-lg text-ink-muted">
+								{getCurrencySymbol(DEFAULT_CURRENCY)}
+							</Text>
 						</View>
 					</View>
 				</ScrollView>

@@ -1,10 +1,33 @@
+export const DEFAULT_CURRENCY = 'EUR';
+
+// Map ISO currency codes to their symbols
+const CURRENCY_SYMBOLS: Record<string, string> = {
+	EUR: '€',
+	USD: '$',
+	GBP: '£',
+	UAH: '₴',
+	PLN: 'zł',
+	CZK: 'Kč',
+	SEK: 'kr',
+	NOK: 'kr',
+	DKK: 'kr',
+	CHF: 'CHF',
+	JPY: '¥',
+	CNY: '¥',
+};
+
+// Get a display symbol for a currency code (falls back to the code itself)
+export function getCurrencySymbol(currency: string): string {
+	return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
+}
+
 // Round monetary value to 2 decimal places to avoid floating point precision issues
 export function roundMoney(amount: number): number {
 	return Math.round(amount * 100) / 100;
 }
 
 // Format currency amounts
-export function formatAmount(amount: number, currency: string = 'UAH'): string {
+export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY): string {
 	const absAmount = Math.abs(amount);
 	const formatted = new Intl.NumberFormat(void 0, {
 		minimumFractionDigits: 2,
@@ -35,7 +58,7 @@ export function isOverspent(actual: number, planned: number): boolean {
 
 // Parse a currency string to a number, handling both European (1.234,56) and US (1,234.56) formats.
 // Detects the decimal separator from the input pattern rather than relying on locale.
-export function reverseFormatCurrency(amount: string, _currency = 'EUR') {
+export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURRENCY) {
 	// Check for negative sign
 	const isNegative = amount.trim().startsWith('-');
 
