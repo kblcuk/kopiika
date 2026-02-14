@@ -118,7 +118,10 @@ export const TransactionRow = memo(function TransactionRow({
 										color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
 									/>
 								</View>
-								<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
+								<Text
+									className="font-sans-medium text-base text-ink"
+									numberOfLines={1}
+								>
 									{fromEntity?.name ?? 'Unknown'}
 								</Text>
 								<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>

@@ -113,10 +113,7 @@ export default function HistoryScreen() {
 		[filteredTransactions]
 	);
 
-	const entityMap = useMemo(
-		() => new Map(entities.map((e) => [e.id, e])),
-		[entities]
-	);
+	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
 	const handleEdit = useCallback((transaction: Transaction) => {
 		setEditingTransaction(transaction);
