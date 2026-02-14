@@ -13,7 +13,13 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { ArrowRight, Calendar, Pencil } from 'lucide-react-native';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
-import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
+import {
+	formatAmount,
+	reverseFormatCurrency,
+	roundMoney,
+	DEFAULT_CURRENCY,
+	getCurrencySymbol,
+} from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { styles } from '../styles/text-input';
@@ -53,7 +59,7 @@ export function TransactionModal({
 	const isEditing = !!existingTransaction;
 
 	// Get current currency (from existingTransaction when editing, or from fromEntity for new)
-	const currency = existingTransaction?.currency ?? fromEntity?.currency ?? 'EUR';
+	const currency = existingTransaction?.currency ?? fromEntity?.currency ?? DEFAULT_CURRENCY;
 
 	// Look up selected entities for display
 	const selectedFromEntity = useMemo(() => {
@@ -351,7 +357,9 @@ export function TransactionModal({
 								placeholderTextColor="#9C8B74"
 								testID="transaction-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">{currency}</Text>
+							<Text className="font-sans text-lg text-ink-muted">
+								{getCurrencySymbol(currency)}
+							</Text>
 						</View>
 
 						{/* Suggested amount button (only for new transactions) */}

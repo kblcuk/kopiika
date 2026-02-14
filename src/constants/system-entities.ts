@@ -1,4 +1,5 @@
 import type { Entity } from '@/src/types';
+import { DEFAULT_CURRENCY } from '@/src/utils/format';
 
 /**
  * System entity ID for balance adjustments.
@@ -15,7 +16,7 @@ export function createBalanceAdjustmentEntity(): Entity {
 		id: BALANCE_ADJUSTMENT_ENTITY_ID,
 		type: 'account',
 		name: 'Balance Adjustments',
-		currency: 'EUR', // Default currency, actual adjustments use account's currency
+		currency: DEFAULT_CURRENCY,
 		icon: 'refresh-cw',
 		order: 0,
 		row: 0,

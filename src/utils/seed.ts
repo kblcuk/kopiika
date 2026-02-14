@@ -1,6 +1,7 @@
 import type { Entity, Plan } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { generateId } from '@/src/utils/ids';
+import { DEFAULT_CURRENCY } from '@/src/utils/format';
 
 // Default entities for a fresh start
 export function createDefaultEntities(): Entity[] {
@@ -24,7 +25,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'income' as const,
 			name: 'Salary',
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: 'briefcase',
 			row: 0,
 			position: 0,
@@ -35,7 +36,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'account' as const,
 			name: 'Main Card',
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: 'credit-card',
 			row: 0,
 			position: 1,
@@ -45,7 +46,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'account' as const,
 			name: 'Cash',
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: 'banknote',
 			row: 0,
 			position: 2,
@@ -56,7 +57,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'category' as const,
 			name: cat.name,
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: cat.icon,
 			row: Math.floor(index / categoriesPerRow),
 			position: index % categoriesPerRow,
@@ -67,7 +68,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'saving' as const,
 			name: 'Vacation',
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: 'plane',
 			row: 0,
 			position: 0,
@@ -77,7 +78,7 @@ export function createDefaultEntities(): Entity[] {
 			id: generateId(),
 			type: 'saving' as const,
 			name: 'Emergency Fund',
-			currency: 'UAH',
+			currency: DEFAULT_CURRENCY,
 			icon: 'shield',
 			row: 0,
 			position: 1,

@@ -11,7 +11,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Trash2 } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
-import { formatAmount } from '@/src/utils/format';
+import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
@@ -118,7 +118,10 @@ export const TransactionRow = memo(function TransactionRow({
 										color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
 									/>
 								</View>
-								<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
+								<Text
+									className="font-sans-medium text-base text-ink"
+									numberOfLines={1}
+								>
 									{fromEntity?.name ?? 'Unknown'}
 								</Text>
 								<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
@@ -151,7 +154,7 @@ export const TransactionRow = memo(function TransactionRow({
 							<Text className="font-sans-semibold text-base text-ink">
 								{formatAmount(transaction.amount, transaction.currency)}{' '}
 								<Text className="font-sans text-sm text-ink-muted">
-									{transaction.currency}
+									{getCurrencySymbol(transaction.currency)}
 								</Text>
 							</Text>
 						</View>

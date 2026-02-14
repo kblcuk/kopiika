@@ -23,7 +23,7 @@ describe('EntityDetailModal', () => {
 		id: 'entity-1',
 		type: 'category',
 		name: 'Groceries',
-		currency: 'UAH',
+		currency: 'EUR',
 		icon: 'shopping-bag',
 		order: 0,
 		row: 0,
