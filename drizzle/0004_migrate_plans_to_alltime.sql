@@ -17,6 +17,7 @@ WHERE id NOT IN (
     SELECT MAX(period_start) FROM plans p2 WHERE p2.entity_id = p1.entity_id
   )
 );
+--> statement-breakpoint
 
 -- Step 2: Update all remaining plans to 'all-time'
 UPDATE plans SET period = 'all-time';
