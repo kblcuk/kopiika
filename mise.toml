@@ -1,0 +1,4 @@
+[tools]
+age = "latest"
+fnox = "latest"
+ruby = "latest"
