@@ -18,6 +18,7 @@
 		"test:coverage": "bun test --coverage && jest --coverage",
 		"lint": "expo lint",
 		"format": "prettier --write .",
+		"generate:splash": "bun run scripts/generate-splash.ts",
 		"format:check": "prettier --check .",
 		"types": "tsc --noEmit"
 	},
@@ -62,6 +63,7 @@
 	},
 	"devDependencies": {
 		"@jest/globals": "^30.2.0",
+		"@resvg/resvg-js": "^2.6.2",
 		"@swc/core": "^1.15.8",
 		"@swc/jest": "^0.2.39",
 		"@types/better-sqlite3": "^7.6.13",

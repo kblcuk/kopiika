@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Splash screen for Kopiika - banknote icon + wordmark -->
+  <!-- Background is transparent; set via app.json backgroundColor -->
+
+  <!-- === BANKNOTE SYMBOL === -->
+  <g transform="translate(512, 380)">
+    <!-- Bill outline -->
+    <rect x="-180" y="-115" width="360" height="230" rx="10" ry="10"
+          fill="none" stroke="#D4652F" stroke-width="7"/>
+
+    <!-- Top-left corner bracket -->
+    <path d="M -145,-82 L -145,-92 L -125,-92" fill="none"
+          stroke="#D4652F" stroke-width="9" stroke-linecap="square"/>
+    <path d="M -145,-82 L -145,-92" fill="none"
+          stroke="#D4652F" stroke-width="9" stroke-linecap="square"/>
+
+    <!-- Bottom-right corner bracket -->
+    <path d="M 145,82 L 145,92 L 125,92" fill="none"
+          stroke="#D4652F" stroke-width="9" stroke-linecap="square"/>
+
+    <!-- Center circle -->
+    <circle cx="0" cy="0" r="62" fill="none" stroke="#D4652F" stroke-width="7"/>
+
+    <!-- Inner accent circle -->
+    <circle cx="0" cy="0" r="38" fill="none" stroke="#D4652F" stroke-width="4" opacity="0.4"/>
+
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="7" fill="#D4652F"/>
+  </g>
+
+  <!-- === WORDMARK === -->
+  <text x="512" y="580" text-anchor="middle"
+        font-family="Lexend" font-size="54" font-weight="500"
+        fill="#1A1410" letter-spacing="6" opacity="0.85">kopiika</text>
+</svg>
