@@ -50,9 +50,10 @@ export function useSummary(): SummaryData {
 		const expenses = categoriesWithBalance.reduce((sum, c) => sum + c.actual, 0);
 
 		// Remaining: how much is left to spend across categories that have a plan
+		// Overspent categories contribute 0 (not negative) so they don't reduce the total
 		const remaining = categoriesWithBalance
 			.filter((c) => c.planned > 0)
-			.reduce((sum, c) => sum + (c.planned - c.actual), 0);
+			.reduce((sum, c) => sum + Math.max(0, c.planned - c.actual), 0);
 
 		return { balance, expenses, remaining };
 	}, [entities, plans, transactions, currentPeriod]);

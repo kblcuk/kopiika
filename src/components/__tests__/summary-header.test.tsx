@@ -233,7 +233,7 @@ describe('useSummary', () => {
 		expect(result.current.remaining).toBe(600);
 	});
 
-	it('should return negative remaining when expenses exceed planned', () => {
+	it('should return zero remaining when a category is overspent', () => {
 		const plan1: Plan = {
 			id: 'plan-1',
 			entity_id: 'category-1',
@@ -259,8 +259,69 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Remaining should be 100 - 250 = -150
-		expect(result.current.remaining).toBe(-150);
+		// Overspent category contributes 0 to remaining, not negative
+		expect(result.current.remaining).toBe(0);
+	});
+
+	it('should not let overspent categories reduce remaining from other categories', () => {
+		const mockCategory2: Entity = {
+			id: 'category-2',
+			type: 'category',
+			name: 'Transport',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+
+		const plan1: Plan = {
+			id: 'plan-1',
+			entity_id: 'category-1',
+			period: 'all-time',
+			period_start: currentPeriod,
+			planned_amount: 500,
+		};
+
+		const plan2: Plan = {
+			id: 'plan-2',
+			entity_id: 'category-2',
+			period: 'all-time',
+			period_start: currentPeriod,
+			planned_amount: 100,
+		};
+
+		// category-1: spent 200 of 500 → 300 remaining
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		// category-2: spent 250 of 100 → overspent, contributes 0
+		const tx2: Transaction = {
+			id: 'tx-2',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-2',
+			amount: 250,
+			currency: 'USD',
+			timestamp: periodStart + 1000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory, mockCategory2],
+			plans: [plan1, plan2],
+			transactions: [tx1, tx2],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		// Remaining: 300 (from category-1) + 0 (from overspent category-2) = 300
+		expect(result.current.remaining).toBe(300);
+		// Expenses: 200 + 250 = 450
+		expect(result.current.expenses).toBe(450);
 	});
 
 	it('should exclude accounts with include_in_total false from balance', () => {
