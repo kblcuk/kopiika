@@ -1,4 +1,5 @@
-## fastlane documentation
+fastlane documentation
+----
 
 # Installation
 
@@ -20,7 +21,7 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 [bundle exec] fastlane ios setup_signing
 ```
 
-Set up code signing (create/download distribution certificate and provisioning profile)
+Sync code signing via match
 
 ### ios build
 
@@ -46,7 +47,7 @@ Upload latest build to TestFlight (without rebuilding)
 
 Push a new beta build to TestFlight
 
----
+----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 

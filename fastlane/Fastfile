@@ -13,39 +13,33 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Set up code signing (create/download distribution certificate and provisioning profile)"
+  desc "Sync code signing via match"
   lane :setup_signing do
-    # Create or download distribution certificate
-    cert(
-      team_id: "N84BXWAR5B",
-      api_key_path: "fastlane/api_key.json"
-    )
-
-    # Create or download App Store provisioning profile
-    # This automatically installs to ~/Library/MobileDevice/Provisioning Profiles/
-    sigh(
-      app_identifier: "com.kblcuk.kopiika",
-      team_id: "N84BXWAR5B",
-      api_key_path: "fastlane/api_key.json",
-      force: true, # Recreate if needed
-      skip_install: false # Ensure it's installed to system location
-    )
+    match(type: "appstore")
   end
 
   desc "Build the app"
   lane :build do |options|
+    export = options[:export_method] || "development"
+    match_type = export == "app-store" ? "appstore" : "development"
+
+    match(type: match_type)
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "ios/kopiika.xcodeproj",
+      team_id: "N84BXWAR5B",
+      profile_name: ENV["sigh_com.kblcuk.kopiika_#{match_type}_profile-name"],
+      code_sign_identity: match_type == "appstore" ? "iPhone Distribution" : "iPhone Developer",
+    )
+
     gym(
       workspace: "ios/kopiika.xcworkspace",
       scheme: "kopiika",
-      export_method: "app-store",
+      export_method: export,
       export_team_id: "N84BXWAR5B",
       xcargs: "DEVELOPMENT_TEAM=N84BXWAR5B",
       clean: options[:clean] || false,
-      export_options: {
-        provisioningProfiles: {
-          "com.kblcuk.kopiika" => "com.kblcuk.kopiika AppStore"
-        }
-      }
     )
   end
 
@@ -66,7 +60,7 @@ platform :ios do
       xcodeproj: "ios/kopiika.xcodeproj",
       build_number: latest_testflight_build_number + 1
     })
-    build(clean: true)
+    build(clean: true, export_method: "app-store")
     upload(
       changelog: changelog_from_git_commits(
         pretty: "- %s",# Optional, lets you provide a custom format to apply to each commit when generating the changelog text
