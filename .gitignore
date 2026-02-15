@@ -48,7 +48,6 @@ app-example
 /android
 
 # fastlane specific
-fastlane/api_key.json
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots

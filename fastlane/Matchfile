@@ -6,7 +6,6 @@ storage_mode("git")
 type("development") # The default type, can be: appstore, adhoc, enterprise or development
 
 app_identifier(["com.kblcuk.kopiika"])
-api_key_path("fastlane/api_key.json")
 team_id("N84BXWAR5B") # Your Apple Developer Portal team ID
 
 # For all available options run `fastlane match --help`
