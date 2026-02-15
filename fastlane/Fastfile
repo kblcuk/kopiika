@@ -18,7 +18,7 @@ platform :ios do
     # Create or download distribution certificate
     cert(
       team_id: "N84BXWAR5B",
-      username: ENV["APPLE_ID"]
+      api_key_path: "fastlane/api_key.json"
     )
 
     # Create or download App Store provisioning profile
@@ -26,7 +26,7 @@ platform :ios do
     sigh(
       app_identifier: "com.kblcuk.kopiika",
       team_id: "N84BXWAR5B",
-      username: ENV["APPLE_ID"],
+      api_key_path: "fastlane/api_key.json",
       force: true, # Recreate if needed
       skip_install: false # Ensure it's installed to system location
     )

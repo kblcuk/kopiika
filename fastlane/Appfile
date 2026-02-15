@@ -2,6 +2,5 @@
 #     https://docs.fastlane.tools/advanced/#appfile
 
 app_identifier("com.kblcuk.kopiika")
-apple_id(ENV["APPLE_ID"]) # Your Apple Developer Portal username
 team_id("N84BXWAR5B")
 
