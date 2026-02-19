@@ -10,9 +10,7 @@ export interface ParsedImportData {
 	transactions: Transaction[];
 }
 
-type ParseResult =
-	| { ok: true; data: ParsedImportData }
-	| { ok: false; errors: string[] };
+type ParseResult = { ok: true; data: ParsedImportData } | { ok: false; errors: string[] };
 
 const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
 
@@ -102,10 +100,7 @@ function parseSection(csv: string): Record<string, string>[] {
 	});
 }
 
-function parseEntities(
-	rows: Record<string, string>[],
-	errors: string[]
-): Entity[] {
+function parseEntities(rows: Record<string, string>[], errors: string[]): Entity[] {
 	const result: Entity[] = [];
 
 	for (let i = 0; i < rows.length; i++) {
@@ -136,9 +131,7 @@ function parseEntities(
 		const position = Number(row.position || '0');
 
 		if (isNaN(order) || isNaN(rowNum) || isNaN(position)) {
-			errors.push(
-				`Entity row ${lineNum}: order/row/position must be numbers`
-			);
+			errors.push(`Entity row ${lineNum}: order/row/position must be numbers`);
 			continue;
 		}
 
@@ -252,9 +245,7 @@ function parseTransactions(
 
 		const amount = Number(row.amount);
 		if (isNaN(amount)) {
-			errors.push(
-				`Transaction row ${lineNum}: amount "${row.amount}" is not a valid number`
-			);
+			errors.push(`Transaction row ${lineNum}: amount "${row.amount}" is not a valid number`);
 			continue;
 		}
 

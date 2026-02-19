@@ -52,11 +52,7 @@ export default function SettingsScreen() {
 						style: 'destructive',
 						onPress: async () => {
 							try {
-								await replaceAllData(
-									data.entities,
-									data.plans,
-									data.transactions
-								);
+								await replaceAllData(data.entities, data.plans, data.transactions);
 								Alert.alert('Import Complete', 'All data has been replaced.');
 							} catch (error) {
 								console.error('Failed to import data', error);

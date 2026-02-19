@@ -25,19 +25,11 @@ describe('parseCsvLine', () => {
 	});
 
 	test('handles quoted fields with commas', () => {
-		expect(parseCsvLine('a,"hello, world",c')).toEqual([
-			'a',
-			'hello, world',
-			'c',
-		]);
+		expect(parseCsvLine('a,"hello, world",c')).toEqual(['a', 'hello, world', 'c']);
 	});
 
 	test('handles escaped quotes inside quoted fields', () => {
-		expect(parseCsvLine('a,"say ""hello""",c')).toEqual([
-			'a',
-			'say "hello"',
-			'c',
-		]);
+		expect(parseCsvLine('a,"say ""hello""",c')).toEqual(['a', 'say "hello"', 'c']);
 	});
 
 	test('handles empty fields', () => {
@@ -147,9 +139,7 @@ t1,nonexistent,e1,100,EUR,1706745600000,`;
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
-		expect(result.errors[0]).toContain(
-			'from_entity_id "nonexistent" not found'
-		);
+		expect(result.errors[0]).toContain('from_entity_id "nonexistent" not found');
 	});
 
 	test('rejects transaction referencing non-existent to entity', () => {
@@ -167,9 +157,7 @@ t1,e1,nonexistent,100,EUR,1706745600000,`;
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
-		expect(result.errors[0]).toContain(
-			'to_entity_id "nonexistent" not found'
-		);
+		expect(result.errors[0]).toContain('to_entity_id "nonexistent" not found');
 	});
 
 	test('handles quoted fields with commas and escaped quotes in notes', () => {
@@ -191,9 +179,7 @@ t1,e1,e2,50,EUR,1706745600000,"Lunch at ""Joe's"", expensive"`;
 
 		expect(result.data.entities[0].name).toBe('My "Main" Account');
 		expect(result.data.entities[1].name).toBe('Food, Drinks');
-		expect(result.data.transactions[0].note).toBe(
-			'Lunch at "Joe\'s", expensive'
-		);
+		expect(result.data.transactions[0].note).toBe('Lunch at "Joe\'s", expensive');
 	});
 
 	test('auto-inserts system entity when missing', () => {
@@ -310,8 +296,6 @@ t1,__system_balance_adjustment__,e1,100,EUR,1706745600000,Correction`;
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.transactions).toHaveLength(1);
-		expect(result.data.transactions[0].from_entity_id).toBe(
-			BALANCE_ADJUSTMENT_ENTITY_ID
-		);
+		expect(result.data.transactions[0].from_entity_id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
 	});
 });
