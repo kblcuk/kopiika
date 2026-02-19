@@ -20,7 +20,22 @@
 		"format": "prettier --write .",
 		"generate:splash": "bun run scripts/generate-splash.ts",
 		"format:check": "prettier --check .",
-		"types": "tsc --noEmit"
+		"types": "tsc --noEmit",
+		"release": "commit-and-tag-version",
+		"release:minor": "commit-and-tag-version --release-as minor",
+		"release:major": "commit-and-tag-version --release-as major"
+	},
+	"commit-and-tag-version": {
+		"bumpFiles": [
+			{
+				"filename": "package.json",
+				"type": "json"
+			},
+			{
+				"filename": "app.json",
+				"updater": "scripts/app-json-updater.cjs"
+			}
+		]
 	},
 	"dependencies": {
 		"@expo-google-fonts/lexend": "^0.4.1",
@@ -75,6 +90,7 @@
 		"babel-plugin-inline-import": "^3.0.0",
 		"babel-preset-expo": "^54.0.10",
 		"better-sqlite3": "^12.6.2",
+		"commit-and-tag-version": "^12.6.1",
 		"drizzle-kit": "^0.31.9",
 		"eslint": "^9.39.2",
 		"eslint-config-expo": "~10.0.0",
