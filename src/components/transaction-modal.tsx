@@ -10,7 +10,7 @@ import {
 	ScrollView,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ArrowRight, Calendar, Pencil } from 'lucide-react-native';
+import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
@@ -27,6 +27,13 @@ import { getValidFromEntities, getValidToEntities } from '@/src/utils/transactio
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+
+interface SplitRow {
+	id: string;
+	toEntityId: string | null;
+	// amount is ignored for row 0 (anchor); anchor amount is always derived
+	amount: string;
+}
 
 interface TransactionModalProps {
 	visible: boolean;
@@ -51,36 +58,37 @@ export function TransactionModal({
 	const [selectedToId, setSelectedToId] = useState<string | null>(null);
 	const [showFromSheet, setShowFromSheet] = useState(false);
 	const [showToSheet, setShowToSheet] = useState(false);
+
+	// Split mode
+	const [isSplitMode, setIsSplitMode] = useState(false);
+	const [splits, setSplits] = useState<SplitRow[]>([]);
+	const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
+	// Snapshot of amount when split mode was entered — drives the anchor calculation
+	const [splitTotal, setSplitTotal] = useState(0);
+
 	const inputRef = useRef<TextInput>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
 	const entities = useStore((state) => state.entities);
 
 	const isEditing = !!existingTransaction;
-
-	// Get current currency (from existingTransaction when editing, or from fromEntity for new)
 	const currency = existingTransaction?.currency ?? fromEntity?.currency ?? DEFAULT_CURRENCY;
 
-	// Look up selected entities for display
-	const selectedFromEntity = useMemo(() => {
-		if (!selectedFromId) return null;
-		return entities.find((e) => e.id === selectedFromId) ?? null;
-	}, [selectedFromId, entities]);
+	const selectedFromEntity = useMemo(
+		() => (selectedFromId ? (entities.find((e) => e.id === selectedFromId) ?? null) : null),
+		[selectedFromId, entities]
+	);
 
-	const selectedToEntity = useMemo(() => {
-		if (!selectedToId) return null;
-		return entities.find((e) => e.id === selectedToId) ?? null;
-	}, [selectedToId, entities]);
+	const selectedToEntity = useMemo(
+		() => (selectedToId ? (entities.find((e) => e.id === selectedToId) ?? null) : null),
+		[selectedToId, entities]
+	);
 
-	// Filter valid "from" entities based on selected "to" entity
 	const validFromEntities = useMemo(() => {
 		if (!isEditing || !selectedToEntity) return [];
-		const valid = getValidFromEntities(entities, selectedToEntity, currency);
-		// Include balance adjustment entity at the beginning
-		return valid;
+		return getValidFromEntities(entities, selectedToEntity, currency);
 	}, [isEditing, selectedToEntity, entities, currency]);
 
-	// Filter valid "to" entities based on selected "from" entity
 	const validToEntities = useMemo(() => {
 		if (!isEditing || !selectedFromEntity) return [];
 		return getValidToEntities(
@@ -91,7 +99,22 @@ export function TransactionModal({
 		);
 	}, [isEditing, selectedFromEntity, entities, currency, selectedFromId]);
 
-	// Reset and focus when modal opens
+	// Valid targets for split entity picker
+	const validSplitTargets = useMemo(() => {
+		if (!fromEntity) return [];
+		return getValidToEntities(entities, fromEntity, currency);
+	}, [fromEntity, entities, currency]);
+
+	// Anchor = total - sum of all non-anchor splits
+	// Row 0 is always the anchor; its amount field in state is ignored
+	const anchorAmount = useMemo(() => {
+		if (!isSplitMode) return 0;
+		const otherSum = splits
+			.slice(1)
+			.reduce((sum, s) => sum + (reverseFormatCurrency(s.amount) || 0), 0);
+		return roundMoney(splitTotal - otherSum);
+	}, [isSplitMode, splits, splitTotal]);
+
 	useEffect(() => {
 		if (visible) {
 			if (existingTransaction) {
@@ -110,50 +133,35 @@ export function TransactionModal({
 			setShowDatePicker(false);
 			setShowFromSheet(false);
 			setShowToSheet(false);
-			// Focus input after a short delay to ensure modal is visible
+			setIsSplitMode(false);
+			setSplits([]);
+			setSplitTotal(0);
+			setActiveSplitIndex(null);
 			setTimeout(() => inputRef.current?.focus(), 100);
 		}
 	}, [visible, existingTransaction]);
 
-	// Handle "from" entity selection
 	const handleFromSelect = (entity: Entity) => {
 		setSelectedFromId(entity.id);
-
-		// Check if current "to" is still valid with new "from"
 		if (selectedToId) {
 			const validTos = getValidToEntities(entities, entity, currency, entity.id);
-			const stillValid = validTos.some((e) => e.id === selectedToId);
-			if (!stillValid) {
-				setSelectedToId(null);
-			}
+			if (!validTos.some((e) => e.id === selectedToId)) setSelectedToId(null);
 		}
 	};
 
-	// Handle "to" entity selection
-	const handleToSelect = (entity: Entity) => {
-		setSelectedToId(entity.id);
-	};
+	const handleToSelect = (entity: Entity) => setSelectedToId(entity.id);
 
 	const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
-		if (Platform.OS === 'android') {
-			setShowDatePicker(false);
-		}
-		if (date) {
-			setSelectedDate(date);
-		}
+		if (Platform.OS === 'android') setShowDatePicker(false);
+		if (date) setSelectedDate(date);
 	};
 
 	const formatDateDisplay = (date: Date): string => {
 		const today = new Date();
 		const yesterday = new Date(today);
 		yesterday.setDate(yesterday.getDate() - 1);
-
-		if (date.toDateString() === today.toDateString()) {
-			return 'Today';
-		}
-		if (date.toDateString() === yesterday.toDateString()) {
-			return 'Yesterday';
-		}
+		if (date.toDateString() === today.toDateString()) return 'Today';
+		if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
 		return date.toLocaleDateString(undefined, {
 			weekday: 'short',
 			month: 'short',
@@ -161,43 +169,87 @@ export function TransactionModal({
 		});
 	};
 
-	// For new transactions, require fromEntity and toEntity props
-	// For editing, require existingTransaction with valid selections
+	// ── Split mode handlers ───────────────────────────────────────────────────
+
+	const handleEnterSplitMode = () => {
+		const total = reverseFormatCurrency(amount) || 0;
+		setSplitTotal(total);
+		setIsSplitMode(true);
+		setSplits([
+			// Row 0: anchor — toEntityId from drag, amount ignored (always derived)
+			{ id: generateId(), toEntityId: toEntity?.id ?? null, amount: '' },
+			// Row 1: first user-editable split
+			{ id: generateId(), toEntityId: null, amount: '' },
+		]);
+	};
+
+	// Collapse split mode back to single transaction
+	const handleMerge = () => {
+		setIsSplitMode(false);
+		setSplits([]);
+		// Restore the amount the user had typed before entering split mode
+		setAmount(splitTotal > 0 ? roundMoney(splitTotal).toString() : '');
+		setSplitTotal(0);
+		setTimeout(() => inputRef.current?.focus(), 50);
+	};
+
+	const handleSplitEntitySelect = (entity: Entity) => {
+		if (activeSplitIndex === null) return;
+		setSplits((prev) =>
+			prev.map((s, i) => (i === activeSplitIndex ? { ...s, toEntityId: entity.id } : s))
+		);
+		setActiveSplitIndex(null);
+	};
+
+	// Only non-anchor rows (index > 0) are user-editable
+	const handleSplitAmountChange = (index: number, value: string) => {
+		if (index === 0) return;
+		setSplits((prev) => prev.map((s, i) => (i === index ? { ...s, amount: value } : s)));
+	};
+
+	const handleAddSplit = () =>
+		setSplits((prev) => [...prev, { id: generateId(), toEntityId: null, amount: '' }]);
+
+	// Minimum: anchor + 1 non-anchor row = 2 total; non-anchor rows only
+	const handleRemoveSplit = (index: number) => {
+		if (index === 0 || splits.length <= 2) return;
+		setSplits((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	// ── Guard: require entities ───────────────────────────────────────────────
+
 	if (isEditing) {
 		if (!existingTransaction || !selectedFromId || !selectedToId) return null;
 	} else {
 		if (!fromEntity || !toEntity) return null;
 	}
 
-	// Determine which entities to display
 	const displayFromEntity = isEditing ? selectedFromEntity : fromEntity;
 	const displayToEntity = isEditing ? selectedToEntity : toEntity;
 
-	// Suggest remaining planned amount for certain flows (only for new transactions)
 	const getSuggestedAmount = (): number | null => {
-		if (isEditing || !fromEntity || !toEntity) return null;
-		// Income → Account: suggest remaining income to distribute
-		if (fromEntity.type === 'income') {
+		if (isEditing || !fromEntity || !toEntity || isSplitMode) return null;
+		if (fromEntity.type === 'income')
 			return fromEntity.remaining > 0 ? fromEntity.remaining : null;
-		}
-		// Account → Saving: suggest remaining planned saving
-		if (fromEntity.type === 'account' && toEntity.type === 'saving') {
+		if (fromEntity.type === 'account' && toEntity.type === 'saving')
 			return toEntity.remaining > 0 ? toEntity.remaining : null;
-		}
 		return null;
 	};
-
 	const suggestedAmount = getSuggestedAmount();
 
-	const handleSubmit = async () => {
-		const numAmount = reverseFormatCurrency(amount);
-		if (isNaN(numAmount) || numAmount <= 0) return;
+	const canSave = isSplitMode
+		? // At least one saveable transaction: anchor with entity & positive amount, or any non-anchor with entity & positive amount
+			(splits[0]?.toEntityId != null && anchorAmount > 0) ||
+			splits.slice(1).some((s) => s.toEntityId && reverseFormatCurrency(s.amount) > 0)
+		: !!(amount && reverseFormatCurrency(amount) > 0);
 
-		// Use selected date but preserve current time for new transactions
+	// ── Submit ────────────────────────────────────────────────────────────────
+
+	const handleSubmit = async () => {
+		const now = new Date();
 		const timestamp = isEditing
 			? selectedDate.getTime()
 			: (() => {
-					const now = new Date();
 					const result = new Date(selectedDate);
 					result.setHours(
 						now.getHours(),
@@ -208,6 +260,45 @@ export function TransactionModal({
 					return result.getTime();
 				})();
 
+		if (isSplitMode && fromEntity) {
+			const txns: Parameters<typeof addTransaction>[0][] = [];
+
+			// Anchor transaction (row 0)
+			if (splits[0]?.toEntityId && anchorAmount > 0) {
+				txns.push({
+					id: generateId(),
+					from_entity_id: fromEntity.id,
+					to_entity_id: splits[0].toEntityId,
+					amount: anchorAmount,
+					currency: fromEntity.currency,
+					timestamp,
+					note: note.trim() || undefined,
+				});
+			}
+			// Non-anchor splits
+			for (const split of splits.slice(1)) {
+				const amt = reverseFormatCurrency(split.amount);
+				if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
+				txns.push({
+					id: generateId(),
+					from_entity_id: fromEntity.id,
+					to_entity_id: split.toEntityId,
+					amount: amt,
+					currency: fromEntity.currency,
+					timestamp,
+					note: note.trim() || undefined,
+				});
+			}
+
+			if (txns.length === 0) return;
+			for (const txn of txns) await addTransaction(txn);
+			onClose();
+			return;
+		}
+
+		const numAmount = reverseFormatCurrency(amount);
+		if (isNaN(numAmount) || numAmount <= 0) return;
+
 		if (isEditing && existingTransaction) {
 			const updates: {
 				amount?: number;
@@ -215,20 +306,11 @@ export function TransactionModal({
 				timestamp?: number;
 				from_entity_id?: string;
 				to_entity_id?: string;
-			} = {
-				amount: numAmount,
-				note: note.trim() || undefined,
-				timestamp,
-			};
-
-			// Include entity changes if they differ from original
-			if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id) {
+			} = { amount: numAmount, note: note.trim() || undefined, timestamp };
+			if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id)
 				updates.from_entity_id = selectedFromId;
-			}
-			if (selectedToId && selectedToId !== existingTransaction.to_entity_id) {
+			if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
 				updates.to_entity_id = selectedToId;
-			}
-
 			await updateTransaction(existingTransaction.id, updates);
 		} else if (fromEntity && toEntity) {
 			await addTransaction({
@@ -241,27 +323,19 @@ export function TransactionModal({
 				note: note.trim() || undefined,
 			});
 		}
-
 		onClose();
 	};
 
-	const handleUseSuggested = () => {
-		if (suggestedAmount) {
-			setAmount(roundMoney(suggestedAmount).toString());
-		}
-	};
+	// ── Renderers ─────────────────────────────────────────────────────────────
 
-	// Render entity bubble (reused for both from and to)
 	const renderEntityBubble = (
 		entity: Entity | EntityWithBalance | null,
 		onPress?: () => void
 	) => {
 		if (!entity) return null;
-
 		const IconComponent = getIcon(entity.icon || 'circle');
 		const typeColors = getEntityTypeColors(entity.type);
 		const isTappable = !!onPress;
-
 		return (
 			<Pressable onPress={onPress} disabled={!isTappable} className="flex-1 items-center">
 				<View className="relative">
@@ -286,6 +360,62 @@ export function TransactionModal({
 		);
 	};
 
+	// Stacked entity icons shown on the "to" side when in split mode
+	const renderSplitToSide = () => {
+		const splitEntities = splits
+			.map((s) => (s.toEntityId ? entities.find((e) => e.id === s.toEntityId) : null))
+			.filter((e): e is Entity => !!e)
+			.filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+
+		if (splitEntities.length === 0) {
+			return (
+				<View className="flex-1 items-center">
+					<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-200">
+						<Split size={20} color="#6B5D4A" />
+					</View>
+					<Text className="text-center font-sans text-sm text-ink-muted">Split</Text>
+				</View>
+			);
+		}
+
+		const visible = splitEntities.slice(0, 3);
+		const extra = splitEntities.length - visible.length;
+		return (
+			<View className="flex-1 items-center">
+				<View className="mb-2 flex-row">
+					{visible.map((entity, i) => {
+						const IconComponent = getIcon(entity.icon || 'circle');
+						const typeColors = getEntityTypeColors(entity.type);
+						return (
+							<View
+								key={entity.id}
+								className={`h-10 w-10 items-center justify-center rounded-full border-2 border-paper-50 ${typeColors.bg}`}
+								style={{ marginLeft: i > 0 ? -8 : 0 }}
+							>
+								<IconComponent size={16} color={typeColors.iconColor} />
+							</View>
+						);
+					})}
+					{extra > 0 && (
+						<View
+							className="h-10 w-10 items-center justify-center rounded-full border-2 border-paper-50 bg-paper-200"
+							style={{ marginLeft: -8 }}
+						>
+							<Text className="font-sans-semibold text-xs text-ink-muted">
+								+{extra}
+							</Text>
+						</View>
+					)}
+				</View>
+				<Text className="text-center font-sans text-sm text-ink-muted">
+					{splits.length} splits
+				</Text>
+			</View>
+		);
+	};
+
+	// ── Render ────────────────────────────────────────────────────────────────
+
 	return (
 		<Modal
 			visible={visible}
@@ -303,27 +433,26 @@ export function TransactionModal({
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">
-						{isEditing ? 'Edit Transaction' : 'New Transaction'}
+						{isEditing
+							? 'Edit Transaction'
+							: isSplitMode
+								? 'Split Transaction'
+								: 'New Transaction'}
 					</Text>
 					<Pressable
 						onPress={handleSubmit}
-						disabled={!amount || reverseFormatCurrency(amount) <= 0}
+						disabled={!canSave}
 						hitSlop={20}
 						testID="transaction-save-button"
 					>
 						<Text
-							className={`font-sans-semibold text-base ${
-								amount && reverseFormatCurrency(amount) > 0
-									? 'text-accent'
-									: 'text-ink-muted'
-							}`}
+							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
 						>
 							Save
 						</Text>
 					</Pressable>
 				</View>
 
-				{/* Content */}
 				<ScrollView className="flex-1 px-5 pt-6">
 					{/* From → To */}
 					<View className="mb-8 flex-row items-start">
@@ -334,25 +463,34 @@ export function TransactionModal({
 						<View className="items-center px-2 py-3">
 							<ArrowRight size={24} color="#2C2416" />
 						</View>
-						{renderEntityBubble(
-							displayToEntity,
-							isEditing ? () => setShowToSheet(true) : undefined
-						)}
+						{isSplitMode
+							? renderSplitToSide()
+							: renderEntityBubble(
+									displayToEntity,
+									isEditing ? () => setShowToSheet(true) : undefined
+								)}
 					</View>
 
-					{/* Amount input */}
+					{/* Amount / Total Paid */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Amount
+							{isSplitMode ? 'Total Paid' : 'Amount'}
 						</Text>
 						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
 							<TextInput
 								ref={inputRef}
-								value={amount}
-								onChangeText={setAmount}
+								value={isSplitMode ? splitTotal.toString() : amount}
+								onChangeText={(v) => {
+									if (isSplitMode) {
+										const n = reverseFormatCurrency(v);
+										setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
+									} else {
+										setAmount(v);
+									}
+								}}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-3xl  text-ink"
+								className="flex-1 font-sans-semibold text-3xl text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
 								testID="transaction-amount-input"
@@ -361,11 +499,9 @@ export function TransactionModal({
 								{getCurrencySymbol(currency)}
 							</Text>
 						</View>
-
-						{/* Suggested amount button (only for new transactions) */}
 						{!isEditing && suggestedAmount && (
 							<Pressable
-								onPress={handleUseSuggested}
+								onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
 								className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
 								testID="transaction-suggested-amount-button"
 							>
@@ -376,7 +512,208 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Date picker */}
+					{/* Split rows */}
+					{isSplitMode && (
+						<View className="mb-6">
+							<View className="mb-2 flex-row items-center justify-between">
+								<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+									Splits
+								</Text>
+								<Pressable
+									onPress={handleMerge}
+									hitSlop={12}
+									className="flex-row items-center"
+									testID="split-merge-button"
+								>
+									<Undo size={14} color="#6B5D4A" />
+									<Text className="ml-1 font-sans text-sm text-ink-muted">
+										Single
+									</Text>
+								</Pressable>
+							</View>
+
+							<View className="overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
+								{splits.map((split, index) => {
+									const splitEntity = split.toEntityId
+										? entities.find((e) => e.id === split.toEntityId)
+										: null;
+									const typeColors = splitEntity
+										? getEntityTypeColors(splitEntity.type)
+										: null;
+									const IconComponent = splitEntity
+										? getIcon(splitEntity.icon || 'circle')
+										: null;
+									const isAnchor = index === 0;
+
+									return (
+										<View
+											key={split.id}
+											className="flex-row items-center px-3 py-2.5"
+											style={
+												index > 0
+													? {
+															borderTopWidth: 1,
+															borderTopColor: '#EBE3D5',
+														}
+													: undefined
+											}
+											testID={`split-row-${index}`}
+										>
+											{/* Entity chip */}
+											<Pressable
+												onPress={() => setActiveSplitIndex(index)}
+												className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
+												style={{ maxWidth: 140 }}
+												testID={`split-entity-${index}`}
+											>
+												{splitEntity && typeColors && IconComponent ? (
+													<>
+														<View
+															className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
+														>
+															<IconComponent
+																size={11}
+																color={typeColors.iconColor}
+															/>
+														</View>
+														<Text
+															className="font-sans text-sm text-ink"
+															numberOfLines={1}
+															style={{ flexShrink: 1 }}
+														>
+															{splitEntity.name}
+														</Text>
+													</>
+												) : (
+													<Text className="font-sans text-sm text-ink-muted">
+														Pick category
+													</Text>
+												)}
+												<Pencil
+													size={9}
+													color="#9C8B74"
+													style={{ marginLeft: 4, flexShrink: 0 }}
+												/>
+											</Pressable>
+
+											{/* Amount area */}
+											{isAnchor ? (
+												// Anchor: auto-computed, read-only
+												<View
+													className="flex-1 flex-row items-center justify-end"
+													testID="split-anchor-amount"
+												>
+													<Text
+														className="font-sans-semibold text-lg"
+														style={{
+															color:
+																anchorAmount >= 0
+																	? '#3D3426'
+																	: '#C23030',
+														}}
+													>
+														{anchorAmount < 0 ? '-' : ''}
+														{roundMoney(Math.abs(anchorAmount))}
+													</Text>
+													<Text className="ml-1 font-sans text-xs text-ink-muted">
+														auto
+													</Text>
+												</View>
+											) : (
+												// Non-anchor: editable + "use remaining" chip
+												<View className="flex-1 flex-row items-center justify-end">
+													{!split.amount && anchorAmount > 0 && (
+														<Pressable
+															onPress={() =>
+																handleSplitAmountChange(
+																	index,
+																	roundMoney(
+																		anchorAmount
+																	).toString()
+																)
+															}
+															className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
+															testID={`split-remaining-chip-${index}`}
+														>
+															<Text className="font-sans text-xs text-positive">
+																→ {formatAmount(anchorAmount)}
+															</Text>
+														</Pressable>
+													)}
+													<TextInput
+														value={split.amount}
+														onChangeText={(v) =>
+															handleSplitAmountChange(index, v)
+														}
+														placeholder="0"
+														keyboardType="numeric"
+														className="font-sans-semibold text-lg text-ink"
+														style={[
+															styles.input,
+															{ textAlign: 'right', minWidth: 48 },
+														]}
+														placeholderTextColor="#9C8B74"
+														testID={`split-amount-${index}`}
+													/>
+												</View>
+											)}
+
+											<Text className="ml-1 font-sans text-sm text-ink-muted">
+												{getCurrencySymbol(currency)}
+											</Text>
+
+											{/* Remove (non-anchor only, disabled at minimum) */}
+											{!isAnchor && (
+												<Pressable
+													onPress={() => handleRemoveSplit(index)}
+													disabled={splits.length <= 2}
+													hitSlop={12}
+													className="ml-2"
+													testID={`split-remove-${index}`}
+												>
+													<X
+														size={16}
+														color={
+															splits.length <= 2
+																? '#D4C8B3'
+																: '#9C8B74'
+														}
+													/>
+												</Pressable>
+											)}
+										</View>
+									);
+								})}
+
+								{/* Add split */}
+								<Pressable
+									onPress={handleAddSplit}
+									className="flex-row items-center px-3 py-2.5"
+									style={{ borderTopWidth: 1, borderTopColor: '#EBE3D5' }}
+									testID="split-add-button"
+								>
+									<Plus size={14} color="#6B5D4A" />
+									<Text className="ml-2 font-sans text-sm text-ink-muted">
+										Add split
+									</Text>
+								</Pressable>
+							</View>
+						</View>
+					)}
+
+					{/* Split toggle — new transactions only */}
+					{!isEditing && !isSplitMode && (
+						<Pressable
+							onPress={handleEnterSplitMode}
+							className="mb-6 flex-row items-center self-start rounded-full bg-paper-200 px-3 py-1.5"
+							testID="split-toggle-button"
+						>
+							<Split size={13} color="#6B5D4A" />
+							<Text className="ml-1.5 font-sans text-sm text-ink-muted">Split</Text>
+						</Pressable>
+					)}
+
+					{/* Date */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Date
@@ -422,7 +759,7 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Note input */}
+					{/* Note */}
 					<View className="pb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Note (optional)
@@ -431,7 +768,7 @@ export function TransactionModal({
 							value={note}
 							onChangeText={setNote}
 							placeholder="Add a note..."
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
+							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
 							testID="transaction-note-input"
@@ -440,7 +777,7 @@ export function TransactionModal({
 				</ScrollView>
 			</KeyboardAvoidingView>
 
-			{/* Entity selection sheets */}
+			{/* Edit-mode entity pickers */}
 			<EntitySelectionSheet
 				visible={showFromSheet}
 				title="Select Source"
@@ -456,6 +793,20 @@ export function TransactionModal({
 				selectedId={selectedToId}
 				onSelect={handleToSelect}
 				onClose={() => setShowToSheet(false)}
+			/>
+
+			{/* Split entity picker */}
+			<EntitySelectionSheet
+				visible={activeSplitIndex !== null}
+				title="Select Category"
+				entities={validSplitTargets}
+				selectedId={
+					activeSplitIndex !== null
+						? (splits[activeSplitIndex]?.toEntityId ?? null)
+						: null
+				}
+				onSelect={handleSplitEntitySelect}
+				onClose={() => setActiveSplitIndex(null)}
 			/>
 		</Modal>
 	);

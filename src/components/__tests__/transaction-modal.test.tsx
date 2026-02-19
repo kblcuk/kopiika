@@ -489,6 +489,358 @@ describe('TransactionModal', () => {
 		});
 	});
 
+	describe('Split Mode', () => {
+		const category2: EntityWithBalance = {
+			id: 'category-2',
+			type: 'category',
+			name: 'Pets',
+			currency: 'USD',
+			order: 1,
+			row: 1,
+			position: 0,
+			actual: 20,
+			planned: 100,
+			remaining: 80,
+		};
+
+		beforeEach(() => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, category2],
+			});
+		});
+
+		it('shows split toggle button for new transactions', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
+		});
+
+		it('does not show split toggle in edit mode', () => {
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+			const { queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+			expect(queryByTestId('split-toggle-button')).toBeNull();
+		});
+
+		it('entering split mode shows two rows and hides split toggle button', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			expect(getByTestId('split-row-0')).toBeTruthy();
+			expect(getByTestId('split-row-1')).toBeTruthy();
+			expect(queryByTestId('split-toggle-button')).toBeNull();
+		});
+
+		it('anchor row (row 0) is pre-seeded with the dragged toEntity', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(getByTestId('split-entity-0')).toBeTruthy();
+		});
+
+		it('anchor row shows auto-computed amount (total minus other splits)', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Set total before entering split mode
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			// Anchor should start at 50 (50 - 0)
+			expect(getByTestId('split-anchor-amount')).toBeTruthy();
+
+			// Fill second split with 20; anchor should drop to 30
+			fireEvent.changeText(getByTestId('split-amount-1'), '20');
+
+			// Anchor view is still present and now reflects 30
+			expect(getByTestId('split-anchor-amount')).toBeTruthy();
+		});
+
+		it('anchor has no editable amount input', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			// split-amount-0 does not exist (anchor is read-only)
+			expect(queryByTestId('split-amount-0')).toBeNull();
+			// Non-anchor row 1 has an amount input
+			expect(getByTestId('split-amount-1')).toBeTruthy();
+		});
+
+		it('anchor row has no remove button', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(queryByTestId('split-remove-0')).toBeNull();
+			expect(getByTestId('split-remove-1')).toBeTruthy();
+		});
+
+		it('use-remaining chip appears on empty non-anchor rows when total is set', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			// Row 1 is empty and anchor = 50 — chip should be visible
+			expect(getByTestId('split-remaining-chip-1')).toBeTruthy();
+		});
+
+		it('tapping use-remaining chip fills in that split amount', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			fireEvent.press(getByTestId('split-remaining-chip-1'));
+
+			// Row 1 amount should now be 50
+			expect(getByTestId('split-amount-1').props.value).toBe('50');
+		});
+
+		it('add split button creates a new row', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(queryByTestId('split-row-2')).toBeNull();
+
+			fireEvent.press(getByTestId('split-add-button'));
+			expect(getByTestId('split-row-2')).toBeTruthy();
+		});
+
+		it('remove button on non-anchor rows respects minimum of 2 total rows', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			// Add a third row
+			fireEvent.press(getByTestId('split-add-button'));
+			expect(getByTestId('split-row-2')).toBeTruthy();
+
+			// Remove it
+			fireEvent.press(getByTestId('split-remove-2'));
+			expect(queryByTestId('split-row-2')).toBeNull();
+
+			// At 2 rows: remove on row 1 is disabled — pressing does nothing
+			fireEvent.press(getByTestId('split-remove-1'));
+			expect(getByTestId('split-row-0')).toBeTruthy();
+			expect(getByTestId('split-row-1')).toBeTruthy();
+		});
+
+		it('saves anchor-only transaction when non-anchor split has no entity', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({ addTransaction: addTransactionSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Set total, enter split mode, fill non-anchor amount
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+			fireEvent.changeText(getByTestId('split-amount-1'), '20');
+			// Row 1 has no entity selected → only anchor (Groceries, 30) saves
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledTimes(1);
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 30,
+						currency: 'USD',
+					})
+				);
+			});
+			expect(mockOnClose).toHaveBeenCalled();
+		});
+
+		it('saves two transactions when anchor and second split are both valid', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, category2],
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			// Select Pets for row 1 via entity picker
+			fireEvent.press(getByTestId('split-entity-1'));
+			fireEvent.press(getByText('Pets'));
+
+			// Set row 1 amount to 20; anchor auto-computes to 30
+			fireEvent.changeText(getByTestId('split-amount-1'), '20');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledTimes(2);
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ to_entity_id: 'category-1', amount: 30 })
+				);
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ to_entity_id: 'category-2', amount: 20 })
+				);
+			});
+		});
+
+		it('merge button exits split mode and restores original amount', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(getByTestId('split-row-0')).toBeTruthy();
+
+			fireEvent.press(getByTestId('split-merge-button'));
+
+			expect(queryByTestId('split-row-0')).toBeNull();
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
+			expect(getByTestId('transaction-amount-input').props.value).toBe('50');
+		});
+
+		it('header shows "Split Transaction" in split mode', () => {
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(getByText('Split Transaction')).toBeTruthy();
+		});
+
+		it('resets split mode when modal is closed and reopened', () => {
+			const { getByTestId, queryByTestId, rerender } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('split-toggle-button'));
+			expect(queryByTestId('split-row-0')).toBeTruthy();
+
+			rerender(
+				<TransactionModal
+					visible={false}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			rerender(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('split-row-0')).toBeNull();
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
+		});
+	});
+
 	describe('Cancel Button', () => {
 		it('calls onClose when cancel is pressed', () => {
 			const { getByTestId } = render(
