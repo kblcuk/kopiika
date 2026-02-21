@@ -391,7 +391,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl  text-ink"
+								className="flex-1 font-sans-semibold text-2xl text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
 								testID="entity-detail-amount-input"

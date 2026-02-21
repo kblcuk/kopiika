@@ -1,7 +1,7 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
-import { setupStoreForTest, fireEvent, waitFor } from '@/src/test-utils-component';
+import { setupStoreForTest } from '@/src/test-utils-component';
 import type { Entity, EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 

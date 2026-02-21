@@ -1,8 +1,8 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { EntityDetailModal } from '../entity-detail-modal';
-import { setupStoreForTest, fireEvent, waitFor } from '@/src/test-utils-component';
+import { setupStoreForTest } from '@/src/test-utils-component';
 import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';

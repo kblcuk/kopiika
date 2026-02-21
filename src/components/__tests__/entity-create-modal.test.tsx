@@ -1,7 +1,7 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { EntityCreateModal } from '../entity-create-modal';
-import { setupStoreForTest, fireEvent, waitFor } from '@/src/test-utils-component';
+import { setupStoreForTest } from '@/src/test-utils-component';
 import { useStore } from '@/src/store';
 
 jest.mock('expo-haptics', () => ({

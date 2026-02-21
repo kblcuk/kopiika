@@ -84,6 +84,3 @@ export function createMockTransaction(
 		...overrides,
 	};
 }
-
-// Re-export everything from @testing-library/react-native
-export * from '@testing-library/react-native';

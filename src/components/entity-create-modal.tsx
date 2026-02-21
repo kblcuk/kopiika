@@ -169,7 +169,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							value={name}
 							onChangeText={setName}
 							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base  text-ink"
+							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
 							style={styles.input}
 							placeholderTextColor="#9C8B74"
 							autoCapitalize="words"
@@ -216,7 +216,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl  text-ink"
+								className="flex-1 font-sans-semibold text-2xl text-ink"
 								style={styles.input}
 								placeholderTextColor="#9C8B74"
 								testID="entity-create-amount-input"
