@@ -200,15 +200,16 @@ export default function SummaryScreen() {
 			const priorPeriods = getPriorPeriods(selectedPeriod, 3);
 			const allPeriods = [...priorPeriods, selectedPeriod]; // oldest → current
 
-			const [currentResult, ...trendResults] = await Promise.all(
+			const results = await Promise.all(
 				allPeriods.map((p) => {
 					const { start, end } = getPeriodRange(p);
 					return getBatchEntityActuals(entityIds, start, end);
 				})
 			);
 
-			setActuals(currentResult);
-			setTrendActuals([...trendResults, currentResult]); // oldest first
+			// allPeriods is oldest→current, so current is the last element
+			setActuals(results[results.length - 1]);
+			setTrendActuals(results); // already oldest first
 		}
 		fetchActuals();
 	}, [selectedPeriod, entities, transactions]);
