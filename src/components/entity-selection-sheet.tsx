@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, Pressable, Modal, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -23,6 +24,7 @@ export function EntitySelectionSheet({
 	onSelect,
 	onClose,
 }: EntitySelectionSheetProps) {
+	const insets = useSafeAreaInsets();
 	const handleSelect = (entity: Entity) => {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onSelect(entity);
@@ -36,7 +38,10 @@ export function EntitySelectionSheet({
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<View className="flex-1 bg-paper-50">
+			<View
+				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 					<Text className="font-sans-semibold text-base text-ink">{title}</Text>

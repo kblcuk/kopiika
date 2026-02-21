@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, Pressable, Modal, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronDown, X } from 'lucide-react-native';
 
 import type { Entity, EntityType } from '@/src/types';
@@ -22,6 +23,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 const ENTITY_TYPE_ORDER: EntityType[] = ['income', 'account', 'category', 'saving'];
 
 export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) {
+	const insets = useSafeAreaInsets();
 	const [visible, setVisible] = useState(false);
 
 	const entities = useStore(useShallow((state) => state.entities));
@@ -69,7 +71,10 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 				presentationStyle="pageSheet"
 				onRequestClose={() => setVisible(false)}
 			>
-				<View className="flex-1 bg-paper-50">
+				<View
+					className="flex-1 bg-paper-50"
+					style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+				>
 					{/* Header */}
 					<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 						<Text className="font-sans-semibold text-base text-ink">

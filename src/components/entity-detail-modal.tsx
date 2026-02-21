@@ -11,6 +11,7 @@ import {
 	ScrollView,
 	Switch,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import type { EntityWithBalance, Transaction } from '@/src/types';
@@ -47,6 +48,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
 	const inputRef = useRef<TextInput>(null);
+	const insets = useSafeAreaInsets();
 
 	const { plans, currentPeriod, setPlan, deleteEntity, updateEntity, addTransaction } = useStore(
 		useShallow((state) => ({
@@ -202,6 +204,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			<KeyboardAvoidingView
 				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">

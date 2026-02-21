@@ -9,8 +9,9 @@ module.exports = {
 		// Mock expo-sqlite for component tests
 		'^expo-sqlite$': '<rootDir>/src/db/__tests__/__mocks__/expo-sqlite.ts',
 	},
+	setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 	collectCoverageFrom: ['src/components/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/__tests__/**'],
 	transformIgnorePatterns: [
-		'node_modules/(?!(expo-sqlite|react-native|@react-native|react-native-reanimated|expo|expo-modules-core|@testing-library)/)',
+		'node_modules/(?!(expo-sqlite|react-native|react-native-safe-area-context|@react-native|react-native-reanimated|expo|expo-modules-core|@testing-library)/)',
 	],
 };

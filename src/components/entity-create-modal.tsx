@@ -9,6 +9,7 @@ import {
 	Platform,
 	ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import type { EntityType } from '@/src/types';
@@ -30,6 +31,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const nameInputRef = useRef<TextInput>(null);
+	const insets = useSafeAreaInsets();
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
 		useShallow((state) => ({
@@ -136,6 +138,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			<KeyboardAvoidingView
 				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">

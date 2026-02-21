@@ -9,6 +9,7 @@ import {
 	Platform,
 	ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
 
@@ -66,6 +67,7 @@ export function TransactionModal({
 	// Snapshot of amount when split mode was entered — drives the anchor calculation
 	const [splitTotal, setSplitTotal] = useState(0);
 
+	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
@@ -426,6 +428,7 @@ export function TransactionModal({
 			<KeyboardAvoidingView
 				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">

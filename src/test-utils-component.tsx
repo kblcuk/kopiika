@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
 
@@ -40,7 +41,7 @@ export function renderWithStore(
 	if (storeState) {
 		setupStoreForTest(storeState);
 	}
-	return render(ui, renderOptions);
+	return render(<SafeAreaProvider>{ui}</SafeAreaProvider>, renderOptions);
 }
 
 /**

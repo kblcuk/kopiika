@@ -5,7 +5,7 @@
 			"version": "19.1.0"
 		}
 	},
-	"plugins": ["import", "react", "unicorn"],
+	"plugins": ["import", "react", "unicorn", "jest"],
 	"categories": {
 		"correctness": "off"
 	},
@@ -104,6 +104,12 @@
 			"files": ["**/metro.config.js"],
 			"env": {
 				"node": true
+			}
+		},
+		{
+			"files": ["jest.setup.js", "**/__tests__/**", "**/*.test.{ts,tsx,js}"],
+			"env": {
+				"jest": true
 			}
 		},
 		{
