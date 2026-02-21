@@ -7,4 +7,6 @@ _.fnox-env = { tools = true }
 [tools]
 age = "latest"
 fnox = "latest"
+gradle = "8"
+java = "21"
 ruby = "latest"
