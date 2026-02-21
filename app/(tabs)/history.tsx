@@ -12,6 +12,7 @@ import { PeriodPicker } from '@/src/components/period-picker';
 import { EntityFilter } from '@/src/components/entity-filter';
 import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
+import { formatAmount } from '@/src/utils/format';
 
 interface TransactionSection {
 	title: string;
@@ -115,6 +116,18 @@ export default function HistoryScreen() {
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
+	const periodTotals = useMemo(() => {
+		const count = filteredTransactions.length;
+		if (!selectedEntityId) return { count, inflow: null, outflow: null };
+		let inflow = 0;
+		let outflow = 0;
+		for (const tx of filteredTransactions) {
+			if (tx.to_entity_id === selectedEntityId) inflow += tx.amount;
+			if (tx.from_entity_id === selectedEntityId) outflow += tx.amount;
+		}
+		return { count, inflow, outflow };
+	}, [filteredTransactions, selectedEntityId]);
+
 	const handleEdit = useCallback((transaction: Transaction) => {
 		setEditingTransaction(transaction);
 	}, []);
@@ -168,6 +181,29 @@ export default function HistoryScreen() {
 			{/* Entity filter */}
 			<View className="pb-3">
 				<EntityFilter selectedEntityId={selectedEntityId} onChange={setSelectedEntityId} />
+			</View>
+
+			{/* Period totals */}
+			<View className="flex-row items-center justify-between border-b border-paper-300 bg-paper-100 px-5 py-2">
+				<Text className="font-sans text-xs text-ink-muted">
+					{periodTotals.count} {periodTotals.count === 1 ? 'transaction' : 'transactions'}
+				</Text>
+				{periodTotals.inflow !== null && (
+					<View className="flex-row gap-4">
+						<Text className="font-sans text-xs text-ink-muted">
+							In:{' '}
+							<Text className="text-positive">
+								{formatAmount(periodTotals.inflow)}
+							</Text>
+						</Text>
+						<Text className="font-sans text-xs text-ink-muted">
+							Out:{' '}
+							<Text className="text-negative">
+								{formatAmount(periodTotals.outflow ?? 0)}
+							</Text>
+						</Text>
+					</View>
+				)}
 			</View>
 
 			{/* Transaction list */}

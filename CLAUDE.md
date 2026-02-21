@@ -444,3 +444,34 @@ Produce a working prototype where:
 - Overspending is visible and allowed
 
 Optimize for clarity, simplicity, and joy of use.
+
+────────────────────────────────────────
+IMPROVEMENT BACKLOG
+────────────────────────────────────────
+
+Items identified during development, roughly prioritised. Pick any when
+the core is stable.
+
+**Already shipped:**
+
+- Quick-add FAB (+) in tab bar (center slot, entity pickers, auto-advances)
+- History totals bar (transaction count + In/Out when entity filter active)
+- Summary sparklines (4-bar monthly trend per income/category entity)
+- Summary section totals (actual vs planned in section header)
+
+**Medium priority:**
+
+- Transaction text search — search bar in History filtering by note text
+  and/or amount; grows in value as months of data accumulate.
+
+- Savings projected finish date — in entity detail modal, given actuals
+  over the last N months, compute and show "on track to reach goal by
+  YYYY-MM". Simple linear projection, clearly labelled as estimate.
+
+**Low priority / cosmetic:**
+
+- Entity colour picker — `color` field already exists in schema and types
+  but is never set or used. Add a swatch picker inside EntityDetailModal.
+
+- Per-entity notes / description — a free-text memo visible in the detail
+  modal, useful for tracking account numbers, saving purpose, etc.

@@ -105,7 +105,7 @@ describe('SummaryScreen', () => {
 
 			// Wait for initial fetch
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(1);
+				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
 			});
 
 			// Clear mock to track new calls
@@ -167,7 +167,7 @@ describe('SummaryScreen', () => {
 
 			// Wait for initial fetch
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(1);
+				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
 			});
 
 			// Clear mock to track new calls
@@ -219,7 +219,7 @@ describe('SummaryScreen', () => {
 
 			// Wait for initial fetch
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(1);
+				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
 			});
 
 			// Clear mock to track new calls
