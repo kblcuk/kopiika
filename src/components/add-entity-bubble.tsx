@@ -1,6 +1,7 @@
 import { View, Pressable, DimensionValue } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import type { EntityType } from '@/src/types';
+import { colors } from '@/src/theme/colors';
 
 interface AddEntityBubbleProps {
 	type: EntityType;
@@ -20,7 +21,7 @@ export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 					className="border-paper-400 h-14 w-14 items-center justify-center rounded-full border-2 border-dashed"
 					style={{ backgroundColor: 'transparent' }}
 				>
-					<Plus size={24} color="#9A8A78" />
+					<Plus size={24} color={colors.ink.placeholder} />
 				</View>
 			</View>
 

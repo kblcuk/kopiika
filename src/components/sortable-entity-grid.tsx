@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { ArrowUpDown, Check } from 'lucide-react-native';
 
 import type { EntityType, EntityWithBalance } from '@/src/types';
+import { colors } from '@/src/theme/colors';
 import {
 	findDropTarget,
 	unregisterDropZone,
@@ -327,9 +328,9 @@ export function SortableEntityGrid({
 						hitSlop={8}
 					>
 						{reorderMode ? (
-							<Check size={14} color="#D4652F" strokeWidth={2.5} />
+							<Check size={14} color={colors.accent.DEFAULT} strokeWidth={2.5} />
 						) : (
-							<ArrowUpDown size={14} color="#6B5D4A" strokeWidth={2} />
+							<ArrowUpDown size={14} color={colors.ink.muted} strokeWidth={2} />
 						)}
 					</Pressable>
 				)}

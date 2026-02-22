@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import type { EntityWithBalance } from '@/src/types';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { colors } from '@/src/theme/colors';
 import { CircularProgress } from './circular-progress';
 import { getIcon } from '@/src/constants/icon-registry';
 
@@ -118,7 +119,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 		right: -4,
 		bottom: -4,
 		borderRadius: 16,
-		backgroundColor: 'rgba(212, 101, 47, 0.25)', // accent color with transparency
+		backgroundColor: colors.accent.glow,
 		opacity: highlightProgress.value,
 	}));
 

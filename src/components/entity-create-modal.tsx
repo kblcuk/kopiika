@@ -19,6 +19,7 @@ import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/sr
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
+import { colors } from '@/src/theme/colors';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -174,7 +175,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
 							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
 							style={styles.input}
-							placeholderTextColor="#9C8B74"
+							placeholderTextColor={colors.ink.placeholder}
 							autoCapitalize="words"
 							testID="entity-create-name-input"
 						/>
@@ -200,7 +201,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 									>
 										<IconComponent
 											size={24}
-											color={isSelected ? '#FFFBF5' : '#6B5D4A'}
+											color={
+												isSelected ? colors.paper.warm : colors.ink.muted
+											}
 										/>
 									</Pressable>
 								);
@@ -221,7 +224,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								keyboardType="numeric"
 								className="flex-1 font-sans-semibold text-2xl text-ink"
 								style={styles.input}
-								placeholderTextColor="#9C8B74"
+								placeholderTextColor={colors.ink.placeholder}
 								testID="entity-create-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">

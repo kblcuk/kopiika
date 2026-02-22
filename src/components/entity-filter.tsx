@@ -7,6 +7,7 @@ import type { Entity, EntityType } from '@/src/types';
 import { useStore } from '@/src/store';
 import { useShallow } from 'zustand/react/shallow';
 import { getIcon } from '@/src/constants/icon-registry';
+import { colors } from '@/src/theme/colors';
 
 interface EntityFilterProps {
 	selectedEntityId: string | null;
@@ -62,7 +63,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 				<Text className="font-sans text-base text-ink">
 					{selectedEntity ? selectedEntity.name : 'All Entities'}
 				</Text>
-				<ChevronDown size={20} color="#6B5D4A" />
+				<ChevronDown size={20} color={colors.ink.muted} />
 			</Pressable>
 
 			<Modal
@@ -81,7 +82,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 							Filter by Entity
 						</Text>
 						<Pressable onPress={() => setVisible(false)} hitSlop={20}>
-							<X size={24} color="#4A3F2E" />
+							<X size={24} color={colors.ink.medium} />
 						</Pressable>
 					</View>
 
@@ -123,7 +124,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 												}`}
 											>
 												<View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-paper-300">
-													<Icon size={16} color="#6B5D4A" />
+													<Icon size={16} color={colors.ink.muted} />
 												</View>
 												<Text className="font-sans text-base text-ink">
 													{entity.name}

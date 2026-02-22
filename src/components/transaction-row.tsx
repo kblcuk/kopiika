@@ -15,6 +15,7 @@ import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { colors } from '@/src/theme/colors';
 
 interface TransactionRowProps {
 	transaction: Transaction;
@@ -24,7 +25,7 @@ interface TransactionRowProps {
 }
 
 const DELETE_THRESHOLD = -80;
-const FALLBACK_ICON_COLOR = '#6B5D4A';
+const FALLBACK_ICON_COLOR = colors.ink.muted;
 
 export const TransactionRow = memo(function TransactionRow({
 	transaction,
@@ -96,7 +97,7 @@ export const TransactionRow = memo(function TransactionRow({
 				style={deleteStyle}
 				className="absolute bottom-0 right-0 top-0 w-20 items-center justify-center bg-negative"
 			>
-				<Trash2 size={24} color="#fff" />
+				<Trash2 size={24} color={colors.on.color} />
 			</Animated.View>
 
 			{/* Row content */}

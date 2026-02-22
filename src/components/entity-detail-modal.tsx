@@ -27,6 +27,7 @@ import { useStore } from '@/src/store';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { styles } from '../styles/text-input';
+import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -235,10 +236,10 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							className="mb-3"
 						>
 							<View className="relative h-20 w-20 items-center justify-center rounded-full bg-paper-300">
-								<IconComponent size={36} color="#6B5D4A" />
+								<IconComponent size={36} color={colors.ink.muted} />
 								{/* Pencil edit indicator */}
 								<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
-									<PencilIcon size={14} color="#6B5D4A" />
+									<PencilIcon size={14} color={colors.ink.muted} />
 								</View>
 							</View>
 						</Pressable>
@@ -269,7 +270,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 										>
 											<IconOption
 												size={24}
-												color={isSelected ? '#FFFBF5' : '#6B5D4A'}
+												color={
+													isSelected
+														? colors.paper.warm
+														: colors.ink.muted
+												}
 											/>
 										</Pressable>
 									);
@@ -291,7 +296,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								nameError ? 'border-negative' : ''
 							}`}
 							style={styles.input}
-							placeholderTextColor="#9C8B74"
+							placeholderTextColor={colors.ink.placeholder}
 							autoCapitalize="words"
 							testID="entity-detail-name-input"
 						/>
@@ -319,7 +324,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									keyboardType="numeric"
 									className="flex-1 font-sans-semibold text-2xl text-ink"
 									style={styles.input}
-									placeholderTextColor="#9C8B74"
+									placeholderTextColor={colors.ink.placeholder}
 									testID="entity-detail-actual-input"
 								/>
 								<Text className="font-sans text-lg text-ink-muted">
@@ -356,8 +361,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<Switch
 									value={includeInTotal}
 									onValueChange={setIncludeInTotal}
-									trackColor={{ false: '#D4C8B3', true: '#D4652F' }}
-									thumbColor="#FFFBF5"
+									trackColor={{
+										false: colors.border.DEFAULT,
+										true: colors.accent.DEFAULT,
+									}}
+									thumbColor={colors.paper.warm}
 									testID="entity-detail-include-in-total-switch"
 								/>
 							</View>
@@ -396,7 +404,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								keyboardType="numeric"
 								className="flex-1 font-sans-semibold text-2xl text-ink"
 								style={styles.input}
-								placeholderTextColor="#9C8B74"
+								placeholderTextColor={colors.ink.placeholder}
 								testID="entity-detail-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">

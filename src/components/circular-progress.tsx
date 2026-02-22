@@ -1,5 +1,6 @@
 import Svg, { Circle } from 'react-native-svg';
 import { getProgressState } from '@/constants/progress';
+import { colors } from '@/src/theme/colors';
 
 interface CircularProgressProps {
 	size: number;
@@ -10,20 +11,19 @@ interface CircularProgressProps {
 	children?: React.ReactNode;
 }
 
-// Theme colors from tailwind config
 const COLORS = {
 	track: {
-		default: '#F5F1EB', // paper-200 (light, subtle)
-		healthy: '#E8F5EC', // Light green tint
-		warning: '#FFF4E6', // Light amber tint
-		overspent: '#FDEAEA', // Light red tint
-		neutral: '#F5F1EB', // paper-200
+		default: colors.track.DEFAULT,
+		healthy: colors.track.healthy,
+		warning: colors.track.warning,
+		overspent: colors.track.overspent,
+		neutral: colors.track.DEFAULT,
 	},
 	progress: {
-		healthy: '#2F7D4A', // positive.DEFAULT
-		warning: '#D4842F', // warning.DEFAULT
-		overspent: '#C23030', // negative.DEFAULT
-		neutral: '#6B5D4A', // ink.muted
+		healthy: colors.positive.DEFAULT,
+		warning: colors.warning.DEFAULT,
+		overspent: colors.negative.DEFAULT,
+		neutral: colors.ink.muted,
 	},
 };
 

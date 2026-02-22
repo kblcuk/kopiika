@@ -29,6 +29,7 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { colors } from '@/src/theme/colors';
 
 interface SplitRow {
 	id: string;
@@ -390,9 +391,13 @@ export function TransactionModal({
 				<Pressable onPress={onPress} className="flex-1 items-center">
 					<View
 						className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-200"
-						style={{ borderWidth: 1.5, borderColor: '#C8BBAA', borderStyle: 'dashed' }}
+						style={{
+							borderWidth: 1.5,
+							borderColor: colors.border.dashed,
+							borderStyle: 'dashed',
+						}}
 					>
-						<Plus size={20} color="#9C8B74" />
+						<Plus size={20} color={colors.ink.placeholder} />
 					</View>
 					<Text className="text-center font-sans text-sm text-ink-muted">
 						{emptyLabel ?? 'Pick'}
@@ -413,7 +418,7 @@ export function TransactionModal({
 					</View>
 					{isTappable && (
 						<View className="absolute -bottom-0.5 -right-0.5 h-5 w-5 items-center justify-center rounded-full bg-paper-300">
-							<Pencil size={10} color="#6B5D4A" />
+							<Pencil size={10} color={colors.ink.muted} />
 						</View>
 					)}
 				</View>
@@ -438,7 +443,7 @@ export function TransactionModal({
 			return (
 				<View className="flex-1 items-center">
 					<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-200">
-						<Split size={20} color="#6B5D4A" />
+						<Split size={20} color={colors.ink.muted} />
 					</View>
 					<Text className="text-center font-sans text-sm text-ink-muted">Split</Text>
 				</View>
@@ -532,7 +537,7 @@ export function TransactionModal({
 							quickAdd ? 'From' : undefined
 						)}
 						<View className="items-center px-2 py-3">
-							<ArrowRight size={24} color="#2C2416" />
+							<ArrowRight size={24} color={colors.ink.DEFAULT} />
 						</View>
 						{isSplitMode
 							? renderSplitToSide()
@@ -564,7 +569,7 @@ export function TransactionModal({
 								keyboardType="numeric"
 								className="flex-1 font-sans-semibold text-3xl text-ink"
 								style={styles.input}
-								placeholderTextColor="#9C8B74"
+								placeholderTextColor={colors.ink.placeholder}
 								testID="transaction-amount-input"
 							/>
 							<Text className="font-sans text-lg text-ink-muted">
@@ -597,7 +602,7 @@ export function TransactionModal({
 									className="flex-row items-center"
 									testID="split-merge-button"
 								>
-									<Undo size={14} color="#6B5D4A" />
+									<Undo size={14} color={colors.ink.muted} />
 									<Text className="ml-1 font-sans text-sm text-ink-muted">
 										Single
 									</Text>
@@ -625,7 +630,7 @@ export function TransactionModal({
 												index > 0
 													? {
 															borderTopWidth: 1,
-															borderTopColor: '#EBE3D5',
+															borderTopColor: colors.border.light,
 														}
 													: undefined
 											}
@@ -663,7 +668,7 @@ export function TransactionModal({
 												)}
 												<Pencil
 													size={9}
-													color="#9C8B74"
+													color={colors.ink.placeholder}
 													style={{ marginLeft: 4, flexShrink: 0 }}
 												/>
 											</Pressable>
@@ -680,8 +685,8 @@ export function TransactionModal({
 														style={{
 															color:
 																anchorAmount >= 0
-																	? '#3D3426'
-																	: '#C23030',
+																	? colors.ink.light
+																	: colors.negative.DEFAULT,
 														}}
 													>
 														{anchorAmount < 0 ? '-' : ''}
@@ -724,7 +729,9 @@ export function TransactionModal({
 															styles.input,
 															{ textAlign: 'right', minWidth: 48 },
 														]}
-														placeholderTextColor="#9C8B74"
+														placeholderTextColor={
+															colors.ink.placeholder
+														}
 														testID={`split-amount-${index}`}
 													/>
 												</View>
@@ -747,8 +754,8 @@ export function TransactionModal({
 														size={16}
 														color={
 															splits.length <= 2
-																? '#D4C8B3'
-																: '#9C8B74'
+																? colors.border.DEFAULT
+																: colors.ink.placeholder
 														}
 													/>
 												</Pressable>
@@ -761,10 +768,13 @@ export function TransactionModal({
 								<Pressable
 									onPress={handleAddSplit}
 									className="flex-row items-center px-3 py-2.5"
-									style={{ borderTopWidth: 1, borderTopColor: '#EBE3D5' }}
+									style={{
+										borderTopWidth: 1,
+										borderTopColor: colors.border.light,
+									}}
 									testID="split-add-button"
 								>
-									<Plus size={14} color="#6B5D4A" />
+									<Plus size={14} color={colors.ink.muted} />
 									<Text className="ml-2 font-sans text-sm text-ink-muted">
 										Add split
 									</Text>
@@ -780,7 +790,7 @@ export function TransactionModal({
 							className="mb-6 flex-row items-center self-start rounded-full bg-paper-200 px-3 py-1.5"
 							testID="split-toggle-button"
 						>
-							<Split size={13} color="#6B5D4A" />
+							<Split size={13} color={colors.ink.muted} />
 							<Text className="ml-1.5 font-sans text-sm text-ink-muted">Split</Text>
 						</Pressable>
 					)}
@@ -793,7 +803,7 @@ export function TransactionModal({
 						{Platform.OS === 'ios' ? (
 							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100">
 								<View className="flex-1 flex-row items-center px-4 py-2">
-									<Calendar size={20} color="#6B5D4A" />
+									<Calendar size={20} color={colors.ink.muted} />
 									<Text className="ml-3 font-sans text-base text-ink">
 										{formatDateDisplay(selectedDate)}
 									</Text>
@@ -804,7 +814,7 @@ export function TransactionModal({
 									display="compact"
 									onChange={handleDateChange}
 									maximumDate={new Date()}
-									accentColor="#B85C38"
+									accentColor={colors.accent.deeper}
 								/>
 							</View>
 						) : (
@@ -813,7 +823,7 @@ export function TransactionModal({
 									onPress={() => setShowDatePicker(true)}
 									className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3"
 								>
-									<Calendar size={20} color="#6B5D4A" />
+									<Calendar size={20} color={colors.ink.muted} />
 									<Text className="ml-3 font-sans text-base text-ink">
 										{formatDateDisplay(selectedDate)}
 									</Text>
@@ -842,7 +852,7 @@ export function TransactionModal({
 							placeholder="Add a note..."
 							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
 							style={styles.input}
-							placeholderTextColor="#9C8B74"
+							placeholderTextColor={colors.ink.placeholder}
 							testID="transaction-note-input"
 						/>
 					</View>

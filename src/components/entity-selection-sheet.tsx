@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import type { Entity } from '@/src/types';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { colors } from '@/src/theme/colors';
 
 interface EntitySelectionSheetProps {
 	visible: boolean;
@@ -46,7 +47,7 @@ export function EntitySelectionSheet({
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 					<Text className="font-sans-semibold text-base text-ink">{title}</Text>
 					<Pressable onPress={onClose} hitSlop={20}>
-						<X size={24} color="#6B5D4A" />
+						<X size={24} color={colors.ink.muted} />
 					</Pressable>
 				</View>
 

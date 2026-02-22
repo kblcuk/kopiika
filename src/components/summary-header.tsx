@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '@/src/theme/colors';
 
 import { useStore, getEntitiesWithBalance } from '@/src/store';
 import { formatAmount } from '@/src/utils/format';
@@ -88,9 +89,9 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 					className="ml-4 h-6 w-6 items-center justify-center"
 				>
 					{incomeVisible ? (
-						<ChevronUp size={18} color="#6B5D4A" />
+						<ChevronUp size={18} color={colors.ink.muted} />
 					) : (
-						<ChevronDown size={18} color="#6B5D4A" />
+						<ChevronDown size={18} color={colors.ink.muted} />
 					)}
 				</Pressable>
 			</View>
