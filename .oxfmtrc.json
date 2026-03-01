@@ -14,6 +14,8 @@
 		"yarn.lock",
 		"bun.lock",
 		"bun.lockb",
+		"fnox.toml", // managed by fnox
+		"CHANGELOG.md", // managed by release file
 		"!/static",
 		"/static/*",
 		"!/static/fonts",
