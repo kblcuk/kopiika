@@ -21,9 +21,10 @@
 		"format:check": "oxfmt --check",
 		"generate:splash": "bun run scripts/generate-splash.ts",
 		"types": "tsc --noEmit",
-		"release": "commit-and-tag-version",
-		"release:minor": "commit-and-tag-version --release-as minor",
-		"release:major": "commit-and-tag-version --release-as major"
+		"release:check": "node scripts/check-version-sync.cjs",
+		"release": "bun run release:check && commit-and-tag-version",
+		"release:minor": "bun run release:check && commit-and-tag-version --release-as minor",
+		"release:major": "bun run release:check && commit-and-tag-version --release-as major"
 	},
 	"commit-and-tag-version": {
 		"bumpFiles": [
