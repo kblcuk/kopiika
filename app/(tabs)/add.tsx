@@ -1,5 +1,20 @@
-// Placeholder — never navigated to directly.
-// The tab bar "+" button opens a modal instead of routing here.
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
+
+import { TransactionModal } from '@/src/components';
+
 export default function AddScreen() {
-	return null;
+	const router = useRouter();
+
+	return (
+		<View className="flex-1 bg-paper-50">
+			<TransactionModal
+				visible={true}
+				fromEntity={null}
+				toEntity={null}
+				onClose={() => router.replace('/')}
+				quickAdd
+			/>
+		</View>
+	);
 }

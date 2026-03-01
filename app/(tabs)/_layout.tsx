@@ -1,19 +1,17 @@
-import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { TransactionModal } from '@/src/components';
 
 export default function TabLayout() {
-	const [addVisible, setAddVisible] = useState(false);
+	const router = useRouter();
 
 	const handleOpenAdd = () => {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-		setAddVisible(true);
+		router.navigate('/add');
 	};
 
 	return (
@@ -101,14 +99,6 @@ export default function TabLayout() {
 					}}
 				/>
 			</Tabs>
-
-			<TransactionModal
-				visible={addVisible}
-				fromEntity={null}
-				toEntity={null}
-				onClose={() => setAddVisible(false)}
-				quickAdd
-			/>
 		</>
 	);
 }
