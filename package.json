@@ -9,6 +9,7 @@
 		"ios:setup": "fnox exec -- bundle exec fastlane setup_signing",
 		"ios:build": "fnox exec -- bundle exec fastlane build",
 		"ios:upload": "fnox exec -- bundle exec fastlane upload",
+		"ios:promote:external": "fnox exec -- bundle exec fastlane promote_external",
 		"ios:beta": "fnox exec -- bundle exec fastlane beta",
 		"web": "expo start --web",
 		"test": "bun run test:unit && bun run test:component",

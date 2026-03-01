@@ -39,6 +39,14 @@ Build the app
 
 Upload latest build to TestFlight (without rebuilding)
 
+### ios promote_external
+
+```sh
+[bundle exec] fastlane ios promote_external
+```
+
+Promote an uploaded TestFlight build to external tester groups
+
 ### ios beta
 
 ```sh
