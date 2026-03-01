@@ -140,6 +140,8 @@ describe('HomeScreen entity interactions', () => {
 		actual: 100,
 		planned: 500,
 		remaining: 400,
+
+		upcoming: 0,
 	};
 
 	beforeEach(() => {

@@ -175,6 +175,12 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 						<Text className="font-sans text-xs text-ink-muted">
 							{formatAmount(entity.planned)}
 						</Text>
+						{entity.upcoming !== 0 && (
+							<Text className="font-sans text-xs text-info" numberOfLines={1}>
+								{entity.upcoming > 0 ? '+' : ''}
+								{formatAmount(entity.upcoming)}
+							</Text>
+						)}
 					</View>
 				</Animated.View>
 			</Sortable.Handle>

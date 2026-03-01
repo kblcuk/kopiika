@@ -16,6 +16,7 @@ jest.mock('expo-haptics', () => ({
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
 describe('TransactionModal', () => {
+	const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
 	const mockFromEntity: EntityWithBalance = {
 		id: 'account-1',
 		type: 'account',
@@ -27,6 +28,7 @@ describe('TransactionModal', () => {
 		actual: 1000,
 		planned: 2000,
 		remaining: 1000,
+		upcoming: 0,
 	};
 
 	const mockToEntity: EntityWithBalance = {
@@ -40,13 +42,21 @@ describe('TransactionModal', () => {
 		actual: 100,
 		planned: 500,
 		remaining: 400,
+		upcoming: 0,
 	};
 
 	const mockOnClose = jest.fn();
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.useFakeTimers();
+		jest.setSystemTime(fixedNow);
 		setupStoreForTest();
+	});
+
+	afterEach(() => {
+		jest.useRealTimers();
+		jest.restoreAllMocks();
 	});
 
 	describe('Rendering', () => {
@@ -89,6 +99,29 @@ describe('TransactionModal', () => {
 			);
 
 			expect(toJSON()).toBeNull();
+		});
+
+		it('shows Scheduled badge for future-dated transactions', () => {
+			const futureTransaction = {
+				id: 'txn-future',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 250,
+				currency: 'USD',
+				timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+			};
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={futureTransaction}
+				/>
+			);
+
+			expect(getByText('Scheduled')).toBeTruthy();
 		});
 	});
 
@@ -273,6 +306,8 @@ describe('TransactionModal', () => {
 				actual: 500,
 				planned: 3000,
 				remaining: 2500,
+
+				upcoming: 0,
 			};
 
 			const { getByTestId } = render(
@@ -299,6 +334,8 @@ describe('TransactionModal', () => {
 				actual: 200,
 				planned: 1000,
 				remaining: 800,
+
+				upcoming: 0,
 			};
 
 			const { getByTestId } = render(
@@ -338,6 +375,8 @@ describe('TransactionModal', () => {
 				actual: 500,
 				planned: 3000,
 				remaining: 2500,
+
+				upcoming: 0,
 			};
 
 			const { getByTestId } = render(
@@ -464,6 +503,8 @@ describe('TransactionModal', () => {
 				actual: 500,
 				planned: 3000,
 				remaining: 2500,
+
+				upcoming: 0,
 			};
 
 			const existingTransaction = {
@@ -501,6 +542,8 @@ describe('TransactionModal', () => {
 			actual: 20,
 			planned: 100,
 			remaining: 80,
+
+			upcoming: 0,
 		};
 
 		beforeEach(() => {

@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import type { Entity, Plan, Transaction } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
@@ -2402,7 +2402,7 @@ describe('Store Data Integrity', () => {
 				to_entity_id: 'account-1',
 				amount: 200,
 				currency: 'USD',
-				timestamp: Date.now() + 1000,
+				timestamp: Date.now() - 1000,
 				note: 'Balance correction',
 			};
 			await useStore.getState().addTransaction(adjustmentTx);
@@ -2423,6 +2423,54 @@ describe('Store Data Integrity', () => {
 			expect(accountEntities[0].actual).toBe(5200);
 		});
 
+		test('should return upcoming: 0 when no future transactions exist', () => {
+			const category: Entity = {
+				id: 'cat-1',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'EUR',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const account: Entity = {
+				id: 'acc-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'EUR',
+				row: 0,
+				position: 1,
+				order: 1,
+			};
+			const tx: Transaction = {
+				id: 'tx-past',
+				from_entity_id: 'acc-1',
+				to_entity_id: 'cat-1',
+				amount: 50,
+				currency: 'EUR',
+				timestamp: new Date('2026-01-10').getTime(), // past
+			};
+			useStore.setState({
+				entities: [category, account],
+				plans: [],
+				transactions: [tx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+			const state = useStore.getState();
+			const cats = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				'2026-01',
+				'category'
+			);
+			expect(cats[0].upcoming).toBe(0);
+			expect(cats[0].actual).toBe(50);
+		});
 		test('should handle decimal amounts without floating point precision issues', async () => {
 			const account: Entity = {
 				id: 'account-1',
@@ -2453,7 +2501,7 @@ describe('Store Data Integrity', () => {
 					to_entity_id: 'account-1',
 					amount: 0.2,
 					currency: 'EUR',
-					timestamp: Date.now() + 1000,
+					timestamp: Date.now() - 1000,
 				},
 				{
 					id: 'tx-3',
@@ -2461,7 +2509,7 @@ describe('Store Data Integrity', () => {
 					to_entity_id: 'account-1',
 					amount: 1.15,
 					currency: 'EUR',
-					timestamp: Date.now() + 2000,
+					timestamp: Date.now() - 2000,
 				},
 			];
 
@@ -2486,6 +2534,367 @@ describe('Store Data Integrity', () => {
 			// Note: This test documents the current behavior - the actual value
 			// may have floating point issues which is handled at display time
 			expect(account1!.actual).toBeCloseTo(1.45, 2);
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────
+	// Upcoming transactions
+	// ─────────────────────────────────────────────────────────
+	describe('Upcoming transactions (future-dated)', () => {
+		const NOW = new Date('2026-01-15T12:00:00Z').getTime();
+		const PAST = new Date('2026-01-10T12:00:00Z').getTime();
+		const FUTURE = new Date('2026-01-20T12:00:00Z').getTime();
+		const originalDateNow = Date.now;
+
+		beforeEach(() => {
+			Date.now = () => NOW;
+		});
+
+		afterEach(() => {
+			Date.now = originalDateNow;
+		});
+
+		const baseEntities: Entity[] = [
+			{
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'EUR',
+				row: 0,
+				position: 0,
+				order: 0,
+			},
+			{
+				id: 'acc-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'EUR',
+				row: 0,
+				position: 1,
+				order: 1,
+			},
+			{
+				id: 'cat-1',
+				type: 'category',
+				name: 'Rent',
+				currency: 'EUR',
+				row: 0,
+				position: 2,
+				order: 2,
+			},
+			{
+				id: 'sav-1',
+				type: 'saving',
+				name: 'Holiday',
+				currency: 'EUR',
+				row: 0,
+				position: 3,
+				order: 3,
+			},
+		];
+
+		const basePlans: Plan[] = [
+			{
+				id: 'plan-cat',
+				entity_id: 'cat-1',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 1000,
+			},
+			{
+				id: 'plan-sav',
+				entity_id: 'sav-1',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 5000,
+			},
+			{
+				id: 'plan-inc',
+				entity_id: 'income-1',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 3000,
+			},
+		];
+
+		function setup(transactions: Transaction[]) {
+			useStore.setState({
+				entities: baseEntities,
+				plans: basePlans,
+				transactions,
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+			const state = useStore.getState();
+			return {
+				income: getEntitiesWithBalance(
+					state.entities,
+					state.plans,
+					transactions,
+					'2026-01',
+					'income'
+				)[0],
+				account: getEntitiesWithBalance(
+					state.entities,
+					state.plans,
+					transactions,
+					'2026-01',
+					'account'
+				)[0],
+				category: getEntitiesWithBalance(
+					state.entities,
+					state.plans,
+					transactions,
+					'2026-01',
+					'category'
+				)[0],
+				saving: getEntitiesWithBalance(
+					state.entities,
+					state.plans,
+					transactions,
+					'2026-01',
+					'saving'
+				)[0],
+			};
+		}
+
+		test('future transaction is NOT counted in actual', () => {
+			const { category } = setup([
+				{
+					id: 'tx-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 400,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			expect(category.actual).toBe(0);
+			expect(category.remaining).toBe(1000); // planned unchanged
+		});
+
+		test('future transaction is counted in upcoming', () => {
+			const { category } = setup([
+				{
+					id: 'tx-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 400,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			expect(category.upcoming).toBe(400);
+		});
+
+		test('past + future transactions: actual excludes future, upcoming excludes past', () => {
+			const { category } = setup([
+				{
+					id: 'tx-past',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 200,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 150,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			expect(category.actual).toBe(200);
+			expect(category.upcoming).toBe(150);
+			expect(category.remaining).toBe(800); // 1000 - 200 (actual only)
+		});
+
+		test('remaining is based on actual only, not actual + upcoming', () => {
+			const { category } = setup([
+				{
+					id: 'tx-past',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 300,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 900, // would overspend if counted
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			// planned = 1000; actual = 300 → remaining = 700, NOT -200
+			expect(category.remaining).toBe(700);
+		});
+
+		test('account actual excludes future inflows', () => {
+			const { account } = setup([
+				{
+					id: 'tx-income-past',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 3000,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-income-future',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 1000,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			expect(account.actual).toBe(3000);
+			expect(account.upcoming).toBe(1000);
+		});
+
+		test('account actual excludes future outflows', () => {
+			const { account } = setup([
+				{
+					id: 'tx-in',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 5000,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-out-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 2000,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			// actual = +5000 only; upcoming = -2000 (outflow)
+			expect(account.actual).toBe(5000);
+			expect(account.upcoming).toBe(-2000);
+		});
+
+		test('income upcoming counts inflow that has not yet left income', () => {
+			const { income } = setup([
+				{
+					id: 'tx-past',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 1000,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-future',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 2000,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			// income "actual" = money that has left income = 1000
+			// income "upcoming" = money scheduled to leave = 2000
+			expect(income.actual).toBe(1000);
+			expect(income.upcoming).toBe(2000);
+		});
+
+		test('saving upcoming counts scheduled contributions', () => {
+			const { saving } = setup([
+				{
+					id: 'tx-past',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'sav-1',
+					amount: 500,
+					currency: 'EUR',
+					timestamp: PAST,
+				},
+				{
+					id: 'tx-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'sav-1',
+					amount: 300,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+			]);
+			expect(saving.actual).toBe(500);
+			expect(saving.upcoming).toBe(300);
+		});
+
+		test('multiple future transactions are summed in upcoming', () => {
+			const { category } = setup([
+				{
+					id: 'tx-f1',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 100,
+					currency: 'EUR',
+					timestamp: FUTURE,
+				},
+				{
+					id: 'tx-f2',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 250,
+					currency: 'EUR',
+					timestamp: FUTURE + 1000,
+				},
+			]);
+			expect(category.upcoming).toBe(350);
+			expect(category.actual).toBe(0);
+		});
+
+		test('future transactions outside current period are not counted', () => {
+			// Category uses current-period (month) scoping.
+			// A future tx in Feb 2026 should not appear in Jan 2026 upcoming.
+			const { category } = setup([
+				{
+					id: 'tx-future-wrong-month',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'cat-1',
+					amount: 999,
+					currency: 'EUR',
+					timestamp: new Date('2026-02-15').getTime(), // Feb — outside Jan period
+				},
+			]);
+			// period = '2026-01'; Feb tx is outside that range entirely
+			expect(category.upcoming).toBe(0);
+			expect(category.actual).toBe(0);
+		});
+
+		test('account and saving upcoming include future txns from any period (all-time scope)', () => {
+			// Accounts use all-time scope, so future txns in any month count
+			const { account, saving } = setup([
+				{
+					id: 'tx-acc-future',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 800,
+					currency: 'EUR',
+					timestamp: new Date('2026-04-01').getTime(), // April — future
+				},
+				{
+					id: 'tx-sav-future',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'sav-1',
+					amount: 200,
+					currency: 'EUR',
+					timestamp: new Date('2026-05-15').getTime(), // May — future
+				},
+			]);
+			expect(account.upcoming).toBe(800 - 200); // net: +800 inflow, -200 outflow
+			expect(saving.upcoming).toBe(200);
 		});
 	});
 });

@@ -6,6 +6,7 @@ import type { Entity, Transaction } from '@/src/types';
 
 const mockSetParams = jest.fn();
 let mockParams: { period?: string; entityId?: string } = {};
+const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
 
 jest.mock('expo-router', () => ({
 	useLocalSearchParams: () => mockParams,
@@ -48,7 +49,20 @@ jest.mock('@/src/components/entity-filter', () => ({
 }));
 
 jest.mock('@/src/components/transaction-row', () => ({
-	TransactionRow: () => null,
+	TransactionRow: ({
+		transaction,
+		isUpcoming,
+	}: {
+		transaction: { id: string };
+		isUpcoming?: boolean;
+	}) => {
+		const { Text } = jest.requireActual('react-native');
+		return (
+			<Text testID={`row-${transaction.id}`}>
+				{transaction.id}:{isUpcoming ? 'upcoming' : 'past'}
+			</Text>
+		);
+	},
 }));
 
 jest.mock('@/src/components/transaction-modal', () => ({
@@ -89,6 +103,8 @@ describe('HistoryScreen search params', () => {
 		jest.clearAllMocks();
 		mockParams = {};
 		capturedBlurCallback = null;
+		jest.useFakeTimers();
+		jest.setSystemTime(fixedNow);
 
 		useStore.setState({
 			entities: [mockAccount, mockCategory],
@@ -97,6 +113,11 @@ describe('HistoryScreen search params', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 		});
+	});
+
+	afterEach(() => {
+		jest.useRealTimers();
+		jest.restoreAllMocks();
 	});
 
 	it('applies URL params on focus when navigating with params', async () => {
@@ -159,6 +180,47 @@ describe('HistoryScreen search params', () => {
 		await waitFor(() => {
 			expect(getByTestId2('entity-filter').props.children).toBe('all');
 			expect(getByTestId2('period-picker').props.children).toMatch(/^\d{4}-\d{2}$/);
+		});
+	});
+
+	it('shows future transactions in an Upcoming section and keeps past rows in regular sections', async () => {
+		const pastTransaction: Transaction = {
+			id: 'tx-past',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 100,
+			currency: 'USD',
+			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
+		};
+
+		const upcomingTransaction: Transaction = {
+			id: 'tx-upcoming',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [pastTransaction, upcomingTransaction],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByText, getByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByText('Upcoming')).toBeTruthy();
+			expect(getByTestId('row-tx-upcoming').props.children.join('')).toBe(
+				'tx-upcoming:upcoming'
+			);
+			expect(getByTestId('row-tx-past').props.children.join('')).toBe('tx-past:past');
+			expect(getByText('1 transaction')).toBeTruthy();
 		});
 	});
 });

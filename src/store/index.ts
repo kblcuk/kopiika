@@ -344,6 +344,8 @@ export function getEntitiesWithBalance(
 		.filter((e) => e.type === type && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
 		.sort((a, b) => a.row - b.row || a.position - b.position);
 
+	const now = Date.now();
+
 	return filteredEntities.map((entity) => {
 		// All plans use 'all-time' period - static budget/goal that applies every month
 		const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
@@ -356,38 +358,48 @@ export function getEntitiesWithBalance(
 			? transactions
 			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
 
-		let actual = 0;
-		switch (entity.type) {
-			case 'account':
-				actual = relevantTransactions
-					.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
-					.reduce(
-						(sum, t) =>
-							t.from_entity_id === entity.id ? sum - t.amount : sum + t.amount,
-						0
-					);
-				break;
-			case 'income':
-				actual = relevantTransactions
-					.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entity.id))
-					.reduce(
-						(sum, t) =>
-							t.from_entity_id === entity.id ? sum + t.amount : sum - t.amount,
-						0
-					);
-				break;
-			case 'category':
-			case 'saving':
-				actual = relevantTransactions
-					.filter((t) => t.to_entity_id === entity.id)
-					.reduce((sum, t) => sum + t.amount, 0);
-				break;
+		// Split into past (actual) and future (upcoming) by wall-clock time
+		const pastTxns = relevantTransactions.filter((t) => t.timestamp <= now);
+		const futureTxns = relevantTransactions.filter((t) => t.timestamp > now);
+
+		function calcBalance(
+			txns: typeof relevantTransactions,
+			entityId: string,
+			type: Entity['type']
+		): number {
+			switch (type) {
+				case 'account':
+					return txns
+						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
+						.reduce(
+							(sum, t) =>
+								t.from_entity_id === entityId ? sum - t.amount : sum + t.amount,
+							0
+						);
+				case 'income':
+					return txns
+						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
+						.reduce(
+							(sum, t) =>
+								t.from_entity_id === entityId ? sum + t.amount : sum - t.amount,
+							0
+						);
+				case 'category':
+				case 'saving':
+					return txns
+						.filter((t) => t.to_entity_id === entityId)
+						.reduce((sum, t) => sum + t.amount, 0);
+			}
 		}
+
+		const actual = calcBalance(pastTxns, entity.id, entity.type);
+		const upcoming = calcBalance(futureTxns, entity.id, entity.type);
 
 		return {
 			...entity,
 			planned,
 			actual,
+			upcoming,
 			remaining: planned - actual,
 		};
 	});

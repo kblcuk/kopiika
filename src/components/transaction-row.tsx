@@ -8,7 +8,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Trash2 } from 'lucide-react-native';
+import { Clock, Trash2 } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
@@ -22,6 +22,7 @@ interface TransactionRowProps {
 	entityMap: Map<string, Entity>;
 	onEdit: (transaction: Transaction) => void;
 	index: number;
+	isUpcoming?: boolean;
 }
 
 const DELETE_THRESHOLD = -80;
@@ -32,6 +33,7 @@ export const TransactionRow = memo(function TransactionRow({
 	entityMap,
 	onEdit,
 	index,
+	isUpcoming = false,
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 
@@ -88,7 +90,7 @@ export const TransactionRow = memo(function TransactionRow({
 		opacity: deleteOpacity.value,
 	}));
 
-	const rowBg = index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
+	const rowBg = isUpcoming ? 'bg-info/5' : index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
 
 	return (
 		<View className="relative border-b border-paper-300">
@@ -152,7 +154,16 @@ export const TransactionRow = memo(function TransactionRow({
 
 						{/* Amount and currency */}
 						<View className="items-end">
-							<Text className="font-sans-semibold text-base text-ink">
+							{isUpcoming && (
+								<Clock
+									size={12}
+									color={colors.info.DEFAULT}
+									style={{ marginBottom: 2 }}
+								/>
+							)}
+							<Text
+								className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
+							>
 								{formatAmount(transaction.amount, transaction.currency)}{' '}
 								<Text className="font-sans text-sm text-ink-muted">
 									{getCurrencySymbol(transaction.currency)}

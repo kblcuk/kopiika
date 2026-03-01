@@ -31,6 +31,7 @@ describe('EntityDetailModal', () => {
 		actual: 250,
 		planned: 500,
 		remaining: 250,
+		upcoming: 0,
 	};
 
 	const mockOnClose = jest.fn();
@@ -344,6 +345,7 @@ describe('EntityDetailModal', () => {
 			actual: 1000,
 			planned: 0,
 			remaining: -1000,
+			upcoming: 0,
 		};
 
 		it('shows editable actual amount field for account entities', () => {

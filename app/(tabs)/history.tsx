@@ -17,6 +17,7 @@ import { formatAmount } from '@/src/utils/format';
 interface TransactionSection {
 	title: string;
 	data: Transaction[];
+	isUpcoming?: boolean;
 }
 
 function formatDayLabel(timestamp: number): string {
@@ -92,9 +93,11 @@ export default function HistoryScreen() {
 
 	const filteredTransactions = useMemo(() => {
 		const { start, end } = getPeriodRange(deferredPeriod);
+		const now = Date.now();
 
 		return transactions.filter((tx) => {
-			if (tx.timestamp < start || tx.timestamp > end) return false;
+			// Only past/present transactions in period sections
+			if (tx.timestamp < start || tx.timestamp > Math.min(end, now)) return false;
 
 			if (selectedEntityId) {
 				if (
@@ -109,10 +112,31 @@ export default function HistoryScreen() {
 		});
 	}, [transactions, deferredPeriod, selectedEntityId]);
 
-	const sections = useMemo(
-		() => groupTransactionsByDay(filteredTransactions),
-		[filteredTransactions]
-	);
+	const upcomingTransactions = useMemo(() => {
+		const now = Date.now();
+		return transactions
+			.filter((tx) => {
+				if (tx.timestamp <= now) return false;
+				if (
+					selectedEntityId &&
+					tx.from_entity_id !== selectedEntityId &&
+					tx.to_entity_id !== selectedEntityId
+				) {
+					return false;
+				}
+				return true;
+			})
+			.sort((a, b) => a.timestamp - b.timestamp);
+	}, [transactions, selectedEntityId]);
+
+	const sections = useMemo(() => {
+		const pastSections = groupTransactionsByDay(filteredTransactions);
+		const upcomingSection: TransactionSection[] =
+			upcomingTransactions.length > 0
+				? [{ title: 'Upcoming', data: upcomingTransactions, isUpcoming: true }]
+				: [];
+		return [...upcomingSection, ...pastSections];
+	}, [filteredTransactions, upcomingTransactions]);
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
@@ -140,29 +164,45 @@ export default function HistoryScreen() {
 	const getEntityWithBalance = (entityId: string): EntityWithBalance | null => {
 		const entity = entityMap.get(entityId);
 		if (!entity) return null;
-		return { ...entity, planned: 0, actual: 0, remaining: 0 };
+		return { ...entity, planned: 0, actual: 0, remaining: 0, upcoming: 0 };
 	};
 
 	const renderItem = useCallback(
-		({ item, index }: { item: Transaction; index: number }) => (
+		({
+			item,
+			index,
+			section,
+		}: {
+			item: Transaction;
+			index: number;
+			section: TransactionSection;
+		}) => (
 			<TransactionRow
 				transaction={item}
 				entityMap={entityMap}
 				onEdit={handleEdit}
 				index={index}
+				isUpcoming={section.isUpcoming}
 			/>
 		),
 		[entityMap, handleEdit]
 	);
 
 	const renderSectionHeader = useCallback(
-		({ section }: { section: TransactionSection }) => (
-			<View className="border-paper-300 bg-paper-100 px-5 py-2">
-				<Text className="font-sans text-xs uppercase tracking-wider text-ink-muted">
-					{section.title}
-				</Text>
-			</View>
-		),
+		({ section }: { section: TransactionSection }) =>
+			section.isUpcoming ? (
+				<View className="border-paper-300 bg-info/10 px-5 py-2">
+					<Text className="font-sans text-xs uppercase tracking-wider text-info">
+						{section.title}
+					</Text>
+				</View>
+			) : (
+				<View className="border-paper-300 bg-paper-100 px-5 py-2">
+					<Text className="font-sans text-xs uppercase tracking-wider text-ink-muted">
+						{section.title}
+					</Text>
+				</View>
+			),
 		[]
 	);
 

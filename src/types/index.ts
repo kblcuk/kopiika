@@ -36,6 +36,7 @@ export interface EntityWithBalance extends Entity {
 	planned: number;
 	actual: number;
 	remaining: number;
+	upcoming: number; // sum of future-dated transactions (timestamp > now)
 }
 
 // Helper to get current period in YYYY-MM format

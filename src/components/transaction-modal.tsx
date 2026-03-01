@@ -797,9 +797,14 @@ export function TransactionModal({
 
 					{/* Date */}
 					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Date
-						</Text>
+						<View className="mb-2 flex-row items-center">
+							<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Date
+							</Text>
+							{selectedDate > new Date(new Date().setHours(23, 59, 59, 999)) && (
+								<Text className="ml-2 font-sans text-xs text-info">Scheduled</Text>
+							)}
+						</View>
 						{Platform.OS === 'ios' ? (
 							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100">
 								<View className="flex-1 flex-row items-center px-4 py-2">
@@ -813,7 +818,6 @@ export function TransactionModal({
 									mode="date"
 									display="compact"
 									onChange={handleDateChange}
-									maximumDate={new Date()}
 									accentColor={colors.accent.deeper}
 								/>
 							</View>
@@ -834,7 +838,6 @@ export function TransactionModal({
 										mode="date"
 										display="default"
 										onChange={handleDateChange}
-										maximumDate={new Date()}
 									/>
 								)}
 							</>
