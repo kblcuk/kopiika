@@ -1,11 +1,11 @@
 // Update app.json to match the version in package.json.
 
-module.exports.readVersion = function (contents) {
+export function readVersion(contents) {
 	return JSON.parse(contents).expo.version;
-};
+}
 
-module.exports.writeVersion = function (contents, version) {
+export function writeVersion(contents, version) {
 	const json = JSON.parse(contents);
 	json.expo.version = version;
 	return `${JSON.stringify(json, null, '\t')}\n`;
-};
+}
