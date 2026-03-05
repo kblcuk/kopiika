@@ -15,6 +15,7 @@ import {
 	registerRemeasureCallback,
 	unregisterRemeasureCallback,
 } from '@/src/utils/drop-zone';
+import { shouldUseFixedOrderMode } from '@/src/utils/drag-bounds';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
 import {
@@ -184,6 +185,7 @@ export function SortableEntityGrid({
 			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 			const entity = entities.find((e) => e.id === key);
 			draggedEntityRef.current = entity || null;
+			lastDropCheckTimeRef.current = 0;
 			// Set dragged ID in context ref BEFORE setIsFixed so bubbles can check it
 			draggedIdRef.current = entity?.id || null;
 
@@ -211,19 +213,17 @@ export function SortableEntityGrid({
 			// This allows items to be dragged outside for cross-type drops
 			const bounds = gridBoundsRef.current;
 			if (bounds) {
-				const isInsideBounds =
-					touchData.absoluteX >= bounds.x &&
-					touchData.absoluteX <= bounds.x + bounds.width &&
-					touchData.absoluteY >= bounds.y &&
-					touchData.absoluteY <= bounds.y + bounds.height;
-
-				// When reorderMode is off for accounts, always keep fixed to prevent reordering
-				// Otherwise, use bounds-based logic (fixed when outside for cross-type drops)
-				if (!reorderMode && type === 'account') {
-					setIsFixed(true);
-				} else {
-					setIsFixed(!isInsideBounds);
-				}
+				const nextIsFixed =
+					// When reorderMode is off for accounts, always keep fixed to prevent reordering
+					!reorderMode && type === 'account'
+						? true
+						: shouldUseFixedOrderMode({
+								x: touchData.absoluteX,
+								y: touchData.absoluteY,
+								bounds,
+								wasFixed: isFixedRef.current,
+							});
+				setIsFixed(nextIsFixed);
 			}
 
 			// Throttle drop target detection
@@ -271,6 +271,7 @@ export function SortableEntityGrid({
 			draggedIdRef.current = null;
 			lastTouchRef.current = null;
 			draggedEntityRef.current = null;
+			lastDropCheckTimeRef.current = 0;
 
 			// Check for drop targets that should create transactions
 			if (touch && draggedEntity) {
