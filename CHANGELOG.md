@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.20](https://codeberg.org/kblcuk/kopiika/compare/v0.0.19...v0.0.20) (2026-03-05)
+
+
+### Features
+
+* add hysteresis utility for drag boundary detection ([2a27933](https://codeberg.org/kblcuk/kopiika/commit/2a279334c86d85cf21bc7887260c3b9e9f8d60f9))
+
+
+### Bug Fixes
+
+* eliminate drag mode jitter near grid boundaries ([507f991](https://codeberg.org/kblcuk/kopiika/commit/507f991fa6578b081f4e37e2ddd5b2d29e214aa5))
+* pin gradle to exact version ([dcfda2b](https://codeberg.org/kblcuk/kopiika/commit/dcfda2b63e132acbc2765e47ce62c69a12a90441))
+* scope TestFlight build number to current app version ([56611ff](https://codeberg.org/kblcuk/kopiika/commit/56611ffe1401c6d99a5197be7b25528c851e3708))
+
 ## [0.0.19](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.19) (2026-03-01)
 
 
