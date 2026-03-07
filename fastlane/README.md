@@ -1,5 +1,4 @@
-fastlane documentation
-----
+## fastlane documentation
 
 # Installation
 
@@ -21,8 +20,7 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Capture iOS and Android screenshots from booted simulators/emulators
 
-----
-
+---
 
 ## iOS
 
@@ -74,8 +72,7 @@ Push a new beta build to TestFlight
 
 Capture iOS screenshots from booted simulators (for store assets)
 
-----
-
+---
 
 ## Android
 
@@ -127,7 +124,7 @@ Promote a release from one track to another
 
 Capture Android screenshots from connected devices/emulators (for store assets)
 
-----
+---
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
