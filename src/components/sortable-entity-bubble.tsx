@@ -39,14 +39,14 @@ const triggerLightHaptic = () => {
 interface SortableEntityBubbleProps {
 	entity: EntityWithBalance;
 	onTap?: (entity: EntityWithBalance) => void;
-	onLongPress?: (entity: EntityWithBalance) => void;
+	dragDisabled?: boolean;
 }
 
 // Individual entity bubble for the sortable grid - memoized to prevent re-renders during drag
 export const SortableEntityBubble = memo(function SortableEntityBubble({
 	entity,
 	onTap,
-	onLongPress,
+	dragDisabled = false,
 }: SortableEntityBubbleProps) {
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
@@ -60,9 +60,16 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	// Subscribe to fixed order mode changes - this allows the mode to change mid-drag
 	// without re-rendering the entire Grid (only this bubble re-renders)
 	const fixedOrderContext = useContext(FixedOrderContext);
-	const [mode, setMode] = useState<'draggable' | 'fixed-order'>('draggable');
+	const [mode, setMode] = useState<'draggable' | 'fixed-order'>(
+		dragDisabled ? 'fixed-order' : 'draggable'
+	);
 
 	useEffect(() => {
+		if (dragDisabled) {
+			setMode('fixed-order');
+			return;
+		}
+
 		if (!fixedOrderContext) return;
 
 		const newMode = fixedOrderContext.getIsFixed() ? 'fixed-order' : 'draggable';
@@ -78,7 +85,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 			}
 			setMode(isFixed ? 'fixed-order' : 'draggable');
 		});
-	}, [entity.id, fixedOrderContext]);
+	}, [entity.id, fixedOrderContext, dragDisabled]);
 
 	// Animation values for drop target highlight
 	const highlightProgress = useSharedValue(0);
@@ -128,13 +135,8 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 		onTap?.(entity);
 	}, [entity, onTap]);
 
-	const handleLongPress = useCallback(() => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-		onLongPress?.(entity);
-	}, [entity, onLongPress]);
-
 	return (
-		<Sortable.Touchable onTap={handleTap} onLongPress={handleLongPress}>
+		<Sortable.Touchable onTap={handleTap}>
 			<Sortable.Handle mode={mode}>
 				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
 					{/* Glow effect for drop target */}

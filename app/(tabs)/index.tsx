@@ -58,6 +58,11 @@ export default function HomeScreen() {
 
 	// Accounts reorder mode - when false, account-to-account drags create transfers
 	const [accountsReorderMode, setAccountsReorderMode] = useState(false);
+	// Section edit modes - when true, tap opens edit modal and dragging is disabled
+	const [incomeEditMode, setIncomeEditMode] = useState(false);
+	const [accountsEditMode, setAccountsEditMode] = useState(false);
+	const [categoriesEditMode, setCategoriesEditMode] = useState(false);
+	const [savingsEditMode, setSavingsEditMode] = useState(false);
 
 	useEffect(() => {
 		initialize();
@@ -136,19 +141,23 @@ export default function HomeScreen() {
 
 	const handleTap = useCallback(
 		(entity: EntityWithBalance) => {
+			const editModeByType = {
+				income: incomeEditMode,
+				account: accountsEditMode,
+				category: categoriesEditMode,
+				saving: savingsEditMode,
+			};
+			if (editModeByType[entity.type]) {
+				setFromEntity(null);
+				setToEntity(null);
+				setDetailEntity(entity);
+				setDetailModalVisible(true);
+				return;
+			}
 			router.push(`/history?period=${getCurrentPeriod()}&entityId=${entity.id}`);
 		},
-		[router]
+		[router, incomeEditMode, accountsEditMode, categoriesEditMode, savingsEditMode]
 	);
-
-	const handleLongPress = useCallback((entity: EntityWithBalance) => {
-		// Clear any transaction selection state
-		setFromEntity(null);
-		setToEntity(null);
-		// Open detail modal
-		setDetailEntity(entity);
-		setDetailModalVisible(true);
-	}, []);
 
 	const handleCloseDetailModal = useCallback(() => {
 		setDetailModalVisible(false);
@@ -167,6 +176,18 @@ export default function HomeScreen() {
 
 	const handleToggleAccountsReorderMode = useCallback(() => {
 		setAccountsReorderMode((prev) => !prev);
+	}, []);
+	const handleToggleCategoriesEditMode = useCallback(() => {
+		setCategoriesEditMode((prev) => !prev);
+	}, []);
+	const handleToggleIncomeEditMode = useCallback(() => {
+		setIncomeEditMode((prev) => !prev);
+	}, []);
+	const handleToggleAccountsEditMode = useCallback(() => {
+		setAccountsEditMode((prev) => !prev);
+	}, []);
+	const handleToggleSavingsEditMode = useCallback(() => {
+		setSavingsEditMode((prev) => !prev);
 	}, []);
 
 	// Re-measure drop zones when scrolling ends to account for position changes
@@ -300,9 +321,11 @@ export default function HomeScreen() {
 									onDragStart={handleDragStart}
 									onDragEnd={handleDragEnd}
 									onTap={handleTap}
-									onLongPress={handleLongPress}
 									onAdd={handleAdd}
 									dropZonesDisabled={!incomeVisible}
+									dragDisabled={incomeEditMode}
+									editMode={incomeEditMode}
+									onToggleEditMode={handleToggleIncomeEditMode}
 								/>
 							</View>
 						</Animated.View>
@@ -313,10 +336,12 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 							reorderMode={accountsReorderMode}
 							onToggleReorderMode={handleToggleAccountsReorderMode}
+							dragDisabled={accountsEditMode}
+							editMode={accountsEditMode}
+							onToggleEditMode={handleToggleAccountsEditMode}
 						/>
 						<SortableEntityGrid
 							title="Categories"
@@ -325,9 +350,11 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onLongPress={handleLongPress}
 							onAdd={handleAdd}
 							maxRows={3}
+							dragDisabled={categoriesEditMode}
+							editMode={categoriesEditMode}
+							onToggleEditMode={handleToggleCategoriesEditMode}
 						/>
 						<SortableEntityGrid
 							title="Savings · Goal"
@@ -336,8 +363,10 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onLongPress={handleLongPress}
 							onAdd={handleAdd}
+							dragDisabled={savingsEditMode}
+							editMode={savingsEditMode}
+							onToggleEditMode={handleToggleSavingsEditMode}
 						/>
 
 						{entities.length === 0 && (

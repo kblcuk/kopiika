@@ -4,7 +4,7 @@ import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
 import Animated, { useAnimatedRef, makeMutable, type SharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { ArrowUpDown, Check } from 'lucide-react-native';
+import { ArrowUpDown, Check, Pencil } from 'lucide-react-native';
 
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { colors } from '@/src/theme/colors';
@@ -49,7 +49,6 @@ interface SortableEntityGridProps {
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
-	onLongPress?: (entity: EntityWithBalance) => void;
 	onAdd?: (type: EntityType) => void;
 	dropZonesDisabled?: boolean;
 	maxRows?: number;
@@ -57,6 +56,12 @@ interface SortableEntityGridProps {
 	reorderMode?: boolean;
 	/** Callback to toggle reorder mode (renders edit button if provided) */
 	onToggleReorderMode?: () => void;
+	/** When true, disables dragging and keeps entities fixed. */
+	dragDisabled?: boolean;
+	/** Whether section tap behavior is in edit mode (for header toggle state). */
+	editMode?: boolean;
+	/** Callback to toggle edit mode in the section header. */
+	onToggleEditMode?: () => void;
 }
 
 export function SortableEntityGrid({
@@ -66,12 +71,14 @@ export function SortableEntityGrid({
 	onDragStart,
 	onDragEnd,
 	onTap,
-	onLongPress,
 	onAdd,
 	dropZonesDisabled = false,
 	maxRows = 1,
 	reorderMode = true,
 	onToggleReorderMode,
+	dragDisabled = false,
+	editMode = false,
+	onToggleEditMode,
 }: SortableEntityGridProps) {
 	const reorderEntitiesByIds = useStore((state) => state.reorderEntitiesByIds);
 
@@ -182,6 +189,8 @@ export function SortableEntityGrid({
 
 	const handleSortableDragStart = useCallback(
 		({ key }: { key: string }) => {
+			if (dragDisabled) return;
+
 			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 			const entity = entities.find((e) => e.id === key);
 			draggedEntityRef.current = entity || null;
@@ -191,7 +200,7 @@ export function SortableEntityGrid({
 
 			// When reorderMode is off for accounts, set fixed mode to prevent visual reordering
 			// Other items will become fixed-order, but the dragged item stays draggable
-			if (!reorderMode && type === 'account') {
+			if (dragDisabled || (!reorderMode && type === 'account')) {
 				setIsFixed(true);
 			}
 
@@ -199,12 +208,14 @@ export function SortableEntityGrid({
 				onDragStart?.(entity);
 			}
 		},
-		[entities, onDragStart, reorderMode, type, setIsFixed]
+		[entities, onDragStart, reorderMode, type, setIsFixed, dragDisabled]
 	);
 
 	const handleSortableDragMove = useCallback(
 		({ touchData }: { touchData: TouchData }) => {
 			lastTouchRef.current = { x: touchData.absoluteX, y: touchData.absoluteY };
+
+			if (dragDisabled) return;
 
 			const draggedEntity = draggedEntityRef.current;
 			if (!draggedEntity) return;
@@ -258,7 +269,7 @@ export function SortableEntityGrid({
 				hoveredIdShared.value = '';
 			}
 		},
-		[type, hoveredIdShared, setIsFixed, reorderMode]
+		[type, hoveredIdShared, setIsFixed, reorderMode, dragDisabled]
 	);
 
 	const handleSortableDragEnd = useCallback(
@@ -272,6 +283,10 @@ export function SortableEntityGrid({
 			lastTouchRef.current = null;
 			draggedEntityRef.current = null;
 			lastDropCheckTimeRef.current = 0;
+
+			if (dragDisabled) {
+				return;
+			}
 
 			// Check for drop targets that should create transactions
 			if (touch && draggedEntity) {
@@ -303,7 +318,16 @@ export function SortableEntityGrid({
 				onDragEnd?.(draggedEntity, null);
 			}
 		},
-		[type, maxRows, onDragEnd, reorderEntitiesByIds, hoveredIdShared, setIsFixed, reorderMode]
+		[
+			type,
+			maxRows,
+			onDragEnd,
+			reorderEntitiesByIds,
+			hoveredIdShared,
+			setIsFixed,
+			reorderMode,
+			dragDisabled,
+		]
 	);
 
 	const hasEntities = entities.length > 0;
@@ -332,6 +356,22 @@ export function SortableEntityGrid({
 							<Check size={14} color={colors.accent.DEFAULT} strokeWidth={2.5} />
 						) : (
 							<ArrowUpDown size={14} color={colors.ink.muted} strokeWidth={2} />
+						)}
+					</Pressable>
+				)}
+				{onToggleEditMode && (
+					<Pressable
+						onPress={() => {
+							Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+							onToggleEditMode();
+						}}
+						className={`mx-1 rounded-full p-1.5 ${editMode ? 'bg-accent/20' : 'bg-transparent'}`}
+						hitSlop={8}
+					>
+						{editMode ? (
+							<Check size={14} color={colors.accent.DEFAULT} strokeWidth={2.5} />
+						) : (
+							<Pencil size={14} color={colors.ink.muted} strokeWidth={2} />
 						)}
 					</Pressable>
 				)}
@@ -366,7 +406,7 @@ export function SortableEntityGrid({
 											<SortableEntityBubble
 												entity={item}
 												onTap={onTap}
-												onLongPress={onLongPress}
+												dragDisabled={dragDisabled}
 											/>
 										)
 									}
