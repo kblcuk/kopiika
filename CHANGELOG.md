@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.21](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.21) (2026-03-07)
+
+
+### Features
+
+* privacy policy link ([262bacf](https://codeberg.org/kblcuk/kopiika/commit/262bacfbfc8b63275783a2f05b3cd7d61881440f))
+* **release:** Add Android Play Fastlane pipeline ([8ceb3d6](https://codeberg.org/kblcuk/kopiika/commit/8ceb3d6c5782ceb219c13759c415b41f6e289022))
+
+
+### Bug Fixes
+
+* **interactions:** unify entity editing behind section edit mode ([1bf9db0](https://codeberg.org/kblcuk/kopiika/commit/1bf9db0b653281016145ec34a729eed2f899ec21))
+
 ## [0.0.20](https://codeberg.org/kblcuk/kopiika/compare/v0.0.19...v0.0.20) (2026-03-05)
 
 
