@@ -2,5 +2,5 @@
 #     https://docs.fastlane.tools/advanced/#appfile
 
 app_identifier("com.kblcuk.kopiika")
+package_name("com.kblcuk.kopiika")
 team_id("N84BXWAR5B")
-

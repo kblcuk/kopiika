@@ -29,3 +29,92 @@ Notes:
 - Set `TESTFLIGHT_APP_VERSION` and/or `TESTFLIGHT_BUILD_NUMBER` if you need to promote a specific build explicitly.
 - External distribution waits for build processing and submits the build for beta review.
 - If no external groups are provided, the promotion lane fails fast with a clear error.
+
+## Android Google Play
+
+Fastlane now supports Android release bundle builds and Play track uploads.
+
+One-time setup:
+
+1. Create the app in Play Console (`All apps` -> `Create app`) with package name `com.kblcuk.kopiika`.
+2. Complete required app setup/declarations in Play Console so API uploads are allowed.
+3. Create a Google Play service account with `Release to production, exclude devices, and use Play App Signing` permissions (or stricter as needed).
+4. In Play Console, invite that service account user to your app via `Users and permissions`.
+5. Generate and store the service-account JSON key securely.
+6. Configure Android upload signing credentials via environment variables:
+
+```sh
+export ANDROID_UPLOAD_STORE_FILE=/absolute/path/to/upload-keystore.jks
+export ANDROID_UPLOAD_STORE_PASSWORD=...
+export ANDROID_UPLOAD_KEY_ALIAS=...
+export ANDROID_UPLOAD_KEY_PASSWORD=...
+```
+
+Or provide the keystore as base64 data instead of a local file path:
+
+```sh
+export ANDROID_UPLOAD_STORE_DATA="$(base64 < /absolute/path/to/upload-keystore.jks)"
+export ANDROID_UPLOAD_STORE_PASSWORD=...
+export ANDROID_UPLOAD_KEY_ALIAS=...
+export ANDROID_UPLOAD_KEY_PASSWORD=...
+```
+
+1. Configure Play API credentials using one of:
+
+```sh
+export PLAY_STORE_JSON_KEY_PATH=/absolute/path/to/play-service-account.json
+```
+
+or
+
+```sh
+export PLAY_STORE_JSON_KEY_DATA="$(base64 < /absolute/path/to/play-service-account.json)"
+```
+
+Common release commands:
+
+```sh
+# Build a release .aab
+bun run android:build:release
+
+# Build + upload to internal testing track
+bun run android:beta
+
+# Build + upload to production track as draft (default safety behavior)
+bun run android:production
+
+# Promote existing release between tracks
+PLAY_FROM_TRACK=internal PLAY_TO_TRACK=production bun run android:promote
+```
+
+Optional overrides:
+
+- `KOPIIKA_VERSION_CODE`: explicit Android `versionCode` for the build.
+- `KOPIIKA_VERSION_NAME`: explicit Android `versionName` for the build.
+- `PLAY_TRACK`: upload target (`internal`, `beta`, `production`, etc.) when using `android:upload`.
+- `PLAY_RELEASE_STATUS`: release status (`draft`, `completed`, `inProgress`, `halted`).
+- `PLAY_AAB_PATH`: upload an existing `.aab` instead of building one first.
+- `ANDROID_UPLOAD_STORE_DATA`: base64 encoded upload keystore (`.jks`), used when `ANDROID_UPLOAD_STORE_FILE` is not set.
+
+### Fnox-only secrets flow (no key files in repo)
+
+You can keep both Play JSON and Android keystore encrypted in `fnox.toml`:
+
+```sh
+# Play API JSON -> encrypted as base64
+base64 < /absolute/path/to/play-service-account.json | tr -d '\n' | fnox set PLAY_STORE_JSON_KEY_DATA
+
+# Upload keystore -> encrypted as base64
+base64 < /absolute/path/to/upload-keystore.jks | tr -d '\n' | fnox set ANDROID_UPLOAD_STORE_DATA
+
+# Remaining signing values
+fnox set ANDROID_UPLOAD_STORE_PASSWORD
+fnox set ANDROID_UPLOAD_KEY_ALIAS
+fnox set ANDROID_UPLOAD_KEY_PASSWORD
+```
+
+Then release with secrets loaded:
+
+```sh
+fnox exec -- bun run android:beta
+```

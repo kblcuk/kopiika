@@ -11,14 +11,17 @@
 #
 
 default_platform(:ios)
+require 'shellwords'
+require 'base64'
+require 'tempfile'
 
 def asc_api_key
   app_store_connect_api_key(
-    key_id: ENV["ASC_KEY_ID"],
-    issuer_id: ENV["ASC_ISSUER_ID"],
-    key_content: ENV["ASC_KEY_CONTENT"],
+    key_id: ENV['ASC_KEY_ID'],
+    issuer_id: ENV['ASC_ISSUER_ID'],
+    key_content: ENV['ASC_KEY_CONTENT'],
     is_key_content_base64: true,
-    in_house: false,
+    in_house: false
   )
 end
 
@@ -35,77 +38,223 @@ end
 def current_app_version
   get_version_number(
     xcodeproj: 'ios/kopiika.xcodeproj',
-    target: 'kopiika',
+    target: 'kopiika'
   )
 end
 
 def external_testflight_build(api_key, options = {})
   version =
     options[:app_version] ||
-      ENV['TESTFLIGHT_APP_VERSION'] ||
-      current_app_version
+    ENV['TESTFLIGHT_APP_VERSION'] ||
+    current_app_version
 
   build_number =
     options[:build_number] ||
-      ENV['TESTFLIGHT_BUILD_NUMBER'] ||
-      latest_testflight_build_number(
-        api_key: api_key,
-        version: version,
-      )
+    ENV['TESTFLIGHT_BUILD_NUMBER'] ||
+    latest_testflight_build_number(
+      api_key: api_key,
+      version: version
+    )
 
   {
     version: version,
-    build_number: build_number.to_s,
+    build_number: build_number.to_s
   }
 end
 
-platform :ios do
-  desc "Sync code signing via match"
-  lane :setup_signing do
-    match(type: "appstore", api_key: asc_api_key)
+def android_package_name
+  ENV['ANDROID_PACKAGE_NAME'] || CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
+end
+
+def ios_bundle_identifier
+  ENV['IOS_BUNDLE_IDENTIFIER'] || CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
+end
+
+def play_store_json_key_path
+  path = ENV['PLAY_STORE_JSON_KEY_PATH']
+  return path unless path.nil? || path.strip.empty?
+
+  encoded_key = ENV['PLAY_STORE_JSON_KEY_DATA']
+  return nil if encoded_key.nil? || encoded_key.strip.empty?
+
+  file = Tempfile.new(['play-store-key', '.json'])
+  file.write(Base64.decode64(encoded_key))
+  file.flush
+  file.close
+  at_exit { File.delete(file.path) if File.exist?(file.path) }
+  file.path
+end
+
+def ensure_play_store_credentials!
+  key_path = play_store_json_key_path
+  UI.user_error!('Provide PLAY_STORE_JSON_KEY_PATH or PLAY_STORE_JSON_KEY_DATA (base64-encoded JSON).') if key_path.nil?
+  key_path
+end
+
+def next_android_version_code(json_key, track)
+  tracks = [track, 'internal', 'alpha', 'beta', 'production'].uniq
+  all_codes = []
+
+  tracks.each do |track_name|
+    begin
+      codes = google_play_track_version_codes(
+        json_key: json_key,
+        package_name: android_package_name,
+        track: track_name
+      )
+      all_codes.concat(codes || [])
+    rescue StandardError => e
+      if e.to_s.include?('Package not found')
+        UI.important("Play package '#{android_package_name}' not found yet; defaulting current Android versionCode to 0.")
+        return 1
+      end
+
+      # Track may not exist yet; skip and continue checking other tracks.
+      next if e.to_s.include?('Track not found')
+
+      raise e
+    end
   end
 
-  desc "Build the app"
+  (all_codes.max || 0) + 1
+end
+
+def first_time_play_package_error!(error)
+  return false unless error.to_s.include?('Package not found')
+
+  UI.user_error!(
+    "Google Play package '#{android_package_name}' was not found.\n" \
+      "First-time setup required in Play Console:\n" \
+      "1) Create the app in Play Console (All apps -> Create app) with package '#{android_package_name}'.\n" \
+      "2) Grant your service account access to this app in Users and permissions.\n" \
+      "3) Complete required app setup/declarations in Play Console.\n" \
+      'Then retry this lane.'
+  )
+end
+
+def android_signing_properties
+  store_file = ENV['ANDROID_UPLOAD_STORE_FILE']
+  if store_file.nil? || store_file.strip.empty?
+    encoded_store = ENV['ANDROID_UPLOAD_STORE_DATA']
+    unless encoded_store.nil? || encoded_store.strip.empty?
+      file = Tempfile.new(['android-upload-store', '.jks'])
+      file.binmode
+      file.write(Base64.decode64(encoded_store))
+      file.flush
+      file.close
+      at_exit { File.delete(file.path) if File.exist?(file.path) }
+      store_file = file.path
+    end
+  end
+  store_password = ENV['ANDROID_UPLOAD_STORE_PASSWORD']
+  key_alias = ENV['ANDROID_UPLOAD_KEY_ALIAS']
+  key_password = ENV['ANDROID_UPLOAD_KEY_PASSWORD']
+
+  values = [store_file, store_password, key_alias, key_password]
+  return {} if values.all? { |value| value.nil? || value.strip.empty? }
+
+  if values.any? { |value| value.nil? || value.strip.empty? }
+    UI.user_error!('Release signing requires ANDROID_UPLOAD_STORE_FILE or ANDROID_UPLOAD_STORE_DATA, plus ANDROID_UPLOAD_STORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS, and ANDROID_UPLOAD_KEY_PASSWORD.')
+  end
+
+  {
+    'android.injected.signing.store.file' => store_file,
+    'android.injected.signing.store.password' => store_password,
+    'android.injected.signing.key.alias' => key_alias,
+    'android.injected.signing.key.password' => key_password
+  }
+end
+
+def parse_csv_option(value)
+  return [] if value.nil?
+
+  value
+    .to_s
+    .split(',')
+    .map(&:strip)
+    .reject(&:empty?)
+end
+
+def sanitized_name(value)
+  value.to_s.gsub(/[^\w-]+/, '-').gsub(/-+/, '-').gsub(/^-|-$/, '').downcase
+end
+
+def discover_booted_ios_simulators
+  output = sh('xcrun simctl list devices booted')
+  output
+    .lines
+    .filter_map do |line|
+      # Example: iPhone 16 Pro Max (AAAA-BBBB-CCCC-DDDD) (Booted)
+      next unless line =~ /^\s*([^(]+?)\s+\(([0-9A-F-]+)\)\s+\(Booted\)/
+
+      {
+        name: Regexp.last_match(1).strip,
+        udid: Regexp.last_match(2)
+      }
+    end
+end
+
+def discover_booted_android_devices
+  output = sh('adb devices')
+  output
+    .lines
+    .filter_map do |line|
+      serial, state = line.strip.split(/\s+/, 2)
+      next if serial.nil? || serial == 'List' || state.nil? || state != 'device'
+
+      serial
+    end
+end
+
+platform :ios do
+  desc 'Sync code signing via match'
+  lane :setup_signing do
+    match(type: 'appstore', api_key: asc_api_key)
+  end
+
+  desc 'Build the app'
   lane :build do |options|
-    export = options[:export_method] || "development"
-    match_type = export == "app-store" ? "appstore" : "development"
+    export = options[:export_method] || 'development'
+    match_type = export == 'app-store' ? 'appstore' : 'development'
 
     match(type: match_type, api_key: asc_api_key)
 
     update_code_signing_settings(
       use_automatic_signing: false,
-      path: "ios/kopiika.xcodeproj",
-      team_id: "N84BXWAR5B",
+      path: 'ios/kopiika.xcodeproj',
+      team_id: 'N84BXWAR5B',
       profile_name: ENV["sigh_com.kblcuk.kopiika_#{match_type}_profile-name"],
-      code_sign_identity: match_type == "appstore" ? "iPhone Distribution" : "iPhone Developer",
+      code_sign_identity: match_type == 'appstore' ? 'iPhone Distribution' : 'iPhone Developer'
     )
 
     gym(
-      workspace: "ios/kopiika.xcworkspace",
-      scheme: "kopiika",
+      workspace: 'ios/kopiika.xcworkspace',
+      scheme: 'kopiika',
       export_method: export,
-      export_team_id: "N84BXWAR5B",
-      xcargs: "DEVELOPMENT_TEAM=N84BXWAR5B",
-      clean: options[:clean] || false,
+      export_team_id: 'N84BXWAR5B',
+      xcargs: 'DEVELOPMENT_TEAM=N84BXWAR5B',
+      clean: options[:clean] || false
     )
   end
 
-  desc "Upload latest build to TestFlight (without rebuilding)"
+  desc 'Upload latest build to TestFlight (without rebuilding)'
   lane :upload do
     upload_to_testflight(
       api_key: asc_api_key,
       skip_waiting_for_build_processing: true,
-      skip_submission: true,
+      skip_submission: true
     )
   end
 
-  desc "Promote an uploaded TestFlight build to external tester groups"
+  desc 'Promote an uploaded TestFlight build to external tester groups'
   lane :promote_external do |options|
     api_key = asc_api_key
     groups = external_testflight_groups(options)
     build = external_testflight_build(api_key, options)
 
-    UI.user_error!("Provide external TestFlight groups via groups: or TESTFLIGHT_EXTERNAL_GROUPS") if groups.nil? || groups.empty?
+    if groups.nil? || groups.empty?
+      UI.user_error!('Provide external TestFlight groups via groups: or TESTFLIGHT_EXTERNAL_GROUPS')
+    end
 
     upload_to_testflight(
       api_key: api_key,
@@ -116,25 +265,137 @@ platform :ios do
       groups: groups,
       app_version: build[:version],
       build_number: build[:build_number],
-      changelog: options[:changelog],
+      changelog: options[:changelog]
     )
   end
 
-  desc "Push a new beta build to TestFlight"
+  desc 'Push a new beta build to TestFlight'
   lane :beta do
     api_key = asc_api_key
     current = external_testflight_build(api_key)
 
     increment_build_number({
-      xcodeproj: "ios/kopiika.xcodeproj",
-      build_number: current[:build_number].to_i + 1,
-    })
-    build(clean: true, export_method: "app-store")
+                             xcodeproj: 'ios/kopiika.xcodeproj',
+                             build_number: current[:build_number].to_i + 1
+                           })
+    build(clean: true, export_method: 'app-store')
     upload(
       changelog: changelog_from_git_commits(
-        pretty: "- %s",
-      ),
+        pretty: '- %s'
+      )
+    )
+  end
+end
+
+platform :android do
+  desc 'Build Android release bundle (.aab)'
+  lane :build do |options|
+    gradle_options = {}
+    gradle_options['android.injected.version.code'] = options[:version_code].to_s if options[:version_code]
+    gradle_options['android.injected.version.name'] = options[:version_name].to_s if options[:version_name]
+    gradle_options.merge!(android_signing_properties)
+
+    if options[:clean]
+      gradle(
+        task: 'clean',
+        project_dir: 'android',
+        print_command: false
+      )
+    end
+
+    gradle(
+      task: 'bundle',
+      build_type: 'Release',
+      project_dir: 'android',
+      properties: gradle_options,
+      print_command: false
     )
   end
 
+  desc 'Upload an Android bundle to Google Play'
+  lane :upload do |options|
+    json_key = ensure_play_store_credentials!
+    track = options[:track] || ENV['PLAY_TRACK'] || 'internal'
+    release_status = options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'completed'
+    aab_path = options[:aab] || ENV['PLAY_AAB_PATH'] || lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+
+    if aab_path.nil?
+      build(
+        clean: options[:clean],
+        version_code: options[:version_code],
+        version_name: options[:version_name]
+      )
+    end
+
+    begin
+      upload_to_play_store(
+        json_key: json_key,
+        package_name: android_package_name,
+        track: track,
+        release_status: release_status,
+        aab: aab_path || lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    rescue StandardError => e
+      first_time_play_package_error!(e) || raise(e)
+    end
+  end
+
+  desc 'Build and upload a beta build to the internal testing track'
+  lane :beta do |options|
+    json_key = ensure_play_store_credentials!
+    version_code = options[:version_code] || ENV['KOPIIKA_VERSION_CODE'] || next_android_version_code(json_key,
+                                                                                                      'internal')
+
+    upload(
+      clean: true,
+      track: 'internal',
+      release_status: options[:release_status] || 'completed',
+      version_code: version_code,
+      version_name: options[:version_name] || ENV['KOPIIKA_VERSION_NAME'],
+      aab: options[:aab]
+    )
+  end
+
+  desc 'Build and upload a production release (defaults to draft for safety)'
+  lane :production do |options|
+    json_key = ensure_play_store_credentials!
+    version_code = options[:version_code] || ENV['KOPIIKA_VERSION_CODE'] || next_android_version_code(json_key,
+                                                                                                      'production')
+
+    upload(
+      clean: true,
+      track: 'production',
+      release_status: options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'draft',
+      version_code: version_code,
+      version_name: options[:version_name] || ENV['KOPIIKA_VERSION_NAME'],
+      aab: options[:aab]
+    )
+  end
+
+  desc 'Promote a release from one track to another'
+  lane :promote do |options|
+    json_key = ensure_play_store_credentials!
+    from_track = options[:from_track] || ENV['PLAY_FROM_TRACK'] || 'internal'
+    to_track = options[:to_track] || ENV['PLAY_TO_TRACK'] || 'production'
+    release_status = options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'completed'
+
+    begin
+      upload_to_play_store(
+        json_key: json_key,
+        package_name: android_package_name,
+        track: from_track,
+        track_promote_to: to_track,
+        release_status: release_status,
+        skip_upload_aab: true,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    rescue StandardError => e
+      first_time_play_package_error!(e) || raise(e)
+    end
+  end
 end

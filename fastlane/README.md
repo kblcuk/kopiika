@@ -57,6 +57,50 @@ Push a new beta build to TestFlight
 
 ----
 
+## Android
+
+### android build
+
+```sh
+[bundle exec] fastlane android build
+```
+
+Build Android release bundle (.aab)
+
+### android upload
+
+```sh
+[bundle exec] fastlane android upload
+```
+
+Upload an Android bundle to Google Play
+
+### android beta
+
+```sh
+[bundle exec] fastlane android beta
+```
+
+Build and upload a beta build to the internal testing track
+
+### android production
+
+```sh
+[bundle exec] fastlane android production
+```
+
+Build and upload a production release (defaults to draft for safety)
+
+### android promote
+
+```sh
+[bundle exec] fastlane android promote
+```
+
+Promote a release from one track to another
+
+----
+
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
 More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).
