@@ -3,6 +3,7 @@
 Kopiika is an offline-first personal finance app built with Expo and React Native.
 
 Before making changes, read:
+
 - [AGENTS.md](/Users/alex/Code/kopiika/AGENTS.md) for repository workflow and contributor conventions
 - [docs/architecture.md](/Users/alex/Code/kopiika/docs/architecture.md) for product and domain rules
 
