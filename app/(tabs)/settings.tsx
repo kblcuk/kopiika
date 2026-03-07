@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
@@ -13,6 +13,7 @@ export default function SettingsScreen() {
 	const { entities, plans, transactions, initialize, replaceAllData } = useStore();
 
 	const version = Constants.expoConfig?.version || 'unknown';
+	const privacyPolicyUrl = 'https://kblcuk.codeberg.page/kopiika/privacy-policy.html';
 
 	const handleExport = async () => {
 		try {
@@ -139,6 +140,13 @@ export default function SettingsScreen() {
 						<Text className="font-sans text-base text-ink">Version</Text>
 						<Text className="font-sans text-sm text-ink-muted">{version}</Text>
 					</View>
+					<Pressable
+						onPress={() => Linking.openURL(privacyPolicyUrl)}
+						className="flex-row items-center justify-between border-t border-paper-300 px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Privacy Policy</Text>
+						<Text className="font-sans text-sm text-ink-muted">Open</Text>
+					</Pressable>
 				</View>
 
 				{/* Footer */}
