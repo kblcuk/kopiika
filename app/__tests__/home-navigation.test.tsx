@@ -86,18 +86,20 @@ jest.mock('@/src/utils/drop-zone', () => ({
 }));
 
 jest.mock('@/src/components', () => {
-	const { View, Text } = jest.requireActual('react-native');
+	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
 	return {
-		SortableEntityGrid: ({ entities, onTap, onLongPress }: any) => (
+		SortableEntityGrid: ({ entities, onTap, onToggleEditMode, editMode, type }: any) => (
 			<View>
+				{onToggleEditMode ? (
+					<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
+						<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
+					</Pressable>
+				) : null}
 				<Sortable.Grid
 					data={entities}
 					renderItem={({ item }: { item: any }) => (
-						<Sortable.Touchable
-							onTap={() => onTap?.(item)}
-							onLongPress={() => onLongPress?.(item)}
-						>
+						<Sortable.Touchable onTap={() => onTap?.(item)}>
 							<Text testID={`entity-${item.id}`}>{item.name}</Text>
 						</Sortable.Touchable>
 					)}
@@ -143,11 +145,25 @@ describe('HomeScreen entity interactions', () => {
 
 		upcoming: 0,
 	};
+	const mockAccount: EntityWithBalance = {
+		id: 'acc-1',
+		type: 'account',
+		name: 'Checking',
+		currency: 'EUR',
+		icon: 'wallet',
+		order: 1,
+		row: 0,
+		position: 1,
+		actual: 1000,
+		planned: 1000,
+		remaining: 0,
+		upcoming: 0,
+	};
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		useStore.setState({
-			entities: [mockCategory],
+			entities: [mockCategory, mockAccount],
 			plans: [],
 			transactions: [],
 			currentPeriod: '2026-01',
@@ -161,9 +177,11 @@ describe('HomeScreen entity interactions', () => {
 			setDraggedEntity: jest.fn(),
 			toggleIncomeVisible: jest.fn(),
 		});
-		jest.mocked(useEntitiesWithBalance).mockImplementation((type) =>
-			type === 'category' ? [mockCategory] : []
-		);
+		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
+			if (type === 'category') return [mockCategory];
+			if (type === 'account') return [mockAccount];
+			return [];
+		});
 	});
 
 	it('navigates to history screen when tapping a category', async () => {
@@ -178,12 +196,27 @@ describe('HomeScreen entity interactions', () => {
 		});
 	});
 
-	it('opens edit modal when long-pressing a category', async () => {
+	it('opens edit modal when tapping category in categories edit mode', async () => {
 		const { getByTestId, queryByTestId } = render(<HomeScreen />);
 
 		expect(queryByTestId('entity-detail-modal')).toBeNull();
 
-		fireEvent(getByTestId('entity-cat-1').parent!, 'longPress');
+		fireEvent.press(getByTestId('category-edit-toggle'));
+		fireEvent.press(getByTestId('entity-cat-1').parent!);
+
+		await waitFor(() => {
+			expect(queryByTestId('entity-detail-modal')).toBeTruthy();
+			expect(mockPush).not.toHaveBeenCalled();
+		});
+	});
+
+	it('opens edit modal when tapping account in accounts edit mode', async () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		expect(queryByTestId('entity-detail-modal')).toBeNull();
+
+		fireEvent.press(getByTestId('account-edit-toggle'));
+		fireEvent.press(getByTestId('entity-acc-1').parent!);
 
 		await waitFor(() => {
 			expect(queryByTestId('entity-detail-modal')).toBeTruthy();
