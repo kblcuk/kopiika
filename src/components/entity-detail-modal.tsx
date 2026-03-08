@@ -26,7 +26,7 @@ import { useStore } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
-import { styles, textInputClassNames } from '../styles/text-input';
+import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -280,6 +280,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							}`}
 						>
 							<TextInput
+								{...sharedTextInputProps}
 								value={name}
 								onChangeText={handleNameChange}
 								placeholder="Enter entity name"
@@ -305,6 +306,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
+									{...sharedTextInputProps}
 									value={actualAmount}
 									onChangeText={(text) => {
 										setActualAmount(text);
@@ -387,6 +389,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						</Text>
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
+								{...sharedTextInputProps}
 								ref={inputRef}
 								value={plannedAmount}
 								onChangeText={setPlannedAmount}

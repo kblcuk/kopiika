@@ -18,7 +18,7 @@ import { generateId } from '@/src/utils/ids';
 import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
-import { styles, textInputClassNames } from '../styles/text-input';
+import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 
 interface EntityCreateModalProps {
@@ -163,6 +163,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							testID="entity-create-name-input-container"
 						>
 							<TextInput
+								{...sharedTextInputProps}
 								ref={nameInputRef}
 								value={name}
 								onChangeText={setName}
@@ -200,6 +201,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							testID="entity-create-amount-input-container"
 						>
 							<TextInput
+								{...sharedTextInputProps}
 								value={plannedAmount}
 								onChangeText={setPlannedAmount}
 								placeholder="0"

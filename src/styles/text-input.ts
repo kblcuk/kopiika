@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const textInputClassNames = {
 	container: 'border-paper-400 rounded-lg border bg-paper-100 px-4 py-3',
@@ -12,8 +12,20 @@ export const textInputClassNames = {
 	suffixLarge: 'font-sans text-lg text-ink-muted',
 } as const;
 
+export const sharedTextInputProps = {
+	underlineColorAndroid: 'transparent',
+} as const;
+
 export const styles = StyleSheet.create({
 	input: {
 		lineHeight: undefined,
+		paddingHorizontal: 0,
+		...Platform.select({
+			android: {
+				includeFontPadding: false,
+				paddingVertical: 0,
+				textAlignVertical: 'center',
+			},
+		}),
 	},
 });

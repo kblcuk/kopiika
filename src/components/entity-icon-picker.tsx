@@ -4,7 +4,7 @@ import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { getIcon } from '@/src/constants/icon-registry';
 import { colors } from '@/src/theme/colors';
 import { searchIcons } from '@/src/utils/icon-search';
-import { styles, textInputClassNames } from '@/src/styles/text-input';
+import { sharedTextInputProps, styles, textInputClassNames } from '@/src/styles/text-input';
 
 interface EntityIconPickerProps {
 	icons: string[];
@@ -48,6 +48,7 @@ export function EntityIconPicker({
 				testID={`${searchInputTestID}-container`}
 			>
 				<TextInput
+					{...sharedTextInputProps}
 					value={query}
 					onChangeText={setQuery}
 					placeholder="Search icons, e.g. car or wallet"

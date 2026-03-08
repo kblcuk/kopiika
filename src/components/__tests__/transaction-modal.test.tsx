@@ -75,6 +75,24 @@ describe('TransactionModal', () => {
 			expect(getByTestId('transaction-save-button')).toBeTruthy();
 		});
 
+		it('uses shared text input props for custom-wrapped fields', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('transaction-amount-input').props.underlineColorAndroid).toBe(
+				'transparent'
+			);
+			expect(getByTestId('transaction-note-input').props.underlineColorAndroid).toBe(
+				'transparent'
+			);
+		});
+
 		it('returns null when fromEntity is null', () => {
 			const { toJSON } = render(
 				<TransactionModal

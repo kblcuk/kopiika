@@ -23,7 +23,7 @@ import {
 } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { styles, textInputClassNames } from '../styles/text-input';
+import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
@@ -555,6 +555,7 @@ export function TransactionModal({
 						</Text>
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
+								{...sharedTextInputProps}
 								ref={inputRef}
 								value={isSplitMode ? splitTotal.toString() : amount}
 								onChangeText={(v) => {
@@ -718,6 +719,7 @@ export function TransactionModal({
 														</Pressable>
 													)}
 													<TextInput
+														{...sharedTextInputProps}
 														value={split.amount}
 														onChangeText={(v) =>
 															handleSplitAmountChange(index, v)
@@ -853,6 +855,7 @@ export function TransactionModal({
 						</Text>
 						<View className={textInputClassNames.container}>
 							<TextInput
+								{...sharedTextInputProps}
 								value={note}
 								onChangeText={setNote}
 								placeholder="Add a note..."
