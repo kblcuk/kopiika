@@ -74,6 +74,9 @@ export PLAY_STORE_JSON_KEY_DATA="$(base64 < /absolute/path/to/play-service-accou
 Common release commands:
 
 ```sh
+# Validate Play API credentials and app access
+bun run android:doctor
+
 # Build a release .aab
 bun run android:build:release
 
@@ -87,14 +90,38 @@ bun run android:production
 PLAY_FROM_TRACK=internal PLAY_TO_TRACK=production bun run android:promote
 ```
 
+`android:doctor` is a preflight check that prints the service-account identity from your key, confirms the target package, and probes Play track access before upload.
+
+By default, Android release lanes do not run `gradle clean` because clean can fail on some React Native/CMake setups. If you explicitly want a clean build, pass `clean:true` to the fastlane lane.
+
+## Build Number Sync
+
+`app.json` is the source of truth for release build numbers:
+
+- `expo.ios.buildNumber`
+- `expo.android.versionCode`
+
+Before creating a release tag, run:
+
+```sh
+bun run release:sync-build-numbers
+```
+
+This uses Fastlane store APIs to fetch latest distributed build numbers and writes:
+
+- `ios.buildNumber = latest TestFlight build number + 1` (or `1` if unavailable)
+- `android.versionCode = latest Play track versionCode + 1` (or `1` if app/package is not found)
+
+`bun run release`, `release:minor`, and `release:major` now run this sync step automatically.
+
 Optional overrides:
 
-- `KOPIIKA_VERSION_CODE`: explicit Android `versionCode` for the build.
-- `KOPIIKA_VERSION_NAME`: explicit Android `versionName` for the build.
 - `PLAY_TRACK`: upload target (`internal`, `beta`, `production`, etc.) when using `android:upload`.
 - `PLAY_RELEASE_STATUS`: release status (`draft`, `completed`, `inProgress`, `halted`).
 - `PLAY_AAB_PATH`: upload an existing `.aab` instead of building one first.
 - `ANDROID_UPLOAD_STORE_DATA`: base64 encoded upload keystore (`.jks`), used when `ANDROID_UPLOAD_STORE_FILE` is not set.
+
+Android and iOS build lanes do not mutate build numbers themselves. They use the values already written to `app.json` and run Expo prebuild before the native build so generated files pick up the current config.
 
 ### Fnox-only secrets flow (no key files in repo)
 

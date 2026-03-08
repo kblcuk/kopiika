@@ -1,4 +1,5 @@
-## fastlane documentation
+fastlane documentation
+----
 
 # Installation
 
@@ -11,6 +12,17 @@ xcode-select --install
 For _fastlane_ installation instructions, see [Installing _fastlane_](https://docs.fastlane.tools/#installing-fastlane)
 
 # Available Actions
+
+### sync_build_numbers
+
+```sh
+[bundle exec] fastlane sync_build_numbers
+```
+
+Sync app.json build numbers from App Store Connect and Google Play
+
+----
+
 
 ## iOS
 
@@ -54,9 +66,18 @@ Promote an uploaded TestFlight build to external tester groups
 
 Push a new beta build to TestFlight
 
----
+----
+
 
 ## Android
+
+### android doctor
+
+```sh
+[bundle exec] fastlane android doctor
+```
+
+Validate Google Play API credentials and app access before upload
 
 ### android build
 
@@ -98,7 +119,7 @@ Build and upload a production release (defaults to draft for safety)
 
 Promote a release from one track to another
 
----
+----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 

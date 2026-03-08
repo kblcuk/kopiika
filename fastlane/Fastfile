@@ -14,6 +14,27 @@ default_platform(:ios)
 require 'shellwords'
 require 'base64'
 require 'tempfile'
+require 'json'
+
+def repo_root
+  File.expand_path('..', __dir__)
+end
+
+def app_json_path
+  File.join(repo_root, 'app.json')
+end
+
+def expo_config
+  JSON.parse(File.read(app_json_path)).fetch('expo')
+end
+
+def app_version
+  expo_config.fetch('version')
+end
+
+def expo_prebuild(platform)
+  sh("cd #{repo_root.shellescape} && bun run expo prebuild --platform #{platform} --non-interactive --no-install")
+end
 
 def asc_api_key
   app_store_connect_api_key(
@@ -36,10 +57,7 @@ def external_testflight_groups(options = {})
 end
 
 def current_app_version
-  get_version_number(
-    xcodeproj: 'ios/kopiika.xcodeproj',
-    target: 'kopiika'
-  )
+  app_version
 end
 
 def external_testflight_build(api_key, options = {})
@@ -91,8 +109,37 @@ def ensure_play_store_credentials!
   key_path
 end
 
-def next_android_version_code(json_key, track)
-  tracks = [track, 'internal', 'alpha', 'beta', 'production'].uniq
+def play_service_account_identity(json_key_path)
+  key_json = JSON.parse(File.read(json_key_path))
+  {
+    client_email: key_json['client_email'],
+    project_id: key_json['project_id'],
+    private_key_id: key_json['private_key_id']
+  }
+rescue JSON::ParserError => e
+  UI.user_error!("PLAY service-account JSON is invalid: #{e.message}")
+rescue Errno::ENOENT
+  UI.user_error!("PLAY service-account key file was not found at '#{json_key_path}'.")
+end
+
+def play_permission_error?(error)
+  message = error.to_s
+  message.include?('The caller does not have permission') ||
+    message.include?('caller does not have permission') ||
+    message.include?('permissionDenied') ||
+    message.include?('insufficient permissions') ||
+    message.include?('does not have Android Publisher permission')
+end
+
+def play_track_not_found_error?(error)
+  message = error.to_s
+  message.include?('Track not found') ||
+    message.include?("undefined method `flat_map' for nil") ||
+    message.include?("undefined method 'flat_map' for nil")
+end
+
+def latest_android_version_code(json_key)
+  tracks = ['internal', 'alpha', 'beta', 'production']
   all_codes = []
 
   tracks.each do |track_name|
@@ -104,19 +151,60 @@ def next_android_version_code(json_key, track)
       )
       all_codes.concat(codes || [])
     rescue StandardError => e
-      if e.to_s.include?('Package not found')
-        UI.important("Play package '#{android_package_name}' not found yet; defaulting current Android versionCode to 0.")
-        return 1
-      end
-
-      # Track may not exist yet; skip and continue checking other tracks.
+      return 0 if e.to_s.include?('Package not found')
       next if e.to_s.include?('Track not found')
+      next if e.to_s.include?("undefined method `flat_map' for nil") || e.to_s.include?("undefined method 'flat_map' for nil")
 
       raise e
     end
   end
 
-  (all_codes.max || 0) + 1
+  all_codes.max || 0
+end
+
+def next_ios_build_number
+  latest = latest_testflight_build_number(
+    api_key: asc_api_key,
+    version: app_version
+  )
+  (latest.to_i + 1).to_s
+rescue StandardError => e
+  UI.important("Could not fetch latest TestFlight build number (#{e.class}: #{e.message}). Defaulting ios.buildNumber to 1.")
+  '1'
+end
+
+def write_app_json_build_numbers!(ios_build_number:, android_version_code:)
+  config = JSON.parse(File.read(app_json_path))
+  config['expo'] ||= {}
+  config['expo']['ios'] ||= {}
+  config['expo']['android'] ||= {}
+  config['expo']['ios']['buildNumber'] = ios_build_number.to_s
+  config['expo']['android']['versionCode'] = android_version_code.to_i
+
+  File.write(app_json_path, "#{JSON.pretty_generate(config).gsub('  ', "\t")}\n")
+end
+
+desc 'Sync app.json build numbers from App Store Connect and Google Play'
+lane :sync_build_numbers do |options|
+  ios_build_number =
+    options[:ios_build_number] ||
+    ENV['KOPIIKA_IOS_BUILD_NUMBER'] ||
+    next_ios_build_number
+
+  android_version_code =
+    options[:android_version_code]
+
+  if android_version_code.nil? || android_version_code.to_s.strip.empty?
+    json_key = ensure_play_store_credentials!
+    android_version_code = latest_android_version_code(json_key) + 1
+  end
+
+  write_app_json_build_numbers!(
+    ios_build_number: ios_build_number,
+    android_version_code: android_version_code
+  )
+
+  UI.success("Updated app.json: ios.buildNumber=#{ios_build_number}, android.versionCode=#{android_version_code}")
 end
 
 def first_time_play_package_error!(error)
@@ -214,6 +302,8 @@ platform :ios do
 
   desc 'Build the app'
   lane :build do |options|
+    expo_prebuild('ios')
+
     export = options[:export_method] || 'development'
     match_type = export == 'app-store' ? 'appstore' : 'development'
 
@@ -271,13 +361,6 @@ platform :ios do
 
   desc 'Push a new beta build to TestFlight'
   lane :beta do
-    api_key = asc_api_key
-    current = external_testflight_build(api_key)
-
-    increment_build_number({
-                             xcodeproj: 'ios/kopiika.xcodeproj',
-                             build_number: current[:build_number].to_i + 1
-                           })
     build(clean: true, export_method: 'app-store')
     upload(
       changelog: changelog_from_git_commits(
@@ -288,11 +371,93 @@ platform :ios do
 end
 
 platform :android do
+  desc 'Validate Google Play API credentials and app access before upload'
+  lane :doctor do |options|
+    json_key = ensure_play_store_credentials!
+    package_name = options[:package_name] || android_package_name
+    UI.user_error!('Android package name is missing. Set package_name in fastlane/Appfile or ANDROID_PACKAGE_NAME.') if package_name.nil? || package_name.strip.empty?
+
+    identity = play_service_account_identity(json_key)
+    if identity[:client_email].to_s.strip.empty?
+      UI.user_error!("PLAY service-account JSON is missing 'client_email'.")
+    end
+
+    UI.message("Play service account: #{identity[:client_email]}")
+    UI.message("Google Cloud project: #{identity[:project_id] || '(unknown)'}")
+    UI.message("Target package: #{package_name}")
+
+    probe_tracks = [
+      options[:track],
+      ENV['PLAY_TRACK'],
+      'internal',
+      'beta',
+      'production',
+      'alpha'
+    ]
+      .compact
+      .map(&:to_s)
+      .map(&:strip)
+      .reject(&:empty?)
+      .uniq
+
+    UI.message("Probing Play tracks: #{probe_tracks.join(', ')}")
+
+    readable_track_found = false
+
+    probe_tracks.each do |track|
+      begin
+        version_codes = google_play_track_version_codes(
+          json_key: json_key,
+          package_name: package_name,
+          track: track
+        )
+
+        readable_track_found = true
+        codes = (version_codes || []).map(&:to_s)
+        if codes.empty?
+          UI.success("Play API access OK on '#{track}' track (no active releases).")
+        else
+          UI.success("Play API access OK on '#{track}' track (versionCodes: #{codes.join(', ')}).")
+        end
+        break
+      rescue StandardError => e
+        if e.to_s.include?('Package not found')
+          first_time_play_package_error!(e)
+          next
+        end
+
+        if play_permission_error?(e)
+          UI.user_error!(
+            "Play API permission denied for '#{identity[:client_email]}' on package '#{package_name}'.\n" \
+              "Check Play Console:\n" \
+              "1) Setup -> API access: linked Google Cloud project is correct and active.\n" \
+              "2) Users and permissions: this service account is invited to '#{package_name}'.\n" \
+              "3) App permissions include release access for the track you target.\n" \
+              "4) If keys were rotated, verify PLAY_STORE_JSON_KEY_PATH / PLAY_STORE_JSON_KEY_DATA uses the latest key."
+          )
+        end
+
+        if play_track_not_found_error?(e)
+          UI.important("Track '#{track}' not found yet; trying next track.")
+          next
+        end
+
+        raise e
+      end
+    end
+
+    unless readable_track_found
+      UI.important('No readable tracks found. Credentials loaded, but there may be no active releases on the probed tracks yet.')
+    end
+
+    UI.success("Android Play preflight finished for '#{package_name}'.")
+  end
+
   desc 'Build Android release bundle (.aab)'
   lane :build do |options|
+    expo_prebuild('android')
+
     gradle_options = {}
-    gradle_options['android.injected.version.code'] = options[:version_code].to_s if options[:version_code]
-    gradle_options['android.injected.version.name'] = options[:version_name].to_s if options[:version_name]
     gradle_options.merge!(android_signing_properties)
 
     if options[:clean]
@@ -321,9 +486,7 @@ platform :android do
 
     if aab_path.nil?
       build(
-        clean: options[:clean],
-        version_code: options[:version_code],
-        version_name: options[:version_name]
+        clean: options[:clean]
       )
     end
 
@@ -345,32 +508,20 @@ platform :android do
 
   desc 'Build and upload a beta build to the internal testing track'
   lane :beta do |options|
-    json_key = ensure_play_store_credentials!
-    version_code = options[:version_code] || ENV['KOPIIKA_VERSION_CODE'] || next_android_version_code(json_key,
-                                                                                                      'internal')
-
     upload(
-      clean: true,
+      clean: options[:clean] || false,
       track: 'internal',
       release_status: options[:release_status] || 'completed',
-      version_code: version_code,
-      version_name: options[:version_name] || ENV['KOPIIKA_VERSION_NAME'],
       aab: options[:aab]
     )
   end
 
   desc 'Build and upload a production release (defaults to draft for safety)'
   lane :production do |options|
-    json_key = ensure_play_store_credentials!
-    version_code = options[:version_code] || ENV['KOPIIKA_VERSION_CODE'] || next_android_version_code(json_key,
-                                                                                                      'production')
-
     upload(
-      clean: true,
+      clean: options[:clean] || false,
       track: 'production',
       release_status: options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'draft',
-      version_code: version_code,
-      version_name: options[:version_name] || ENV['KOPIIKA_VERSION_NAME'],
       aab: options[:aab]
     )
   end

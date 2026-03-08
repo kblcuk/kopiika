@@ -12,6 +12,7 @@
 		"ios:promote:external": "fnox exec -- bundle exec fastlane promote_external",
 		"ios:beta": "fnox exec -- bundle exec fastlane beta",
 		"android:build:release": "fnox exec -- bundle exec fastlane android build",
+		"android:doctor": "fnox exec -- bundle exec fastlane android doctor",
 		"android:upload": "fnox exec -- bundle exec fastlane android upload",
 		"android:beta": "fnox exec -- bundle exec fastlane android beta",
 		"android:production": "fnox exec -- bundle exec fastlane android production",
@@ -27,10 +28,11 @@
 		"format:check": "oxfmt --check",
 		"generate:splash": "bun run scripts/generate-splash.ts",
 		"types": "tsc --noEmit",
+		"release:sync-build-numbers": "fnox exec -- bundle exec fastlane sync_build_numbers",
 		"release:check": "bun scripts/check-version-sync.mjs",
-		"release": "bun run release:check && bunx commit-and-tag-version",
-		"release:minor": "bun run release:check && bunx commit-and-tag-version --release-as minor",
-		"release:major": "bun run release:check && bunx commit-and-tag-version --release-as major"
+		"release": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version",
+		"release:minor": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version --release-as minor",
+		"release:major": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version --release-as major"
 	},
 	"commit-and-tag-version": {
 		"bumpFiles": [
