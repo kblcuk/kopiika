@@ -6,6 +6,7 @@ import { setupStoreForTest } from '@/src/test-utils-component';
 import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { ICON_OPTIONS } from '@/src/constants/icons';
 
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
@@ -228,6 +229,50 @@ describe('EntityDetailModal', () => {
 					})
 				);
 			});
+		});
+
+		it('supports searching and selecting icons in the expanded picker', async () => {
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			useStore.setState({ updateEntity: updateEntitySpy, setPlan: setPlanSpy });
+
+			const { getByTestId, queryByTestId, getByText } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			fireEvent.press(getByTestId('entity-detail-icon-picker-toggle'));
+			expect(queryByTestId('entity-detail-icon-option-shield')).toBeNull();
+			expect(getByText(`Show all ${ICON_OPTIONS.category.length} icons`)).toBeTruthy();
+			fireEvent.changeText(getByTestId('entity-detail-icon-search-input'), 'shield');
+
+			expect(getByTestId('entity-detail-icon-option-shield')).toBeTruthy();
+			expect(queryByTestId('entity-detail-icon-option-wallet')).toBeNull();
+
+			fireEvent.press(getByTestId('entity-detail-icon-option-shield'));
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						id: 'entity-1',
+						icon: 'shield',
+					})
+				);
+			});
+		});
+
+		it('can expand the idle icon grid without searching', () => {
+			const { getByTestId, getByText, queryByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			fireEvent.press(getByTestId('entity-detail-icon-picker-toggle'));
+
+			expect(queryByTestId('entity-detail-icon-option-shield')).toBeNull();
+
+			fireEvent.press(getByText(`Show all ${ICON_OPTIONS.category.length} icons`));
+
+			expect(getByTestId('entity-detail-icon-option-shield')).toBeTruthy();
 		});
 	});
 

@@ -17,7 +17,7 @@ import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
-import { getIcon } from '@/src/constants/icon-registry';
+import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { styles } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 
@@ -43,7 +43,6 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}))
 	);
 
-	// Reset when modal opens
 	useEffect(() => {
 		if (visible && entityType) {
 			setName('');
@@ -67,22 +66,21 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const handleCreate = async () => {
 		if (!name.trim()) return;
 
-		// Determine max rows for this entity type
 		const maxRows = entityType === 'category' ? 3 : 1;
-
-		// Find the row with fewest items to auto-balance
 		const sameTypeEntities = entities.filter((e) => e.type === entityType);
 		const rowCounts = new Map<number, number>();
+
 		for (let i = 0; i < maxRows; i++) {
 			rowCounts.set(i, 0);
 		}
+
 		sameTypeEntities.forEach((e) => {
 			rowCounts.set(e.row, (rowCounts.get(e.row) || 0) + 1);
 		});
 
-		// Pick the row with the fewest items
 		let targetRow = 0;
 		let minCount = rowCounts.get(0) || 0;
+
 		for (let i = 1; i < maxRows; i++) {
 			const count = rowCounts.get(i) || 0;
 			if (count < minCount) {
@@ -91,14 +89,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			}
 		}
 
-		// Get next position in the target row
 		const sameTypeInRow = entities.filter((e) => e.type === entityType && e.row === targetRow);
 		const nextPosition =
 			sameTypeInRow.length > 0 ? Math.max(...sameTypeInRow.map((e) => e.position)) + 1 : 0;
 
 		const entityId = generateId();
 
-		// Create entity
 		await addEntity({
 			id: entityId,
 			type: entityType,
@@ -110,15 +106,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			position: nextPosition,
 		});
 
-		// Create plan if amount specified
 		const amount = reverseFormatCurrency(plannedAmount);
 		if (!isNaN(amount) && amount > 0) {
 			await setPlan({
 				id: generateId(),
 				entity_id: entityId,
-				// All plans use 'all-time' period - static budget/goal
 				period: 'all-time',
-				// period_start is always a date (YYYY-MM) representing when the plan started
 				period_start: currentPeriod,
 				planned_amount: amount,
 			});
@@ -141,7 +134,6 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
-				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 					<Pressable onPress={onClose} hitSlop={20} testID="entity-create-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
@@ -161,9 +153,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					</Pressable>
 				</View>
 
-				{/* Content */}
 				<ScrollView className="flex-1 px-5 pt-6" keyboardShouldPersistTaps="handled">
-					{/* Name input */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
@@ -181,37 +171,21 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						/>
 					</View>
 
-					{/* Icon picker */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Icon
 						</Text>
-						<View className="flex-row flex-wrap gap-2">
-							{iconOptions.map((icon) => {
-								const IconComponent = getIcon(icon);
-								const isSelected = selectedIcon === icon;
-
-								return (
-									<Pressable
-										key={icon}
-										onPress={() => setSelectedIcon(icon)}
-										className={`h-12 w-12 items-center justify-center rounded-full ${
-											isSelected ? 'bg-accent' : 'bg-paper-200'
-										}`}
-									>
-										<IconComponent
-											size={24}
-											color={
-												isSelected ? colors.paper.warm : colors.ink.muted
-											}
-										/>
-									</Pressable>
-								);
-							})}
-						</View>
+						<EntityIconPicker
+							key={`${entityType}-${visible ? 'open' : 'closed'}`}
+							icons={iconOptions}
+							selectedIcon={selectedIcon}
+							onSelect={setSelectedIcon}
+							searchInputTestID="entity-create-icon-search-input"
+							optionTestIDPrefix="entity-create-icon-option"
+							emptyStateTestID="entity-create-icon-empty-state"
+						/>
 					</View>
 
-					{/* Planned amount */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Planned Amount (optional)

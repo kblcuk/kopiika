@@ -30,6 +30,7 @@ import { styles } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 
 interface EntityDetailModalProps {
 	visible: boolean;
@@ -234,6 +235,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						<Pressable
 							onPress={() => setShowIconPicker(!showIconPicker)}
 							className="mb-3"
+							testID="entity-detail-icon-picker-toggle"
 						>
 							<View className="relative h-20 w-20 items-center justify-center rounded-full bg-paper-300">
 								<IconComponent size={36} color={colors.ink.muted} />
@@ -252,34 +254,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 								Choose Icon
 							</Text>
-							<View className="flex-row flex-wrap gap-2">
-								{ICON_OPTIONS[entity.type].map((icon) => {
-									const IconOption = getIcon(icon);
-									const isSelected = selectedIcon === icon;
-
-									return (
-										<Pressable
-											key={icon}
-											onPress={() => {
-												setSelectedIcon(icon);
-												setShowIconPicker(false);
-											}}
-											className={`h-12 w-12 items-center justify-center rounded-full ${
-												isSelected ? 'bg-accent' : 'bg-paper-200'
-											}`}
-										>
-											<IconOption
-												size={24}
-												color={
-													isSelected
-														? colors.paper.warm
-														: colors.ink.muted
-												}
-											/>
-										</Pressable>
-									);
-								})}
-							</View>
+							<EntityIconPicker
+								key={`${entity.id}-${showIconPicker ? 'open' : 'closed'}`}
+								icons={ICON_OPTIONS[entity.type]}
+								selectedIcon={selectedIcon}
+								onSelect={(icon) => {
+									setSelectedIcon(icon);
+									setShowIconPicker(false);
+								}}
+								searchInputTestID="entity-detail-icon-search-input"
+								optionTestIDPrefix="entity-detail-icon-option"
+								emptyStateTestID="entity-detail-icon-empty-state"
+							/>
 						</View>
 					)}
 

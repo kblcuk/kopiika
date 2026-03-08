@@ -3,6 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { EntityCreateModal } from '../entity-create-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
 import { useStore } from '@/src/store';
+import { ICON_OPTIONS } from '@/src/constants/icons';
 
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
@@ -160,6 +161,38 @@ describe('EntityCreateModal', () => {
 			});
 
 			expect(setPlanSpy).not.toHaveBeenCalled();
+		});
+
+		it('supports searching the broader icon catalog before create', async () => {
+			const addEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
+
+			const { getByTestId, queryByTestId, getByText } = render(
+				<EntityCreateModal visible={true} entityType="income" onClose={mockOnClose} />
+			);
+
+			expect(queryByTestId('entity-create-icon-option-shield')).toBeNull();
+			expect(getByText(`Show all ${ICON_OPTIONS.income.length} icons`)).toBeTruthy();
+
+			fireEvent.changeText(getByTestId('entity-create-icon-search-input'), 'shield');
+
+			expect(getByTestId('entity-create-icon-option-shield')).toBeTruthy();
+			expect(queryByTestId('entity-create-icon-option-wallet')).toBeNull();
+
+			fireEvent.press(getByTestId('entity-create-icon-option-shield'));
+			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Safety Net');
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(addEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						type: 'income',
+						name: 'Safety Net',
+						icon: 'shield',
+					})
+				);
+			});
 		});
 	});
 
