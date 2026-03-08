@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.1.0) (2026-03-08)
+
+
+### Bug Fixes
+
+* **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
+* default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
+* **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
+
 ## [0.0.23](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.23) (2026-03-08)
 
 
