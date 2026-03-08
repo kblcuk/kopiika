@@ -14,7 +14,8 @@
 			"appleTeamId": "N84BXWAR5B",
 			"config": {
 				"usesNonExemptEncryption": false
-			}
+			},
+			"buildNumber": "2"
 		},
 		"android": {
 			"adaptiveIcon": {
@@ -24,7 +25,8 @@
 				"monochromeImage": "./assets/images/android-icon-monochrome.png"
 			},
 			"edgeToEdgeEnabled": true,
-			"package": "com.kblcuk.kopiika"
+			"package": "com.kblcuk.kopiika",
+			"versionCode": 2
 		},
 		"web": {
 			"output": "static",
