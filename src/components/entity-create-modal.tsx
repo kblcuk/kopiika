@@ -18,7 +18,7 @@ import { generateId } from '@/src/utils/ids';
 import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
-import { styles } from '../styles/text-input';
+import { styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 
 interface EntityCreateModalProps {
@@ -158,17 +158,22 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
 						</Text>
-						<TextInput
-							ref={nameInputRef}
-							value={name}
-							onChangeText={setName}
-							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-							autoCapitalize="words"
-							testID="entity-create-name-input"
-						/>
+						<View
+							className={textInputClassNames.container}
+							testID="entity-create-name-input-container"
+						>
+							<TextInput
+								ref={nameInputRef}
+								value={name}
+								onChangeText={setName}
+								placeholder={`Enter ${typeLabel.toLowerCase()} name`}
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								autoCapitalize="words"
+								testID="entity-create-name-input"
+							/>
+						</View>
 					</View>
 
 					<View className="mb-6">
@@ -190,18 +195,21 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Planned Amount (optional)
 						</Text>
-						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+						<View
+							className={textInputClassNames.inlineContainer}
+							testID="entity-create-amount-input-container"
+						>
 							<TextInput
 								value={plannedAmount}
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl text-ink"
+								className={`flex-1 ${textInputClassNames.input}`}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
 								testID="entity-create-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">
+							<Text className={textInputClassNames.suffix}>
 								{getCurrencySymbol(DEFAULT_CURRENCY)}
 							</Text>
 						</View>

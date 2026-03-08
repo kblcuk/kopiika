@@ -26,7 +26,7 @@ import { useStore } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
-import { styles } from '../styles/text-input';
+import { styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -274,18 +274,22 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
 						</Text>
-						<TextInput
-							value={name}
-							onChangeText={handleNameChange}
-							placeholder="Enter entity name"
-							className={`border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink ${
+						<View
+							className={`${textInputClassNames.container} ${
 								nameError ? 'border-negative' : ''
 							}`}
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-							autoCapitalize="words"
-							testID="entity-detail-name-input"
-						/>
+						>
+							<TextInput
+								value={name}
+								onChangeText={handleNameChange}
+								placeholder="Enter entity name"
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								autoCapitalize="words"
+								testID="entity-detail-name-input"
+							/>
+						</View>
 						{nameError && (
 							<Text className="mt-1 font-sans text-xs text-negative">
 								{nameError}
@@ -299,7 +303,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 								Current Balance
 							</Text>
-							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
 									value={actualAmount}
 									onChangeText={(text) => {
@@ -308,12 +312,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									}}
 									placeholder="0"
 									keyboardType="numeric"
-									className="flex-1 font-sans-semibold text-2xl text-ink"
+									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}
 									placeholderTextColor={colors.ink.placeholder}
 									testID="entity-detail-actual-input"
 								/>
-								<Text className="font-sans text-lg text-ink-muted">
+								<Text className={textInputClassNames.suffixLarge}>
 									{getCurrencySymbol(entity.currency)}
 								</Text>
 							</View>
@@ -381,19 +385,19 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Planned Amount ({getCurrentPeriod()})
 						</Text>
-						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
 								ref={inputRef}
 								value={plannedAmount}
 								onChangeText={setPlannedAmount}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-2xl text-ink"
+								className={textInputClassNames.primaryAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
 								testID="entity-detail-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">
+							<Text className={textInputClassNames.suffixLarge}>
 								{getCurrencySymbol(entity.currency)}
 							</Text>
 						</View>

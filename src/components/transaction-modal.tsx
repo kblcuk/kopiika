@@ -23,7 +23,7 @@ import {
 } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { styles } from '../styles/text-input';
+import { styles, textInputClassNames } from '../styles/text-input';
 import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
@@ -553,7 +553,7 @@ export function TransactionModal({
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							{isSplitMode ? 'Total Paid' : 'Amount'}
 						</Text>
-						<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3">
+						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
 								ref={inputRef}
 								value={isSplitMode ? splitTotal.toString() : amount}
@@ -567,12 +567,12 @@ export function TransactionModal({
 								}}
 								placeholder="0"
 								keyboardType="numeric"
-								className="flex-1 font-sans-semibold text-3xl text-ink"
+								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
 								testID="transaction-amount-input"
 							/>
-							<Text className="font-sans text-lg text-ink-muted">
+							<Text className={textInputClassNames.suffixLarge}>
 								{getCurrencySymbol(currency)}
 							</Text>
 						</View>
@@ -724,7 +724,9 @@ export function TransactionModal({
 														}
 														placeholder="0"
 														keyboardType="numeric"
-														className="font-sans-semibold text-lg text-ink"
+														className={
+															textInputClassNames.inlineAmountInput
+														}
 														style={[
 															styles.input,
 															{ textAlign: 'right', minWidth: 48 },
@@ -849,15 +851,17 @@ export function TransactionModal({
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Note (optional)
 						</Text>
-						<TextInput
-							value={note}
-							onChangeText={setNote}
-							placeholder="Add a note..."
-							className="border-paper-400 rounded-lg border bg-paper-100 px-4 py-3 font-sans text-base text-ink"
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-							testID="transaction-note-input"
-						/>
+						<View className={textInputClassNames.container}>
+							<TextInput
+								value={note}
+								onChangeText={setNote}
+								placeholder="Add a note..."
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="transaction-note-input"
+							/>
+						</View>
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>
