@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.23](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.23) (2026-03-08)
+
+
+### Features
+
+* **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
+* privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
+* **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
+* **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
+
+
+### Bug Fixes
+
+* **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
+
 ## [0.0.22](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.22) (2026-03-08)
 
 
