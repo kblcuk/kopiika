@@ -260,7 +260,8 @@ export function SortableEntityGrid({
 				const isSameTypeTransfer =
 					!reorderMode && type === 'account' && targetEntity.type === 'account';
 
-				if (isCrossType || isSameTypeTransfer) {
+				// Savings are virtual reservations — no outgoing transactions
+				if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
 					hoveredIdShared.value = targetId;
 				} else {
 					hoveredIdShared.value = '';
@@ -302,7 +303,7 @@ export function SortableEntityGrid({
 						const isSameTypeTransfer =
 							!reorderMode && type === 'account' && targetEntity.type === 'account';
 
-						if (isCrossType || isSameTypeTransfer) {
+						if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
 							onDragEnd?.(draggedEntity, targetId);
 							return;
 						}

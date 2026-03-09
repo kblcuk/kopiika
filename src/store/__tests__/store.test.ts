@@ -2090,7 +2090,8 @@ describe('Store Data Integrity', () => {
 				timestamp: new Date('2026-01-20').getTime(),
 			};
 
-			// Saving -> Account (withdrawal, should NOT count for saving)
+			// Saving -> Account (shouldn't exist in practice — savings are virtual
+			// reservations with no outgoing txns — but verifies balance ignores it)
 			const tx4: Transaction = {
 				id: 'tx-4',
 				from_entity_id: 'saving-1',
@@ -2129,7 +2130,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'saving'
 			);
-			// Saving: only incoming (1000), not outgoing (200)
+			// Saving: virtual reservation, inflow-only balance (outgoing txns ignored)
 			expect(savingEntities[0].actual).toBe(1000);
 		});
 	});
