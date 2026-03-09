@@ -113,10 +113,15 @@ export default function HistoryScreen() {
 	}, [transactions, deferredPeriod, selectedEntityId]);
 
 	const upcomingTransactions = useMemo(() => {
+		const { end } = getPeriodRange(deferredPeriod);
 		const now = Date.now();
+
+		// Period is entirely in the past — no upcoming section
+		if (end <= now) return [];
+
 		return transactions
 			.filter((tx) => {
-				if (tx.timestamp <= now) return false;
+				if (tx.timestamp <= now || tx.timestamp > end) return false;
 				if (
 					selectedEntityId &&
 					tx.from_entity_id !== selectedEntityId &&
@@ -127,7 +132,7 @@ export default function HistoryScreen() {
 				return true;
 			})
 			.sort((a, b) => a.timestamp - b.timestamp);
-	}, [transactions, selectedEntityId]);
+	}, [transactions, deferredPeriod, selectedEntityId]);
 
 	const sections = useMemo(() => {
 		const pastSections = groupTransactionsByDay(filteredTransactions);

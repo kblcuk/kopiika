@@ -183,6 +183,83 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
+	it('excludes upcoming transactions outside the selected period (KII-31 regression)', async () => {
+		const pastTransaction: Transaction = {
+			id: 'tx-past',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 100,
+			currency: 'USD',
+			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
+		};
+
+		// Future tx within January
+		const upcomingInPeriod: Transaction = {
+			id: 'tx-upcoming-jan',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+		};
+
+		// Future tx in February — should NOT appear when period is January
+		const upcomingOutOfPeriod: Transaction = {
+			id: 'tx-upcoming-feb',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 300,
+			currency: 'USD',
+			timestamp: new Date('2026-02-10T12:00:00Z').getTime(),
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [pastTransaction, upcomingInPeriod, upcomingOutOfPeriod],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-upcoming-jan')).toBeTruthy();
+			expect(queryByTestId('row-tx-upcoming-feb')).toBeNull();
+		});
+	});
+
+	it('hides upcoming section when selected period is entirely in the past', async () => {
+		// Future tx exists but period is December 2025 (fully past)
+		const futureTransaction: Transaction = {
+			id: 'tx-future',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 500,
+			currency: 'USD',
+			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [futureTransaction],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2025-12' };
+
+		const { queryByText, queryByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(queryByText('Upcoming')).toBeNull();
+			expect(queryByTestId('row-tx-future')).toBeNull();
+		});
+	});
+
 	it('shows future transactions in an Upcoming section and keeps past rows in regular sections', async () => {
 		const pastTransaction: Transaction = {
 			id: 'tx-past',
