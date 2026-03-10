@@ -1,48 +1,55 @@
 {
-	"version": "7",
-	"dialect": "sqlite",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "6",
-			"when": 1768320646847,
-			"tag": "0000_groovy_lorna_dane",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "6",
-			"when": 1768383098881,
-			"tag": "0001_add-balance-adjustment",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "6",
-			"when": 1768734568442,
-			"tag": "0002_row-and-position-for-entities",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "6",
-			"when": 1769971201881,
-			"tag": "0003_add-include-in-total",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "6",
-			"when": 1769976686631,
-			"tag": "0004_migrate_plans_to_alltime",
-			"breakpoints": true
-		},
-		{
-			"idx": 5,
-			"version": "6",
-			"when": 1771064200383,
-			"tag": "0005_default-currency-to-eur",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1768320646847,
+      "tag": "0000_groovy_lorna_dane",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1768383098881,
+      "tag": "0001_add-balance-adjustment",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1768734568442,
+      "tag": "0002_row-and-position-for-entities",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1769971201881,
+      "tag": "0003_add-include-in-total",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1769976686631,
+      "tag": "0004_migrate_plans_to_alltime",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771064200383,
+      "tag": "0005_default-currency-to-eur",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773078612949,
+      "tag": "0006_add-reservations",
+      "breakpoints": true
+    }
+  ]
 }

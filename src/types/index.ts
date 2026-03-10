@@ -21,6 +21,8 @@ export type Transaction = Omit<DrizzleTransaction, 'note'> & {
 	note?: string | null;
 };
 
+export type { Reservation } from '@/src/db/reservations';
+
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
 // Period type kept for backwards compatibility - all plans now use 'all-time'
@@ -37,6 +39,7 @@ export interface EntityWithBalance extends Entity {
 	actual: number;
 	remaining: number;
 	upcoming: number; // sum of future-dated transactions (timestamp > now)
+	reserved?: number; // accounts only: total reserved across savings goals
 }
 
 // Helper to get current period in YYYY-MM format
