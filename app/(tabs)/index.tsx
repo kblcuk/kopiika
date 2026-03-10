@@ -16,6 +16,7 @@ import {
 	TransactionModal,
 	EntityDetailModal,
 	EntityCreateModal,
+	ReservationModal,
 } from '@/src/components';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
@@ -47,6 +48,11 @@ export default function HomeScreen() {
 	const [modalVisible, setModalVisible] = useState(false);
 	const [fromEntity, setFromEntity] = useState<EntityWithBalance | null>(null);
 	const [toEntity, setToEntity] = useState<EntityWithBalance | null>(null);
+
+	// Reservation modal state (account → saving)
+	const [reservationModalVisible, setReservationModalVisible] = useState(false);
+	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
+	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
 
 	// Detail modal state
 	const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -122,6 +128,14 @@ export default function HomeScreen() {
 				return;
 			}
 
+			// Account → Saving: open reservation modal instead of transaction
+			if (entity.type === 'account' && targetEntity.type === 'saving') {
+				setReservationAccount(entity);
+				setReservationSaving(targetEntity);
+				setReservationModalVisible(true);
+				return;
+			}
+
 			// Grid passes targetId when a transaction should be created:
 			// - Cross-type drops (always)
 			// - Account-to-account drops when not in reorder mode
@@ -137,6 +151,12 @@ export default function HomeScreen() {
 		setModalVisible(false);
 		setFromEntity(null);
 		setToEntity(null);
+	}, []);
+
+	const handleCloseReservationModal = useCallback(() => {
+		setReservationModalVisible(false);
+		setReservationAccount(null);
+		setReservationSaving(null);
 	}, []);
 
 	const handleTap = useCallback(
@@ -388,7 +408,15 @@ export default function HomeScreen() {
 				onClose={handleCloseModal}
 			/>
 
-			{/* Entity Detail Modal */}
+			{/* Reservation Modal (account → saving) */}
+		<ReservationModal
+			visible={reservationModalVisible}
+			account={reservationAccount}
+			saving={reservationSaving}
+			onClose={handleCloseReservationModal}
+		/>
+
+		{/* Entity Detail Modal */}
 			<EntityDetailModal
 				visible={detailModalVisible}
 				entity={detailEntity}
