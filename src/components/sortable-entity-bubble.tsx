@@ -174,6 +174,14 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 						>
 							{mainAmount}
 						</Text>
+						{!!entity.reserved && entity.reserved > 0 && (
+							<Text
+								className="font-sans text-xs text-ink-faint"
+								numberOfLines={1}
+							>
+								{formatAmount(entity.reserved)} rsvd
+							</Text>
+						)}
 						<Text className="font-sans text-xs text-ink-muted">
 							{formatAmount(entity.planned)}
 						</Text>
