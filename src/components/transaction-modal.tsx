@@ -27,6 +27,7 @@ import { sharedTextInputProps, styles, textInputClassNames } from '../styles/tex
 import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
+import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
@@ -72,10 +73,15 @@ export function TransactionModal({
 	// Snapshot of amount when split mode was entered — drives the anchor calculation
 	const [splitTotal, setSplitTotal] = useState(0);
 
+	// Savings funding — amount from reservations to add on top of typed amount
+	const [totalFunded, setTotalFunded] = useState(0);
+
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
+	const fundingRef = useRef<SavingsFundingHandle>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
+	const upsertReservation = useStore((state) => state.upsertReservation);
 	const entities = useStore((state) => state.entities);
 
 	const isEditing = !!existingTransaction;
@@ -129,15 +135,15 @@ export function TransactionModal({
 		return getValidToEntities(entities, fromEntity, currency);
 	}, [fromEntity, entities, currency]);
 
-	// Anchor = total - sum of all non-anchor splits
+	// Anchor = (typed total + savings funding) - sum of all non-anchor splits
 	// Row 0 is always the anchor; its amount field in state is ignored
 	const anchorAmount = useMemo(() => {
 		if (!isSplitMode) return 0;
 		const otherSum = splits
 			.slice(1)
 			.reduce((sum, s) => sum + (reverseFormatCurrency(s.amount) || 0), 0);
-		return roundMoney(splitTotal - otherSum);
-	}, [isSplitMode, splits, splitTotal]);
+		return roundMoney(splitTotal + totalFunded - otherSum);
+	}, [isSplitMode, splits, splitTotal, totalFunded]);
 
 	useEffect(() => {
 		if (visible) {
@@ -161,6 +167,7 @@ export function TransactionModal({
 			setSplits([]);
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
+			setTotalFunded(0);
 			if (quickAdd) {
 				// Auto-open from-entity picker after the modal slide animation settles
 				setTimeout(() => setShowFromSheet(true), 350);
@@ -334,12 +341,22 @@ export function TransactionModal({
 
 			if (txns.length === 0) return;
 			for (const txn of txns) await addTransaction(txn);
+
+			// Reduce reservations for any savings the user chose to fund from
+			const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
+			for (const f of splitFunded) {
+				await upsertReservation(fromEntity.id, f.savingEntityId, f.currentReservation - f.fundAmount);
+			}
+
 			onClose();
 			return;
 		}
 
-		const numAmount = reverseFormatCurrency(amount);
-		if (isNaN(numAmount) || numAmount <= 0) return;
+		const typedAmount = reverseFormatCurrency(amount);
+		if (isNaN(typedAmount) || typedAmount <= 0) return;
+
+		// Transaction total = typed amount + any savings funding released
+		const numAmount = roundMoney(typedAmount + totalFunded);
 
 		if (isEditing && existingTransaction) {
 			const updates: {
@@ -375,6 +392,16 @@ export function TransactionModal({
 				note: note.trim() || undefined,
 			});
 		}
+
+		// Reduce reservations for any savings the user chose to fund from
+		const funded = fundingRef.current?.getFundedReservations() ?? [];
+		const accountId = selectedFromEntity?.id ?? fromEntity?.id;
+		if (accountId) {
+			for (const f of funded) {
+				await upsertReservation(accountId, f.savingEntityId, f.currentReservation - f.fundAmount);
+			}
+		}
+
 		onClose();
 	};
 
@@ -432,59 +459,7 @@ export function TransactionModal({
 		);
 	};
 
-	// Stacked entity icons shown on the "to" side when in split mode
-	const renderSplitToSide = () => {
-		const splitEntities = splits
-			.map((s) => (s.toEntityId ? entities.find((e) => e.id === s.toEntityId) : null))
-			.filter((e): e is Entity => !!e)
-			.filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
 
-		if (splitEntities.length === 0) {
-			return (
-				<View className="flex-1 items-center">
-					<View className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-200">
-						<Split size={20} color={colors.ink.muted} />
-					</View>
-					<Text className="text-center font-sans text-sm text-ink-muted">Split</Text>
-				</View>
-			);
-		}
-
-		const visible = splitEntities.slice(0, 3);
-		const extra = splitEntities.length - visible.length;
-		return (
-			<View className="flex-1 items-center">
-				<View className="mb-2 flex-row">
-					{visible.map((entity, i) => {
-						const IconComponent = getIcon(entity.icon || 'circle');
-						const typeColors = getEntityTypeColors(entity.type);
-						return (
-							<View
-								key={entity.id}
-								className={`h-10 w-10 items-center justify-center rounded-full border-2 border-paper-50 ${typeColors.bg}`}
-								style={{ marginLeft: i > 0 ? -8 : 0 }}
-							>
-								<IconComponent size={16} color={typeColors.iconColor} />
-							</View>
-						);
-					})}
-					{extra > 0 && (
-						<View
-							className="h-10 w-10 items-center justify-center rounded-full border-2 border-paper-50 bg-paper-200"
-							style={{ marginLeft: -8 }}
-						>
-							<Text className="font-sans-semibold text-xs text-ink-muted">
-								+{extra}
-							</Text>
-						</View>
-					)}
-				</View>
-				<Text className="text-center font-sans text-sm text-ink-muted">
-					{splits.length} splits
-				</Text>
-			</View>
-		);
-	};
 
 	// ── Render ────────────────────────────────────────────────────────────────
 
@@ -508,11 +483,9 @@ export function TransactionModal({
 					<Text className="font-sans-semibold text-base text-ink">
 						{isEditing
 							? 'Edit Transaction'
-							: isSplitMode
-								? 'Split Transaction'
-								: quickAdd
-									? 'Add Transaction'
-									: 'New Transaction'}
+							: quickAdd
+								? 'Add Transaction'
+								: 'New Transaction'}
 					</Text>
 					<Pressable
 						onPress={handleSubmit}
@@ -539,19 +512,17 @@ export function TransactionModal({
 						<View className="items-center px-2 py-3">
 							<ArrowRight size={24} color={colors.ink.DEFAULT} />
 						</View>
-						{isSplitMode
-							? renderSplitToSide()
-							: renderEntityBubble(
-									displayToEntity,
-									isEditing || quickAdd ? () => setShowToSheet(true) : undefined,
-									quickAdd ? 'To' : undefined
-								)}
+						{renderEntityBubble(
+							displayToEntity,
+							isEditing || quickAdd ? () => setShowToSheet(true) : undefined,
+							quickAdd ? 'To' : undefined
+						)}
 					</View>
 
 					{/* Amount / Total Paid */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							{isSplitMode ? 'Total Paid' : 'Amount'}
+							Amount
 						</Text>
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
@@ -588,28 +559,42 @@ export function TransactionModal({
 								</Text>
 							</Pressable>
 						)}
+						{/* Show total when savings funding adds to the typed amount */}
+						{totalFunded > 0 && (() => {
+							const typed = isSplitMode ? splitTotal : (reverseFormatCurrency(amount, currency) || 0);
+							return (
+								<Text className="mt-2 font-sans text-sm text-ink-muted">
+									{formatAmount(typed, currency)} +{' '}
+									{formatAmount(totalFunded, currency)} from savings ={' '}
+									<Text className="font-sans-semibold text-ink">
+										{formatAmount(roundMoney(typed + totalFunded), currency)}
+									</Text>
+								</Text>
+							);
+						})()}
 					</View>
 
-					{/* Split rows */}
-					{isSplitMode && (
+					{/* Split */}
+					{!isEditing && !quickAdd && (
 						<View className="mb-6">
-							<View className="mb-2 flex-row items-center justify-between">
-								<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
-									Splits
-								</Text>
-								<Pressable
-									onPress={handleMerge}
-									hitSlop={12}
-									className="flex-row items-center"
-									testID="split-merge-button"
-								>
-									<Undo size={14} color={colors.ink.muted} />
-									<Text className="ml-1 font-sans text-sm text-ink-muted">
-										Single
-									</Text>
-								</Pressable>
-							</View>
-
+							{isSplitMode ? (
+								<>
+									<View className="mb-2 flex-row items-center justify-between">
+										<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+											Split
+										</Text>
+										<Pressable
+											onPress={handleMerge}
+											hitSlop={12}
+											className="flex-row items-center"
+											testID="split-merge-button"
+										>
+											<Undo size={14} color={colors.ink.muted} />
+											<Text className="ml-1 font-sans text-sm text-ink-muted">
+												Merge
+											</Text>
+										</Pressable>
+									</View>
 							<View className="overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
 								{splits.map((split, index) => {
 									const splitEntity = split.toEntityId
@@ -784,20 +769,33 @@ export function TransactionModal({
 									</Text>
 								</Pressable>
 							</View>
+								</>
+							) : (
+								<Pressable
+									onPress={handleEnterSplitMode}
+									className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+									style={{ borderWidth: 1, borderColor: colors.border.dashed, borderStyle: 'dashed' }}
+									testID="split-toggle-button"
+								>
+									<Split size={14} color={colors.ink.muted} />
+									<Text className="ml-2 font-sans text-sm text-ink-muted">
+										Split between categories
+									</Text>
+								</Pressable>
+							)}
 						</View>
 					)}
 
-					{/* Split toggle — new drag-created transactions only (not quickAdd) */}
-					{!isEditing && !isSplitMode && !quickAdd && (
-						<Pressable
-							onPress={handleEnterSplitMode}
-							className="mb-6 flex-row items-center self-start rounded-full bg-paper-200 px-3 py-1.5"
-							testID="split-toggle-button"
-						>
-							<Split size={13} color={colors.ink.muted} />
-							<Text className="ml-1.5 font-sans text-sm text-ink-muted">Split</Text>
-						</Pressable>
+					{/* Fund from savings — show when source is an account with reservations */}
+					{!isEditing && displayFromEntity?.type === 'account' && (
+						<SavingsFundingSection
+							ref={fundingRef}
+							accountEntityId={displayFromEntity.id}
+							currency={currency}
+							onFundingChange={setTotalFunded}
+						/>
 					)}
+
 
 					{/* Date */}
 					<View className="mb-6">

@@ -854,7 +854,7 @@ describe('TransactionModal', () => {
 			expect(getByTestId('transaction-amount-input').props.value).toBe('50');
 		});
 
-		it('header shows "Split Transaction" in split mode', () => {
+		it('header stays "New Transaction" in split mode (split is an inline section)', () => {
 			const { getByText, getByTestId } = render(
 				<TransactionModal
 					visible={true}
@@ -864,7 +864,8 @@ describe('TransactionModal', () => {
 				/>
 			);
 			fireEvent.press(getByTestId('split-toggle-button'));
-			expect(getByText('Split Transaction')).toBeTruthy();
+			expect(getByText('New Transaction')).toBeTruthy();
+			expect(getByTestId('split-merge-button')).toBeTruthy();
 		});
 
 		it('resets split mode when modal is closed and reopened', () => {
