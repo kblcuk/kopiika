@@ -8,7 +8,7 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
  */
 const ALLOWED_COMBINATIONS: Record<EntityType, EntityType[]> = {
 	income: ['account'],
-	account: ['category', 'saving', 'account'],
+	account: ['category', 'account'],
 	category: [],
 	saving: [],
 };
