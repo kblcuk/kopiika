@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import type { Entity, Plan, Transaction } from '@/src/types';
+import type { Entity, Plan, Transaction, Reservation } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
@@ -1355,19 +1355,13 @@ describe('Store Data Integrity', () => {
 				timestamp: new Date('2026-01-20').getTime(),
 			};
 
-			const tx3: Transaction = {
-				id: 'tx-3',
-				from_entity_id: 'account-1',
-				to_entity_id: 'saving-1',
-				amount: 1000,
-				currency: 'USD',
-				timestamp: new Date('2026-01-25').getTime(),
-			};
-
 			useStore.setState({
 				entities: [income, account, category, saving],
 				plans: [incomePlan, categoryPlan, savingPlan],
-				transactions: [tx1, tx2, tx3],
+				transactions: [tx1, tx2],
+				reservations: [
+					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1000 },
+				],
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
@@ -1390,19 +1384,21 @@ describe('Store Data Integrity', () => {
 			expect(incomeEntities[0].actual).toBe(5000); // Money out from income
 			expect(incomeEntities[0].remaining).toBe(0);
 
-			// Test account entities (all-time balance)
+			// Test account entities (all-time balance, minus reservations)
 			const accountEntities = getEntitiesWithBalance(
 				state.entities,
 				state.plans,
 				state.transactions,
 				state.currentPeriod,
-				'account'
+				'account',
+				state.reservations
 			);
 			expect(accountEntities).toHaveLength(1);
 			expect(accountEntities[0].id).toBe('account-1');
 			expect(accountEntities[0].planned).toBe(0); // No plan
-			expect(accountEntities[0].actual).toBe(3800); // +5000 -200 -1000 = 3800
-			expect(accountEntities[0].remaining).toBe(-3800);
+			expect(accountEntities[0].actual).toBe(4800); // +5000 -200 (txns) = 4800 (full bank balance)
+			expect(accountEntities[0].reserved).toBe(1000); // reservation tracked separately
+			expect(accountEntities[0].remaining).toBe(-4800);
 
 			// Test category entities (current period only)
 			const categoryEntities = getEntitiesWithBalance(
@@ -1418,13 +1414,14 @@ describe('Store Data Integrity', () => {
 			expect(categoryEntities[0].actual).toBe(200);
 			expect(categoryEntities[0].remaining).toBe(100);
 
-			// Test saving entities (all-time balance)
+			// Test saving entities (balance from reservations)
 			const savingEntities = getEntitiesWithBalance(
 				state.entities,
 				state.plans,
 				state.transactions,
 				state.currentPeriod,
-				'saving'
+				'saving',
+				state.reservations
 			);
 			expect(savingEntities).toHaveLength(1);
 			expect(savingEntities[0].id).toBe('saving-1');
@@ -1493,15 +1490,6 @@ describe('Store Data Integrity', () => {
 				timestamp: new Date('2025-12-20').getTime(),
 			};
 
-			const txDec3: Transaction = {
-				id: 'tx-dec-3',
-				from_entity_id: 'account-1',
-				to_entity_id: 'saving-1',
-				amount: 500,
-				currency: 'USD',
-				timestamp: new Date('2025-12-25').getTime(),
-			};
-
 			// January 2026 transactions (current month)
 			const txJan1: Transaction = {
 				id: 'tx-jan-1',
@@ -1521,19 +1509,13 @@ describe('Store Data Integrity', () => {
 				timestamp: new Date('2026-01-20').getTime(),
 			};
 
-			const txJan3: Transaction = {
-				id: 'tx-jan-3',
-				from_entity_id: 'account-1',
-				to_entity_id: 'saving-1',
-				amount: 1000,
-				currency: 'USD',
-				timestamp: new Date('2026-01-25').getTime(),
-			};
-
 			useStore.setState({
 				entities: [income, account, category, saving],
 				plans: [],
-				transactions: [txDec1, txDec2, txDec3, txJan1, txJan2, txJan3],
+				transactions: [txDec1, txDec2, txJan1, txJan2],
+				reservations: [
+					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1500 },
+				],
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
@@ -1552,15 +1534,17 @@ describe('Store Data Integrity', () => {
 			);
 			expect(incomeEntities[0].actual).toBe(5000); // Only Jan, not Dec
 
-			// Account: all transactions (4000 - 300 - 500 + 5000 - 200 - 1000 = 7000)
+			// Account: all txns (4000 - 300 + 5000 - 200 = 8500), reservations tracked separately
 			const accountEntities = getEntitiesWithBalance(
 				state.entities,
 				state.plans,
 				state.transactions,
 				state.currentPeriod,
-				'account'
+				'account',
+				state.reservations
 			);
-			expect(accountEntities[0].actual).toBe(7000); // All-time
+			expect(accountEntities[0].actual).toBe(8500); // All-time, full bank balance
+			expect(accountEntities[0].reserved).toBe(1500); // Reservations tracked separately
 
 			// Category: only January transactions (200)
 			const categoryEntities = getEntitiesWithBalance(
@@ -1572,15 +1556,16 @@ describe('Store Data Integrity', () => {
 			);
 			expect(categoryEntities[0].actual).toBe(200); // Only Jan, not Dec
 
-			// Saving: all transactions (500 + 1000 = 1500)
+			// Saving: balance from reservations (1500)
 			const savingEntities = getEntitiesWithBalance(
 				state.entities,
 				state.plans,
 				state.transactions,
 				state.currentPeriod,
-				'saving'
+				'saving',
+				state.reservations
 			);
-			expect(savingEntities[0].actual).toBe(1500); // All-time
+			expect(savingEntities[0].actual).toBe(1500); // From reservations
 		});
 
 		test('should look up plans with correct period type', () => {
@@ -2080,31 +2065,13 @@ describe('Store Data Integrity', () => {
 				timestamp: new Date('2026-01-15').getTime(),
 			};
 
-			// Account -> Saving (should count)
-			const tx3: Transaction = {
-				id: 'tx-3',
-				from_entity_id: 'account-1',
-				to_entity_id: 'saving-1',
-				amount: 1000,
-				currency: 'USD',
-				timestamp: new Date('2026-01-20').getTime(),
-			};
-
-			// Saving -> Account (shouldn't exist in practice — savings are virtual
-			// reservations with no outgoing txns — but verifies balance ignores it)
-			const tx4: Transaction = {
-				id: 'tx-4',
-				from_entity_id: 'saving-1',
-				to_entity_id: 'account-1',
-				amount: 200,
-				currency: 'USD',
-				timestamp: new Date('2026-01-25').getTime(),
-			};
-
 			useStore.setState({
 				entities: [account, category, saving],
 				plans: [],
-				transactions: [tx1, tx2, tx3, tx4],
+				transactions: [tx1, tx2],
+				reservations: [
+					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1000 },
+				],
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
@@ -2128,9 +2095,10 @@ describe('Store Data Integrity', () => {
 				state.plans,
 				state.transactions,
 				state.currentPeriod,
-				'saving'
+				'saving',
+				state.reservations
 			);
-			// Saving: virtual reservation, inflow-only balance (outgoing txns ignored)
+			// Saving: balance from reservations
 			expect(savingEntities[0].actual).toBe(1000);
 		});
 	});
@@ -2618,11 +2586,12 @@ describe('Store Data Integrity', () => {
 			},
 		];
 
-		function setup(transactions: Transaction[]) {
+		function setup(transactions: Transaction[], reservations: Reservation[] = []) {
 			useStore.setState({
 				entities: baseEntities,
 				plans: basePlans,
 				transactions,
+				reservations,
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
@@ -2643,7 +2612,8 @@ describe('Store Data Integrity', () => {
 					state.plans,
 					transactions,
 					'2026-01',
-					'account'
+					'account',
+					reservations
 				)[0],
 				category: getEntitiesWithBalance(
 					state.entities,
@@ -2657,7 +2627,8 @@ describe('Store Data Integrity', () => {
 					state.plans,
 					transactions,
 					'2026-01',
-					'saving'
+					'saving',
+					reservations
 				)[0],
 			};
 		}
@@ -2810,27 +2781,13 @@ describe('Store Data Integrity', () => {
 			expect(income.upcoming).toBe(2000);
 		});
 
-		test('saving upcoming counts scheduled contributions', () => {
-			const { saving } = setup([
-				{
-					id: 'tx-past',
-					from_entity_id: 'acc-1',
-					to_entity_id: 'sav-1',
-					amount: 500,
-					currency: 'EUR',
-					timestamp: PAST,
-				},
-				{
-					id: 'tx-future',
-					from_entity_id: 'acc-1',
-					to_entity_id: 'sav-1',
-					amount: 300,
-					currency: 'EUR',
-					timestamp: FUTURE,
-				},
+		test('saving balance comes from reservations, not transactions', () => {
+			const { saving } = setup([], [
+				{ id: 'res-1', account_entity_id: 'acc-1', saving_entity_id: 'sav-1', amount: 500 },
 			]);
 			expect(saving.actual).toBe(500);
-			expect(saving.upcoming).toBe(300);
+			// Savings have no time-based upcoming (reservations are static)
+			expect(saving.upcoming).toBe(0);
 		});
 
 		test('multiple future transactions are summed in upcoming', () => {
@@ -2874,9 +2831,9 @@ describe('Store Data Integrity', () => {
 			expect(category.actual).toBe(0);
 		});
 
-		test('account and saving upcoming include future txns from any period (all-time scope)', () => {
+		test('account upcoming includes future txns from any period (all-time scope)', () => {
 			// Accounts use all-time scope, so future txns in any month count
-			const { account, saving } = setup([
+			const { account } = setup([
 				{
 					id: 'tx-acc-future',
 					from_entity_id: 'income-1',
@@ -2885,17 +2842,8 @@ describe('Store Data Integrity', () => {
 					currency: 'EUR',
 					timestamp: new Date('2026-04-01').getTime(), // April — future
 				},
-				{
-					id: 'tx-sav-future',
-					from_entity_id: 'acc-1',
-					to_entity_id: 'sav-1',
-					amount: 200,
-					currency: 'EUR',
-					timestamp: new Date('2026-05-15').getTime(), // May — future
-				},
 			]);
-			expect(account.upcoming).toBe(800 - 200); // net: +800 inflow, -200 outflow
-			expect(saving.upcoming).toBe(200);
+			expect(account.upcoming).toBe(800);
 		});
 	});
 });
