@@ -52,7 +52,11 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const progress = getProgressPercent(entity.actual, entity.planned);
 	const IconComponent = getIcon(entity.icon || 'circle');
 	const typeColors = getEntityTypeColors(entity.type);
-	const mainAmount = formatAmount(entity.type === 'income' ? entity.remaining : entity.actual);
+	const isAccount = entity.type === 'account';
+	const available = isAccount ? entity.actual - (entity.reserved ?? 0) : 0;
+	const mainAmount = formatAmount(
+		entity.type === 'income' ? entity.remaining : isAccount ? available : entity.actual
+	);
 
 	// Get hovered ID shared value from context
 	const hoveredIdShared = useContext(HoveredIdContext);
@@ -170,21 +174,27 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 
 					<View className="mt-2.5 items-center">
 						<Text
-							className={`font-sans-semibold text-sm ${overspent ? 'text-negative' : 'text-ink'}`}
+							className={`font-sans-semibold text-sm ${
+								isAccount
+									? available < 0 ? 'text-negative' : 'text-ink'
+									: overspent ? 'text-negative' : 'text-ink'
+							}`}
 						>
 							{mainAmount}
 						</Text>
-						{!!entity.reserved && entity.reserved > 0 && (
-							<Text
-								className="font-sans text-xs text-ink-faint"
-								numberOfLines={1}
-							>
-								{formatAmount(entity.reserved)} rsvd
+						{isAccount ? (
+							// Accounts: show total balance when some is reserved
+							!!entity.reserved && entity.reserved > 0 && (
+								<Text className="font-sans text-xs text-ink-muted" numberOfLines={1}>
+									{formatAmount(entity.actual)} total
+								</Text>
+							)
+						) : (
+							// Other entities: show planned amount
+							<Text className="font-sans text-xs text-ink-muted">
+								{formatAmount(entity.planned)}
 							</Text>
 						)}
-						<Text className="font-sans text-xs text-ink-muted">
-							{formatAmount(entity.planned)}
-						</Text>
 						{entity.upcoming !== 0 && (
 							<Text className="font-sans text-xs text-info" numberOfLines={1}>
 								{entity.upcoming > 0 ? '+' : ''}
