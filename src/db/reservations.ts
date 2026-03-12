@@ -36,7 +36,7 @@ export async function upsertReservation(
 		})
 		.onConflictDoUpdate({
 			target: [reservations.account_entity_id, reservations.saving_entity_id],
-			set: { id, amount },
+			set: { amount },
 		});
 }
 

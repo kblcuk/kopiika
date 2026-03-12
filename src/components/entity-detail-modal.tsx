@@ -170,7 +170,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const handleDelete = () => {
 		Alert.alert(
 			'Delete Entity',
-			`Are you sure you want to delete "${entity.name}"? This will also remove all associated plans.`,
+			`Are you sure you want to delete "${entity.name}"? This will also remove all associated plans and reservations.`,
 			[
 				{ text: 'Cancel', style: 'cancel' },
 				{

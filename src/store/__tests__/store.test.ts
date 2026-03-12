@@ -2846,4 +2846,186 @@ describe('Store Data Integrity', () => {
 			expect(account.upcoming).toBe(800);
 		});
 	});
+
+	describe('Reservation store actions', () => {
+		const account: Entity = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+
+		const saving1: Entity = {
+			id: 'saving-1',
+			type: 'saving',
+			name: 'Vacation',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+
+		const saving2: Entity = {
+			id: 'saving-2',
+			type: 'saving',
+			name: 'Emergency',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+
+		async function setupReservationEntities() {
+			useStore.setState({
+				entities: [account, saving1, saving2],
+				plans: [],
+				transactions: [],
+				reservations: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				hoveredDropZoneId: null,
+				incomeVisible: false,
+			});
+			for (const entity of [account, saving1, saving2]) {
+				await db.createEntity(entity);
+			}
+		}
+
+		test('upsertReservation creates a new reservation', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+
+			const state = useStore.getState();
+			expect(state.reservations).toHaveLength(1);
+			expect(state.reservations[0].account_entity_id).toBe('account-1');
+			expect(state.reservations[0].saving_entity_id).toBe('saving-1');
+			expect(state.reservations[0].amount).toBe(500);
+		});
+
+		test('upsertReservation updates existing reservation amount', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+			const idBefore = useStore.getState().reservations[0].id;
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 800);
+
+			const state = useStore.getState();
+			expect(state.reservations).toHaveLength(1);
+			expect(state.reservations[0].amount).toBe(800);
+			// Same pair → same id reused
+			expect(state.reservations[0].id).toBe(idBefore);
+		});
+
+		test('upsertReservation with amount <= 0 deletes the reservation', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+			expect(useStore.getState().reservations).toHaveLength(1);
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 0);
+			expect(useStore.getState().reservations).toHaveLength(0);
+		});
+
+		test('deleteReservation removes by id', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+			await useStore.getState().upsertReservation('account-1', 'saving-2', 300);
+			expect(useStore.getState().reservations).toHaveLength(2);
+
+			const id = useStore.getState().reservations[0].id;
+			await useStore.getState().deleteReservation(id);
+
+			const state = useStore.getState();
+			expect(state.reservations).toHaveLength(1);
+			expect(state.reservations[0].saving_entity_id).toBe('saving-2');
+		});
+
+		test('clearSavingReservations removes all reservations for a saving', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+			await useStore.getState().upsertReservation('account-1', 'saving-2', 300);
+
+			await useStore.getState().clearSavingReservations('saving-1');
+
+			const state = useStore.getState();
+			expect(state.reservations).toHaveLength(1);
+			expect(state.reservations[0].saving_entity_id).toBe('saving-2');
+		});
+
+		test('deleteEntity cleans up reservations from both sides', async () => {
+			await setupReservationEntities();
+
+			await useStore.getState().upsertReservation('account-1', 'saving-1', 500);
+			await useStore.getState().upsertReservation('account-1', 'saving-2', 300);
+			expect(useStore.getState().reservations).toHaveLength(2);
+
+			// Delete the account — should remove all reservations referencing it
+			await useStore.getState().deleteEntity('account-1');
+
+			expect(useStore.getState().reservations).toHaveLength(0);
+		});
+
+		test('reservations affect account available balance in getEntitiesWithBalance', () => {
+			const reservations: Reservation[] = [
+				{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 500 },
+				{ id: 'res-2', account_entity_id: 'account-1', saving_entity_id: 'saving-2', amount: 300 },
+			];
+
+			const txns: Transaction[] = [
+				{
+					id: 'tx-1',
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount: 5000,
+					currency: 'USD',
+					timestamp: new Date('2026-01-15').getTime(),
+				},
+			];
+
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+
+			const accountEntities = getEntitiesWithBalance(
+				[income, account, saving1, saving2],
+				[],
+				txns,
+				'2026-01',
+				'account',
+				reservations
+			);
+
+			// actual = full bank balance (5000)
+			expect(accountEntities[0].actual).toBe(5000);
+			// reserved = sum of reservations (800)
+			expect(accountEntities[0].reserved).toBe(800);
+
+			// Savings get their balance from reservations, not transactions
+			const savingEntities = getEntitiesWithBalance(
+				[income, account, saving1, saving2],
+				[],
+				txns,
+				'2026-01',
+				'saving',
+				reservations
+			);
+
+			expect(savingEntities[0].actual).toBe(500); // saving-1
+			expect(savingEntities[1].actual).toBe(300); // saving-2
+		});
+	});
 });
