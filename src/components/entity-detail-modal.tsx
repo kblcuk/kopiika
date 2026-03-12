@@ -328,15 +328,15 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								created.
 							</Text>
 
-							{/* Show remaining below */}
+							{/* Available = current minus reservations */}
 							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
 								<Text className="font-sans text-xs text-ink-muted">
-									Remaining Budget
+									Available
 								</Text>
 								<Text
-									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+									className={`font-sans-semibold text-lg ${(entity.actual - (entity.reserved ?? 0)) < 0 ? 'text-negative' : 'text-ink'}`}
 								>
-									{formatAmount(entity.remaining)}
+									{formatAmount(entity.actual - (entity.reserved ?? 0))}
 								</Text>
 							</View>
 
@@ -382,29 +382,31 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						</View>
 					)}
 
-					{/* Planned amount input */}
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Planned Amount ({getCurrentPeriod()})
-						</Text>
-						<View className={textInputClassNames.inlineContainer}>
-							<TextInput
-								{...sharedTextInputProps}
-								ref={inputRef}
-								value={plannedAmount}
-								onChangeText={setPlannedAmount}
-								placeholder="0"
-								keyboardType="numeric"
-								className={textInputClassNames.primaryAmountInput}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="entity-detail-amount-input"
-							/>
-							<Text className={textInputClassNames.suffixLarge}>
-								{getCurrencySymbol(entity.currency)}
+					{/* Planned amount input — not applicable for accounts */}
+					{entity.type !== 'account' && (
+						<View className="mb-6">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Planned Amount ({getCurrentPeriod()})
 							</Text>
+							<View className={textInputClassNames.inlineContainer}>
+								<TextInput
+									{...sharedTextInputProps}
+									ref={inputRef}
+									value={plannedAmount}
+									onChangeText={setPlannedAmount}
+									placeholder="0"
+									keyboardType="numeric"
+									className={textInputClassNames.primaryAmountInput}
+									style={styles.input}
+									placeholderTextColor={colors.ink.placeholder}
+									testID="entity-detail-amount-input"
+								/>
+								<Text className={textInputClassNames.suffixLarge}>
+									{getCurrencySymbol(entity.currency)}
+								</Text>
+							</View>
 						</View>
-					</View>
+					)}
 
 					{/* Delete button */}
 					<Pressable

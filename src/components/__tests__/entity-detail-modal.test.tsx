@@ -7,6 +7,7 @@ import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { ICON_OPTIONS } from '@/src/constants/icons';
+import { formatAmount } from '@/src/utils/format';
 
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
@@ -416,6 +417,36 @@ describe('EntityDetailModal', () => {
 			// Should NOT have an input for actual amount
 			const actualInput = queryByTestId('entity-detail-actual-input');
 			expect(actualInput).toBeNull();
+		});
+
+		it('does not show planned amount input for accounts', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('entity-detail-amount-input')).toBeNull();
+		});
+
+		it('shows available amount (balance minus reservations)', () => {
+			const entityWithReservation = {
+				...mockAccountEntity,
+				actual: 1000,
+				reserved: 300,
+			};
+			const { getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={entityWithReservation}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByText('Available')).toBeTruthy();
+			expect(getByText(formatAmount(700))).toBeTruthy();
 		});
 
 		it('creates positive adjustment transaction when increasing balance', async () => {
