@@ -75,6 +75,7 @@ Behavioral expectations:
 A reservation earmarks a portion of an account's balance for a savings goal. The `reservations` table enforces a unique `(account_entity_id, saving_entity_id)` pair — one reservation per account–saving combination.
 
 - Creating/updating: drag an account onto a saving, or edit the amount in the reservation modal.
+- Viewing/editing from saving detail: the saving entity's edit modal shows a "Reserved from" section listing all accounts with reservations for that saving. Tapping a row opens the reservation modal for that account–saving pair.
 - Releasing: when creating a transaction from an account, the "fund from savings" section shows existing reservations as checkboxes. Checked amounts are added to the transaction total and the reservation is reduced (or deleted if fully released).
 - Deletion: setting amount to 0 deletes the row. FK `ON DELETE CASCADE` cleans up when either entity is deleted. CSV import clears all reservations.
 

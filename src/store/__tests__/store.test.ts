@@ -1360,7 +1360,12 @@ describe('Store Data Integrity', () => {
 				plans: [incomePlan, categoryPlan, savingPlan],
 				transactions: [tx1, tx2],
 				reservations: [
-					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1000 },
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 1000,
+					},
 				],
 				currentPeriod: '2026-01',
 				isLoading: false,
@@ -1514,7 +1519,12 @@ describe('Store Data Integrity', () => {
 				plans: [],
 				transactions: [txDec1, txDec2, txJan1, txJan2],
 				reservations: [
-					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1500 },
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 1500,
+					},
 				],
 				currentPeriod: '2026-01',
 				isLoading: false,
@@ -2070,7 +2080,12 @@ describe('Store Data Integrity', () => {
 				plans: [],
 				transactions: [tx1, tx2],
 				reservations: [
-					{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 1000 },
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 1000,
+					},
 				],
 				currentPeriod: '2026-01',
 				isLoading: false,
@@ -2782,9 +2797,17 @@ describe('Store Data Integrity', () => {
 		});
 
 		test('saving balance comes from reservations, not transactions', () => {
-			const { saving } = setup([], [
-				{ id: 'res-1', account_entity_id: 'acc-1', saving_entity_id: 'sav-1', amount: 500 },
-			]);
+			const { saving } = setup(
+				[],
+				[
+					{
+						id: 'res-1',
+						account_entity_id: 'acc-1',
+						saving_entity_id: 'sav-1',
+						amount: 500,
+					},
+				]
+			);
 			expect(saving.actual).toBe(500);
 			// Savings have no time-based upcoming (reservations are static)
 			expect(saving.upcoming).toBe(0);
@@ -2975,8 +2998,18 @@ describe('Store Data Integrity', () => {
 
 		test('reservations affect account available balance in getEntitiesWithBalance', () => {
 			const reservations: Reservation[] = [
-				{ id: 'res-1', account_entity_id: 'account-1', saving_entity_id: 'saving-1', amount: 500 },
-				{ id: 'res-2', account_entity_id: 'account-1', saving_entity_id: 'saving-2', amount: 300 },
+				{
+					id: 'res-1',
+					account_entity_id: 'account-1',
+					saving_entity_id: 'saving-1',
+					amount: 500,
+				},
+				{
+					id: 'res-2',
+					account_entity_id: 'account-1',
+					saving_entity_id: 'saving-2',
+					amount: 300,
+				},
 			];
 
 			const txns: Transaction[] = [
@@ -3026,6 +3059,60 @@ describe('Store Data Integrity', () => {
 
 			expect(savingEntities[0].actual).toBe(500); // saving-1
 			expect(savingEntities[1].actual).toBe(300); // saving-2
+		});
+
+		test('saving balance aggregates reservations from multiple accounts', () => {
+			const account2: Entity = {
+				id: 'account-2',
+				type: 'account',
+				name: 'Cash',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+				order: 1,
+			};
+
+			const reservations: Reservation[] = [
+				{
+					id: 'res-1',
+					account_entity_id: 'account-1',
+					saving_entity_id: 'saving-1',
+					amount: 500,
+				},
+				{
+					id: 'res-2',
+					account_entity_id: 'account-2',
+					saving_entity_id: 'saving-1',
+					amount: 200,
+				},
+			];
+
+			const savingEntities = getEntitiesWithBalance(
+				[account, account2, saving1, saving2],
+				[],
+				[],
+				'2026-01',
+				'saving',
+				reservations
+			);
+
+			// saving-1 should sum both accounts' reservations
+			expect(savingEntities[0].actual).toBe(700);
+			// saving-2 has no reservations
+			expect(savingEntities[1].actual).toBe(0);
+
+			// Each account's reserved field should only reflect its own reservations
+			const accountEntities = getEntitiesWithBalance(
+				[account, account2, saving1, saving2],
+				[],
+				[],
+				'2026-01',
+				'account',
+				reservations
+			);
+
+			expect(accountEntities[0].reserved).toBe(500); // account-1
+			expect(accountEntities[1].reserved).toBe(200); // account-2
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
 	View,
 	Text,
@@ -22,15 +22,17 @@ import {
 	roundMoney,
 	getCurrencySymbol,
 } from '@/src/utils/format';
-import { useStore } from '@/src/store';
+import { useStore, useEntitiesWithBalance } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
+import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
+import { ReservationModal } from '@/src/components/reservation-modal';
 
 interface EntityDetailModalProps {
 	visible: boolean;
@@ -49,19 +51,48 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
+	// Reservation modal state (for saving entities)
+	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const inputRef = useRef<TextInput>(null);
 	const insets = useSafeAreaInsets();
 
-	const { plans, currentPeriod, setPlan, deleteEntity, updateEntity, addTransaction } = useStore(
+	const {
+		plans,
+		currentPeriod,
+		reservations,
+		setPlan,
+		deleteEntity,
+		updateEntity,
+		addTransaction,
+	} = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
 			currentPeriod: state.currentPeriod,
+			reservations: state.reservations,
 			setPlan: state.setPlan,
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
 			addTransaction: state.addTransaction,
 		}))
 	);
+
+	const accounts = useEntitiesWithBalance('account');
+
+	// For saving entities: find all reservations pointing to this saving, resolved to account entities
+	const savingReservations = useMemo(() => {
+		if (!entity || entity.type !== 'saving') return [];
+
+		return reservations
+			.filter((r) => r.saving_entity_id === entity.id)
+			.map((r) => {
+				const account = accounts.find((a) => a.id === r.account_entity_id);
+				return account ? { reservation: r, account } : null;
+			})
+			.filter(Boolean) as {
+			reservation: { id: string; amount: number };
+			account: EntityWithBalance;
+		}[];
+	}, [entity, reservations, accounts]);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
@@ -330,11 +361,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 							{/* Available = current minus reservations */}
 							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
-								<Text className="font-sans text-xs text-ink-muted">
-									Available
-								</Text>
+								<Text className="font-sans text-xs text-ink-muted">Available</Text>
 								<Text
-									className={`font-sans-semibold text-lg ${(entity.actual - (entity.reserved ?? 0)) < 0 ? 'text-negative' : 'text-ink'}`}
+									className={`font-sans-semibold text-lg ${entity.actual - (entity.reserved ?? 0) < 0 ? 'text-negative' : 'text-ink'}`}
 								>
 									{formatAmount(entity.actual - (entity.reserved ?? 0))}
 								</Text>
@@ -408,6 +437,58 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						</View>
 					)}
 
+					{/* Reservations section — saving entities only */}
+					{entity.type === 'saving' && (
+						<View className="mb-6" testID="saving-reservations-section">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Reserved from
+							</Text>
+							{savingReservations.length > 0 ? (
+								<View className="rounded-lg bg-paper-100">
+									{savingReservations.map(({ reservation, account }, index) => {
+										const AccountIcon = getIcon(account.icon || 'circle');
+										const accountColors = getEntityTypeColors('account');
+										return (
+											<Pressable
+												key={reservation.id}
+												onPress={() => setReservationAccount(account)}
+												className={`flex-row items-center px-4 py-3 ${
+													index > 0 ? 'border-t border-paper-300' : ''
+												}`}
+												testID={`saving-reservation-row-${account.id}`}
+											>
+												<View
+													className={`mr-3 h-8 w-8 items-center justify-center rounded-full ${accountColors.bg}`}
+												>
+													<AccountIcon
+														size={16}
+														color={accountColors.iconColor}
+													/>
+												</View>
+												<Text className="flex-1 font-sans text-base text-ink">
+													{account.name}
+												</Text>
+												<Text
+													className="font-sans-semibold text-base text-ink"
+													style={{ fontVariant: ['tabular-nums'] }}
+												>
+													{formatAmount(
+														reservation.amount,
+														entity.currency
+													)}
+												</Text>
+											</Pressable>
+										);
+									})}
+								</View>
+							) : (
+								<Text className="text-ink-faint font-sans text-sm">
+									Drag an account onto this saving to reserve funds
+								</Text>
+							)}
+						</View>
+					)}
+
 					{/* Delete button */}
 					<Pressable
 						onPress={handleDelete}
@@ -420,6 +501,16 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					</Pressable>
 				</ScrollView>
 			</KeyboardAvoidingView>
+
+			{/* Reservation edit modal — opens from saving detail when tapping a reservation row */}
+			{entity.type === 'saving' && (
+				<ReservationModal
+					visible={reservationAccount !== null}
+					account={reservationAccount}
+					saving={entity}
+					onClose={() => setReservationAccount(null)}
+				/>
+			)}
 		</Modal>
 	);
 }
