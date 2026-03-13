@@ -35,6 +35,47 @@ def app_version
   expo_config.fetch('version')
 end
 
+def ios_build_number
+  expo_config.fetch('ios').fetch('buildNumber').to_s
+end
+
+def ios_info_plist_path
+  File.join(repo_root, 'ios', 'kopiika', 'Info.plist')
+end
+
+def ios_project_file_path
+  File.join(repo_root, 'ios', 'kopiika.xcodeproj', 'project.pbxproj')
+end
+
+def sync_ios_native_versions!
+  info_plist = ios_info_plist_path
+  project_file = ios_project_file_path
+
+  set_info_plist_value(
+    path: info_plist,
+    key: 'CFBundleShortVersionString',
+    value: app_version
+  )
+  set_info_plist_value(
+    path: info_plist,
+    key: 'CFBundleVersion',
+    value: ios_build_number
+  )
+
+  project = File.read(project_file)
+  project = project.gsub(
+    /CURRENT_PROJECT_VERSION = [^;]+;/,
+    "CURRENT_PROJECT_VERSION = #{ios_build_number};"
+  )
+  project = project.gsub(
+    /MARKETING_VERSION = [^;]+;/,
+    "MARKETING_VERSION = #{app_version};"
+  )
+  File.write(project_file, project)
+
+  UI.message("Synced iOS native version to #{app_version} (#{ios_build_number})")
+end
+
 def expo_prebuild(platform)
   sh("cd #{repo_root.shellescape} && bun run expo prebuild --platform #{platform} --non-interactive --no-install")
 end
@@ -358,6 +399,7 @@ platform :ios do
   desc 'Build the app'
   lane :build do |options|
     expo_prebuild('ios')
+    sync_ios_native_versions!
 
     export = options[:export_method] || 'development'
     match_type = export == 'app-store' ? 'appstore' : 'development'

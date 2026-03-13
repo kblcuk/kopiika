@@ -30,11 +30,14 @@
 		"types": "tsc --noEmit",
 		"release:sync-build-numbers": "fnox exec -- bundle exec fastlane sync_build_numbers",
 		"release:check": "bun scripts/check-version-sync.mjs",
-		"release": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version",
-		"release:minor": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version --release-as minor",
-		"release:major": "bun run release:sync-build-numbers && bun run release:check && bunx commit-and-tag-version --release-as major"
+		"release": "bunx commit-and-tag-version",
+		"release:minor": "bunx commit-and-tag-version --release-as minor",
+		"release:major": "bunx commit-and-tag-version --release-as major"
 	},
 	"commit-and-tag-version": {
+		"scripts": {
+			"postbump": "bun run release:sync-build-numbers && bun run release:check"
+		},
 		"bumpFiles": [
 			{
 				"filename": "package.json",

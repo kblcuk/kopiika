@@ -101,7 +101,7 @@ By default, Android release lanes do not run `gradle clean` because clean can fa
 - `expo.ios.buildNumber`
 - `expo.android.versionCode`
 
-Before creating a release tag, run:
+If you want to sync build numbers manually for the current version in `app.json`, run:
 
 ```sh
 bun run release:sync-build-numbers
@@ -109,10 +109,14 @@ bun run release:sync-build-numbers
 
 This uses Fastlane store APIs to fetch latest distributed build numbers and writes:
 
-- `ios.buildNumber = latest TestFlight build number + 1` (or `1` if unavailable)
+- `ios.buildNumber = latest TestFlight build number for the current app version + 1` (or `1` if unavailable)
 - `android.versionCode = latest Play track versionCode + 1` (or `1` if app/package is not found)
 
-`bun run release`, `release:minor`, and `release:major` now run this sync step automatically.
+`bun run release`, `release:minor`, and `release:major` now bump `package.json` and `app.json` first, then run this sync step automatically via the `commit-and-tag-version` `postbump` hook. That means:
+
+- patch releases scope the iOS build lookup to the newly bumped patch version
+- minor/major releases start iOS back at `1` when no TestFlight build exists for that new version yet
+- Android still uses the next global `versionCode`, regardless of `versionName`
 
 Optional overrides:
 
@@ -121,7 +125,7 @@ Optional overrides:
 - `PLAY_AAB_PATH`: upload an existing `.aab` instead of building one first.
 - `ANDROID_UPLOAD_STORE_DATA`: base64 encoded upload keystore (`.jks`), used when `ANDROID_UPLOAD_STORE_FILE` is not set.
 
-Android and iOS build lanes do not mutate build numbers themselves. They use the values already written to `app.json` and run Expo prebuild before the native build so generated files pick up the current config.
+Android build lanes do not mutate build numbers themselves. iOS also uses the values already written to `app.json`, and the Fastlane build lane now re-syncs the native `Info.plist` and Xcode project version fields from `app.json` after Expo prebuild so the archive metadata cannot drift.
 
 ### Fnox-only secrets flow (no key files in repo)
 
