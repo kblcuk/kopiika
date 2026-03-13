@@ -6,21 +6,21 @@ Kopiika is an offline-first personal finance app for monthly planning versus rea
 
 ## Core Domain Model
 
-Everything is an entity. Money moves between entities through immutable transactions. Plans express intent; transactions express reality.
+Everything is an entity. Money moves between entities through immutable transactions. Savings are virtual reservations of account money, not independent fund sources. Plans express intent; transactions express reality; reservations express earmarked funds.
 
 Entity types:
 
 - `income`
 - `account`
 - `category`
-- `saving`
+- `saving` — virtual: balance comes from reservations, not transactions
 
 Key rules:
 
 - Balances are derived, never stored.
 - Overspending is allowed and must remain visible.
-- Users can move money between any entities.
 - Drag-and-drop is the primary interaction pattern.
+- Savings cannot be a source or destination in transactions. Money flows to savings only through reservations.
 
 ## Data Architecture
 
@@ -31,6 +31,7 @@ The authoritative model is:
 - `entities`: labels, type, ordering, icon, optional color
 - `plans`: monthly budgets or all-time goals
 - `transactions`: immutable money movements between entities
+- `reservations`: earmarked account funds for savings goals (unique per account–saving pair)
 
 Derived values belong in selectors, not persisted state:
 
@@ -38,33 +39,44 @@ Derived values belong in selectors, not persisted state:
 - planned vs actual
 - remaining amounts
 - overspending state
+- available balance (account actual minus reserved)
 
 Time scope rules:
 
 - `income` and `category` actuals are evaluated against the current month
-- `account` and `saving` balances use all-time transactions
+- `account` balances use all-time transactions; `reserved` is the sum of reservations on that account
+- `saving` balances are the sum of reservations pointing to that saving (not transactions)
 
 ## Main Screen Behavior
 
 The primary screen shows:
 
 - `Income` for current-month inflow
-- `Accounts · Total` for all-time balances
+- `Accounts · Total` for all-time balances (primary: available; secondary: total when reserved > 0)
 - `Categories` for current-month spending
-- `Savings · Goal` for all-time progress
+- `Savings · Goal` for all-time progress (balance = sum of reservations)
 
-Each item should present name, icon, actual amount, planned amount, and progress. Negative remaining amounts are emphasized rather than hidden.
+Each item should present name, icon, actual amount, and progress. Accounts show available balance as primary and total as secondary. Other entity types show actual and planned. Negative remaining amounts are emphasized rather than hidden.
 
 ## Interaction Rules
 
-Dragging one entity onto another opens a transaction modal.
+Dragging one entity onto another opens a transaction modal — except `Account -> Saving`, which opens a reservation modal instead.
 
 Behavioral expectations:
 
-- `Account -> Category`: start with an empty amount field
-- `Account -> Saving`: allow an empty amount and optional planned-remaining shortcut
+- `Account -> Category`: empty amount field; optional "fund from savings" section lets the user release reserved money into the transaction total
+- `Account -> Saving`: opens the reservation modal to set/update the earmarked amount (no transaction created)
 - `Income -> Account`: suggest remaining planned income
 - No validation should block a transaction solely because it exceeds a plan
+- Savings cannot be dragged as a transaction source; outgoing transactions from savings are structurally blocked
+
+### Reservations
+
+A reservation earmarks a portion of an account's balance for a savings goal. The `reservations` table enforces a unique `(account_entity_id, saving_entity_id)` pair — one reservation per account–saving combination.
+
+- Creating/updating: drag an account onto a saving, or edit the amount in the reservation modal.
+- Releasing: when creating a transaction from an account, the "fund from savings" section shows existing reservations as checkboxes. Checked amounts are added to the transaction total and the reservation is reduced (or deleted if fully released).
+- Deletion: setting amount to 0 deletes the row. FK `ON DELETE CASCADE` cleans up when either entity is deleted. CSV import clears all reservations.
 
 ## Visual and Accessibility Principles
 
