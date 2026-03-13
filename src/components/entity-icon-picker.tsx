@@ -55,7 +55,6 @@ export function EntityIconPicker({
 					className={textInputClassNames.input}
 					style={styles.input}
 					placeholderTextColor={colors.ink.placeholder}
-					autoCapitalize="none"
 					autoCorrect={false}
 					testID={searchInputTestID}
 				/>

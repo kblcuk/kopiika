@@ -321,7 +321,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								className={textInputClassNames.input}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								autoCapitalize="words"
 								maxLength={MAX_NAME_LENGTH}
 								testID="entity-detail-name-input"
 							/>
