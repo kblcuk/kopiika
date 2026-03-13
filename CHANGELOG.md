@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.2.0) (2026-03-13)
+
+
+### Features
+
+* **db:** add reservations table with migration and CRUD operations ([4b4a3f2](https://codeberg.org/kblcuk/kopiika/commit/4b4a3f2ffdd1a35bb10fa292b512dfc8cb9a8e69))
+* **savings:** add reservation modal for account-to-saving drag ([9cb7b2a](https://codeberg.org/kblcuk/kopiika/commit/9cb7b2ab884e61cec8776a3d1b812530ade06854))
+* **savings:** fund from savings when creating transactions ([554d817](https://codeberg.org/kblcuk/kopiika/commit/554d8170093b875acd8779ddb9323d077aa208c1))
+* **store:** integrate reservations into state and balance calculation ([3519c85](https://codeberg.org/kblcuk/kopiika/commit/3519c8520aac217ccff03aa3bc6a72a23ee00031))
+* **ui:** account bubbles show available/total instead of planned ([2817b61](https://codeberg.org/kblcuk/kopiika/commit/2817b61b98f1170145e17e155690ed6ce41e381b))
+* **ui:** account edit modal shows available instead of planned/remaining ([e89a573](https://codeberg.org/kblcuk/kopiika/commit/e89a5739f8ebc96dafb0b05d4a884717e8e1f6af))
+* **ui:** show reserved amount on account entity bubbles ([1365625](https://codeberg.org/kblcuk/kopiika/commit/1365625aa7a613ff7832ae6cff33b4201ac93cae))
+
+
+### Bug Fixes
+
+* **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
+* default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
+* **history:** scope upcoming transactions to selected period ([ed856fa](https://codeberg.org/kblcuk/kopiika/commit/ed856fa8793bf8ee30ab6c31e823f13ad66d7f58))
+* **savings:** block outgoing transactions from savings entities ([6477fb5](https://codeberg.org/kblcuk/kopiika/commit/6477fb53fcc981867bf5a01d9f14507227a4d36e))
+* **savings:** block outgoing transactions from savings via drag-and-drop ([402fdb9](https://codeberg.org/kblcuk/kopiika/commit/402fdb961b8f3fb86dd14b838108d858664e011c))
+* **savings:** review fixes — drop PK mutation on upsert, add reservation tests ([bcbc2aa](https://codeberg.org/kblcuk/kopiika/commit/bcbc2aa8b3b8b0941fb779bd87b3c88ce04da281))
+* **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
+
 ## [0.1.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.1.0) (2026-03-08)
 
 
