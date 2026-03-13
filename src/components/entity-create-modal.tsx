@@ -171,7 +171,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								className={textInputClassNames.input}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								autoCapitalize="words"
+								autoCapitalize="none"
 								testID="entity-create-name-input"
 							/>
 						</View>
