@@ -589,6 +589,7 @@ platform :android do
       track: track,
       release_status: release_status,
       aab: effective_aab,
+      skip_upload_apk: true,
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true
