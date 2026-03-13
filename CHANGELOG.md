@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.2](https://codeberg.org/kblcuk/kopiika/compare/v0.2.1...v0.2.2) (2026-03-13)
+
+
+### Features
+
+* **release:** orchestrate parallel iOS + Android builds with mise ([b8175b3](https://codeberg.org/kblcuk/kopiika/commit/b8175b370912e87c11646af8c27f42c3a8eca86c))
+
+
+### Bug Fixes
+
+* **android:** Upload only AAB artifacts to Play ([c17e552](https://codeberg.org/kblcuk/kopiika/commit/c17e55266976f655af4e76bc4589723a1bc53663))
+* **dashboard:** Restrict entity reordering to edit mode ([b4b612b](https://codeberg.org/kblcuk/kopiika/commit/b4b612b4548eb005eca76637717bf90fa569bc6a))
+* **dashboard:** Wrap long entity names in bubbles ([ff70792](https://codeberg.org/kblcuk/kopiika/commit/ff70792af85bd3fc2144830453264808e0228a2b))
+* **release:** Sync version metadata before release builds ([634a4bf](https://codeberg.org/kblcuk/kopiika/commit/634a4bf690398b9d156a7b0906adfc382e217992))
+* **startup:** Remove duplicate app initialization paths ([2f66cb3](https://codeberg.org/kblcuk/kopiika/commit/2f66cb341ad900ada5b03e6eb0e3385e13613163))
+* **ux:** disable auto-capitalization ([33f4e3b](https://codeberg.org/kblcuk/kopiika/commit/33f4e3be73b0552a2d1394d5d4aab2894724a861))
+
 ## [0.2.1](https://codeberg.org/kblcuk/kopiika/compare/v0.2.0...v0.2.1) (2026-03-13)
 
 

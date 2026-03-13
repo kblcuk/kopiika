@@ -1,4 +1,5 @@
-## fastlane documentation
+fastlane documentation
+----
 
 # Installation
 
@@ -20,7 +21,16 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Sync app.json build numbers from App Store Connect and Google Play
 
----
+### notify_telegram
+
+```sh
+[bundle exec] fastlane notify_telegram
+```
+
+Send release notification to Telegram group
+
+----
+
 
 ## iOS
 
@@ -64,7 +74,8 @@ Promote an uploaded TestFlight build to external tester groups
 
 Push a new beta build to TestFlight
 
----
+----
+
 
 ## Android
 
@@ -116,7 +127,7 @@ Build and upload a production release (defaults to draft for safety)
 
 Promote a release from one track to another
 
----
+----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
