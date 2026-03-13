@@ -87,6 +87,27 @@ describe('EntityCreateModal', () => {
 			expect(mockOnClose).not.toHaveBeenCalled();
 		});
 
+		it('creates entity with a long dashboard label name', async () => {
+			const addEntitySpy = jest.fn();
+			useStore.setState({ addEntity: addEntitySpy });
+
+			const longName = 'Emergency fund for yearly tax buffer';
+			const { getByTestId } = render(
+				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
+			);
+
+			fireEvent.changeText(getByTestId('entity-create-name-input'), longName);
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(addEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						name: longName,
+					})
+				);
+			});
+		});
+
 		it('creates entity with name only (no plan)', async () => {
 			const addEntitySpy = jest.fn();
 			const setPlanSpy = jest.fn();

@@ -1,0 +1,1 @@
+export const ENTITY_BUBBLE_NAME_LINES = 2;

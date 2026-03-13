@@ -306,9 +306,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							Name
 						</Text>
 						<View
-							className={`${textInputClassNames.container} ${
-								nameError ? 'border-negative' : ''
-							}`}
+							className={[
+								textInputClassNames.container,
+								nameError && 'border-negative',
+							]
+								.filter(Boolean)
+								.join(' ')}
 						>
 							<TextInput
 								{...sharedTextInputProps}
@@ -319,6 +322,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
 								autoCapitalize="words"
+								maxLength={MAX_NAME_LENGTH}
 								testID="entity-detail-name-input"
 							/>
 						</View>

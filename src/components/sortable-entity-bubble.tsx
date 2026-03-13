@@ -16,6 +16,7 @@ import type { EntityWithBalance } from '@/src/types';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
 import { CircularProgress } from './circular-progress';
 import { getIcon } from '@/src/constants/icon-registry';
 
@@ -145,13 +146,16 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
 					{/* Glow effect for drop target */}
 					<Animated.View style={glowStyle} pointerEvents="none" />
-					<Text
-						className="mb-2.5 text-center font-sans text-xs text-ink"
-						numberOfLines={1}
-						ellipsizeMode="tail"
-					>
-						{entity.name}
-					</Text>
+					<View className="mb-1 h-8 justify-center">
+						<Text
+							className="text-center font-sans text-xs text-ink"
+							style={{ lineHeight: 14 }}
+							numberOfLines={ENTITY_BUBBLE_NAME_LINES}
+							ellipsizeMode="tail"
+						>
+							{entity.name}
+						</Text>
+					</View>
 
 					<View className="relative h-14 w-14 items-center justify-center">
 						{entity.type === 'account' || entity.planned === 0 ? null : (
@@ -172,7 +176,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 						</View>
 					</View>
 
-					<View className="mt-2.5 items-center">
+					<View className="mt-2 items-center">
 						<Text
 							className={`font-sans-semibold text-sm ${
 								isAccount

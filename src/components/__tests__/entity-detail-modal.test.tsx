@@ -107,7 +107,7 @@ describe('EntityDetailModal', () => {
 			});
 		});
 
-		it('shows error when name exceeds 100 characters', () => {
+		it('shows error when name exceeds the shared limit', () => {
 			const { getByTestId, getByText } = render(
 				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
 			);
@@ -132,6 +132,31 @@ describe('EntityDetailModal', () => {
 
 			await waitFor(() => {
 				expect(updateEntitySpy).not.toHaveBeenCalled();
+			});
+		});
+
+		it('allows saving a reasonably long name', async () => {
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			const longName = 'Emergency fund for yearly tax buffer';
+
+			useStore.setState({ updateEntity: updateEntitySpy, setPlan: setPlanSpy });
+
+			const { getByTestId, queryByText } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-name-input'), longName);
+			expect(queryByText(/Name is too long/)).toBeNull();
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						id: mockEntity.id,
+						name: longName,
+					})
+				);
 			});
 		});
 	});

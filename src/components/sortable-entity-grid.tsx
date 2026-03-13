@@ -29,7 +29,7 @@ import {
 const BUBBLE_WIDTH = 96;
 const COLUMN_GAP = 4;
 const ROW_GAP = 4;
-const BUBBLE_HEIGHT = 128;
+const BUBBLE_HEIGHT = 136;
 
 // Module-level shared value for hovered drop zone - shared across all grids
 // Using makeMutable for a global shared value that can be modified from JS thread
