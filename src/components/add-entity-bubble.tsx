@@ -13,7 +13,7 @@ export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 	return (
 		<Pressable onPress={() => onPress(type)} className="w-24 items-center py-1">
 			{/* Placeholder for name spacing */}
-			<View className="mb-2.5 h-4" />
+			<View className="mb-2.5 h-8" />
 
 			{/* Dashed circle with plus icon */}
 			<View className="relative h-14 w-14 items-center justify-center">

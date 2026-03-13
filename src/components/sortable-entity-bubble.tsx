@@ -166,7 +166,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
 					{/* Glow effect for drop target */}
 					<Animated.View style={glowStyle} pointerEvents="none" />
-					<View className="mb-1 h-8 justify-center">
+					<View className="mb-2 h-9 justify-center">
 						<Text
 							className="text-center font-sans text-xs text-ink"
 							style={{ lineHeight: 14 }}
