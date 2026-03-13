@@ -89,13 +89,21 @@ jest.mock('@/src/components', () => {
 	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
 	return {
-		SortableEntityGrid: ({ entities, onTap, onToggleEditMode, editMode, type }: any) => (
+		SortableEntityGrid: ({
+			entities,
+			onTap,
+			onToggleEditMode,
+			editMode,
+			type,
+			dragBehavior,
+		}: any) => (
 			<View>
 				{onToggleEditMode ? (
 					<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
 						<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
 					</Pressable>
 				) : null}
+				<Text testID={`${type}-drag-behavior`}>{dragBehavior}</Text>
 				<Sortable.Grid
 					data={entities}
 					renderItem={({ item }: { item: any }) => (
@@ -223,5 +231,26 @@ describe('HomeScreen entity interactions', () => {
 			expect(queryByTestId('entity-detail-modal')).toBeTruthy();
 			expect(mockPush).not.toHaveBeenCalled();
 		});
+	});
+
+	it('switches categories to reorder mode only while edit mode is active', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		expect(getByTestId('category-drag-behavior').props.children).toBe('transaction');
+
+		fireEvent.press(getByTestId('category-edit-toggle'));
+		expect(getByTestId('category-drag-behavior').props.children).toBe('reorder');
+
+		fireEvent.press(getByTestId('category-edit-toggle'));
+		expect(getByTestId('category-drag-behavior').props.children).toBe('transaction');
+	});
+
+	it('switches accounts between transfer mode and reorder mode with the edit toggle', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		expect(getByTestId('account-drag-behavior').props.children).toBe('transaction');
+
+		fireEvent.press(getByTestId('account-edit-toggle'));
+		expect(getByTestId('account-drag-behavior').props.children).toBe('reorder');
 	});
 });

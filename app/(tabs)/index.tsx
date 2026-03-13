@@ -62,9 +62,7 @@ export default function HomeScreen() {
 	const [createModalVisible, setCreateModalVisible] = useState(false);
 	const [createEntityType, setCreateEntityType] = useState<EntityType | null>(null);
 
-	// Accounts reorder mode - when false, account-to-account drags create transfers
-	const [accountsReorderMode, setAccountsReorderMode] = useState(false);
-	// Section edit modes - when true, tap opens edit modal and dragging is disabled
+	// Section edit modes - when true, taps open the detail modal and drags reorder locally.
 	const [incomeEditMode, setIncomeEditMode] = useState(false);
 	const [accountsEditMode, setAccountsEditMode] = useState(false);
 	const [categoriesEditMode, setCategoriesEditMode] = useState(false);
@@ -136,10 +134,8 @@ export default function HomeScreen() {
 				return;
 			}
 
-			// Grid passes targetId when a transaction should be created:
-			// - Cross-type drops (always)
-			// - Account-to-account drops when not in reorder mode
-			// For same-type reorder, grid handles internally and passes null
+			// Grid passes targetId only when the drag should open a money-moving flow.
+			// Local reorders are handled inside the grid and come back as null.
 			setFromEntity(entity);
 			setToEntity(targetEntity);
 			setModalVisible(true);
@@ -194,9 +190,6 @@ export default function HomeScreen() {
 		setCreateEntityType(null);
 	}, []);
 
-	const handleToggleAccountsReorderMode = useCallback(() => {
-		setAccountsReorderMode((prev) => !prev);
-	}, []);
 	const handleToggleCategoriesEditMode = useCallback(() => {
 		setCategoriesEditMode((prev) => !prev);
 	}, []);
@@ -343,7 +336,7 @@ export default function HomeScreen() {
 									onTap={handleTap}
 									onAdd={handleAdd}
 									dropZonesDisabled={!incomeVisible}
-									dragDisabled={incomeEditMode}
+									dragBehavior={incomeEditMode ? 'reorder' : 'transaction'}
 									editMode={incomeEditMode}
 									onToggleEditMode={handleToggleIncomeEditMode}
 								/>
@@ -357,9 +350,7 @@ export default function HomeScreen() {
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
 							onAdd={handleAdd}
-							reorderMode={accountsReorderMode}
-							onToggleReorderMode={handleToggleAccountsReorderMode}
-							dragDisabled={accountsEditMode}
+							dragBehavior={accountsEditMode ? 'reorder' : 'transaction'}
 							editMode={accountsEditMode}
 							onToggleEditMode={handleToggleAccountsEditMode}
 						/>
@@ -372,7 +363,7 @@ export default function HomeScreen() {
 							onTap={handleTap}
 							onAdd={handleAdd}
 							maxRows={3}
-							dragDisabled={categoriesEditMode}
+							dragBehavior={categoriesEditMode ? 'reorder' : 'transaction'}
 							editMode={categoriesEditMode}
 							onToggleEditMode={handleToggleCategoriesEditMode}
 						/>
@@ -384,7 +375,7 @@ export default function HomeScreen() {
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
 							onAdd={handleAdd}
-							dragDisabled={savingsEditMode}
+							dragBehavior={savingsEditMode ? 'reorder' : 'transaction'}
 							editMode={savingsEditMode}
 							onToggleEditMode={handleToggleSavingsEditMode}
 						/>

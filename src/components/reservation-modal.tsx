@@ -46,13 +46,14 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					(r) => r.account_entity_id === account.id && r.saving_entity_id === saving.id
 				)
 			: null;
+	const existingAmount = existing?.amount;
 
 	useEffect(() => {
 		if (visible && account && saving) {
-			setAmount(existing ? String(existing.amount) : '');
+			setAmount(existingAmount !== undefined ? String(existingAmount) : '');
 			setTimeout(() => inputRef.current?.focus(), 100);
 		}
-	}, [visible, account?.id, saving?.id, existing?.id]);
+	}, [visible, account, saving, existingAmount]);
 
 	if (!account || !saving) return null;
 

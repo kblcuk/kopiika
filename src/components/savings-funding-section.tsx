@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
@@ -43,13 +43,12 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		const reservations = useStore((s) => s.reservations);
 		const entities = useStore((s) => s.entities);
 
-		const accountReservations = reservations.filter(
-			(r) => r.account_entity_id === accountEntityId
+		const accountReservations = useMemo(
+			() => reservations.filter((r) => r.account_entity_id === accountEntityId),
+			[reservations, accountEntityId]
 		);
 
-		// Init rows once per account. accountReservations intentionally omitted from deps —
-		// this component is remounted each modal session (parent gates on `visible`),
-		// so stale reservation data cannot accumulate during a single session.
+		// Rebuild rows when the account or its available reservations change.
 		useEffect(() => {
 			setRows(
 				accountReservations.map((r) => ({
@@ -62,7 +61,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 			);
 			onFundingChange(0);
 			setShowAll(false);
-		}, [accountEntityId]);
+		}, [accountReservations, onFundingChange]);
 
 		// Report total funded whenever rows change
 		useEffect(() => {
@@ -73,7 +72,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 					return sum + Math.min(roundMoney(parsed > 0 ? parsed : 0), r.maxAmount);
 				}, 0);
 			onFundingChange(roundMoney(total));
-		}, [rows]);
+		}, [rows, currency, onFundingChange]);
 
 		useImperativeHandle(ref, () => ({
 			getFundedReservations() {

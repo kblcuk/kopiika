@@ -4,7 +4,7 @@ import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
 import Animated, { useAnimatedRef, makeMutable, type SharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { ArrowUpDown, Check, Pencil } from 'lucide-react-native';
+import { Check, Pencil } from 'lucide-react-native';
 
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { colors } from '@/src/theme/colors';
@@ -52,12 +52,8 @@ interface SortableEntityGridProps {
 	onAdd?: (type: EntityType) => void;
 	dropZonesDisabled?: boolean;
 	maxRows?: number;
-	/** When true, same-type drags reorder items. When false, same-type account drags create transactions. */
-	reorderMode?: boolean;
-	/** Callback to toggle reorder mode (renders edit button if provided) */
-	onToggleReorderMode?: () => void;
-	/** When true, disables dragging and keeps entities fixed. */
-	dragDisabled?: boolean;
+	/** Controls whether drags create transactions/reservations or reorder within the section. */
+	dragBehavior?: 'transaction' | 'reorder';
 	/** Whether section tap behavior is in edit mode (for header toggle state). */
 	editMode?: boolean;
 	/** Callback to toggle edit mode in the section header. */
@@ -74,13 +70,12 @@ export function SortableEntityGrid({
 	onAdd,
 	dropZonesDisabled = false,
 	maxRows = 1,
-	reorderMode = true,
-	onToggleReorderMode,
-	dragDisabled = false,
+	dragBehavior = 'transaction',
 	editMode = false,
 	onToggleEditMode,
 }: SortableEntityGridProps) {
 	const reorderEntitiesByIds = useStore((state) => state.reorderEntitiesByIds);
+	const isTransactionMode = dragBehavior === 'transaction';
 
 	// Get the global shared value for hovered drop zone - shared across all grids
 	const hoveredIdShared = useMemo(() => getGlobalHoveredId(), []);
@@ -189,8 +184,6 @@ export function SortableEntityGrid({
 
 	const handleSortableDragStart = useCallback(
 		({ key }: { key: string }) => {
-			if (dragDisabled) return;
-
 			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 			const entity = entities.find((e) => e.id === key);
 			draggedEntityRef.current = entity || null;
@@ -198,24 +191,19 @@ export function SortableEntityGrid({
 			// Set dragged ID in context ref BEFORE setIsFixed so bubbles can check it
 			draggedIdRef.current = entity?.id || null;
 
-			// When reorderMode is off for accounts, set fixed mode to prevent visual reordering
-			// Other items will become fixed-order, but the dragged item stays draggable
-			if (dragDisabled || (!reorderMode && type === 'account')) {
-				setIsFixed(true);
-			}
+			// Transaction mode keeps the local layout fixed so drags can leave the section cleanly.
+			setIsFixed(isTransactionMode);
 
 			if (entity) {
 				onDragStart?.(entity);
 			}
 		},
-		[entities, onDragStart, reorderMode, type, setIsFixed, dragDisabled]
+		[entities, onDragStart, setIsFixed, isTransactionMode]
 	);
 
 	const handleSortableDragMove = useCallback(
 		({ touchData }: { touchData: TouchData }) => {
 			lastTouchRef.current = { x: touchData.absoluteX, y: touchData.absoluteY };
-
-			if (dragDisabled) return;
 
 			const draggedEntity = draggedEntityRef.current;
 			if (!draggedEntity) return;
@@ -224,17 +212,20 @@ export function SortableEntityGrid({
 			// This allows items to be dragged outside for cross-type drops
 			const bounds = gridBoundsRef.current;
 			if (bounds) {
-				const nextIsFixed =
-					// When reorderMode is off for accounts, always keep fixed to prevent reordering
-					!reorderMode && type === 'account'
-						? true
-						: shouldUseFixedOrderMode({
-								x: touchData.absoluteX,
-								y: touchData.absoluteY,
-								bounds,
-								wasFixed: isFixedRef.current,
-							});
+				const nextIsFixed = isTransactionMode
+					? true
+					: shouldUseFixedOrderMode({
+							x: touchData.absoluteX,
+							y: touchData.absoluteY,
+							bounds,
+							wasFixed: isFixedRef.current,
+						});
 				setIsFixed(nextIsFixed);
+			}
+
+			if (!isTransactionMode) {
+				hoveredIdShared.value = '';
+				return;
 			}
 
 			// Throttle drop target detection
@@ -256,9 +247,7 @@ export function SortableEntityGrid({
 				}
 
 				const isCrossType = targetEntity.type !== type;
-				// In transfer mode (reorderMode=false), account-to-account also creates transactions
-				const isSameTypeTransfer =
-					!reorderMode && type === 'account' && targetEntity.type === 'account';
+				const isSameTypeTransfer = type === 'account' && targetEntity.type === 'account';
 
 				// Savings are virtual reservations — no outgoing transactions
 				if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
@@ -270,7 +259,7 @@ export function SortableEntityGrid({
 				hoveredIdShared.value = '';
 			}
 		},
-		[type, hoveredIdShared, setIsFixed, reorderMode, dragDisabled]
+		[type, hoveredIdShared, setIsFixed, isTransactionMode]
 	);
 
 	const handleSortableDragEnd = useCallback(
@@ -285,12 +274,8 @@ export function SortableEntityGrid({
 			draggedEntityRef.current = null;
 			lastDropCheckTimeRef.current = 0;
 
-			if (dragDisabled) {
-				return;
-			}
-
 			// Check for drop targets that should create transactions
-			if (touch && draggedEntity) {
+			if (isTransactionMode && touch && draggedEntity) {
 				const targetId = findDropTarget(touch.x, touch.y, draggedEntity.id);
 				if (targetId) {
 					const targetEntity = useStore
@@ -299,9 +284,8 @@ export function SortableEntityGrid({
 
 					if (targetEntity) {
 						const isCrossType = targetEntity.type !== type;
-						// In transfer mode (reorderMode=false), account-to-account also creates transactions
 						const isSameTypeTransfer =
-							!reorderMode && type === 'account' && targetEntity.type === 'account';
+							type === 'account' && targetEntity.type === 'account';
 
 						if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
 							onDragEnd?.(draggedEntity, targetId);
@@ -311,9 +295,10 @@ export function SortableEntityGrid({
 				}
 			}
 
-			// Same-type reorder (or reorderMode=true for accounts)
-			const newOrder = data.map((e) => e.id);
-			reorderEntitiesByIds(type, newOrder, maxRows);
+			if (dragBehavior === 'reorder') {
+				const newOrder = data.map((e) => e.id);
+				reorderEntitiesByIds(type, newOrder, maxRows);
+			}
 
 			if (draggedEntity) {
 				onDragEnd?.(draggedEntity, null);
@@ -326,8 +311,8 @@ export function SortableEntityGrid({
 			reorderEntitiesByIds,
 			hoveredIdShared,
 			setIsFixed,
-			reorderMode,
-			dragDisabled,
+			dragBehavior,
+			isTransactionMode,
 		]
 	);
 
@@ -344,22 +329,6 @@ export function SortableEntityGrid({
 				<Text className="px-3 font-sans text-xs uppercase tracking-wider text-ink-muted">
 					{title}
 				</Text>
-				{onToggleReorderMode && (
-					<Pressable
-						onPress={() => {
-							Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-							onToggleReorderMode();
-						}}
-						className={`mx-1 rounded-full p-1.5 ${reorderMode ? 'bg-accent/20' : 'bg-transparent'}`}
-						hitSlop={8}
-					>
-						{reorderMode ? (
-							<Check size={14} color={colors.accent.DEFAULT} strokeWidth={2.5} />
-						) : (
-							<ArrowUpDown size={14} color={colors.ink.muted} strokeWidth={2} />
-						)}
-					</Pressable>
-				)}
 				{onToggleEditMode && (
 					<Pressable
 						onPress={() => {
@@ -404,11 +373,7 @@ export function SortableEntityGrid({
 												<AddEntityBubble type={type} onPress={onAdd} />
 											</Sortable.Handle>
 										) : (
-											<SortableEntityBubble
-												entity={item}
-												onTap={onTap}
-												dragDisabled={dragDisabled}
-											/>
+											<SortableEntityBubble entity={item} onTap={onTap} />
 										)
 									}
 									keyExtractor={(item: EntityWithBalance) => item.id}
