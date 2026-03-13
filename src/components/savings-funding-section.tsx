@@ -108,9 +108,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		};
 
 		const handleAmountChange = (index: number, value: string) => {
-			setRows((prev) =>
-				prev.map((r, i) => (i === index ? { ...r, amount: value } : r))
-			);
+			setRows((prev) => prev.map((r, i) => (i === index ? { ...r, amount: value } : r)));
 		};
 
 		const hiddenCount = rows.length - VISIBLE_CAP;
@@ -153,11 +151,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 									}`}
 								>
 									{row.enabled && (
-										<Check
-											size={13}
-											color={colors.paper[50]}
-											strokeWidth={3}
-										/>
+										<Check size={13} color={colors.paper[50]} strokeWidth={3} />
 									)}
 								</View>
 
@@ -169,10 +163,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 									<View
 										className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
 									>
-										<IconComponent
-											size={11}
-											color={typeColors.iconColor}
-										/>
+										<IconComponent size={11} color={typeColors.iconColor} />
 									</View>
 									<Text
 										className="font-sans text-sm text-ink"
@@ -190,26 +181,22 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 											<TextInput
 												{...sharedTextInputProps}
 												value={row.amount}
-												onChangeText={(v) =>
-													handleAmountChange(index, v)
-												}
+												onChangeText={(v) => handleAmountChange(index, v)}
 												placeholder="0"
 												keyboardType="numeric"
-												className={
-													textInputClassNames.inlineAmountInput
-												}
+												className={textInputClassNames.inlineAmountInput}
 												style={[
 													styles.input,
 													{ textAlign: 'right', minWidth: 48 },
 												]}
 												placeholderTextColor={colors.ink.placeholder}
 											/>
-											<Text className="ml-1 font-sans text-xs text-ink-faint">
+											<Text className="text-ink-faint ml-1 font-sans text-xs">
 												/ {formatAmount(row.maxAmount, currency)}
 											</Text>
 										</>
 									) : (
-										<Text className="font-sans text-sm text-ink-faint">
+										<Text className="text-ink-faint font-sans text-sm">
 											{formatAmount(row.maxAmount, currency)}
 										</Text>
 									)}

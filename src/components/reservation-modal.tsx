@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+	View,
+	Text,
+	TextInput,
+	Pressable,
+	Modal,
+	KeyboardAvoidingView,
+	Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Trash2 } from 'lucide-react-native';
 
@@ -32,11 +40,12 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const reservations = useStore((s) => s.reservations);
 
 	// Find existing reservation for this pair
-	const existing = account && saving
-		? reservations.find(
-			(r) => r.account_entity_id === account.id && r.saving_entity_id === saving.id
-		)
-		: null;
+	const existing =
+		account && saving
+			? reservations.find(
+					(r) => r.account_entity_id === account.id && r.saving_entity_id === saving.id
+				)
+			: null;
 
 	useEffect(() => {
 		if (visible && account && saving) {
@@ -67,7 +76,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const typeColors = getEntityTypeColors(entity.type);
 		return (
 			<View className="flex-1 items-center">
-				<View className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}>
+				<View
+					className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+				>
 					<IconComponent size={20} color={typeColors.iconColor} />
 				</View>
 				<Text className="text-center font-sans text-sm text-ink-muted" numberOfLines={1}>
@@ -92,7 +103,11 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					{/* Header: account → saving */}
 					<View className="mb-6 flex-row items-center justify-center">
 						{renderBubble(account)}
-						<ArrowRight size={20} color={colors.ink.muted} style={{ marginHorizontal: 16 }} />
+						<ArrowRight
+							size={20}
+							color={colors.ink.muted}
+							style={{ marginHorizontal: 16 }}
+						/>
 						{renderBubble(saving)}
 					</View>
 
@@ -106,7 +121,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						</Text>
 						<View className="flex-row items-baseline">
 							<Text
-								className="font-sans-semibold text-ink-faint"
+								className="text-ink-faint font-sans-semibold"
 								style={{ fontSize: 24 }}
 							>
 								{getCurrencySymbol(currency)}
@@ -124,7 +139,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							/>
 						</View>
 						{existing && (
-							<Text className="mt-1 font-sans text-xs text-ink-faint">
+							<Text className="text-ink-faint mt-1 font-sans text-xs">
 								Currently reserved: {formatAmount(existing.amount, currency)}
 							</Text>
 						)}
@@ -163,7 +178,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							disabled={!canSubmit}
 							className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}
 						>
-							<Text className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}>
+							<Text
+								className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
+							>
 								{existing ? 'Update' : 'Reserve'}
 							</Text>
 						</Pressable>

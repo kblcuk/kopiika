@@ -1,387 +1,345 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "a73cce93-15f5-44e9-ae87-0c43e1cf52fd",
-  "prevId": "504a80c8-1dcb-4122-892f-0149aa90c557",
-  "tables": {
-    "entities": {
-      "name": "entities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "icon": {
-          "name": "icon",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "color": {
-          "name": "color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "owner_id": {
-          "name": "owner_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "row": {
-          "name": "row",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "include_in_total": {
-          "name": "include_in_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        }
-      },
-      "indexes": {
-        "idx_entities_type": {
-          "name": "idx_entities_type",
-          "columns": [
-            "type"
-          ],
-          "isUnique": false
-        },
-        "idx_entities_type_row_position": {
-          "name": "idx_entities_type_row_position",
-          "columns": [
-            "type",
-            "row",
-            "position"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "plans": {
-      "name": "plans",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "period": {
-          "name": "period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "period_start": {
-          "name": "period_start",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "planned_amount": {
-          "name": "planned_amount",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "idx_plans_entity_period": {
-          "name": "idx_plans_entity_period",
-          "columns": [
-            "entity_id",
-            "period_start"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "plans_entity_id_entities_id_fk": {
-          "name": "plans_entity_id_entities_id_fk",
-          "tableFrom": "plans",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "reservations": {
-      "name": "reservations",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_entity_id": {
-          "name": "account_entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "saving_entity_id": {
-          "name": "saving_entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "amount": {
-          "name": "amount",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "idx_reservations_account": {
-          "name": "idx_reservations_account",
-          "columns": [
-            "account_entity_id"
-          ],
-          "isUnique": false
-        },
-        "idx_reservations_saving": {
-          "name": "idx_reservations_saving",
-          "columns": [
-            "saving_entity_id"
-          ],
-          "isUnique": false
-        },
-        "unq_reservations_pair": {
-          "name": "unq_reservations_pair",
-          "columns": [
-            "account_entity_id",
-            "saving_entity_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "reservations_account_entity_id_entities_id_fk": {
-          "name": "reservations_account_entity_id_entities_id_fk",
-          "tableFrom": "reservations",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "account_entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reservations_saving_entity_id_entities_id_fk": {
-          "name": "reservations_saving_entity_id_entities_id_fk",
-          "tableFrom": "reservations",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "saving_entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "transactions": {
-      "name": "transactions",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "from_entity_id": {
-          "name": "from_entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "to_entity_id": {
-          "name": "to_entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "amount": {
-          "name": "amount",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "timestamp": {
-          "name": "timestamp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "idx_transactions_timestamp": {
-          "name": "idx_transactions_timestamp",
-          "columns": [
-            "timestamp"
-          ],
-          "isUnique": false
-        },
-        "idx_transactions_from": {
-          "name": "idx_transactions_from",
-          "columns": [
-            "from_entity_id"
-          ],
-          "isUnique": false
-        },
-        "idx_transactions_to": {
-          "name": "idx_transactions_to",
-          "columns": [
-            "to_entity_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "transactions_from_entity_id_entities_id_fk": {
-          "name": "transactions_from_entity_id_entities_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "from_entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "transactions_to_entity_id_entities_id_fk": {
-          "name": "transactions_to_entity_id_entities_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "to_entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    }
-  },
-  "views": {},
-  "enums": {},
-  "_meta": {
-    "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "indexes": {}
-  }
+	"version": "6",
+	"dialect": "sqlite",
+	"id": "a73cce93-15f5-44e9-ae87-0c43e1cf52fd",
+	"prevId": "504a80c8-1dcb-4122-892f-0149aa90c557",
+	"tables": {
+		"entities": {
+			"name": "entities",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"currency": {
+					"name": "currency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"icon": {
+					"name": "icon",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"color": {
+					"name": "color",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"owner_id": {
+					"name": "owner_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"order": {
+					"name": "order",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"row": {
+					"name": "row",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"position": {
+					"name": "position",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"include_in_total": {
+					"name": "include_in_total",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": true
+				}
+			},
+			"indexes": {
+				"idx_entities_type": {
+					"name": "idx_entities_type",
+					"columns": ["type"],
+					"isUnique": false
+				},
+				"idx_entities_type_row_position": {
+					"name": "idx_entities_type_row_position",
+					"columns": ["type", "row", "position"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"plans": {
+			"name": "plans",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"entity_id": {
+					"name": "entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"period": {
+					"name": "period",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"period_start": {
+					"name": "period_start",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"planned_amount": {
+					"name": "planned_amount",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"idx_plans_entity_period": {
+					"name": "idx_plans_entity_period",
+					"columns": ["entity_id", "period_start"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"plans_entity_id_entities_id_fk": {
+					"name": "plans_entity_id_entities_id_fk",
+					"tableFrom": "plans",
+					"tableTo": "entities",
+					"columnsFrom": ["entity_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"reservations": {
+			"name": "reservations",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"account_entity_id": {
+					"name": "account_entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"saving_entity_id": {
+					"name": "saving_entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"amount": {
+					"name": "amount",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"idx_reservations_account": {
+					"name": "idx_reservations_account",
+					"columns": ["account_entity_id"],
+					"isUnique": false
+				},
+				"idx_reservations_saving": {
+					"name": "idx_reservations_saving",
+					"columns": ["saving_entity_id"],
+					"isUnique": false
+				},
+				"unq_reservations_pair": {
+					"name": "unq_reservations_pair",
+					"columns": ["account_entity_id", "saving_entity_id"],
+					"isUnique": true
+				}
+			},
+			"foreignKeys": {
+				"reservations_account_entity_id_entities_id_fk": {
+					"name": "reservations_account_entity_id_entities_id_fk",
+					"tableFrom": "reservations",
+					"tableTo": "entities",
+					"columnsFrom": ["account_entity_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"reservations_saving_entity_id_entities_id_fk": {
+					"name": "reservations_saving_entity_id_entities_id_fk",
+					"tableFrom": "reservations",
+					"tableTo": "entities",
+					"columnsFrom": ["saving_entity_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"transactions": {
+			"name": "transactions",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"from_entity_id": {
+					"name": "from_entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"to_entity_id": {
+					"name": "to_entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"amount": {
+					"name": "amount",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"currency": {
+					"name": "currency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"timestamp": {
+					"name": "timestamp",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"idx_transactions_timestamp": {
+					"name": "idx_transactions_timestamp",
+					"columns": ["timestamp"],
+					"isUnique": false
+				},
+				"idx_transactions_from": {
+					"name": "idx_transactions_from",
+					"columns": ["from_entity_id"],
+					"isUnique": false
+				},
+				"idx_transactions_to": {
+					"name": "idx_transactions_to",
+					"columns": ["to_entity_id"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"transactions_from_entity_id_entities_id_fk": {
+					"name": "transactions_from_entity_id_entities_id_fk",
+					"tableFrom": "transactions",
+					"tableTo": "entities",
+					"columnsFrom": ["from_entity_id"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"transactions_to_entity_id_entities_id_fk": {
+					"name": "transactions_to_entity_id_entities_id_fk",
+					"tableFrom": "transactions",
+					"tableTo": "entities",
+					"columnsFrom": ["to_entity_id"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		}
+	},
+	"views": {},
+	"enums": {},
+	"_meta": {
+		"schemas": {},
+		"tables": {},
+		"columns": {}
+	},
+	"internal": {
+		"indexes": {}
+	}
 }

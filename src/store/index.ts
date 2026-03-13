@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { useMemo } from 'react';
-import type { Entity, EntityType, EntityWithBalance, Plan, Transaction, Reservation } from '@/src/types';
+import type {
+	Entity,
+	EntityType,
+	EntityWithBalance,
+	Plan,
+	Transaction,
+	Reservation,
+} from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
@@ -57,7 +64,11 @@ interface AppState {
 	deleteTransaction: (id: string) => Promise<void>;
 
 	// Reservation actions
-	upsertReservation: (accountEntityId: string, savingEntityId: string, amount: number) => Promise<void>;
+	upsertReservation: (
+		accountEntityId: string,
+		savingEntityId: string,
+		amount: number
+	) => Promise<void>;
 	deleteReservation: (id: string) => Promise<void>;
 	clearSavingReservations: (savingEntityId: string) => Promise<void>;
 }
@@ -358,16 +369,26 @@ export const useStore = create<AppState>((set, get) => ({
 		if (amount <= 0) {
 			set((s) => ({
 				reservations: s.reservations.filter(
-					(r) => !(r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId)
+					(r) =>
+						!(
+							r.account_entity_id === accountEntityId &&
+							r.saving_entity_id === savingEntityId
+						)
 				),
 			}));
 			return;
 		}
 
-		const updated: Reservation = { id, account_entity_id: accountEntityId, saving_entity_id: savingEntityId, amount };
+		const updated: Reservation = {
+			id,
+			account_entity_id: accountEntityId,
+			saving_entity_id: savingEntityId,
+			amount,
+		};
 		set((s) => {
 			const idx = s.reservations.findIndex(
-				(r) => r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId
+				(r) =>
+					r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId
 			);
 			if (idx >= 0) {
 				const next = [...s.reservations];
@@ -463,15 +484,17 @@ export function getEntitiesWithBalance(
 
 		const txActual = calcBalance(pastTxns, entity.id, entity.type);
 		// Savings have no time-based upcoming — reservations are static
-		const upcoming = entity.type === 'saving' ? 0 : calcBalance(futureTxns, entity.id, entity.type);
+		const upcoming =
+			entity.type === 'saving' ? 0 : calcBalance(futureTxns, entity.id, entity.type);
 
 		// Track how much of the account balance is reserved for savings (virtual earmark)
 		// actual = full bank balance (matches reality); reserved is shown separately in UI
-		const reserved = entity.type === 'account'
-			? reservations
-				.filter((r) => r.account_entity_id === entity.id)
-				.reduce((sum, r) => sum + r.amount, 0)
-			: 0;
+		const reserved =
+			entity.type === 'account'
+				? reservations
+						.filter((r) => r.account_entity_id === entity.id)
+						.reduce((sum, r) => sum + r.amount, 0)
+				: 0;
 
 		return {
 			...entity,
@@ -497,7 +520,15 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 	);
 
 	return useMemo(
-		() => getEntitiesWithBalance(entities, plans, transactions, currentPeriod, type, reservations),
+		() =>
+			getEntitiesWithBalance(
+				entities,
+				plans,
+				transactions,
+				currentPeriod,
+				type,
+				reservations
+			),
 		[entities, plans, transactions, currentPeriod, type, reservations]
 	);
 }

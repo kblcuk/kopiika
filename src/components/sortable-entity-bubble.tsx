@@ -176,16 +176,24 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 						<Text
 							className={`font-sans-semibold text-sm ${
 								isAccount
-									? available < 0 ? 'text-negative' : 'text-ink'
-									: overspent ? 'text-negative' : 'text-ink'
+									? available < 0
+										? 'text-negative'
+										: 'text-ink'
+									: overspent
+										? 'text-negative'
+										: 'text-ink'
 							}`}
 						>
 							{mainAmount}
 						</Text>
 						{isAccount ? (
 							// Accounts: show total balance when some is reserved
-							!!entity.reserved && entity.reserved > 0 && (
-								<Text className="font-sans text-xs text-ink-muted" numberOfLines={1}>
+							!!entity.reserved &&
+							entity.reserved > 0 && (
+								<Text
+									className="font-sans text-xs text-ink-muted"
+									numberOfLines={1}
+								>
 									{formatAmount(entity.actual)} total
 								</Text>
 							)

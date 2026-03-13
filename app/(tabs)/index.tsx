@@ -409,14 +409,14 @@ export default function HomeScreen() {
 			/>
 
 			{/* Reservation Modal (account → saving) */}
-		<ReservationModal
-			visible={reservationModalVisible}
-			account={reservationAccount}
-			saving={reservationSaving}
-			onClose={handleCloseReservationModal}
-		/>
+			<ReservationModal
+				visible={reservationModalVisible}
+				account={reservationAccount}
+				saving={reservationSaving}
+				onClose={handleCloseReservationModal}
+			/>
 
-		{/* Entity Detail Modal */}
+			{/* Entity Detail Modal */}
 			<EntityDetailModal
 				visible={detailModalVisible}
 				entity={detailEntity}
