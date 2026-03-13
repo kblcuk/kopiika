@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.3](https://codeberg.org/kblcuk/kopiika/compare/v0.2.2...v0.2.3) (2026-03-13)
+
+
+### Bug Fixes
+
+* **drag:** Prevent accidental reorder in transaction mode ([0aecb2a](https://codeberg.org/kblcuk/kopiika/commit/0aecb2a33b3712d14147c46b30263481b98dc39d))
+* **ui:** a bit more space between entity title and bubble ([cd16547](https://codeberg.org/kblcuk/kopiika/commit/cd16547e450933e41d70fee97793c6570aa432af))
+* **ux:** actually disable auto-capitalization ([afd9fb9](https://codeberg.org/kblcuk/kopiika/commit/afd9fb941d8d0530783df72df6fc42eed7f1e6fe))
+
 ## [0.2.2](https://codeberg.org/kblcuk/kopiika/compare/v0.2.1...v0.2.2) (2026-03-13)
 
 

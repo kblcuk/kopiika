@@ -107,9 +107,9 @@ If you want to sync build numbers manually for the current version in `app.json`
 bun run release:sync-build-numbers
 ```
 
-This uses Fastlane store APIs to fetch latest distributed build numbers and writes:
+This uses Fastlane store APIs to fetch latest TestFlight/Play build numbers and writes:
 
-- `ios.buildNumber = latest TestFlight build number for the current app version + 1` (or `1` if unavailable)
+- `ios.buildNumber = latest TestFlight build number for the current app version + 1` (or `1` if no build exists yet)
 - `android.versionCode = latest Play track versionCode + 1` (or `1` if app/package is not found)
 
 `bun run release`, `release:minor`, and `release:major` now bump `package.json` and `app.json` first, then run this sync step automatically via the `commit-and-tag-version` `postbump` hook. That means:
