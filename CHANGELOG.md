@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.1](https://codeberg.org/kblcuk/kopiika/compare/v0.2.0...v0.2.1) (2026-03-13)
+
+
+### Features
+
+* **release:** in-app changelog modal, store release notes, and Telegram notifications ([08fcfd7](https://codeberg.org/kblcuk/kopiika/commit/08fcfd7a91f5ab24626c08d7fc583b11b3089906))
+* **savings:** show reservations in saving entity detail modal ([2e2eeb1](https://codeberg.org/kblcuk/kopiika/commit/2e2eeb13cf5bfb597d7ffe9f63cbb03f7e9c1bf6))
+
 ## [0.2.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.2.0) (2026-03-13)
 
 
