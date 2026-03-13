@@ -268,8 +268,8 @@ export function SortableEntityGrid({
 			const draggedEntity = draggedEntityRef.current;
 
 			hoveredIdShared.value = '';
-			setIsFixed(false);
 			draggedIdRef.current = null;
+			setIsFixed(false);
 			lastTouchRef.current = null;
 			draggedEntityRef.current = null;
 			lastDropCheckTimeRef.current = 0;
@@ -373,7 +373,11 @@ export function SortableEntityGrid({
 												<AddEntityBubble type={type} onPress={onAdd} />
 											</Sortable.Handle>
 										) : (
-											<SortableEntityBubble entity={item} onTap={onTap} />
+											<SortableEntityBubble
+												entity={item}
+												onTap={onTap}
+												dragBehavior={dragBehavior}
+											/>
 										)
 									}
 									keyExtractor={(item: EntityWithBalance) => item.id}
