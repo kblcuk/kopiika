@@ -145,3 +145,31 @@ Then release with secrets loaded:
 ```sh
 fnox exec -- bun run android:beta
 ```
+
+## Release Notes
+
+`CHANGELOG.md` is the single source of truth for all release notes. It is auto-generated from conventional commits by `commit-and-tag-version` during `bun run release`.
+
+Release notes flow to three places automatically:
+
+1. **In-app "What's New" modal** — `CHANGELOG.md` is inlined at build time via `babel-plugin-inline-import`. On first launch after an app update, a modal shows the latest version's changes. Fresh installs skip the modal.
+
+2. **Store listings** — The iOS `beta` and `promote_external` lanes pass the parsed changelog to TestFlight as "What to Test". The Android `upload` lane writes it to a temp metadata dir for Play Store release notes.
+
+3. **Telegram notifications** — After a successful store upload, the `notify_telegram` lane posts a formatted message to a Telegram group.
+
+## Telegram Notifications
+
+One-time setup:
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
+2. Add the bot to your release channel/group.
+3. Get the chat ID (send a message in the group, then query `https://api.telegram.org/bot<TOKEN>/getUpdates`).
+4. Store the secrets in fnox:
+
+```sh
+fnox set TELEGRAM_BOT_TOKEN
+fnox set TELEGRAM_CHAT_ID
+```
+
+The `notify_telegram` lane runs automatically after `ios:beta`, `android:beta`, and `android:production`. If the env vars are not set, it silently skips.

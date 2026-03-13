@@ -15,6 +15,9 @@ require 'shellwords'
 require 'base64'
 require 'tempfile'
 require 'json'
+require 'net/http'
+require 'uri'
+require 'fileutils'
 
 def repo_root
   File.expand_path('..', __dir__)
@@ -56,15 +59,11 @@ def external_testflight_groups(options = {})
     .reject(&:empty?)
 end
 
-def current_app_version
-  app_version
-end
-
 def external_testflight_build(api_key, options = {})
   version =
     options[:app_version] ||
     ENV['TESTFLIGHT_APP_VERSION'] ||
-    current_app_version
+    app_version
 
   build_number =
     options[:build_number] ||
@@ -82,10 +81,6 @@ end
 
 def android_package_name
   ENV['ANDROID_PACKAGE_NAME'] || CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
-end
-
-def ios_bundle_identifier
-  ENV['IOS_BUNDLE_IDENTIFIER'] || CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
 end
 
 def play_store_json_key_path
@@ -253,45 +248,105 @@ def android_signing_properties
   }
 end
 
-def parse_csv_option(value)
-  return [] if value.nil?
+# Extract a version's section from CHANGELOG.md, stripping markdown cruft.
+# Returns array of {type:, items:[]} hashes, or nil if version not found.
+def parsed_changelog(version = app_version)
+  path = File.join(repo_root, 'CHANGELOG.md')
+  return nil unless File.exist?(path)
 
-  value
-    .to_s
-    .split(',')
-    .map(&:strip)
-    .reject(&:empty?)
-end
+  content = File.read(path)
+  match = content.match(/^## \[#{Regexp.escape(version)}\].*?\n(.*?)(?=^## \[|\z)/m)
+  return nil unless match
 
-def sanitized_name(value)
-  value.to_s.gsub(/[^\w-]+/, '-').gsub(/-+/, '-').gsub(/^-|-$/, '').downcase
-end
+  sections = []
+  current = nil
 
-def discover_booted_ios_simulators
-  output = sh('xcrun simctl list devices booted')
-  output
-    .lines
-    .filter_map do |line|
-      # Example: iPhone 16 Pro Max (AAAA-BBBB-CCCC-DDDD) (Booted)
-      next unless line =~ /^\s*([^(]+?)\s+\(([0-9A-F-]+)\)\s+\(Booted\)/
+  match[1].strip.lines.each do |line|
+    line = line.strip
+    next if line.empty?
 
-      {
-        name: Regexp.last_match(1).strip,
-        udid: Regexp.last_match(2)
-      }
+    if line.start_with?('### ')
+      current = { type: line.sub('### ', ''), items: [] }
+      sections << current
+    elsif line =~ /^[*-]\s/ && current
+      item = line
+        .sub(/^[*-]\s+/, '')
+        .gsub(/\*\*([\w-]+):\*\*\s*/, '')
+        .gsub(/\s*\(\[[a-f0-9]+\]\([^)]+\)\)$/i, '')
+        .gsub(/\s*\([a-f0-9]+\)$/i, '')
+        .gsub(/,\s*closes\s.+$/i, '')
+        .strip
+      current[:items] << item unless item.empty?
     end
+  end
+
+  sections.reject { |s| s[:items].empty? }
 end
 
-def discover_booted_android_devices
-  output = sh('adb devices')
-  output
-    .lines
-    .filter_map do |line|
-      serial, state = line.strip.split(/\s+/, 2)
-      next if serial.nil? || serial == 'List' || state.nil? || state != 'device'
+# Plain text changelog for TestFlight "What to Test" / Play Store release notes
+def changelog_for_store(version = app_version)
+  sections = parsed_changelog(version)
+  return nil if sections.nil? || sections.empty?
 
-      serial
-    end
+  sections.map do |s|
+    "#{s[:type]}:\n" + s[:items].map { |i| "\u2022 #{i}" }.join("\n")
+  end.join("\n\n")
+end
+
+# Escape Telegram Markdown v1 special characters in plain text
+def escape_telegram_md(text)
+  text.gsub(/([_*`\[])/, '\\\\\1')
+end
+
+# Telegram Markdown-formatted changelog
+def changelog_for_telegram(version = app_version)
+  sections = parsed_changelog(version)
+  return nil if sections.nil? || sections.empty?
+
+  sections.map do |s|
+    "*#{s[:type]}*\n" + s[:items].map { |i| "\u2022 #{escape_telegram_md(i)}" }.join("\n")
+  end.join("\n\n")
+end
+
+# Write Play Store changelog to temp metadata dir, yield path, then clean up
+def with_play_changelog(text)
+  Dir.mktmpdir('play-metadata') do |tmpdir|
+    dir = File.join(tmpdir, 'en-US', 'changelogs')
+    FileUtils.mkdir_p(dir)
+    File.write(File.join(dir, 'default.txt'), text)
+    yield tmpdir
+  end
+end
+
+desc 'Send release notification to Telegram group'
+lane :notify_telegram do |options|
+  token = options[:bot_token] || ENV['TELEGRAM_BOT_TOKEN']
+  chat_id = options[:chat_id] || ENV['TELEGRAM_CHAT_ID']
+
+  unless token && chat_id
+    UI.important('Skipping Telegram: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set')
+    next
+  end
+
+  version = options[:version] || app_version
+  platform_label = options[:platform] || 'release'
+  notes = changelog_for_telegram(version)
+
+  text = "\u{1F680} *Kopiika v#{version}* \u2014 #{platform_label}"
+  text += "\n\n#{notes}" if notes
+
+  uri = URI("https://api.telegram.org/bot#{token}/sendMessage")
+  response = Net::HTTP.post_form(uri, {
+    'chat_id' => chat_id,
+    'text' => text,
+    'parse_mode' => 'Markdown'
+  })
+
+  if response.code.to_i == 200
+    UI.success('Telegram notification sent')
+  else
+    UI.error("Telegram failed (#{response.code}): #{response.body}")
+  end
 end
 
 platform :ios do
@@ -328,11 +383,12 @@ platform :ios do
   end
 
   desc 'Upload latest build to TestFlight (without rebuilding)'
-  lane :upload do
+  lane :upload do |options|
     upload_to_testflight(
       api_key: asc_api_key,
       skip_waiting_for_build_processing: true,
-      skip_submission: true
+      skip_submission: true,
+      changelog: options[:changelog]
     )
   end
 
@@ -355,18 +411,15 @@ platform :ios do
       groups: groups,
       app_version: build[:version],
       build_number: build[:build_number],
-      changelog: options[:changelog]
+      changelog: options[:changelog] || changelog_for_store
     )
   end
 
   desc 'Push a new beta build to TestFlight'
   lane :beta do
     build(clean: true, export_method: 'app-store')
-    upload(
-      changelog: changelog_from_git_commits(
-        pretty: '- %s'
-      )
-    )
+    upload(changelog: changelog_for_store)
+    notify_telegram(platform: 'iOS (TestFlight)')
   end
 end
 
@@ -484,23 +537,30 @@ platform :android do
     release_status = options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'completed'
     aab_path = options[:aab] || ENV['PLAY_AAB_PATH'] || lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
 
-    if aab_path.nil?
-      build(
-        clean: options[:clean]
-      )
-    end
+    build(clean: options[:clean]) if aab_path.nil?
+
+    changelog = changelog_for_store
+    effective_aab = aab_path || lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+
+    upload_opts = {
+      json_key: json_key,
+      package_name: android_package_name,
+      track: track,
+      release_status: release_status,
+      aab: effective_aab,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    }
 
     begin
-      upload_to_play_store(
-        json_key: json_key,
-        package_name: android_package_name,
-        track: track,
-        release_status: release_status,
-        aab: aab_path || lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
-        skip_upload_metadata: true,
-        skip_upload_images: true,
-        skip_upload_screenshots: true
-      )
+      if changelog
+        with_play_changelog(changelog) do |metadata_path|
+          upload_to_play_store(upload_opts.merge(metadata_path: metadata_path))
+        end
+      else
+        upload_to_play_store(upload_opts)
+      end
     rescue StandardError => e
       first_time_play_package_error!(e) || raise(e)
     end
@@ -514,6 +574,7 @@ platform :android do
       release_status: options[:release_status] || 'completed',
       aab: options[:aab]
     )
+    notify_telegram(platform: 'Android (Internal)')
   end
 
   desc 'Build and upload a production release (defaults to draft for safety)'
@@ -524,6 +585,7 @@ platform :android do
       release_status: options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'draft',
       aab: options[:aab]
     )
+    notify_telegram(platform: 'Android (Production)')
   end
 
   desc 'Promote a release from one track to another'
