@@ -10,3 +10,42 @@ fnox = "latest"
 gradle = "8.14.4"
 java = "21"
 ruby = "latest"
+
+# --- Release tasks ---
+# fnox-env plugin loads secrets automatically; no `fnox exec` wrapper needed.
+
+[tasks."ios:beta"]
+description = "Build and upload iOS beta to TestFlight"
+run = "bundle exec fastlane ios beta"
+
+[tasks."android:beta"]
+description = "Build and upload Android beta to internal track"
+run = "bundle exec fastlane android beta"
+
+[tasks."android:production"]
+description = "Build and upload Android production release"
+run = "bundle exec fastlane android production"
+
+[tasks."release:notify"]
+description = "Send Telegram release notification"
+run = "bundle exec fastlane notify_telegram"
+
+[tasks."release:beta"]
+description = "Ship iOS + Android betas in parallel, then notify Telegram"
+run = [
+	{ tasks = [
+		"ios:beta",
+		"android:beta",
+	] },
+	"bundle exec fastlane notify_telegram platform:'iOS + Android (Beta)'",
+]
+
+[tasks."release:production"]
+description = "Ship iOS beta + Android production in parallel, then notify Telegram"
+run = [
+	{ tasks = [
+		"ios:beta",
+		"android:production",
+	] },
+	"bundle exec fastlane notify_telegram platform:'iOS + Android (Production)'",
+]

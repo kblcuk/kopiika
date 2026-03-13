@@ -419,7 +419,6 @@ platform :ios do
   lane :beta do
     build(clean: true, export_method: 'app-store')
     upload(changelog: changelog_for_store)
-    notify_telegram(platform: 'iOS (TestFlight)')
   end
 end
 
@@ -574,7 +573,6 @@ platform :android do
       release_status: options[:release_status] || 'completed',
       aab: options[:aab]
     )
-    notify_telegram(platform: 'Android (Internal)')
   end
 
   desc 'Build and upload a production release (defaults to draft for safety)'
@@ -585,7 +583,6 @@ platform :android do
       release_status: options[:release_status] || ENV['PLAY_RELEASE_STATUS'] || 'draft',
       aab: options[:aab]
     )
-    notify_telegram(platform: 'Android (Production)')
   end
 
   desc 'Promote a release from one track to another'

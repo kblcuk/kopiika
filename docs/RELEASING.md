@@ -156,7 +156,31 @@ Release notes flow to three places automatically:
 
 2. **Store listings** — The iOS `beta` and `promote_external` lanes pass the parsed changelog to TestFlight as "What to Test". The Android `upload` lane writes it to a temp metadata dir for Play Store release notes.
 
-3. **Telegram notifications** — After a successful store upload, the `notify_telegram` lane posts a formatted message to a Telegram group.
+3. **Telegram notifications** — The `notify_telegram` Fastlane lane posts a formatted message to a Telegram group. Called by mise umbrella tasks after builds complete.
+
+## Parallel Releases with mise
+
+mise orchestrates iOS + Android builds in parallel and sends a single Telegram notification when both finish:
+
+```sh
+# Ship both betas in parallel, then notify once
+mise run release:beta
+
+# Ship iOS beta + Android production in parallel, then notify
+mise run release:production
+
+# Test Telegram notification without building
+mise run release:notify
+```
+
+Individual platform releases still work standalone via `bun run`:
+
+```sh
+bun run ios:beta
+bun run android:beta
+```
+
+These do not send Telegram notifications — only the mise umbrella tasks do.
 
 ## Telegram Notifications
 
@@ -164,7 +188,7 @@ One-time setup:
 
 1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
 2. Add the bot to your release channel/group.
-3. Get the chat ID (send a message in the group, then query `https://api.telegram.org/bot<TOKEN>/getUpdates`).
+3. Get the chat ID (disable group privacy in BotFather first, then send a message and query `https://api.telegram.org/bot<TOKEN>/getUpdates`).
 4. Store the secrets in fnox:
 
 ```sh
@@ -172,4 +196,4 @@ fnox set TELEGRAM_BOT_TOKEN
 fnox set TELEGRAM_CHAT_ID
 ```
 
-The `notify_telegram` lane runs automatically after `ios:beta`, `android:beta`, and `android:production`. If the env vars are not set, it silently skips.
+If the env vars are not set, `notify_telegram` silently skips.
