@@ -33,7 +33,7 @@ async function initializeDb(runMigrations: boolean): Promise<DrizzleDb> {
 		try {
 			console.info('Running database migrations');
 			await migrate(db, migrations);
-			console.info('run successfully');
+			console.info('Database migrations complete');
 		} catch (e) {
 			console.error('Migration error:', e);
 			throw e;

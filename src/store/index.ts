@@ -73,6 +73,8 @@ interface AppState {
 	clearSavingReservations: (savingEntityId: string) => Promise<void>;
 }
 
+let initializePromise: Promise<void> | null = null;
+
 export const useStore = create<AppState>((set, get) => ({
 	// Initial state
 	entities: [],
@@ -88,25 +90,36 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Initialize from database
 	initialize: async () => {
-		set({ isLoading: true });
-		try {
-			console.info('Initializing store from database');
-			const [entities, plans, transactions, reservations] = await Promise.all([
-				db.getAllEntities(),
-				db.getAllPlans(),
-				db.getAllTransactions(),
-				db.getAllReservations(),
-			]);
-
-			// Filter out orphaned plans that reference non-existent entities
-			const entityIds = new Set(entities.map((e) => e.id));
-			const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
-
-			set({ entities, plans: validPlans, transactions, reservations, isLoading: false });
-		} catch (error) {
-			console.error('Failed to initialize store:', error);
-			set({ isLoading: false });
+		if (initializePromise) {
+			return initializePromise;
 		}
+
+		initializePromise = (async () => {
+			set({ isLoading: true });
+			try {
+				console.info('Hydrating store from database');
+				const [entities, plans, transactions, reservations] = await Promise.all([
+					db.getAllEntities(),
+					db.getAllPlans(),
+					db.getAllTransactions(),
+					db.getAllReservations(),
+				]);
+
+				// Filter out orphaned plans that reference non-existent entities
+				const entityIds = new Set(entities.map((e) => e.id));
+				const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
+
+				set({ entities, plans: validPlans, transactions, reservations, isLoading: false });
+			} catch (error) {
+				console.error('Failed to initialize store:', error);
+				set({ isLoading: false });
+				throw error;
+			} finally {
+				initializePromise = null;
+			}
+		})();
+
+		return initializePromise;
 	},
 
 	// Replace all data atomically — used by CSV import.

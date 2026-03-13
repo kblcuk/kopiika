@@ -3,7 +3,7 @@ module.exports = {
 	preset: 'jest-expo',
 	// Only run component/screen tests (unit tests handled by Bun)
 	testMatch: ['**/components/__tests__/**/*.test.tsx', '**/app/**/__tests__/**/*.test.tsx'],
-	testPathIgnorePatterns: ['/node_modules/', '/.worktrees/'],
+	testPathIgnorePatterns: ['/node_modules/'],
 	moduleNameMapper: {
 		'^@/(.*)$': '<rootDir>/$1',
 		// Mock expo-sqlite for component tests

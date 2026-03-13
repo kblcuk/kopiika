@@ -139,6 +139,7 @@ jest.mock('@/src/store', () => ({
 }));
 
 describe('HomeScreen entity interactions', () => {
+	const mockInitialize = jest.fn();
 	const mockCategory: EntityWithBalance = {
 		id: 'cat-1',
 		type: 'category',
@@ -171,6 +172,7 @@ describe('HomeScreen entity interactions', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		mockInitialize.mockReset();
 		useStore.setState({
 			entities: [mockCategory, mockAccount],
 			plans: [],
@@ -180,7 +182,7 @@ describe('HomeScreen entity interactions', () => {
 			draggedEntity: null,
 			hoveredDropZoneId: null,
 			incomeVisible: false,
-			initialize: jest.fn(),
+			initialize: mockInitialize,
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
 			setDraggedEntity: jest.fn(),
@@ -191,6 +193,12 @@ describe('HomeScreen entity interactions', () => {
 			if (type === 'account') return [mockAccount];
 			return [];
 		});
+	});
+
+	it('does not re-initialize the store on mount', () => {
+		render(<HomeScreen />);
+
+		expect(mockInitialize).not.toHaveBeenCalled();
 	});
 
 	it('navigates to history screen when tapping a category', async () => {

@@ -32,7 +32,6 @@ export default function HomeScreen() {
 		entities,
 		incomeVisible,
 		draggedEntity,
-		initialize,
 		addEntity,
 		setPlan,
 		setDraggedEntity,
@@ -67,10 +66,6 @@ export default function HomeScreen() {
 	const [accountsEditMode, setAccountsEditMode] = useState(false);
 	const [categoriesEditMode, setCategoriesEditMode] = useState(false);
 	const [savingsEditMode, setSavingsEditMode] = useState(false);
-
-	useEffect(() => {
-		initialize();
-	}, [initialize]);
 
 	// Seed default data if empty (excluding system entities)
 	useEffect(() => {

@@ -95,14 +95,22 @@ export default function SettingsScreen() {
 			'This will delete all your entities, plans, and transactions. This cannot be undone.',
 			[
 				{ text: 'Cancel', style: 'cancel' },
-				{
-					text: 'Reset',
-					style: 'destructive',
-					onPress: async () => {
-						resetDrizzleDb();
-						await initialize();
+					{
+						text: 'Reset',
+						style: 'destructive',
+						onPress: async () => {
+							try {
+								resetDrizzleDb();
+								await initialize();
+							} catch (error) {
+								console.error('Failed to reset data', error);
+								Alert.alert(
+									'Reset Failed',
+									'Could not reload the app data after reset. Please restart the app and try again.'
+								);
+							}
+						},
 					},
-				},
 			]
 		);
 	};

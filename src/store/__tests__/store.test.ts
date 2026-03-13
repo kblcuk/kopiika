@@ -22,8 +22,8 @@ describe('Store Data Integrity', () => {
 		});
 	});
 
-	describe('initialize', () => {
-		test('should filter out orphaned plans during initialization', async () => {
+		describe('initialize', () => {
+			test('should filter out orphaned plans during initialization', async () => {
 			// Setup: Create entities, then manually delete one after creating its plan
 			const entities: Entity[] = [
 				{
@@ -136,10 +136,31 @@ describe('Store Data Integrity', () => {
 			const state = useStore.getState();
 			// Should have entity-1, entity-2 + system entity
 			expect(state.entities).toHaveLength(3);
-			expect(state.plans).toHaveLength(2);
-			expect(state.transactions).toHaveLength(0);
+				expect(state.plans).toHaveLength(2);
+				expect(state.transactions).toHaveLength(0);
+			});
+
+			test('should deduplicate concurrent initialization calls', async () => {
+				const originalInfo = console.info;
+				const hydrationLogs: string[] = [];
+				console.info = (...args) => {
+					hydrationLogs.push(args.join(' '));
+				};
+
+				try {
+					await Promise.all([
+						useStore.getState().initialize(),
+						useStore.getState().initialize(),
+					]);
+				} finally {
+					console.info = originalInfo;
+				}
+
+				expect(
+					hydrationLogs.filter((message) => message === 'Hydrating store from database')
+				).toHaveLength(1);
+			});
 		});
-	});
 
 	describe('setPlan', () => {
 		test('should prevent setting plan for non-existent entity', async () => {

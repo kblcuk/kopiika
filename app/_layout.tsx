@@ -14,7 +14,6 @@ import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useStore } from '@/src/store';
 import { WhatsNewModal } from '@/src/components';
 import { getLastSeenVersion, setLastSeenVersion } from '@/src/utils/app-prefs';
 import DatabaseProvider from '@/src/components/database-provider';
@@ -34,16 +33,9 @@ function App() {
 		Lexend_600SemiBold,
 		Lexend_700Bold,
 	});
-	const initialize = useStore((state) => state.initialize);
 	const [showWhatsNew, setShowWhatsNew] = useState(false);
 
 	useDrizzleStudio(getRawDb());
-
-	// Initialize store from database on app start
-	useEffect(() => {
-		console.info('Initializing store from database...');
-		initialize();
-	}, [initialize]);
 
 	useEffect(() => {
 		if (fontsLoaded) {
