@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.5](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.5) (2026-03-14)
+
+
+### Bug Fixes
+
+* **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
+
 ## [0.2.4](https://codeberg.org/kblcuk/kopiika/compare/v0.2.3...v0.2.4) (2026-03-14)
 
 
