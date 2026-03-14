@@ -232,15 +232,19 @@ export default function SummaryScreen() {
 
 	const entitiesWithBalance = useMemo(() => {
 		return entities
-			.filter((entity) => isEntityActive(entity) && entity.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
+			.filter(
+				(entity) => isEntityActive(entity) && entity.id !== BALANCE_ADJUSTMENT_ENTITY_ID
+			)
 			.map((entity) => {
 				// All plans use 'all-time' period - same planned amount for all months
-				const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
+				const plan = plans.find(
+					(p) => p.entity_id === entity.id && p.period === 'all-time'
+				);
 				const planned = plan?.planned_amount ?? 0;
 				const actual =
 					entity.type === 'saving'
-						? reservationTotals.get(entity.id) ?? 0
-						: actuals.get(entity.id) ?? 0;
+						? (reservationTotals.get(entity.id) ?? 0)
+						: (actuals.get(entity.id) ?? 0);
 
 				return {
 					...entity,

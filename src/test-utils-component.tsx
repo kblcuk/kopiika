@@ -65,7 +65,7 @@ export function createMockEntity(
  */
 export function createMockPlan(overrides: Partial<Plan> & { id: string; entity_id: string }): Plan {
 	return {
-		period: 'month',
+		period: 'all-time',
 		period_start: '2026-01',
 		planned_amount: 1000,
 		...overrides,

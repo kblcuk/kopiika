@@ -466,10 +466,7 @@ export function getEntitiesWithBalance(
 	// Filter by type and exclude system entities (balance adjustments)
 	const filteredEntities = entities
 		.filter(
-			(e) =>
-				e.type === type &&
-				e.id !== BALANCE_ADJUSTMENT_ENTITY_ID &&
-				e.is_deleted !== true
+			(e) => e.type === type && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID && e.is_deleted !== true
 		)
 		.sort((a, b) => a.row - b.row || a.position - b.position);
 

@@ -67,7 +67,7 @@ export const TransactionRow = memo(function TransactionRow({
 				},
 			]
 		);
-	}, [transaction, fromEntity, toEntity, deleteTransaction]);
+	}, [transaction, fromLabel, toLabel, deleteTransaction]);
 
 	const handlePress = useCallback(() => {
 		onEdit(transaction);

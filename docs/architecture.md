@@ -29,7 +29,7 @@ Persistence uses SQLite through the code in `src/db/`. State management uses Zus
 The authoritative model is:
 
 - `entities`: labels, type, ordering, icon, optional color
-- `plans`: monthly budgets or all-time goals
+- `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
 - `transactions`: immutable money movements between entities
 - `reservations`: earmarked account funds for savings goals (unique per account–saving pair)
 

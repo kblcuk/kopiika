@@ -62,7 +62,7 @@ describe('SummaryScreen', () => {
 	const mockPlan: Plan = {
 		id: 'plan-1',
 		entity_id: 'category-1',
-		period: 'month',
+		period: 'all-time',
 		period_start: '2026-01',
 		planned_amount: 500,
 	};
@@ -264,11 +264,11 @@ describe('SummaryScreen', () => {
 				new Map([['category-1', 0]])
 			);
 
-			const { getByText, rerender } = render(<SummaryScreen />);
+			const { getAllByText, rerender } = render(<SummaryScreen />);
 
 			// Wait for initial render with 0 actual (formatAmount returns "0.00")
 			await waitFor(() => {
-				expect(getByText('0.00')).toBeTruthy();
+				expect(getAllByText('0.00').length).toBeGreaterThan(0);
 			});
 
 			// Update mock for after transaction
@@ -296,7 +296,7 @@ describe('SummaryScreen', () => {
 
 			// Should show updated amount (formatAmount returns "300.00")
 			await waitFor(() => {
-				expect(getByText('300.00')).toBeTruthy();
+				expect(getAllByText('300.00').length).toBeGreaterThan(0);
 			});
 		});
 
@@ -385,6 +385,35 @@ describe('SummaryScreen', () => {
 				expect(getByText('Categories')).toBeTruthy();
 				expect(getByText('Groceries')).toBeTruthy();
 			});
+		});
+
+		it('should display planned values from all-time plans', async () => {
+			useStore.setState({
+				entities: [mockCategory],
+				plans: [
+					{
+						id: 'legacy-month-plan',
+						entity_id: 'category-1',
+						period: 'month',
+						period_start: '2026-01',
+						planned_amount: 250,
+					},
+					mockPlan,
+				],
+				transactions: [],
+			});
+
+			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
+				new Map([['category-1', 100]])
+			);
+
+			const { getByText, queryByText } = render(<SummaryScreen />);
+
+			await waitFor(() => {
+				expect(getByText('/ 500.00')).toBeTruthy();
+			});
+
+			expect(queryByText('/ 250.00')).toBeNull();
 		});
 
 		it('should render savings section when saving entities exist', async () => {

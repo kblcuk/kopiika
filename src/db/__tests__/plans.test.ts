@@ -51,26 +51,26 @@ describe('plans.ts', () => {
 			expect(result).toEqual([]);
 		});
 
-		test('should return all plans ordered by period_start DESC', async () => {
+		test('should return all-time plans ordered by period_start DESC', async () => {
 			const plans: Plan[] = [
 				{
 					id: 'plan-1',
 					entity_id: 'entity-1',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2025-01',
 					planned_amount: 1000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2025-03',
 					planned_amount: 1500,
 				},
 				{
 					id: 'plan-3',
 					entity_id: 'entity-3',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2025-02',
 					planned_amount: 1200,
 				},
@@ -95,21 +95,14 @@ describe('plans.ts', () => {
 				{
 					id: 'plan-1',
 					entity_id: 'entity-1',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2025-01',
 					planned_amount: 1000,
 				},
 				{
 					id: 'plan-2',
-					entity_id: 'entity-1',
-					period: 'month',
-					period_start: '2025-02',
-					planned_amount: 1200,
-				},
-				{
-					id: 'plan-3',
 					entity_id: 'entity-2',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2025-01',
 					planned_amount: 500,
 				},
@@ -120,24 +113,22 @@ describe('plans.ts', () => {
 			}
 		});
 
-		test('should return plan for specific entity and period', async () => {
+		test('should return plan for a specific entity and creation period_start', async () => {
 			const result = await getPlanForEntity('entity-1', '2025-01');
 			expect(result).not.toBeNull();
 			expect(result?.id).toBe('plan-1');
+			expect(result?.period).toBe('all-time');
 			expect(result?.planned_amount).toBe(1000);
 		});
 
-		test('should return null when no plan exists for entity and period', async () => {
+		test('should return null when no plan exists for entity and period_start', async () => {
 			const result = await getPlanForEntity('entity-3', '2025-01');
 			expect(result).toBeNull();
 		});
 
-		test('should distinguish between different periods for same entity', async () => {
-			const jan = await getPlanForEntity('entity-1', '2025-01');
-			const feb = await getPlanForEntity('entity-1', '2025-02');
-
-			expect(jan?.planned_amount).toBe(1000);
-			expect(feb?.planned_amount).toBe(1200);
+		test('should return null when period_start does not match the stored all-time plan', async () => {
+			const result = await getPlanForEntity('entity-1', '2025-02');
+			expect(result).toBeNull();
 		});
 	});
 	describe('upsertPlan', () => {
@@ -145,7 +136,7 @@ describe('plans.ts', () => {
 			const plan: Plan = {
 				id: 'plan-upsert-1',
 				entity_id: 'entity-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2025-01',
 				planned_amount: 1000,
 			};
@@ -160,7 +151,7 @@ describe('plans.ts', () => {
 			const original: Plan = {
 				id: 'plan-upsert-2',
 				entity_id: 'entity-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2025-01',
 				planned_amount: 1000,
 			};
@@ -170,7 +161,7 @@ describe('plans.ts', () => {
 			const updated: Plan = {
 				id: 'plan-upsert-2',
 				entity_id: 'entity-2', // This should be ignored by upsert
-				period: 'month',
+				period: 'all-time',
 				period_start: '2025-02', // This should be ignored by upsert
 				planned_amount: 1500,
 			};
@@ -182,6 +173,7 @@ describe('plans.ts', () => {
 			// Only planned_amount should be updated
 			expect(result?.planned_amount).toBe(1500);
 			expect(result?.entity_id).toBe('entity-1'); // Original value
+			expect(result?.period).toBe('all-time'); // Original value
 			expect(result?.period_start).toBe('2025-01'); // Original value
 		});
 
@@ -189,7 +181,7 @@ describe('plans.ts', () => {
 			const plan: Plan = {
 				id: 'plan-upsert-3',
 				entity_id: 'entity-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2025-01',
 				planned_amount: 1000,
 			};

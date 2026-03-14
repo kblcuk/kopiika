@@ -68,9 +68,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		if (!name.trim()) return;
 
 		const maxRows = entityType === 'category' ? 3 : 1;
-		const sameTypeEntities = entities.filter(
-			(e) => e.type === entityType && isEntityActive(e)
-		);
+		const sameTypeEntities = entities.filter((e) => e.type === entityType && isEntityActive(e));
 		const rowCounts = new Map<number, number>();
 
 		for (let i = 0; i < maxRows; i++) {

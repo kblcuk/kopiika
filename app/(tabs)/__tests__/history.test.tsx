@@ -61,7 +61,8 @@ jest.mock('@/src/components/transaction-row', () => ({
 		const { Text } = jest.requireActual('react-native');
 		return (
 			<Text testID={`row-${transaction.id}`}>
-				{transaction.id}:{isUpcoming ? 'upcoming' : 'past'}:{editable ? 'editable' : 'readonly'}
+				{transaction.id}:{isUpcoming ? 'upcoming' : 'past'}:
+				{editable ? 'editable' : 'readonly'}
 			</Text>
 		);
 	},
@@ -312,10 +313,7 @@ describe('HistoryScreen search params', () => {
 		};
 
 		useStore.setState({
-			entities: [
-				{ ...mockAccount, is_deleted: true },
-				mockCategory,
-			],
+			entities: [{ ...mockAccount, is_deleted: true }, mockCategory],
 			plans: [],
 			transactions: [deletedEntityTransaction],
 			currentPeriod: '2026-01',
@@ -325,9 +323,7 @@ describe('HistoryScreen search params', () => {
 		const { getByTestId } = render(<HistoryScreen />);
 
 		await waitFor(() => {
-			expect(getByTestId('row-tx-1').props.children.join('')).toBe(
-				'tx-1:past:readonly'
-			);
+			expect(getByTestId('row-tx-1').props.children.join('')).toBe('tx-1:past:readonly');
 		});
 	});
 });

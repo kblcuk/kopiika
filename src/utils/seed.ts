@@ -107,9 +107,8 @@ export function createDefaultPlans(entities: Entity[]): Plan[] {
 		return {
 			id: generateId(),
 			entity_id: entity.id,
-			// Savings use 'all-time' period for goals, others use 'month'
-			period: entity.type === 'saving' ? ('all-time' as const) : ('month' as const),
-			// period_start is always a date (YYYY-MM) representing when the plan started
+			// All plans are static budgets/goals; period_start records when the seed created them.
+			period: 'all-time' as const,
 			period_start: period,
 			planned_amount: planAmounts[entity.name] ?? 0,
 		};
