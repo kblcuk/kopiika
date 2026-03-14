@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.4](https://codeberg.org/kblcuk/kopiika/compare/v0.2.3...v0.2.4) (2026-03-14)
+
+
+### Features
+
+* **entities:** Preserve history for deleted items ([3a50415](https://codeberg.org/kblcuk/kopiika/commit/3a504154e8e31024f45ee1f184691b3df152cf6d))
+
+
+### Bug Fixes
+
+* **plans:** Align all-time plan semantics ([3997946](https://codeberg.org/kblcuk/kopiika/commit/399794635a2e3140315f6eb73b4e2626e959f251))
+
 ## [0.2.3](https://codeberg.org/kblcuk/kopiika/compare/v0.2.2...v0.2.3) (2026-03-13)
 
 
