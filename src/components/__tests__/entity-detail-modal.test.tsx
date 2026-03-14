@@ -287,18 +287,24 @@ describe('EntityDetailModal', () => {
 			});
 		});
 
-		it('can expand the idle icon grid without searching', () => {
-			const { getByTestId, getByText, queryByTestId } = render(
+		it('can expand and collapse the idle icon grid without searching', () => {
+			const { getByTestId, getByText, queryByTestId, queryByText } = render(
 				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
 			);
 
 			fireEvent.press(getByTestId('entity-detail-icon-picker-toggle'));
 
 			expect(queryByTestId('entity-detail-icon-option-shield')).toBeNull();
+			expect(queryByText('Show less icons')).toBeNull();
 
 			fireEvent.press(getByText(`Show all ${ICON_OPTIONS.category.length} icons`));
 
 			expect(getByTestId('entity-detail-icon-option-shield')).toBeTruthy();
+			expect(getByText('Show less icons')).toBeTruthy();
+
+			fireEvent.press(getByText('Show less icons'));
+
+			expect(queryByTestId('entity-detail-icon-option-shield')).toBeNull();
 		});
 	});
 
