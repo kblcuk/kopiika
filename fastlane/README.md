@@ -34,6 +34,16 @@ Send release notification to Telegram group
 
 ## iOS
 
+### ios doctor
+
+```sh
+[bundle exec] fastlane ios doctor
+```
+
+Validate App Store Connect credentials for the current iOS version
+
+----
+
 ### ios setup_signing
 
 ```sh

@@ -12,11 +12,44 @@ java = "21"
 ruby = "latest"
 
 # --- Release tasks ---
-# fnox-env plugin loads secrets automatically; no `fnox exec` wrapper needed.
+# mise is the single implementation layer for release commands.
+# Bun keeps app/dev/versioning commands; deployment and store orchestration live here.
+
+[tasks."ios:doctor"]
+description = "Validate App Store Connect credentials for the current iOS version"
+run = "bundle exec fastlane ios doctor"
+
+[tasks."ios:setup"]
+description = "Sync iOS signing assets via match"
+run = "bundle exec fastlane ios setup_signing"
+
+[tasks."ios:build"]
+description = "Build an iOS archive using the current app.json version metadata"
+run = "bundle exec fastlane ios build"
+
+[tasks."ios:upload"]
+description = "Upload the latest iOS build to TestFlight without rebuilding"
+run = "bundle exec fastlane ios upload"
+
+[tasks."ios:promote:external"]
+description = "Promote an uploaded TestFlight build to external tester groups"
+run = "bundle exec fastlane ios promote_external"
 
 [tasks."ios:beta"]
 description = "Build and upload iOS beta to TestFlight"
 run = "bundle exec fastlane ios beta"
+
+[tasks."android:build:release"]
+description = "Build Android release bundle (.aab)"
+run = "bundle exec fastlane android build"
+
+[tasks."android:doctor"]
+description = "Validate Google Play credentials and package access"
+run = "bundle exec fastlane android doctor"
+
+[tasks."android:upload"]
+description = "Upload an Android bundle to Google Play"
+run = "bundle exec fastlane android upload"
 
 [tasks."android:beta"]
 description = "Build and upload Android beta to internal track"
@@ -25,6 +58,21 @@ run = "bundle exec fastlane android beta"
 [tasks."android:production"]
 description = "Build and upload Android production release"
 run = "bundle exec fastlane android production"
+
+[tasks."android:promote"]
+description = "Promote an existing Android release between Play tracks"
+run = "bundle exec fastlane android promote"
+
+[tasks."release:doctor"]
+description = "Run iOS and Android release preflight checks"
+run = [
+	"bundle exec fastlane ios doctor",
+	"bundle exec fastlane android doctor",
+]
+
+[tasks."release:sync-build-numbers"]
+description = "Sync app.json build numbers from App Store Connect and Google Play"
+run = "bundle exec fastlane sync_build_numbers"
 
 [tasks."release:notify"]
 description = "Send Telegram release notification"

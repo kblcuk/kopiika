@@ -1,47 +1,125 @@
 # Releasing
 
-## iOS TestFlight
+## Command Boundaries
 
-The intended iOS release flow is:
+This repo now splits release tooling on purpose:
 
-1. Upload a new build for internal testing.
-2. Promote that existing uploaded build to external tester groups.
-3. Later, ship the tested build to production.
+- Use `mise run ...` for deployment, store uploads, signing, secret-aware preflight checks, and multi-platform orchestration.
+- Use `bun run ...` for React Native app work and Bun-native versioning helpers such as `bun run release`.
 
-Upload the internal TestFlight build with:
+That keeps the release flow in one place: `mise.toml` is the source of truth for deployment tasks, and Fastlane stays the platform implementation underneath.
+
+The `fnox-env` mise plugin loads encrypted secrets automatically, so release commands do not need a manual `fnox exec -- ...` wrapper.
+
+## Recommended Flow
+
+1. Run release preflight:
 
 ```sh
-bun run ios:beta
+mise run release:doctor
 ```
 
-That lane uploads the build to TestFlight and skips the wait for full App Store Connect processing.
+This runs:
 
-To promote the uploaded build to external tester groups, set `TESTFLIGHT_EXTERNAL_GROUPS`
-to a comma-separated list of App Store Connect external group names or IDs, then run:
+- `mise run ios:doctor`
+- `mise run android:doctor`
+
+2. Bump the app version and sync build numbers:
 
 ```sh
-TESTFLIGHT_EXTERNAL_GROUPS="External Testers" bun run ios:promote:external
+bun run release
+```
+
+For larger releases:
+
+```sh
+bun run release:minor
+bun run release:major
+```
+
+The version bump flow updates `package.json` and `app.json`, then runs:
+
+- `mise run release:sync-build-numbers`
+- `bun run release:check`
+
+3. Ship a platform-specific release or a combined release:
+
+```sh
+# iOS TestFlight beta
+mise run ios:beta
+
+# Android internal beta
+mise run android:beta
+
+# iOS beta + Android beta, then one Telegram notification
+mise run release:beta
+
+# iOS beta + Android production draft, then one Telegram notification
+mise run release:production
+```
+
+4. Promote existing uploaded builds when needed:
+
+```sh
+# iOS external TestFlight groups
+TESTFLIGHT_EXTERNAL_GROUPS="External Testers" mise run ios:promote:external
+
+# Android internal -> production
+PLAY_FROM_TRACK=internal PLAY_TO_TRACK=production mise run android:promote
+```
+
+## iOS TestFlight
+
+The intended iOS flow is:
+
+1. Upload a new build for internal testing.
+2. Promote that uploaded build to external tester groups.
+3. Later, ship the tested build to production outside this repo's current Fastlane flow.
+
+Useful commands:
+
+```sh
+# Validate App Store Connect credentials for the current version
+mise run ios:doctor
+
+# Sync signing assets
+mise run ios:setup
+
+# Build an archive only
+mise run ios:build
+
+# Upload the latest archive without rebuilding
+mise run ios:upload
+
+# Build + upload a new internal TestFlight build
+mise run ios:beta
+```
+
+Promoting to external groups:
+
+```sh
+TESTFLIGHT_EXTERNAL_GROUPS="External Testers" mise run ios:promote:external
 ```
 
 Notes:
 
 - Promotion uses the uploaded TestFlight build for the current app version by default.
-- Set `TESTFLIGHT_APP_VERSION` and/or `TESTFLIGHT_BUILD_NUMBER` if you need to promote a specific build explicitly.
-- External distribution waits for build processing and submits the build for beta review.
-- If no external groups are provided, the promotion lane fails fast with a clear error.
+- Set `TESTFLIGHT_APP_VERSION` and/or `TESTFLIGHT_BUILD_NUMBER` if you need to promote a specific build.
+- External distribution waits for App Store Connect processing and submits the build for beta review.
+- If no external groups are provided, the lane fails fast with a clear error.
 
 ## Android Google Play
-
-Fastlane now supports Android release bundle builds and Play track uploads.
 
 One-time setup:
 
 1. Create the app in Play Console (`All apps` -> `Create app`) with package name `com.kblcuk.kopiika`.
 2. Complete required app setup/declarations in Play Console so API uploads are allowed.
-3. Create a Google Play service account with `Release to production, exclude devices, and use Play App Signing` permissions (or stricter as needed).
-4. In Play Console, invite that service account user to your app via `Users and permissions`.
+3. Create a Google Play service account with release permissions appropriate for your target tracks.
+4. Invite that service account to the app in Play Console `Users and permissions`.
 5. Generate and store the service-account JSON key securely.
-6. Configure Android upload signing credentials via environment variables:
+6. Configure Android upload signing credentials via environment variables or fnox secrets.
+
+Signing credentials:
 
 ```sh
 export ANDROID_UPLOAD_STORE_FILE=/absolute/path/to/upload-keystore.jks
@@ -50,7 +128,7 @@ export ANDROID_UPLOAD_KEY_ALIAS=...
 export ANDROID_UPLOAD_KEY_PASSWORD=...
 ```
 
-Or provide the keystore as base64 data instead of a local file path:
+Or provide the keystore as base64 data:
 
 ```sh
 export ANDROID_UPLOAD_STORE_DATA="$(base64 < /absolute/path/to/upload-keystore.jks)"
@@ -59,40 +137,45 @@ export ANDROID_UPLOAD_KEY_ALIAS=...
 export ANDROID_UPLOAD_KEY_PASSWORD=...
 ```
 
-1. Configure Play API credentials using one of:
+Play API credentials:
 
 ```sh
 export PLAY_STORE_JSON_KEY_PATH=/absolute/path/to/play-service-account.json
 ```
 
-or
+or:
 
 ```sh
 export PLAY_STORE_JSON_KEY_DATA="$(base64 < /absolute/path/to/play-service-account.json)"
 ```
 
-Common release commands:
+Useful commands:
 
 ```sh
-# Validate Play API credentials and app access
-bun run android:doctor
+# Validate credentials, package access, and readable tracks
+mise run android:doctor
 
-# Build a release .aab
-bun run android:build:release
+# Build a release .aab only
+mise run android:build:release
 
-# Build + upload to internal testing track
-bun run android:beta
+# Build + upload to internal testing
+mise run android:beta
 
-# Build + upload to production track as draft (default safety behavior)
-bun run android:production
+# Build + upload to production as draft by default
+mise run android:production
 
-# Promote existing release between tracks
-PLAY_FROM_TRACK=internal PLAY_TO_TRACK=production bun run android:promote
+# Upload an existing .aab instead of rebuilding
+PLAY_AAB_PATH=/absolute/path/to/app-release.aab mise run android:upload
+
+# Promote an existing release between tracks
+PLAY_FROM_TRACK=internal PLAY_TO_TRACK=production mise run android:promote
 ```
 
-`android:doctor` is a preflight check that prints the service-account identity from your key, confirms the target package, and probes Play track access before upload.
+Notes:
 
-By default, Android release lanes do not run `gradle clean` because clean can fail on some React Native/CMake setups. If you explicitly want a clean build, pass `clean:true` to the fastlane lane.
+- `android:doctor` prints the service-account identity, confirms the target package, and probes readable Play tracks before upload.
+- Android build lanes do not run `gradle clean` by default because clean can fail on some React Native/CMake setups. Pass `clean:true` directly to the Fastlane lane if you explicitly need a clean build.
+- Android release lanes do not mutate build numbers themselves; they use the values already written to `app.json`.
 
 ## Build Number Sync
 
@@ -104,32 +187,33 @@ By default, Android release lanes do not run `gradle clean` because clean can fa
 If you want to sync build numbers manually for the current version in `app.json`, run:
 
 ```sh
-bun run release:sync-build-numbers
+mise run release:sync-build-numbers
 ```
 
-This uses Fastlane store APIs to fetch latest TestFlight/Play build numbers and writes:
+This uses store APIs to write:
 
 - `ios.buildNumber = latest TestFlight build number for the current app version + 1` (or `1` if no build exists yet)
-- `android.versionCode = latest Play track versionCode + 1` (or `1` if app/package is not found)
+- `android.versionCode = latest Play track versionCode + 1` (or `1` if the package does not exist yet)
 
-`bun run release`, `release:minor`, and `release:major` now bump `package.json` and `app.json` first, then run this sync step automatically via the `commit-and-tag-version` `postbump` hook. That means:
+`bun run release`, `release:minor`, and `release:major` already run this automatically in their `postbump` hook. That means:
 
 - patch releases scope the iOS build lookup to the newly bumped patch version
-- minor/major releases start iOS back at `1` when no TestFlight build exists for that new version yet
+- minor and major releases start iOS back at `1` when no TestFlight build exists for that new version yet
 - Android still uses the next global `versionCode`, regardless of `versionName`
 
 Optional overrides:
 
-- `PLAY_TRACK`: upload target (`internal`, `beta`, `production`, etc.) when using `android:upload`.
-- `PLAY_RELEASE_STATUS`: release status (`draft`, `completed`, `inProgress`, `halted`).
-- `PLAY_AAB_PATH`: upload an existing `.aab` instead of building one first.
-- `ANDROID_UPLOAD_STORE_DATA`: base64 encoded upload keystore (`.jks`), used when `ANDROID_UPLOAD_STORE_FILE` is not set.
+- `PLAY_TRACK`: upload target for `android:upload`
+- `PLAY_RELEASE_STATUS`: `draft`, `completed`, `inProgress`, or `halted`
+- `PLAY_AAB_PATH`: upload an existing `.aab` instead of building one first
+- `ANDROID_UPLOAD_STORE_DATA`: base64-encoded upload keystore, used when `ANDROID_UPLOAD_STORE_FILE` is not set
+- `KOPIIKA_IOS_BUILD_NUMBER`: force the next iOS build number during sync
 
-Android build lanes do not mutate build numbers themselves. iOS also uses the values already written to `app.json`, and the Fastlane build lane now re-syncs the native `Info.plist` and Xcode project version fields from `app.json` after Expo prebuild so the archive metadata cannot drift.
+iOS also uses the values already written to `app.json`, and the build lane re-syncs native `Info.plist` and Xcode project version fields from `app.json` after Expo prebuild so archive metadata cannot drift.
 
-### Fnox-only secrets flow (no key files in repo)
+## fnox Secrets
 
-You can keep both Play JSON and Android keystore encrypted in `fnox.toml`:
+You can keep both Play JSON and the Android keystore encrypted in `fnox.toml`:
 
 ```sh
 # Play API JSON -> encrypted as base64
@@ -144,60 +228,59 @@ fnox set ANDROID_UPLOAD_KEY_ALIAS
 fnox set ANDROID_UPLOAD_KEY_PASSWORD
 ```
 
-Then release with secrets loaded:
+For iOS / App Store Connect:
 
 ```sh
-fnox exec -- bun run android:beta
+fnox set ASC_KEY_ID
+fnox set ASC_ISSUER_ID
+fnox set ASC_KEY_CONTENT
+fnox set FASTLANE_ITC_TEAM_ID
+fnox set MATCH_PASSWORD
 ```
 
-## Release Notes
-
-`CHANGELOG.md` is the single source of truth for all release notes. It is auto-generated from conventional commits by `commit-and-tag-version` during `bun run release`.
-
-Release notes flow to three places automatically:
-
-1. **In-app "What's New" modal** — `CHANGELOG.md` is inlined at build time via `babel-plugin-inline-import`. On first launch after an app update, a modal shows the latest version's changes. Fresh installs skip the modal.
-
-2. **Store listings** — The iOS `beta` and `promote_external` lanes pass the parsed changelog to TestFlight as "What to Test". The Android `upload` lane writes it to a temp metadata dir for Play Store release notes.
-
-3. **Telegram notifications** — The `notify_telegram` Fastlane lane posts a formatted message to a Telegram group. Called by mise umbrella tasks after builds complete.
-
-## Parallel Releases with mise
-
-mise orchestrates iOS + Android builds in parallel and sends a single Telegram notification when both finish:
-
-```sh
-# Ship both betas in parallel, then notify once
-mise run release:beta
-
-# Ship iOS beta + Android production in parallel, then notify
-mise run release:production
-
-# Test Telegram notification without building
-mise run release:notify
-```
-
-Individual platform releases still work standalone via `bun run`:
-
-```sh
-bun run ios:beta
-bun run android:beta
-```
-
-These do not send Telegram notifications — only the mise umbrella tasks do.
-
-## Telegram Notifications
-
-One-time setup:
-
-1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
-2. Add the bot to your release channel/group.
-3. Get the chat ID (disable group privacy in BotFather first, then send a message and query `https://api.telegram.org/bot<TOKEN>/getUpdates`).
-4. Store the secrets in fnox:
+For Telegram notifications:
 
 ```sh
 fnox set TELEGRAM_BOT_TOKEN
 fnox set TELEGRAM_CHAT_ID
 ```
 
-If the env vars are not set, `notify_telegram` silently skips.
+After that, plain `mise run ...` commands will load the secrets automatically.
+
+## Release Notes
+
+`CHANGELOG.md` is the single source of truth for release notes. It is generated from conventional commits by `commit-and-tag-version` during `bun run release`.
+
+Release notes flow to three places automatically:
+
+1. In-app "What's New" modal. `CHANGELOG.md` is inlined at build time via `babel-plugin-inline-import`. On first launch after an app update, a modal shows the latest version's changes. Fresh installs skip the modal.
+2. Store listings. The iOS `beta` and `promote_external` lanes pass the parsed changelog to TestFlight as "What to Test". The Android `upload` lane writes it to a temporary metadata dir for Play Store release notes.
+3. Telegram notifications. The `notify_telegram` lane posts a formatted message to Telegram. It is called by mise umbrella tasks after both platform builds finish.
+
+## Combined Releases with mise
+
+mise can orchestrate both platforms and send one Telegram notification after they finish:
+
+```sh
+# Ship both betas in parallel, then notify once
+mise run release:beta
+
+# Ship iOS beta + Android production, then notify once
+mise run release:production
+
+# Test Telegram notification without building
+mise run release:notify
+```
+
+These umbrella tasks are the preferred way to run coordinated releases because the release logic stays in one task runner instead of being split across shell wrappers.
+
+## Telegram Notifications
+
+One-time setup:
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
+2. Add the bot to your release channel or group.
+3. Get the chat ID. If using a group, disable group privacy in BotFather first, send a message, then query `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+4. Store `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in fnox.
+
+If those env vars are not set, `notify_telegram` skips cleanly.

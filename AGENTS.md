@@ -10,7 +10,7 @@ Read `docs/architecture.md` before changing data flow, transaction behavior, pla
 
 ## Build, Test, and Development Commands
 
-Use Bun for repo scripts.
+Use Bun for app and development scripts. Use `mise run ...` for deployment, signing, store uploads, and release orchestration.
 
 - `bun run start`: start the Expo dev server.
 - `bun run ios` / `bun run android`: run the app in a simulator or emulator.
@@ -20,7 +20,10 @@ Use Bun for repo scripts.
 - `bun run lint`: run `oxlint`.
 - `bun run format` / `bun run format:check`: apply or verify `oxfmt`.
 - `bun run types`: run TypeScript type checking.
-- `bun run ios:setup`, `ios:build`, `ios:upload`, `ios:beta`: Fastlane-based iOS signing and release tasks.
+- `bun run release`, `release:minor`, `release:major`: bump app versions and changelog; post-bump build-number sync is delegated to `mise`.
+- `mise run release:doctor`: run iOS and Android release preflight checks.
+- `mise run ios:setup`, `ios:beta`, `android:beta`, `release:beta`, `release:production`: signing, store-upload, and coordinated release tasks.
+- Read [docs/RELEASING.md](/Users/alex/Code/kopiika/docs/RELEASING.md) before changing release automation or running production-facing release commands.
 
 ## Coding Style & Naming Conventions
 
@@ -40,4 +43,4 @@ Recent history uses Conventional Commits, for example `fix: ...`, `feat: ...`, a
 
 ## Security & Release Notes
 
-Do not commit signing secrets or alter iOS signing configuration casually. Certificates, provisioning profiles, and Fastlane flows are already wired into the repo; prefer the existing `ios:*` scripts instead of ad hoc release commands.
+Do not commit signing secrets or alter iOS signing configuration casually. Certificates, provisioning profiles, Fastlane lanes, and `mise` release tasks are already wired into the repo; prefer those documented release entrypoints over ad hoc commands.

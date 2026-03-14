@@ -6,6 +6,7 @@ Before making changes, read:
 
 - [AGENTS.md](/Users/alex/Code/kopiika/AGENTS.md) for repository workflow and contributor conventions
 - [docs/architecture.md](/Users/alex/Code/kopiika/docs/architecture.md) for product and domain rules
+- [docs/RELEASING.md](/Users/alex/Code/kopiika/docs/RELEASING.md) for release, signing, and store-upload flow
 
 ## Get started
 
