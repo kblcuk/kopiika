@@ -75,6 +75,7 @@ describe('SummaryScreen', () => {
 			entities: [],
 			plans: [],
 			transactions: [],
+			reservations: [],
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
@@ -391,6 +392,7 @@ describe('SummaryScreen', () => {
 				entities: [mockSaving],
 				plans: [],
 				transactions: [],
+				reservations: [],
 			});
 
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
@@ -405,11 +407,39 @@ describe('SummaryScreen', () => {
 			});
 		});
 
+		it('should use reservations for savings actuals', async () => {
+			useStore.setState({
+				entities: [mockSaving],
+				plans: [],
+				transactions: [],
+				reservations: [
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 350,
+					},
+				],
+			});
+
+			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
+				new Map([['saving-1', 999]])
+			);
+
+			const { getByText } = render(<SummaryScreen />);
+
+			await waitFor(() => {
+				expect(getByText('Vacation')).toBeTruthy();
+				expect(getByText('350.00')).toBeTruthy();
+			});
+		});
+
 		it('should show empty state when no entities exist', async () => {
 			useStore.setState({
 				entities: [],
 				plans: [],
 				transactions: [],
+				reservations: [],
 			});
 
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(new Map());

@@ -8,6 +8,7 @@ import { useStore } from '@/src/store';
 import { useShallow } from 'zustand/react/shallow';
 import { getIcon } from '@/src/constants/icon-registry';
 import { colors } from '@/src/theme/colors';
+import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 
 interface EntityFilterProps {
 	selectedEntityId: string | null;
@@ -28,6 +29,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 	const [visible, setVisible] = useState(false);
 
 	const entities = useStore(useShallow((state) => state.entities));
+	const activeEntities = entities.filter(isEntityActive);
 
 	const selectedEntity = selectedEntityId
 		? entities.find((e) => e.id === selectedEntityId)
@@ -35,7 +37,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 
 	const groupedEntities = ENTITY_TYPE_ORDER.reduce(
 		(acc, type) => {
-			const filtered = entities
+			const filtered = activeEntities
 				.filter((e) => e.type === type)
 				.sort((a, b) => {
 					if (a.row !== b.row) return a.row - b.row;
@@ -61,7 +63,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 				className="border-paper-400 mx-5 flex-row items-center justify-between rounded-lg border bg-paper-100 px-4 py-3 active:bg-paper-200"
 			>
 				<Text className="font-sans text-base text-ink">
-					{selectedEntity ? selectedEntity.name : 'All Entities'}
+					{selectedEntity ? getEntityDisplayName(selectedEntity) : 'All Entities'}
 				</Text>
 				<ChevronDown size={20} color={colors.ink.muted} />
 			</Pressable>
@@ -127,7 +129,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 													<Icon size={16} color={colors.ink.muted} />
 												</View>
 												<Text className="font-sans text-base text-ink">
-													{entity.name}
+													{getEntityDisplayName(entity)}
 												</Text>
 											</Pressable>
 										);

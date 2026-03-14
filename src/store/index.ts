@@ -14,6 +14,7 @@ import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { isEntityActive } from '@/src/utils/entity-display';
 
 interface AppState {
 	// Data
@@ -74,6 +75,14 @@ interface AppState {
 }
 
 let initializePromise: Promise<void> | null = null;
+
+function getActiveEntities(entities: Entity[]): Entity[] {
+	return entities.filter(isEntityActive);
+}
+
+function hasActiveEntity(entities: Entity[], id: string): boolean {
+	return getActiveEntities(entities).some((entity) => entity.id === id);
+}
 
 export const useStore = create<AppState>((set, get) => ({
 	// Initial state
@@ -151,6 +160,7 @@ export const useStore = create<AppState>((set, get) => ({
 						position: entity.position,
 						order: entity.order ?? 0,
 						include_in_total: entity.include_in_total ?? true,
+						is_deleted: entity.is_deleted ?? false,
 					})
 					.run();
 			}
@@ -212,7 +222,7 @@ export const useStore = create<AppState>((set, get) => ({
 
 		const state = get();
 		const entity = state.entities.find((e) => e.id === id);
-		if (!entity) {
+		if (!isEntityActive(entity)) {
 			return;
 		}
 
@@ -224,7 +234,7 @@ export const useStore = create<AppState>((set, get) => ({
 		set({
 			entities: updatedEntities,
 			plans: state.plans.filter((p) => p.entity_id !== id),
-			// FK CASCADE handles DB; prune store state for both sides
+			// Soft delete preserves transactions, but linked plans/reservations are removed.
 			reservations: state.reservations.filter(
 				(r) => r.account_entity_id !== id && r.saving_entity_id !== id
 			),
@@ -233,8 +243,8 @@ export const useStore = create<AppState>((set, get) => ({
 
 	reorderEntity: async (sourceId, targetId) => {
 		const state = get();
-		const sourceEntity = state.entities.find((e) => e.id === sourceId);
-		const targetEntity = state.entities.find((e) => e.id === targetId);
+		const sourceEntity = state.entities.find((e) => e.id === sourceId && !e.is_deleted);
+		const targetEntity = state.entities.find((e) => e.id === targetId && !e.is_deleted);
 
 		if (!sourceEntity || !targetEntity || sourceEntity.type !== targetEntity.type) {
 			return;
@@ -259,7 +269,7 @@ export const useStore = create<AppState>((set, get) => ({
 
 		for (let i = 0; i < orderedIds.length; i++) {
 			const id = orderedIds[i];
-			const entity = state.entities.find((e) => e.id === id);
+			const entity = state.entities.find((e) => e.id === id && !e.is_deleted);
 			if (!entity || entity.type !== type) continue;
 
 			const position = Math.floor(i / maxRows); // column index
@@ -289,7 +299,7 @@ export const useStore = create<AppState>((set, get) => ({
 	setPlan: async (plan) => {
 		// Validate that the entity exists before setting the plan
 		const state = get();
-		const entityExists = state.entities.some((e) => e.id === plan.entity_id);
+		const entityExists = hasActiveEntity(state.entities, plan.entity_id);
 		if (!entityExists) {
 			console.warn(`Cannot set plan for non-existent entity: ${plan.entity_id}`);
 			return;
@@ -311,8 +321,8 @@ export const useStore = create<AppState>((set, get) => ({
 	addTransaction: async (transaction) => {
 		// Validate that both entities exist before creating transaction
 		const state = get();
-		const fromExists = state.entities.some((e) => e.id === transaction.from_entity_id);
-		const toExists = state.entities.some((e) => e.id === transaction.to_entity_id);
+		const fromExists = hasActiveEntity(state.entities, transaction.from_entity_id);
+		const toExists = hasActiveEntity(state.entities, transaction.to_entity_id);
 		if (!fromExists || !toExists) {
 			console.warn(
 				`Cannot create transaction with non-existent entities: from=${transaction.from_entity_id}, to=${transaction.to_entity_id}`
@@ -343,10 +353,17 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 
 		// Validate entities exist (allow BALANCE_ADJUSTMENT as special case)
+		const fromEntity = state.entities.find((e) => e.id === finalFromId);
+		const toEntity = state.entities.find((e) => e.id === finalToId);
+
 		const fromExists =
 			finalFromId === BALANCE_ADJUSTMENT_ENTITY_ID ||
-			state.entities.some((e) => e.id === finalFromId);
-		const toExists = state.entities.some((e) => e.id === finalToId);
+			(fromEntity
+				? !fromEntity.is_deleted || finalFromId === transaction.from_entity_id
+				: false);
+		const toExists = toEntity
+			? !toEntity.is_deleted || finalToId === transaction.to_entity_id
+			: false;
 
 		if (!fromExists || !toExists) {
 			console.warn(
@@ -371,6 +388,15 @@ export const useStore = create<AppState>((set, get) => ({
 	// Reservation actions
 	upsertReservation: async (accountEntityId, savingEntityId, amount) => {
 		const state = get();
+		const account = state.entities.find((e) => e.id === accountEntityId && !e.is_deleted);
+		const saving = state.entities.find((e) => e.id === savingEntityId && !e.is_deleted);
+		if (!account || !saving) {
+			console.warn(
+				`Cannot update reservation with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
+			);
+			return;
+		}
+
 		const existing = state.reservations.find(
 			(r) => r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId
 		);
@@ -439,7 +465,12 @@ export function getEntitiesWithBalance(
 	const { start, end } = getPeriodRange(currentPeriod);
 	// Filter by type and exclude system entities (balance adjustments)
 	const filteredEntities = entities
-		.filter((e) => e.type === type && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
+		.filter(
+			(e) =>
+				e.type === type &&
+				e.id !== BALANCE_ADJUSTMENT_ENTITY_ID &&
+				e.is_deleted !== true
+		)
 		.sort((a, b) => a.row - b.row || a.position - b.position);
 
 	const now = Date.now();

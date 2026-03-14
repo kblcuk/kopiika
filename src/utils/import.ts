@@ -147,6 +147,7 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			row: rowNum,
 			position,
 			include_in_total: row.include_in_total !== 'false',
+			is_deleted: row.is_deleted === 'true',
 		});
 	}
 

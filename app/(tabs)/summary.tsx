@@ -13,6 +13,8 @@ import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/forma
 import { getBatchEntityActuals } from '@/src/db/transactions';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { isEntityActive } from '@/src/utils/entity-display';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
 function getPriorPeriods(currentPeriod: string, count: number): string[] {
@@ -181,11 +183,12 @@ export default function SummaryScreen() {
 	// 4 monthly actuals maps oldest→newest (3 prior months + selected period)
 	const [trendActuals, setTrendActuals] = useState<Map<string, number>[]>([]);
 
-	const { entities, plans, transactions } = useStore(
+	const { entities, plans, transactions, reservations } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
+			reservations: state.reservations,
 		}))
 	);
 
@@ -196,7 +199,9 @@ export default function SummaryScreen() {
 	// Fetch current-period actuals + 3-month trend in parallel
 	useEffect(() => {
 		async function fetchActuals() {
-			const entityIds = entities.map((e) => e.id);
+			const entityIds = entities
+				.filter((e) => isEntityActive(e) && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
+				.map((e) => e.id);
 			const priorPeriods = getPriorPeriods(selectedPeriod, 3);
 			const allPeriods = [...priorPeriods, selectedPeriod]; // oldest → current
 
@@ -215,21 +220,36 @@ export default function SummaryScreen() {
 	}, [selectedPeriod, entities, transactions]);
 
 	// Combine entities with their actuals and plans
-	const entitiesWithBalance = useMemo(() => {
-		return entities.map((entity) => {
-			// All plans use 'all-time' period - same planned amount for all months
-			const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
-			const planned = plan?.planned_amount ?? 0;
-			const actual = actuals.get(entity.id) ?? 0;
+	const reservationTotals = useMemo(() => {
+		return reservations.reduce((totals, reservation) => {
+			totals.set(
+				reservation.saving_entity_id,
+				(totals.get(reservation.saving_entity_id) ?? 0) + reservation.amount
+			);
+			return totals;
+		}, new Map<string, number>());
+	}, [reservations]);
 
-			return {
-				...entity,
-				planned,
-				actual,
-				remaining: planned - actual,
-			} as EntityWithBalance;
-		});
-	}, [entities, plans, actuals]);
+	const entitiesWithBalance = useMemo(() => {
+		return entities
+			.filter((entity) => isEntityActive(entity) && entity.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
+			.map((entity) => {
+				// All plans use 'all-time' period - same planned amount for all months
+				const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
+				const planned = plan?.planned_amount ?? 0;
+				const actual =
+					entity.type === 'saving'
+						? reservationTotals.get(entity.id) ?? 0
+						: actuals.get(entity.id) ?? 0;
+
+				return {
+					...entity,
+					planned,
+					actual,
+					remaining: planned - actual,
+				} as EntityWithBalance;
+			});
+	}, [entities, plans, actuals, reservationTotals]);
 
 	// Group entities by type
 	const groupedEntities = useMemo(() => {

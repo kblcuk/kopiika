@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
-import type { Entity, EntityType } from '@/src/types';
+import type { Entity, EntityType, Transaction } from '@/src/types';
 import {
 	getAllEntities,
 	getEntitiesByType,
@@ -10,6 +10,7 @@ import {
 	getNextPosition,
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
+import { createTransaction, getAllTransactions } from '../transactions';
 import { resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -37,7 +38,7 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			const result = await getEntityById('entity-1');
-			expect(result).toEqual({ ...entity, include_in_total: true });
+			expect(result).toEqual({ ...entity, include_in_total: true, is_deleted: false });
 		});
 
 		test('should create entity with optional fields as null', async () => {
@@ -60,6 +61,7 @@ describe('entities.ts', () => {
 				color: null,
 				owner_id: null,
 				include_in_total: true,
+				is_deleted: false,
 			});
 		});
 
@@ -290,7 +292,7 @@ describe('entities.ts', () => {
 			await updateEntity(updated);
 
 			const result = await getEntityById('update-test');
-			expect(result).toEqual({ ...updated, include_in_total: true });
+			expect(result).toEqual({ ...updated, include_in_total: true, is_deleted: false });
 		});
 
 		test('should be able to set optional fields to null', async () => {
@@ -329,7 +331,7 @@ describe('entities.ts', () => {
 	});
 
 	describe('deleteEntity', () => {
-		test('should delete existing entity', async () => {
+		test('should soft-delete existing entity', async () => {
 			const entity: Entity = {
 				id: 'delete-test',
 				type: 'account',
@@ -344,14 +346,18 @@ describe('entities.ts', () => {
 			expect(await getEntityById('delete-test')).not.toBeNull();
 
 			await deleteEntity('delete-test');
-			expect(await getEntityById('delete-test')).toBeNull();
+			expect(await getEntityById('delete-test')).toMatchObject({
+				id: 'delete-test',
+				is_deleted: true,
+			});
+			expect(await getEntitiesByType('account')).toHaveLength(1); // system only
 		});
 
 		test('should not error when deleting non-existent entity', () => {
 			expect(deleteEntity('non-existent')).resolves.toBeUndefined();
 		});
 
-		test('should cascade delete plans for entity', async () => {
+		test('should remove plans for a deleted entity', async () => {
 			// Create entity with plan
 			const entity: Entity = {
 				id: 'cascade-test',
@@ -383,6 +389,46 @@ describe('entities.ts', () => {
 			// Plan should be cascade deleted
 			const deletedPlan = await getPlanForEntity('cascade-test', '2025-01');
 			expect(deletedPlan).toBeNull();
+		});
+
+		test('should preserve transactions for deleted entities', async () => {
+			const income: Entity = {
+				id: 'income-delete-test',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const account: Entity = {
+				id: 'account-delete-test',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const transaction: Transaction = {
+				id: 'tx-delete-test',
+				from_entity_id: income.id,
+				to_entity_id: account.id,
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			await createEntity(income);
+			await createEntity(account);
+			await createTransaction(transaction);
+
+			await expect(deleteEntity(account.id)).resolves.toBeUndefined();
+
+			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
+			expect(await getAllTransactions()).toContainEqual(
+				expect.objectContaining({ id: transaction.id, to_entity_id: account.id })
+			);
 		});
 	});
 

@@ -141,6 +141,48 @@ describe('TransactionModal', () => {
 
 			expect(getByText('Scheduled')).toBeTruthy();
 		});
+
+		it('filters deleted entities out of quick add source selection', async () => {
+			const activeIncome: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+			const deletedAccount: Entity = {
+				id: 'account-deleted',
+				type: 'account',
+				name: 'Old Checking',
+				currency: 'USD',
+				order: 1,
+				row: 0,
+				position: 1,
+				is_deleted: true,
+			};
+
+			useStore.setState({
+				entities: [activeIncome, deletedAccount],
+			});
+
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			await waitFor(() => {
+				jest.advanceTimersByTime(400);
+				expect(getByText('Salary')).toBeTruthy();
+				expect(queryByText('Old Checking')).toBeNull();
+			});
+		});
 	});
 
 	describe('Transaction Creation', () => {

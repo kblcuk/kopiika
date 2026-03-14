@@ -1,7 +1,7 @@
 import { eq, max, and } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { entities } from './drizzle-schema';
+import { entities, plans, reservations } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
@@ -13,7 +13,7 @@ export async function getEntitiesByType(type: EntityType): Promise<Entity[]> {
 	return await db
 		.select()
 		.from(entities)
-		.where(eq(entities.type, type))
+		.where(and(eq(entities.type, type), eq(entities.is_deleted, false)))
 		.orderBy(entities.row, entities.position);
 }
 
@@ -37,6 +37,7 @@ export async function createEntity(entity: Entity): Promise<void> {
 		position: entity.position,
 		order: entity.order ?? 0,
 		include_in_total: entity.include_in_total ?? true,
+		is_deleted: entity.is_deleted ?? false,
 	});
 }
 
@@ -55,14 +56,35 @@ export async function updateEntity(entity: Entity): Promise<void> {
 			position: entity.position,
 			order: entity.order ?? 0,
 			include_in_total: entity.include_in_total ?? true,
+			is_deleted: entity.is_deleted ?? false,
 		})
 		.where(eq(entities.id, entity.id));
 }
 
 export async function deleteEntity(id: string): Promise<void> {
+	await softDeleteEntity(id);
+}
+
+export async function softDeleteEntity(id: string): Promise<void> {
 	const db = await getDrizzleDb();
-	// Cascade delete is handled by FK constraint in schema
-	await db.delete(entities).where(eq(entities.id, id));
+	const entity = await getEntityById(id);
+	if (!entity || entity.is_deleted) {
+		return;
+	}
+
+	db.transaction((tx) => {
+		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
+
+		tx.delete(plans).where(eq(plans.entity_id, id)).run();
+
+		if (entity.type === 'account') {
+			tx.delete(reservations).where(eq(reservations.account_entity_id, id)).run();
+		}
+
+		if (entity.type === 'saving') {
+			tx.delete(reservations).where(eq(reservations.saving_entity_id, id)).run();
+		}
+	});
 }
 
 export async function getNextPosition(type: EntityType, row: number): Promise<number> {
@@ -92,7 +114,7 @@ async function getEntitiesInRow(type: EntityType, row: number): Promise<Entity[]
 	return await db
 		.select()
 		.from(entities)
-		.where(and(eq(entities.type, type), eq(entities.row, row)))
+		.where(and(eq(entities.type, type), eq(entities.row, row), eq(entities.is_deleted, false)))
 		.orderBy(entities.position);
 }
 
@@ -112,7 +134,7 @@ export async function moveEntity(
 	toPosition: number
 ): Promise<void> {
 	const entity = await getEntityById(entityId);
-	if (!entity) {
+	if (!entity || entity.is_deleted) {
 		return;
 	}
 
@@ -168,10 +190,10 @@ export async function moveEntity(
 
 export async function deleteEntityAndReindex(entityId: string): Promise<void> {
 	const entity = await getEntityById(entityId);
-	if (!entity) {
+	if (!entity || entity.is_deleted) {
 		return;
 	}
 
-	await deleteEntity(entityId);
+	await softDeleteEntity(entityId);
 	await reindexRow(entity.type, entity.row);
 }

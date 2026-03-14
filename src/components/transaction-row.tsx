@@ -16,6 +16,7 @@ import { useStore } from '@/src/store';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { getEntityDisplayName } from '@/src/utils/entity-display';
 
 interface TransactionRowProps {
 	transaction: Transaction;
@@ -23,6 +24,7 @@ interface TransactionRowProps {
 	onEdit: (transaction: Transaction) => void;
 	index: number;
 	isUpcoming?: boolean;
+	editable?: boolean;
 }
 
 const DELETE_THRESHOLD = -80;
@@ -34,6 +36,7 @@ export const TransactionRow = memo(function TransactionRow({
 	onEdit,
 	index,
 	isUpcoming = false,
+	editable = true,
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 
@@ -42,6 +45,8 @@ export const TransactionRow = memo(function TransactionRow({
 
 	const fromEntity = entityMap.get(transaction.from_entity_id);
 	const toEntity = entityMap.get(transaction.to_entity_id);
+	const fromLabel = getEntityDisplayName(fromEntity);
+	const toLabel = getEntityDisplayName(toEntity);
 
 	const FromIcon = getIcon(fromEntity?.icon || 'circle');
 	const ToIcon = getIcon(toEntity?.icon || 'circle');
@@ -52,7 +57,7 @@ export const TransactionRow = memo(function TransactionRow({
 	const confirmDelete = useCallback(() => {
 		Alert.alert(
 			'Delete Transaction',
-			`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromEntity?.name ?? 'Unknown'} to ${toEntity?.name ?? 'Unknown'}?`,
+			`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
 			[
 				{ text: 'Cancel', style: 'cancel' },
 				{
@@ -92,87 +97,84 @@ export const TransactionRow = memo(function TransactionRow({
 
 	const rowBg = isUpcoming ? 'bg-info/5' : index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
 
+	const rowContent = (
+		<View className="flex-row items-center">
+			{/* Left side: entity flow + optional note */}
+			<View className="flex-1">
+				{/* Entity flow row */}
+				<View className="flex-row items-center">
+					<View
+						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+					>
+						<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+					</View>
+					<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
+						{fromLabel}
+					</Text>
+					<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
+					<View
+						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
+					>
+						<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+					</View>
+					<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
+						{toLabel}
+					</Text>
+				</View>
+
+				{/* Note */}
+				{transaction.note && (
+					<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
+						{transaction.note}
+					</Text>
+				)}
+			</View>
+
+			{/* Amount and currency */}
+			<View className="items-end">
+				{isUpcoming && (
+					<Clock size={12} color={colors.info.DEFAULT} style={{ marginBottom: 2 }} />
+				)}
+				<Text
+					className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
+				>
+					{formatAmount(transaction.amount, transaction.currency)}{' '}
+					<Text className="font-sans text-sm text-ink-muted">
+						{getCurrencySymbol(transaction.currency)}
+					</Text>
+				</Text>
+			</View>
+		</View>
+	);
+
 	return (
 		<View className="relative border-b border-paper-300">
-			{/* Delete background */}
-			<Animated.View
-				style={deleteStyle}
-				className="absolute bottom-0 right-0 top-0 w-20 items-center justify-center bg-negative"
-			>
-				<Trash2 size={24} color={colors.on.color} />
-			</Animated.View>
-
-			{/* Row content */}
-			<GestureDetector gesture={panGesture}>
-				<Animated.View style={rowStyle}>
-					<Pressable
-						onPress={handlePress}
-						className={`flex-row items-center ${rowBg} px-5 py-3`}
-					>
-						{/* Left side: entity flow + optional note */}
-						<View className="flex-1">
-							{/* Entity flow row */}
-							<View className="flex-row items-center">
-								<View
-									className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
-								>
-									<FromIcon
-										size={16}
-										color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
-									/>
-								</View>
-								<Text
-									className="font-sans-medium text-base text-ink"
-									numberOfLines={1}
-								>
-									{fromEntity?.name ?? 'Unknown'}
-								</Text>
-								<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
-								<View
-									className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
-								>
-									<ToIcon
-										size={16}
-										color={toColors?.iconColor ?? FALLBACK_ICON_COLOR}
-									/>
-								</View>
-								<Text
-									className="flex-1 font-sans text-base text-ink-light"
-									numberOfLines={1}
-								>
-									{toEntity?.name ?? 'Unknown'}
-								</Text>
-							</View>
-
-							{/* Note */}
-							{transaction.note && (
-								<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
-									{transaction.note}
-								</Text>
-							)}
-						</View>
-
-						{/* Amount and currency */}
-						<View className="items-end">
-							{isUpcoming && (
-								<Clock
-									size={12}
-									color={colors.info.DEFAULT}
-									style={{ marginBottom: 2 }}
-								/>
-							)}
-							<Text
-								className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
-							>
-								{formatAmount(transaction.amount, transaction.currency)}{' '}
-								<Text className="font-sans text-sm text-ink-muted">
-									{getCurrencySymbol(transaction.currency)}
-								</Text>
-							</Text>
-						</View>
-					</Pressable>
+			{editable && (
+				<Animated.View
+					style={deleteStyle}
+					className="absolute bottom-0 right-0 top-0 w-20 items-center justify-center bg-negative"
+				>
+					<Trash2 size={24} color={colors.on.color} />
 				</Animated.View>
-			</GestureDetector>
+			)}
+
+			{editable ? (
+				<GestureDetector gesture={panGesture}>
+					<Animated.View style={rowStyle}>
+						<Pressable
+							onPress={handlePress}
+							className={`px-5 py-3 ${rowBg}`}
+							testID={`transaction-row-${transaction.id}`}
+						>
+							{rowContent}
+						</Pressable>
+					</Animated.View>
+				</GestureDetector>
+			) : (
+				<View className={`px-5 py-3 ${rowBg}`} testID={`transaction-row-${transaction.id}`}>
+					{rowContent}
+				</View>
+			)}
 		</View>
 	);
 });

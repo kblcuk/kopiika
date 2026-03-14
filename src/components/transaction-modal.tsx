@@ -31,6 +31,7 @@ import { SavingsFundingSection, type SavingsFundingHandle } from './savings-fund
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 
 interface SplitRow {
 	id: string;
@@ -114,6 +115,7 @@ export function TransactionModal({
 		return entities.filter(
 			(e) =>
 				(e.type === 'income' || e.type === 'account') &&
+				isEntityActive(e) &&
 				e.id !== BALANCE_ADJUSTMENT_ENTITY_ID
 		);
 	}, [quickAdd, entities]);
@@ -461,7 +463,7 @@ export function TransactionModal({
 					className={`text-center font-sans text-sm ${isTappable ? 'text-ink' : 'text-ink-muted'}`}
 					numberOfLines={1}
 				>
-					{entity.name}
+					{getEntityDisplayName(entity)}
 				</Text>
 			</Pressable>
 		);

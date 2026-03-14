@@ -20,6 +20,7 @@ import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
+import { isEntityActive } from '@/src/utils/entity-display';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -67,7 +68,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		if (!name.trim()) return;
 
 		const maxRows = entityType === 'category' ? 3 : 1;
-		const sameTypeEntities = entities.filter((e) => e.type === entityType);
+		const sameTypeEntities = entities.filter(
+			(e) => e.type === entityType && isEntityActive(e)
+		);
 		const rowCounts = new Map<number, number>();
 
 		for (let i = 0; i < maxRows; i++) {
@@ -89,7 +92,9 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			}
 		}
 
-		const sameTypeInRow = entities.filter((e) => e.type === entityType && e.row === targetRow);
+		const sameTypeInRow = entities.filter(
+			(e) => e.type === entityType && e.row === targetRow && isEntityActive(e)
+		);
 		const nextPosition =
 			sameTypeInRow.length > 0 ? Math.max(...sameTypeInRow.map((e) => e.position)) + 1 : 0;
 

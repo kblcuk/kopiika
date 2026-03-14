@@ -13,6 +13,7 @@ import { EntityFilter } from '@/src/components/entity-filter';
 import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import { formatAmount } from '@/src/utils/format';
+import { isEntityDeleted } from '@/src/utils/entity-display';
 
 interface TransactionSection {
 	title: string;
@@ -181,15 +182,22 @@ export default function HistoryScreen() {
 			item: Transaction;
 			index: number;
 			section: TransactionSection;
-		}) => (
-			<TransactionRow
-				transaction={item}
-				entityMap={entityMap}
-				onEdit={handleEdit}
-				index={index}
-				isUpcoming={section.isUpcoming}
-			/>
-		),
+		}) => {
+			const fromEntity = entityMap.get(item.from_entity_id);
+			const toEntity = entityMap.get(item.to_entity_id);
+			const editable = !isEntityDeleted(fromEntity) && !isEntityDeleted(toEntity);
+
+			return (
+				<TransactionRow
+					transaction={item}
+					entityMap={entityMap}
+					onEdit={handleEdit}
+					index={index}
+					isUpcoming={section.isUpcoming}
+					editable={editable}
+				/>
+			);
+		},
 		[entityMap, handleEdit]
 	);
 

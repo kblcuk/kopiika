@@ -199,9 +199,20 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	};
 
 	const handleDelete = () => {
+		const deleteConsequences = {
+			income:
+				'Past transactions will stay in History and this income source will be shown as removed.',
+			account:
+				'Past transactions will stay in History and any funds reserved from this account will be removed from linked savings goals.',
+			category:
+				'Past transactions will stay in History and this category will be shown as removed.',
+			saving:
+				'Past transactions will stay in History and any reserved money for this goal will be released back to its linked accounts.',
+		} satisfies Record<typeof entity.type, string>;
+
 		Alert.alert(
 			'Delete Entity',
-			`Are you sure you want to delete "${entity.name}"? This will also remove all associated plans and reservations.`,
+			`Are you sure you want to delete "${entity.name}"? ${deleteConsequences[entity.type]}`,
 			[
 				{ text: 'Cancel', style: 'cancel' },
 				{

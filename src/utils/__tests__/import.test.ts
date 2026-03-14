@@ -280,6 +280,26 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(e3!.include_in_total).toBe(true);
 	});
 
+	test('is_deleted defaults to false unless explicitly true', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total,is_deleted
+e1,income,"A",EUR,,,,,0,0,true,true
+e2,account,"B",EUR,,,,,0,0,true,
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		expect(result.data.entities.find((e) => e.id === 'e1')!.is_deleted).toBe(true);
+		expect(result.data.entities.find((e) => e.id === 'e2')!.is_deleted).toBe(false);
+	});
+
 	test('transactions can reference the system entity', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total

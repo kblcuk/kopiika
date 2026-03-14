@@ -1,5 +1,6 @@
 import type { Entity, EntityType } from '@/src/types';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { isEntityDeleted } from './entity-display';
 
 /**
  * Defines which entity types can send money to which other types.
@@ -54,6 +55,8 @@ export function getValidFromEntities(
 		// Allow balance adjustment entity (special case for editing)
 		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return true;
 
+		if (isEntityDeleted(entity)) return false;
+
 		// Must have matching currency
 		if (entity.currency !== currency) return false;
 
@@ -81,6 +84,7 @@ export function getValidToEntities(
 		return entities.filter((entity) => {
 			if (entity.id === excludeId) return false;
 			if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return false;
+			if (isEntityDeleted(entity)) return false;
 			if (entity.currency !== currency) return false;
 			return entity.type === 'account';
 		});
@@ -97,6 +101,8 @@ export function getValidToEntities(
 
 		// Balance adjustment cannot be a destination
 		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return false;
+
+		if (isEntityDeleted(entity)) return false;
 
 		// Must have matching currency
 		if (entity.currency !== currency) return false;

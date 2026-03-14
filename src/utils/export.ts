@@ -16,6 +16,7 @@ export function entitiesToCsv(entities: Entity[]): string {
 		'row',
 		'position',
 		'include_in_total',
+		'is_deleted',
 	];
 	const rows = entities.map((e) =>
 		[
@@ -30,6 +31,7 @@ export function entitiesToCsv(entities: Entity[]): string {
 			e.row,
 			e.position,
 			e.include_in_total !== false,
+			e.is_deleted === true,
 		].join(',')
 	);
 	return [headers.join(','), ...rows].join('\n');

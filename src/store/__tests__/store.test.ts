@@ -77,8 +77,9 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().initialize();
 
 			const state = useStore.getState();
-			// Should have entity-1 + system entity
-			expect(state.entities).toHaveLength(2);
+			// Should have entity-1 + soft-deleted entity-temp + system entity
+			expect(state.entities).toHaveLength(3);
+			expect(state.entities.find((e) => e.id === 'entity-temp')?.is_deleted).toBe(true);
 			// Should filter out orphaned plan
 			expect(state.plans).toHaveLength(1);
 			expect(state.plans[0].id).toBe('plan-1');
@@ -424,16 +425,58 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().deleteEntity('entity-1');
 
 			const state = useStore.getState();
-			expect(state.entities).toHaveLength(2);
+			expect(state.entities).toHaveLength(3);
 			expect(state.entities.find((e) => e.id === 'entity-2')).toBeTruthy();
+			expect(state.entities.find((e) => e.id === 'entity-1')?.is_deleted).toBe(true);
 			expect(state.plans).toHaveLength(1);
 			expect(state.plans[0].id).toBe('plan-2');
 
-			// Verify it was deleted from database
+			// Verify it was soft-deleted in the database
 			const dbEntity = await db.getEntityById('entity-1');
-			expect(dbEntity).toBeNull();
+			expect(dbEntity?.is_deleted).toBe(true);
 			const dbPlan = await db.getPlanForEntity('entity-1', '2026-01');
 			expect(dbPlan).toBeNull();
+		});
+
+		test('should preserve transactions when deleting an entity with history', async () => {
+			const income: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+				order: 1,
+			};
+			const transaction: Transaction = {
+				id: 'tx-1',
+				from_entity_id: income.id,
+				to_entity_id: account.id,
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15').getTime(),
+			};
+
+			useStore.setState({ entities: [income, account], transactions: [transaction] });
+			await db.createEntity(income);
+			await db.createEntity(account);
+			await db.createTransaction(transaction);
+
+			await useStore.getState().deleteEntity(account.id);
+
+			const state = useStore.getState();
+			expect(state.transactions).toHaveLength(1);
+			expect(state.transactions[0].to_entity_id).toBe(account.id);
+			expect(state.entities.find((e) => e.id === account.id)?.is_deleted).toBe(true);
 		});
 	});
 

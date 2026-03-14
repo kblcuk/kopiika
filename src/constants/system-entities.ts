@@ -21,5 +21,6 @@ export function createBalanceAdjustmentEntity(): Entity {
 		order: 0,
 		row: 0,
 		position: -1, // Negative position ensures it appears first if accidentally shown
+		is_deleted: false,
 	};
 }

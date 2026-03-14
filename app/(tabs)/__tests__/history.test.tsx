@@ -52,14 +52,16 @@ jest.mock('@/src/components/transaction-row', () => ({
 	TransactionRow: ({
 		transaction,
 		isUpcoming,
+		editable = true,
 	}: {
 		transaction: { id: string };
 		isUpcoming?: boolean;
+		editable?: boolean;
 	}) => {
 		const { Text } = jest.requireActual('react-native');
 		return (
 			<Text testID={`row-${transaction.id}`}>
-				{transaction.id}:{isUpcoming ? 'upcoming' : 'past'}
+				{transaction.id}:{isUpcoming ? 'upcoming' : 'past'}:{editable ? 'editable' : 'readonly'}
 			</Text>
 		);
 	},
@@ -294,10 +296,38 @@ describe('HistoryScreen search params', () => {
 		await waitFor(() => {
 			expect(getByText('Upcoming')).toBeTruthy();
 			expect(getByTestId('row-tx-upcoming').props.children.join('')).toBe(
-				'tx-upcoming:upcoming'
+				'tx-upcoming:upcoming:editable'
 			);
-			expect(getByTestId('row-tx-past').props.children.join('')).toBe('tx-past:past');
+			expect(getByTestId('row-tx-past').props.children.join('')).toBe(
+				'tx-past:past:editable'
+			);
 			expect(getByText('1 transaction')).toBeTruthy();
+		});
+	});
+
+	it('renders transactions with deleted entities as read-only', async () => {
+		const deletedEntityTransaction: Transaction = {
+			...mockTransaction,
+			timestamp: fixedNow - 60_000,
+		};
+
+		useStore.setState({
+			entities: [
+				{ ...mockAccount, is_deleted: true },
+				mockCategory,
+			],
+			plans: [],
+			transactions: [deletedEntityTransaction],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		const { getByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-1').props.children.join('')).toBe(
+				'tx-1:past:readonly'
+			);
 		});
 	});
 });

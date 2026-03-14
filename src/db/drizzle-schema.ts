@@ -18,6 +18,7 @@ export const entities = sqliteTable(
 		row: integer('row').notNull(),
 		position: integer('position').notNull(),
 		include_in_total: integer('include_in_total', { mode: 'boolean' }).notNull().default(true),
+		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 	},
 	(table) => [
 		index('idx_entities_type').on(table.type),

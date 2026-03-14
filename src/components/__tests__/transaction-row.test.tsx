@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 
 import { TransactionRow } from '../transaction-row';
 import type { Entity, Transaction } from '@/src/types';
@@ -116,5 +116,49 @@ describe('TransactionRow', () => {
 		);
 
 		expect(queryByTestId('clock-icon')).toBeNull();
+	});
+
+	it('renders removed labels for deleted entities', () => {
+		const deletedEntityMap = new Map<string, Entity>([
+			[
+				account.id,
+				{
+					...account,
+					is_deleted: true,
+				},
+			],
+			[category.id, category],
+		]);
+
+		const { getByText } = render(
+			<TransactionRow
+				transaction={transaction}
+				entityMap={deletedEntityMap}
+				onEdit={jest.fn()}
+				index={0}
+				isUpcoming={false}
+			/>
+		);
+
+		expect(getByText('Removed account')).toBeTruthy();
+		expect(getByText('Groceries')).toBeTruthy();
+	});
+
+	it('does not call onEdit when the row is read-only', () => {
+		const onEdit = jest.fn();
+		const { getByTestId } = render(
+			<TransactionRow
+				transaction={transaction}
+				entityMap={entityMap}
+				onEdit={onEdit}
+				index={0}
+				isUpcoming={false}
+				editable={false}
+			/>
+		);
+
+		fireEvent.press(getByTestId('transaction-row-tx-1'));
+
+		expect(onEdit).not.toHaveBeenCalled();
 	});
 });
