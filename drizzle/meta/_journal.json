@@ -57,6 +57,13 @@
 			"when": 1773500000000,
 			"tag": "0007_soft-delete-entities",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1773583065777,
+			"tag": "0008_nostalgic_peter_parker",
+			"breakpoints": true
 		}
 	]
 }

@@ -142,7 +142,6 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			currency: row.currency,
 			icon: row.icon || null,
 			color: row.color || null,
-			owner_id: row.owner_id || null,
 			order,
 			row: rowNum,
 			position,

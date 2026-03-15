@@ -27,9 +27,7 @@ interface AppState {
 	currentPeriod: string;
 	isLoading: boolean;
 	draggedEntity: Entity | null;
-	hoveredDropZoneId: string | null;
 	incomeVisible: boolean;
-	previewPositions: Map<string, { row: number; position: number }> | null;
 
 	// Actions
 	initialize: () => Promise<void>;
@@ -40,16 +38,12 @@ interface AppState {
 	) => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
 	setDraggedEntity: (entity: Entity | null) => void;
-	setHoveredDropZoneId: (id: string | null) => void;
 	toggleIncomeVisible: () => void;
-	setPreviewPositions: (positions: Map<string, { row: number; position: number }> | null) => void;
-	clearPreviewPositions: () => void;
 
 	// Entity actions
 	addEntity: (entity: Entity) => Promise<void>;
 	updateEntity: (entity: Entity) => Promise<void>;
 	deleteEntity: (id: string) => Promise<void>;
-	reorderEntity: (sourceId: string, targetId: string) => Promise<void>;
 	reorderEntitiesByIds: (
 		type: EntityType,
 		orderedIds: string[],
@@ -93,9 +87,7 @@ export const useStore = create<AppState>((set, get) => ({
 	currentPeriod: getCurrentPeriod(),
 	isLoading: true,
 	draggedEntity: null,
-	hoveredDropZoneId: null,
 	incomeVisible: false,
-	previewPositions: null,
 
 	// Initialize from database
 	initialize: async () => {
@@ -155,7 +147,6 @@ export const useStore = create<AppState>((set, get) => ({
 						currency: entity.currency,
 						icon: entity.icon ?? null,
 						color: entity.color ?? null,
-						owner_id: entity.owner_id ?? null,
 						row: entity.row,
 						position: entity.position,
 						order: entity.order ?? 0,
@@ -194,11 +185,7 @@ export const useStore = create<AppState>((set, get) => ({
 
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
 	setDraggedEntity: (entity) => set({ draggedEntity: entity }),
-	setHoveredDropZoneId: (id) => set({ hoveredDropZoneId: id }),
 	toggleIncomeVisible: () => set((state) => ({ incomeVisible: !state.incomeVisible })),
-
-	setPreviewPositions: (positions) => set({ previewPositions: positions }),
-	clearPreviewPositions: () => set({ previewPositions: null }),
 
 	// Entity actions
 	addEntity: async (entity) => {
@@ -239,23 +226,6 @@ export const useStore = create<AppState>((set, get) => ({
 				(r) => r.account_entity_id !== id && r.saving_entity_id !== id
 			),
 		});
-	},
-
-	reorderEntity: async (sourceId, targetId) => {
-		const state = get();
-		const sourceEntity = state.entities.find((e) => e.id === sourceId && !e.is_deleted);
-		const targetEntity = state.entities.find((e) => e.id === targetId && !e.is_deleted);
-
-		if (!sourceEntity || !targetEntity || sourceEntity.type !== targetEntity.type) {
-			return;
-		}
-
-		// Use moveEntity to move source to target's position
-		await db.moveEntity(sourceId, targetEntity.row, targetEntity.position);
-
-		// Reload entities to get updated positions
-		const updatedEntities = await db.getAllEntities();
-		set({ entities: updatedEntities });
 	},
 
 	reorderEntitiesByIds: async (type, orderedIds, maxRows) => {

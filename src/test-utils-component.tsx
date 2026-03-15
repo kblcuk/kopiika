@@ -25,7 +25,6 @@ export function setupStoreForTest({
 		currentPeriod,
 		isLoading: false,
 		draggedEntity: null,
-		hoveredDropZoneId: null,
 		incomeVisible: false,
 	});
 }

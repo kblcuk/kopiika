@@ -17,7 +17,6 @@ describe('Store Data Integrity', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			hoveredDropZoneId: null,
 			incomeVisible: false,
 		});
 	});
@@ -582,7 +581,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -707,7 +705,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -779,7 +776,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -853,7 +849,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1008,7 +1003,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1113,7 +1107,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1209,7 +1202,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1284,7 +1276,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1434,7 +1425,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1593,7 +1583,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1711,7 +1700,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1774,7 +1762,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1828,7 +1815,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1917,7 +1903,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -1998,7 +1983,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -2072,7 +2056,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -2154,7 +2137,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 
@@ -2505,7 +2487,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 			const state = useStore.getState();
@@ -2674,7 +2655,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 			const state = useStore.getState();
@@ -2974,7 +2954,6 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				hoveredDropZoneId: null,
 				incomeVisible: false,
 			});
 			for (const entity of [account, saving1, saving2]) {

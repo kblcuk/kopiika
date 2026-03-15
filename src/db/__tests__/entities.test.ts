@@ -29,7 +29,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				icon: 'wallet',
 				color: '#4CAF50',
-				owner_id: 'user-1',
 				row: 0,
 				position: 0,
 				order: 0,
@@ -59,7 +58,6 @@ describe('entities.ts', () => {
 				...entity,
 				icon: null,
 				color: null,
-				owner_id: null,
 				include_in_total: true,
 				is_deleted: false,
 			});
@@ -283,7 +281,6 @@ describe('entities.ts', () => {
 				currency: 'EUR',
 				icon: 'star',
 				color: '#FF0000',
-				owner_id: 'owner-1',
 				row: 0,
 				position: 5,
 				order: 5,
@@ -303,7 +300,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				icon: 'wallet',
 				color: '#000000',
-				owner_id: 'owner',
 				row: 0,
 				position: 0,
 				order: 0,
@@ -326,7 +322,6 @@ describe('entities.ts', () => {
 			const result = await getEntityById('update-test-2');
 			expect(result?.icon).toBeNull();
 			expect(result?.color).toBeNull();
-			expect(result?.owner_id).toBeNull();
 		});
 	});
 

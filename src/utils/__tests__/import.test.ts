@@ -19,6 +19,31 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note
 t1,e1,e2,3000,EUR,1706745600000,
 t2,e2,e3,150,EUR,1706832000000,"Weekly groceries"`;
 
+const CURRENT_EXPORT_STYLE_CSV = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted
+__system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,-1,true,false
+e1,income,"Salary",EUR,briefcase,,0,0,0,true,false
+e2,account,"Bank Account",EUR,landmark,,1,0,1,false,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+p1,e1,all-time,2026-01,3000
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,3000,EUR,1706745600000,`;
+
+const LEGACY_OWNER_ID_CSV = `# ENTITIES
+id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total,is_deleted
+__system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,,0,0,-1,true,false
+e1,account,"Joint Account",EUR,landmark,#4CAF50,household-1,0,0,0,true,false
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+
 describe('parseCsvLine', () => {
 	test('parses simple fields', () => {
 		expect(parseCsvLine('a,b,c')).toEqual(['a', 'b', 'c']);
@@ -73,6 +98,29 @@ describe('parseImportCsv', () => {
 		expect(txn).toBeDefined();
 		expect(txn!.amount).toBe(150);
 		expect(txn!.note).toBe('Weekly groceries');
+	});
+
+	test('parses current export-style entity headers without owner_id', () => {
+		const result = parseImportCsv(CURRENT_EXPORT_STYLE_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const account = result.data.entities.find((e) => e.id === 'e2');
+		expect(account).toBeDefined();
+		expect(account!.include_in_total).toBe(false);
+		expect(account!.is_deleted).toBe(true);
+		expect('owner_id' in account!).toBe(false);
+	});
+
+	test('accepts legacy owner_id headers but ignores the field', () => {
+		const result = parseImportCsv(LEGACY_OWNER_ID_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const account = result.data.entities.find((e) => e.id === 'e1');
+		expect(account).toBeDefined();
+		expect(account!.color).toBe('#4CAF50');
+		expect('owner_id' in account!).toBe(false);
 	});
 
 	test('rejects missing section markers', () => {

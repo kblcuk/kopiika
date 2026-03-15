@@ -180,7 +180,6 @@ describe('HomeScreen entity interactions', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			hoveredDropZoneId: null,
 			incomeVisible: false,
 			initialize: mockInitialize,
 			addEntity: jest.fn(),

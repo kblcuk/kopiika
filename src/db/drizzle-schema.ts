@@ -13,7 +13,6 @@ export const entities = sqliteTable(
 		currency: text('currency').notNull(),
 		icon: text('icon'),
 		color: text('color'),
-		owner_id: text('owner_id'),
 		order: integer('order').notNull(),
 		row: integer('row').notNull(),
 		position: integer('position').notNull(),

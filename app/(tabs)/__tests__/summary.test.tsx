@@ -79,9 +79,7 @@ describe('SummaryScreen', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			hoveredDropZoneId: null,
 			incomeVisible: false,
-			previewPositions: null,
 		});
 
 		// Default mock implementation

@@ -55,9 +55,7 @@ describe('useSummary', () => {
 			currentPeriod,
 			isLoading: false,
 			draggedEntity: null,
-			hoveredDropZoneId: null,
 			incomeVisible: false,
-			previewPositions: null,
 		});
 	});
 
