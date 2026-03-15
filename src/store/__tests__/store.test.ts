@@ -49,14 +49,14 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'plan-1',
 					entity_id: 'entity-1',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 1000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-temp',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 500,
 				},
@@ -110,14 +110,14 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'plan-1',
 					entity_id: 'entity-1',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 1000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 500,
 				},
@@ -167,7 +167,7 @@ describe('Store Data Integrity', () => {
 			const plan: Plan = {
 				id: 'plan-1',
 				entity_id: 'non-existent-entity',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 1000,
 			};
@@ -199,7 +199,7 @@ describe('Store Data Integrity', () => {
 			const plan: Plan = {
 				id: 'plan-1',
 				entity_id: 'entity-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 1000,
 			};
@@ -229,7 +229,7 @@ describe('Store Data Integrity', () => {
 			const plan: Plan = {
 				id: 'plan-1',
 				entity_id: 'entity-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 1000,
 			};
@@ -400,14 +400,14 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'plan-1',
 					entity_id: 'entity-1',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 1000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
-					period: 'month',
+					period: 'all-time',
 					period_start: '2026-01',
 					planned_amount: 500,
 				},
@@ -516,7 +516,7 @@ describe('Store Data Integrity', () => {
 			const incomePlan: Plan = {
 				id: 'plan-income',
 				entity_id: 'income-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 5000,
 			};
@@ -524,7 +524,7 @@ describe('Store Data Integrity', () => {
 			const categoryPlan: Plan = {
 				id: 'plan-category',
 				entity_id: 'category-1',
-				period: 'month',
+				period: 'all-time',
 				period_start: '2026-01',
 				planned_amount: 500,
 			};

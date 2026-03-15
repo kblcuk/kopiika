@@ -369,7 +369,7 @@ describe('entities.ts', () => {
 			await upsertPlan({
 				id: 'plan-1',
 				entity_id: 'cascade-test',
-				period: 'month',
+					period: 'all-time',
 				period_start: '2025-01',
 				planned_amount: 1000,
 			});
