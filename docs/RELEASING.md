@@ -177,6 +177,44 @@ Notes:
 - Android build lanes do not run `gradle clean` by default because clean can fail on some React Native/CMake setups. Pass `clean:true` directly to the Fastlane lane if you explicitly need a clean build.
 - Android release lanes do not mutate build numbers themselves; they use the values already written to `app.json`.
 
+## Build Cleanup
+
+You can clean up old store builds without touching the release flow:
+
+```sh
+# Dry-run both stores first
+STORE_CLEANUP_DRY_RUN=1 mise run release:cleanup-builds
+
+# Apply cleanup with the default policy
+mise run release:cleanup-builds
+```
+
+Platform-specific commands:
+
+```sh
+# Expire TestFlight builds older than 14 days
+mise run ios:cleanup
+
+# Override the iOS retention window
+STORE_BUILD_RETENTION_DAYS=21 mise run ios:cleanup
+
+# Prune Play testing tracks down to their newest active release
+mise run android:cleanup
+```
+
+Cleanup knobs:
+
+- `STORE_CLEANUP_DRY_RUN=1`: preview both iOS and Android cleanup without changing anything.
+- `STORE_BUILD_RETENTION_DAYS=14`: TestFlight builds older than this many days are expired.
+- `PLAY_CLEANUP_TRACKS=internal,alpha,beta`: comma-separated Play tracks to prune. Defaults to non-production testing tracks only.
+- `PLAY_CLEANUP_KEEP_PER_TRACK=1`: number of active Play releases to keep per selected track.
+
+Notes:
+
+- iOS cleanup is truly age-based because App Store Connect exposes each TestFlight build's upload timestamp.
+- Google Play track data does not expose build upload age in the API used here, so Android cleanup is release-count-based instead: it keeps the newest active releases on the selected tracks and removes older ones from those tracks.
+- Production is excluded from Play cleanup by default for safety. If you really want to prune production too, set `PLAY_CLEANUP_TRACKS=internal,alpha,beta,production` explicitly.
+
 ## Build Number Sync
 
 `app.json` is the source of truth for release build numbers:

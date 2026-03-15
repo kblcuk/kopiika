@@ -16,6 +16,7 @@ require 'base64'
 require 'tempfile'
 require 'json'
 require 'net/http'
+require 'time'
 require 'uri'
 require 'fileutils'
 
@@ -185,6 +186,91 @@ def ensure_play_store_credentials!
   key_path = play_store_json_key_path
   UI.user_error!('Provide PLAY_STORE_JSON_KEY_PATH or PLAY_STORE_JSON_KEY_DATA (base64-encoded JSON).') if key_path.nil?
   key_path
+end
+
+def truthy_option?(value)
+  return value if value == true || value == false
+  return false if value.nil?
+
+  %w[1 true yes y on].include?(value.to_s.strip.downcase)
+end
+
+def integer_option(value, key:, default:)
+  return default if value.nil? || value.to_s.strip.empty?
+
+  Integer(value)
+rescue ArgumentError, TypeError
+  UI.user_error!("#{key} must be an integer, got '#{value}'.")
+end
+
+def cleanup_dry_run?(options = {})
+  truthy_option?(options[:dry_run].nil? ? ENV['STORE_CLEANUP_DRY_RUN'] : options[:dry_run])
+end
+
+def store_build_retention_days(options = {})
+  integer_option(
+    options[:days] || ENV['STORE_BUILD_RETENTION_DAYS'],
+    key: 'STORE_BUILD_RETENTION_DAYS',
+    default: 14
+  )
+end
+
+def android_cleanup_tracks(options = {})
+  tracks = options[:tracks] || ENV['PLAY_CLEANUP_TRACKS'] || 'internal,alpha,beta'
+
+  parsed_tracks =
+    Array(tracks)
+    .flat_map { |value| value.to_s.split(',') }
+    .map(&:strip)
+    .reject(&:empty?)
+    .uniq
+
+  UI.user_error!('Provide at least one Play track via tracks: or PLAY_CLEANUP_TRACKS.') if parsed_tracks.empty?
+
+  parsed_tracks
+end
+
+def android_cleanup_keep_per_track(options = {})
+  keep = integer_option(
+    options[:keep] || ENV['PLAY_CLEANUP_KEEP_PER_TRACK'],
+    key: 'PLAY_CLEANUP_KEEP_PER_TRACK',
+    default: 1
+  )
+  UI.user_error!('PLAY_CLEANUP_KEEP_PER_TRACK must be at least 1.') if keep < 1
+
+  keep
+end
+
+def parse_timestamp(value, key:)
+  return nil if value.nil?
+
+  return value.to_time.utc if value.respond_to?(:to_time)
+
+  Time.parse(value.to_s).utc
+rescue ArgumentError, NoMethodError
+  UI.important("Could not parse #{key} timestamp '#{value}', skipping.")
+  nil
+end
+
+def ios_connect_app!
+  app = Spaceship::ConnectAPI::App.find(ios_app_identifier)
+  UI.user_error!("Could not find App Store Connect app for '#{ios_app_identifier}'.") if app.nil?
+
+  app
+end
+
+def play_supply_config(overrides = {})
+  require 'supply'
+  require 'supply/options'
+
+  Supply.config = FastlaneCore::Configuration.create(
+    Supply::Options.available_options,
+    {
+      package_name: ensure_android_package_name!,
+      json_key: ensure_play_store_credentials!,
+      timeout: integer_option(ENV['SUPPLY_TIMEOUT'], key: 'SUPPLY_TIMEOUT', default: 300)
+    }.merge(overrides)
+  )
 end
 
 def play_service_account_identity(json_key_path)
@@ -517,6 +603,56 @@ platform :ios do
     build(clean: true, export_method: 'app-store')
     upload(changelog: changelog_for_store)
   end
+
+  desc 'Expire old TestFlight builds'
+  lane :cleanup do |options|
+    ensure_asc_api_key!
+
+    retention_days = store_build_retention_days(options)
+    cutoff = Time.now.utc - (retention_days * 86_400)
+    dry_run = cleanup_dry_run?(options)
+
+    builds = ios_connect_app!.get_builds(
+      filter: { expired: false },
+      includes: 'preReleaseVersion',
+      sort: '-uploadedDate',
+      limit: 200
+    )
+
+    builds_to_expire =
+      builds.filter_map do |build|
+        uploaded_at = parse_timestamp(build.uploaded_date, key: 'uploadedDate')
+        next if uploaded_at.nil? || uploaded_at >= cutoff
+
+        {
+          build: build,
+          uploaded_at: uploaded_at
+        }
+      end
+
+    if builds_to_expire.empty?
+      UI.success("No TestFlight builds older than #{retention_days} day(s) need cleanup.")
+      next
+    end
+
+    UI.message(
+      "#{dry_run ? 'Would expire' : 'Expiring'} #{builds_to_expire.count} TestFlight build(s) older than #{retention_days} day(s):"
+    )
+    builds_to_expire.each do |entry|
+      build = entry[:build]
+      UI.message(
+        "- #{build.app_version} (#{build.version}) uploaded #{entry[:uploaded_at].iso8601}"
+      )
+    end
+
+    next if dry_run
+
+    builds_to_expire.each do |entry|
+      entry[:build].expire!
+    end
+
+    UI.success("Expired #{builds_to_expire.count} TestFlight build(s).")
+  end
 end
 
 platform :android do
@@ -705,6 +841,87 @@ platform :android do
       )
     rescue StandardError => e
       first_time_play_package_error!(e) || raise(e)
+    end
+  end
+
+  desc 'Prune old Google Play track releases'
+  lane :cleanup do |options|
+    play_supply_config
+
+    client = Supply::Client.make_from_config
+    tracks = android_cleanup_tracks(options)
+    keep_per_track = android_cleanup_keep_per_track(options)
+    dry_run = cleanup_dry_run?(options)
+    changed_tracks = []
+
+    client.begin_edit(package_name: Supply.config[:package_name])
+
+    begin
+      tracks.each do |track_name|
+        track = client.tracks(track_name).first
+        if track.nil? || track.releases.to_a.empty?
+          UI.important("Track '#{track_name}' has no releases to prune.")
+          next
+        end
+
+        releases =
+          track.releases.filter_map do |release|
+            version_codes = Array(release.version_codes).map(&:to_i).uniq.sort
+            next if version_codes.empty?
+
+            {
+              release: release,
+              version_codes: version_codes,
+              max_version_code: version_codes.max
+            }
+          end
+
+        if releases.size <= keep_per_track
+          UI.success("Track '#{track_name}' already has #{releases.size} releas#{releases.size == 1 ? 'e' : 'es'}; nothing to prune.")
+          next
+        end
+
+        retained = releases.sort_by { |entry| -entry[:max_version_code] }.first(keep_per_track)
+        retained_release_ids = retained.map { |entry| entry[:release].object_id }
+        pruned_codes = releases
+          .reject { |entry| retained_release_ids.include?(entry[:release].object_id) }
+          .flat_map { |entry| entry[:version_codes] }
+          .uniq
+          .sort
+        retained_codes = retained.flat_map { |entry| entry[:version_codes] }.uniq.sort
+
+        UI.message(
+          "Track '#{track_name}': #{dry_run ? 'would keep' : 'keeping'} #{retained_codes.join(', ')} and #{dry_run ? 'would prune' : 'pruning'} #{pruned_codes.join(', ')}"
+        )
+
+        next if dry_run
+
+        track.releases = retained.map { |entry| entry[:release] }
+        client.update_track(track_name, track)
+        changed_tracks << track_name
+      end
+
+      if dry_run || changed_tracks.empty?
+        client.abort_current_edit
+      else
+        client.commit_current_edit!
+      end
+    rescue StandardError => e
+      begin
+        client.abort_current_edit
+      rescue StandardError
+        nil
+      end
+
+      first_time_play_package_error!(e) || raise(e)
+    end
+
+    if dry_run
+      UI.success("Dry run complete for Play cleanup on: #{tracks.join(', ')}")
+    elsif changed_tracks.empty?
+      UI.success('No Play tracks needed cleanup.')
+    else
+      UI.success("Pruned old Play releases on: #{changed_tracks.join(', ')}")
     end
   end
 end

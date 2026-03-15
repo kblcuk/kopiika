@@ -42,8 +42,6 @@ Send release notification to Telegram group
 
 Validate App Store Connect credentials for the current iOS version
 
-----
-
 ### ios setup_signing
 
 ```sh
@@ -83,6 +81,14 @@ Promote an uploaded TestFlight build to external tester groups
 ```
 
 Push a new beta build to TestFlight
+
+### ios cleanup
+
+```sh
+[bundle exec] fastlane ios cleanup
+```
+
+Expire old TestFlight builds
 
 ----
 
@@ -136,6 +142,14 @@ Build and upload a production release (defaults to draft for safety)
 ```
 
 Promote a release from one track to another
+
+### android cleanup
+
+```sh
+[bundle exec] fastlane android cleanup
+```
+
+Prune old Google Play track releases
 
 ----
 
