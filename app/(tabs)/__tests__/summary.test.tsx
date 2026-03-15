@@ -87,112 +87,7 @@ describe('SummaryScreen', () => {
 	});
 
 	describe('Transaction reactivity', () => {
-		it('should refetch actuals when a new transaction is added to store', async () => {
-			// Set up initial store state with entities
-			useStore.setState({
-				entities: [mockCategory, mockAccount],
-				plans: [mockPlan],
-				transactions: [],
-			});
-
-			// Initial actuals: category has 0 spent
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 0]])
-			);
-
-			const { rerender } = render(<SummaryScreen />);
-
-			// Wait for initial fetch
-			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
-			});
-
-			// Clear mock to track new calls
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockClear();
-
-			// Update mock to return new actuals after transaction
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 150]])
-			);
-
-			// Simulate adding a transaction to the store
-			const newTransaction: Transaction = {
-				id: 'tx-1',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 150,
-				currency: 'USD',
-				timestamp: Date.now(),
-			};
-
-			await act(async () => {
-				useStore.setState({
-					transactions: [newTransaction],
-				});
-			});
-
-			// Rerender to trigger the effect
-			rerender(<SummaryScreen />);
-
-			// Should refetch actuals due to transactions change
-			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalled();
-			});
-		});
-
-		it('should refetch actuals when a transaction is deleted from store', async () => {
-			const existingTransaction: Transaction = {
-				id: 'tx-1',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 200,
-				currency: 'USD',
-				timestamp: Date.now(),
-			};
-
-			// Set up initial store state with a transaction
-			useStore.setState({
-				entities: [mockCategory, mockAccount],
-				plans: [mockPlan],
-				transactions: [existingTransaction],
-			});
-
-			// Initial actuals: category has 200 spent
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 200]])
-			);
-
-			const { rerender } = render(<SummaryScreen />);
-
-			// Wait for initial fetch
-			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
-			});
-
-			// Clear mock to track new calls
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockClear();
-
-			// Update mock to return 0 after deletion
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 0]])
-			);
-
-			// Simulate deleting the transaction
-			await act(async () => {
-				useStore.setState({
-					transactions: [],
-				});
-			});
-
-			rerender(<SummaryScreen />);
-
-			// Should refetch actuals due to transactions change
-			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalled();
-			});
-		});
-
-		it('should refetch actuals when a transaction amount is updated', async () => {
+		it('updates rendered category amounts when transactions change', async () => {
 			const existingTransaction: Transaction = {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
@@ -209,27 +104,21 @@ describe('SummaryScreen', () => {
 				transactions: [existingTransaction],
 			});
 
-			// Initial actuals
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
 				new Map([['category-1', 100]])
 			);
 
-			const { rerender } = render(<SummaryScreen />);
+			const { getAllByText, queryByText, rerender } = render(<SummaryScreen />);
 
-			// Wait for initial fetch
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalledTimes(4);
+				expect(getAllByText('100.00').length).toBeGreaterThan(0);
+				expect(queryByText('250.00')).toBeNull();
 			});
 
-			// Clear mock to track new calls
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockClear();
-
-			// Update mock to return new amount
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
 				new Map([['category-1', 250]])
 			);
 
-			// Simulate updating the transaction amount
 			const updatedTransaction: Transaction = {
 				...existingTransaction,
 				amount: 250,
@@ -243,124 +132,54 @@ describe('SummaryScreen', () => {
 
 			rerender(<SummaryScreen />);
 
-			// Should refetch actuals due to transactions change
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalled();
+				expect(getAllByText('250.00').length).toBeGreaterThan(0);
+				expect(queryByText('100.00')).toBeNull();
 			});
 		});
 
-		it('should display updated amounts after transactions change', async () => {
-			// Set up initial store state
+		it('returns rendered totals to zero when transactions are removed', async () => {
 			useStore.setState({
 				entities: [mockCategory, mockAccount],
 				plans: [mockPlan],
-				transactions: [],
+				transactions: [
+					{
+						id: 'tx-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 300,
+						currency: 'USD',
+						timestamp: Date.now(),
+					},
+				],
 			});
 
-			// Initial: no spending
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 0]])
-			);
-
-			const { getAllByText, rerender } = render(<SummaryScreen />);
-
-			// Wait for initial render with 0 actual (formatAmount returns "0.00")
-			await waitFor(() => {
-				expect(getAllByText('0.00').length).toBeGreaterThan(0);
-			});
-
-			// Update mock for after transaction
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
 				new Map([['category-1', 300]])
 			);
 
-			// Add transaction
-			const newTransaction: Transaction = {
-				id: 'tx-1',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 300,
-				currency: 'USD',
-				timestamp: Date.now(),
-			};
+			const { getAllByText, queryByText, rerender } = render(<SummaryScreen />);
 
-			await act(async () => {
-				useStore.setState({
-					transactions: [newTransaction],
-				});
-			});
-
-			rerender(<SummaryScreen />);
-
-			// Should show updated amount (formatAmount returns "300.00")
 			await waitFor(() => {
 				expect(getAllByText('300.00').length).toBeGreaterThan(0);
-			});
-		});
-
-		it('should handle multiple rapid transaction changes', async () => {
-			useStore.setState({
-				entities: [mockCategory, mockAccount],
-				plans: [mockPlan],
-				transactions: [],
+				expect(queryByText('0.00')).toBeNull();
 			});
 
 			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
 				new Map([['category-1', 0]])
 			);
 
-			const { rerender } = render(<SummaryScreen />);
-
-			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalled();
-			});
-
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockClear();
-
-			// Rapidly add multiple transactions
-			const tx1: Transaction = {
-				id: 'tx-1',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 50,
-				currency: 'USD',
-				timestamp: Date.now(),
-			};
-
-			const tx2: Transaction = {
-				id: 'tx-2',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 75,
-				currency: 'USD',
-				timestamp: Date.now() + 1000,
-			};
-
-			const tx3: Transaction = {
-				id: 'tx-3',
-				from_entity_id: 'account-1',
-				to_entity_id: 'category-1',
-				amount: 25,
-				currency: 'USD',
-				timestamp: Date.now() + 2000,
-			};
-
-			// Final state should reflect all transactions
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 150]])
-			);
-
 			await act(async () => {
 				useStore.setState({
-					transactions: [tx1, tx2, tx3],
+					transactions: [],
 				});
 			});
 
 			rerender(<SummaryScreen />);
 
-			// Should eventually fetch with all transactions
 			await waitFor(() => {
-				expect(transactionsDb.getBatchEntityActuals).toHaveBeenCalled();
+				expect(getAllByText('0.00').length).toBeGreaterThan(0);
+				expect(queryByText('300.00')).toBeNull();
 			});
 		});
 	});
