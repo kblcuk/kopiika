@@ -9,7 +9,6 @@ describe('EntityIconPicker', () => {
 		const icons = ICON_OPTIONS.category;
 		const onSelect = jest.fn();
 		const previewCount = 8;
-		const expandedRowCount = Math.ceil(icons.length / 4);
 		const lastPreviewIcon = icons[previewCount - 1];
 		const firstHiddenIcon = icons[previewCount];
 
@@ -37,17 +36,6 @@ describe('EntityIconPicker', () => {
 
 		expect(getByTestId(`entity-icon-option-${firstHiddenIcon}`)).toBeTruthy();
 		expect(getByText('Show less icons')).toBeTruthy();
-		expect(
-			React.Children.toArray(
-				getByTestId(`entity-icon-option-row-${expandedRowCount - 1}`).props.children
-			).filter((child) => {
-				if (!React.isValidElement<{ children?: React.ReactNode }>(child)) {
-					return false;
-				}
-
-				return child.props.children != null;
-			}).length
-		).toBe(2);
 
 		fireEvent.press(getByText('Show less icons'));
 

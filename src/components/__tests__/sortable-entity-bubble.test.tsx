@@ -2,7 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 
 import { SortableEntityBubble } from '../sortable-entity-bubble';
-import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
 import type { EntityWithBalance } from '@/src/types';
 
 let latestHandleMode: 'draggable' | 'fixed-order' | 'non-draggable' | undefined;

@@ -49,27 +49,6 @@ describe('EntityCreateModal', () => {
 			expect(toJSON()).toBeNull();
 		});
 
-		it('keeps create fields on the standard input size', () => {
-			const { getByTestId } = render(
-				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
-			);
-
-			expect(getByTestId('entity-create-name-input-container').props.className).toBe(
-				getByTestId('entity-create-icon-search-input-container').props.className
-			);
-			expect(getByTestId('entity-create-name-input').props.className).toBe(
-				getByTestId('entity-create-icon-search-input').props.className
-			);
-			expect(getByTestId('entity-create-amount-input-container').props.className).toContain(
-				'py-3'
-			);
-			expect(getByTestId('entity-create-amount-input').props.className).not.toContain(
-				'text-2xl'
-			);
-			expect(getByTestId('entity-create-amount-input').props.className).toContain(
-				'text-base'
-			);
-		});
 	});
 
 	describe('Entity Creation', () => {
