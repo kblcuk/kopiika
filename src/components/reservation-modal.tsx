@@ -176,6 +176,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						{existing && (
 							<Pressable
 								onPress={handleClear}
+								testID="reservation-clear-button"
 								className="h-12 w-12 items-center justify-center rounded-2xl bg-paper-200"
 							>
 								<Trash2 size={18} color={colors.ink.muted} />
@@ -184,6 +185,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						<Pressable
 							onPress={handleSubmit}
 							disabled={!canSubmit}
+							testID="reservation-submit-button"
 							className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}
 						>
 							<Text
