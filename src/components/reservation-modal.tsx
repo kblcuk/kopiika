@@ -6,7 +6,7 @@ import {
 	Pressable,
 	Modal,
 	KeyboardAvoidingView,
-	Platform,
+	ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Trash2 } from 'lucide-react-native';
@@ -19,10 +19,12 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { useStore } from '@/src/store';
-import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
+import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -35,6 +37,8 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const [amount, setAmount] = useState('');
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
+	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
+		useKeyboardAwareScroll();
 
 	const upsertReservation = useStore((s) => s.upsertReservation);
 	const reservations = useStore((s) => s.reservations);
@@ -91,15 +95,17 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-			<KeyboardAvoidingView
-				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-				className="flex-1 justify-end"
-			>
+			<KeyboardAvoidingView {...keyboardAvoidingViewProps} className="flex-1 justify-end">
 				<Pressable className="flex-1" onPress={onClose} />
 
-				<View
-					className="rounded-t-3xl bg-paper-50 px-6 pb-4 pt-6"
-					style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+				<ScrollView
+					{...scrollViewProps}
+					className="overflow-hidden rounded-t-3xl bg-paper-50"
+					contentContainerStyle={{
+						paddingBottom: Math.max(insets.bottom, 16),
+						paddingHorizontal: 24,
+						paddingTop: 24,
+					}}
 				>
 					{/* Header: account → saving */}
 					<View className="mb-6 flex-row items-center justify-center">
@@ -130,13 +136,14 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<TextInput
 								ref={inputRef}
 								value={amount}
-								onChangeText={setAmount}
+								onChangeText={(value) => setAmount(normalizeNumericInput(value))}
+								onFocus={handleInputFocus}
 								placeholder="0"
 								keyboardType="decimal-pad"
 								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								{...sharedTextInputProps}
+								{...sharedNumericTextInputProps}
 							/>
 						</View>
 						{existing && (
@@ -186,7 +193,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							</Text>
 						</Pressable>
 					</View>
-				</View>
+				</ScrollView>
 			</KeyboardAvoidingView>
 		</Modal>
 	);

@@ -16,6 +16,11 @@ export const sharedTextInputProps = {
 	underlineColorAndroid: 'transparent',
 } as const;
 
+export const sharedNumericTextInputProps = {
+	...sharedTextInputProps,
+	selectTextOnFocus: true,
+} as const;
+
 export const styles = StyleSheet.create({
 	input: {
 		lineHeight: undefined,

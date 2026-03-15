@@ -27,12 +27,19 @@ import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
-import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
+import {
+	sharedNumericTextInputProps,
+	sharedTextInputProps,
+	styles,
+	textInputClassNames,
+} from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
+import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 
 interface EntityDetailModalProps {
 	visible: boolean;
@@ -55,6 +62,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const inputRef = useRef<TextInput>(null);
 	const insets = useSafeAreaInsets();
+	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
+		useKeyboardAwareScroll();
 
 	const {
 		plans,
@@ -244,7 +253,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			onRequestClose={onClose}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				{...keyboardAvoidingViewProps}
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -269,7 +278,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				</View>
 
 				{/* Content */}
-				<ScrollView className="flex-1 px-5 pt-6" keyboardShouldPersistTaps="handled">
+				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
 					{/* Entity icon with edit indicator */}
 					<View className="mb-6 items-center">
 						<Pressable
@@ -349,12 +358,13 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
-									{...sharedTextInputProps}
+									{...sharedNumericTextInputProps}
 									value={actualAmount}
 									onChangeText={(text) => {
-										setActualAmount(text);
+										setActualAmount(normalizeNumericInput(text));
 										setIsEditingActual(true);
 									}}
+									onFocus={handleInputFocus}
 									placeholder="0"
 									keyboardType="numeric"
 									className={textInputClassNames.primaryAmountInput}
@@ -431,10 +441,13 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
-									{...sharedTextInputProps}
+									{...sharedNumericTextInputProps}
 									ref={inputRef}
 									value={plannedAmount}
-									onChangeText={setPlannedAmount}
+									onChangeText={(value) =>
+										setPlannedAmount(normalizeNumericInput(value))
+									}
+									onFocus={handleInputFocus}
 									placeholder="0"
 									keyboardType="numeric"
 									className={textInputClassNames.primaryAmountInput}

@@ -4,10 +4,11 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
 import { useStore } from '@/src/store';
-import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
+import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { normalizeNumericInput } from '@/src/utils/numeric-input';
 
 interface FundingRow {
 	reservationId: string;
@@ -107,7 +108,11 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		};
 
 		const handleAmountChange = (index: number, value: string) => {
-			setRows((prev) => prev.map((r, i) => (i === index ? { ...r, amount: value } : r)));
+			setRows((prev) =>
+				prev.map((r, i) =>
+					i === index ? { ...r, amount: normalizeNumericInput(value) } : r
+				)
+			);
 		};
 
 		const hiddenCount = rows.length - VISIBLE_CAP;
@@ -178,7 +183,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 									{row.enabled ? (
 										<>
 											<TextInput
-												{...sharedTextInputProps}
+												{...sharedNumericTextInputProps}
 												value={row.amount}
 												onChangeText={(v) => handleAmountChange(index, v)}
 												placeholder="0"

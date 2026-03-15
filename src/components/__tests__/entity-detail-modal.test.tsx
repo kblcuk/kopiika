@@ -766,5 +766,27 @@ describe('EntityDetailModal', () => {
 			// Should display "1000.15", not "1000.1500000000091"
 			expect(actualInput.props.value).toBe('1000.15');
 		});
+
+		it('replaces a default zero when typing a new balance', () => {
+			const zeroBalanceAccount = {
+				...mockAccountEntity,
+				actual: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const actualInput = getByTestId('entity-detail-actual-input');
+			expect(actualInput.props.value).toBe('0');
+
+			fireEvent.changeText(actualInput, '05');
+
+			expect(getByTestId('entity-detail-actual-input').props.value).toBe('5');
+		});
 	});
 });

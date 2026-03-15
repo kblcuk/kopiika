@@ -18,9 +18,16 @@ import { generateId } from '@/src/utils/ids';
 import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
-import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
+import {
+	sharedNumericTextInputProps,
+	sharedTextInputProps,
+	styles,
+	textInputClassNames,
+} from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { isEntityActive } from '@/src/utils/entity-display';
+import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -34,6 +41,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const nameInputRef = useRef<TextInput>(null);
 	const insets = useSafeAreaInsets();
+	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
+		useKeyboardAwareScroll();
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
 		useShallow((state) => ({
@@ -133,7 +142,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			onRequestClose={onClose}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				{...keyboardAvoidingViewProps}
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -156,7 +165,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					</Pressable>
 				</View>
 
-				<ScrollView className="flex-1 px-5 pt-6" keyboardShouldPersistTaps="handled">
+				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
@@ -203,9 +212,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							testID="entity-create-amount-input-container"
 						>
 							<TextInput
-								{...sharedTextInputProps}
+								{...sharedNumericTextInputProps}
 								value={plannedAmount}
-								onChangeText={setPlannedAmount}
+								onChangeText={(value) =>
+									setPlannedAmount(normalizeNumericInput(value))
+								}
+								onFocus={handleInputFocus}
 								placeholder="0"
 								keyboardType="numeric"
 								className={`flex-1 ${textInputClassNames.input}`}

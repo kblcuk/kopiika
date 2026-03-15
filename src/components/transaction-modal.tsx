@@ -23,7 +23,12 @@ import {
 } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { sharedTextInputProps, styles, textInputClassNames } from '../styles/text-input';
+import {
+	sharedNumericTextInputProps,
+	sharedTextInputProps,
+	styles,
+	textInputClassNames,
+} from '../styles/text-input';
 import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
@@ -32,6 +37,8 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
+import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 
 interface SplitRow {
 	id: string;
@@ -80,6 +87,8 @@ export function TransactionModal({
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
+	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
+		useKeyboardAwareScroll();
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
 	const upsertReservation = useStore((state) => state.upsertReservation);
@@ -252,7 +261,9 @@ export function TransactionModal({
 	// Only non-anchor rows (index > 0) are user-editable
 	const handleSplitAmountChange = (index: number, value: string) => {
 		if (index === 0) return;
-		setSplits((prev) => prev.map((s, i) => (i === index ? { ...s, amount: value } : s)));
+		setSplits((prev) =>
+			prev.map((s, i) => (i === index ? { ...s, amount: normalizeNumericInput(value) } : s))
+		);
 	};
 
 	const handleAddSplit = () =>
@@ -479,7 +490,7 @@ export function TransactionModal({
 			onRequestClose={onClose}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				{...keyboardAvoidingViewProps}
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -509,7 +520,7 @@ export function TransactionModal({
 					</Pressable>
 				</View>
 
-				<ScrollView className="flex-1 px-5 pt-6">
+				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
 					{/* From → To */}
 					<View className="mb-8 flex-row items-start">
 						{renderEntityBubble(
@@ -534,17 +545,19 @@ export function TransactionModal({
 						</Text>
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
-								{...sharedTextInputProps}
+								{...sharedNumericTextInputProps}
 								ref={inputRef}
 								value={isSplitMode ? splitTotal.toString() : amount}
 								onChangeText={(v) => {
 									if (isSplitMode) {
-										const n = reverseFormatCurrency(v);
+										const normalizedValue = normalizeNumericInput(v);
+										const n = reverseFormatCurrency(normalizedValue);
 										setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
 									} else {
-										setAmount(v);
+										setAmount(normalizeNumericInput(v));
 									}
 								}}
+								onFocus={handleInputFocus}
 								placeholder="0"
 								keyboardType="numeric"
 								className={textInputClassNames.heroAmountInput}
@@ -723,7 +736,7 @@ export function TransactionModal({
 																</Pressable>
 															)}
 															<TextInput
-																{...sharedTextInputProps}
+																{...sharedNumericTextInputProps}
 																value={split.amount}
 																onChangeText={(v) =>
 																	handleSplitAmountChange(
@@ -731,6 +744,7 @@ export function TransactionModal({
 																		v
 																	)
 																}
+																onFocus={handleInputFocus}
 																placeholder="0"
 																keyboardType="numeric"
 																className={
