@@ -73,10 +73,7 @@ run = "bundle exec fastlane android cleanup"
 
 [tasks."release:doctor"]
 description = "Run iOS and Android release preflight checks"
-run = [
-	"bundle exec fastlane ios doctor",
-	"bundle exec fastlane android doctor",
-]
+run = ["bundle exec fastlane ios doctor", "bundle exec fastlane android doctor"]
 
 [tasks."release:sync-build-numbers"]
 description = "Sync app.json build numbers from App Store Connect and Google Play"
@@ -88,10 +85,7 @@ run = "bundle exec fastlane notify_telegram"
 
 [tasks."release:cleanup-builds"]
 description = "Clean up old TestFlight builds and stale Play track releases"
-run = [
-	"bundle exec fastlane ios cleanup",
-	"bundle exec fastlane android cleanup",
-]
+run = ["bundle exec fastlane ios cleanup", "bundle exec fastlane android cleanup"]
 
 [tasks."release:beta"]
 description = "Ship iOS + Android betas in parallel, then notify Telegram"
