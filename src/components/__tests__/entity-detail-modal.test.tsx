@@ -71,6 +71,39 @@ describe('EntityDetailModal', () => {
 			const nameInput = getByTestId('entity-detail-name-input');
 			expect(nameInput.props.value).toBe('Groceries');
 		});
+
+		it.each([
+			{
+				type: 'category' as const,
+				name: 'Groceries',
+				actual: 250,
+				remaining: -250,
+			},
+			{
+				type: 'saving' as const,
+				name: 'Emergency Fund',
+				actual: 1200,
+				remaining: -1200,
+			},
+		])('hides Remaining when %s has no planned amount', ({ type, name, actual, remaining }) => {
+			const { queryByText, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{
+						...mockEntity,
+						type,
+						name,
+						actual,
+						planned: 0,
+						remaining,
+					}}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByText('Remaining')).toBeNull();
+			expect(getByText(formatAmount(actual))).toBeTruthy();
+		});
 	});
 
 	describe('Name Validation', () => {
@@ -221,6 +254,35 @@ describe('EntityDetailModal', () => {
 			});
 		});
 
+		it('does not create a zero-value plan when saving an unplanned entity', async () => {
+			const updateEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			const deletePlanSpy = jest.fn();
+			useStore.setState({
+				updateEntity: updateEntitySpy,
+				setPlan: setPlanSpy,
+				deletePlan: deletePlanSpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockEntity, planned: 0, remaining: -250 }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-name-input'), 'Food');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalled();
+			});
+
+			expect(setPlanSpy).not.toHaveBeenCalled();
+			expect(deletePlanSpy).not.toHaveBeenCalled();
+		});
+
 		it('preserves existing plan when updating', async () => {
 			const setPlanSpy = jest.fn();
 			const updateEntitySpy = jest.fn();
@@ -255,6 +317,43 @@ describe('EntityDetailModal', () => {
 					})
 				);
 			});
+		});
+
+		it('deletes an existing plan when the planned amount is cleared', async () => {
+			const setPlanSpy = jest.fn();
+			const deletePlanSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+
+			setupStoreForTest({
+				currentPeriod: '2026-01',
+				plans: [
+					{
+						id: 'plan-1',
+						entity_id: 'entity-1',
+						period: 'all-time',
+						period_start: '2026-01',
+						planned_amount: 500,
+					},
+				],
+			});
+			useStore.setState({
+				setPlan: setPlanSpy,
+				deletePlan: deletePlanSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-amount-input'), '');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(deletePlanSpy).toHaveBeenCalledWith('plan-1');
+			});
+
+			expect(setPlanSpy).not.toHaveBeenCalled();
 		});
 
 		it('supports searching and selecting icons in the expanded picker', async () => {
@@ -378,6 +477,7 @@ describe('EntityDetailModal', () => {
 				<EntityDetailModal visible={true} entity={savingEntity} onClose={mockOnClose} />
 			);
 
+			fireEvent.changeText(getByTestId('entity-detail-amount-input'), '500');
 			fireEvent.press(getByTestId('entity-detail-save-button'));
 
 			await waitFor(() => {
@@ -397,6 +497,7 @@ describe('EntityDetailModal', () => {
 				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
 			);
 
+			fireEvent.changeText(getByTestId('entity-detail-amount-input'), '500');
 			fireEvent.press(getByTestId('entity-detail-save-button'));
 
 			await waitFor(() => {
@@ -578,10 +679,11 @@ describe('EntityDetailModal', () => {
 			await waitFor(() => {
 				// Should not create adjustment transaction
 				expect(addTransactionSpy).not.toHaveBeenCalled();
-				// But should still update entity and plan
+				// But should still update entity
 				expect(updateEntitySpy).toHaveBeenCalled();
-				expect(setPlanSpy).toHaveBeenCalled();
 			});
+
+			expect(setPlanSpy).not.toHaveBeenCalled();
 		});
 
 		it('does not create adjustment transaction if actual amount was not edited', async () => {

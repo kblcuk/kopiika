@@ -44,3 +44,8 @@ export async function upsertPlan(plan: Plan): Promise<void> {
 			set: { planned_amount: plan.planned_amount },
 		});
 }
+
+export async function deletePlan(id: string): Promise<void> {
+	const db = await getDrizzleDb();
+	await db.delete(plans).where(eq(plans.id, id));
+}

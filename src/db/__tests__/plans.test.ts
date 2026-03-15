@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
 import type { Plan, Entity } from '@/src/types';
-import { getAllPlans, getPlanForEntity, upsertPlan } from '../plans';
+import { deletePlan, getAllPlans, getPlanForEntity, upsertPlan } from '../plans';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
 
@@ -195,6 +195,24 @@ describe('plans.ts', () => {
 
 			const result = await getPlanForEntity('entity-1', '2025-01');
 			expect(result?.planned_amount).toBe(1500);
+		});
+	});
+
+	describe('deletePlan', () => {
+		test('should remove an existing plan by id', async () => {
+			const plan: Plan = {
+				id: 'plan-delete-1',
+				entity_id: 'entity-1',
+				period: 'all-time',
+				period_start: '2025-01',
+				planned_amount: 1000,
+			};
+
+			await upsertPlan(plan);
+			await deletePlan(plan.id);
+
+			expect(await getPlanForEntity('entity-1', '2025-01')).toBeNull();
+			expect(await getAllPlans()).toEqual([]);
 		});
 	});
 });

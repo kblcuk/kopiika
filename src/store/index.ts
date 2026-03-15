@@ -52,6 +52,7 @@ interface AppState {
 
 	// Plan actions
 	setPlan: (plan: Plan) => Promise<void>;
+	deletePlan: (id: string) => Promise<void>;
 
 	// Transaction actions
 	addTransaction: (transaction: Transaction) => Promise<void>;
@@ -285,6 +286,13 @@ export const useStore = create<AppState>((set, get) => ({
 			}
 			return { plans: [...state.plans, plan] };
 		});
+	},
+
+	deletePlan: async (id) => {
+		await db.deletePlan(id);
+		set((state) => ({
+			plans: state.plans.filter((plan) => plan.id !== id),
+		}));
 	},
 
 	// Transaction actions

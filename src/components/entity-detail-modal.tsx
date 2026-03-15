@@ -70,6 +70,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		currentPeriod,
 		reservations,
 		setPlan,
+		deletePlan,
 		deleteEntity,
 		updateEntity,
 		addTransaction,
@@ -79,6 +80,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			currentPeriod: state.currentPeriod,
 			reservations: state.reservations,
 			setPlan: state.setPlan,
+			deletePlan: state.deletePlan,
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
 			addTransaction: state.addTransaction,
@@ -114,7 +116,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setName(entity.name);
 			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
 			setPlannedAmount(
-				existingPlan?.planned_amount != null
+				existingPlan?.planned_amount != null && existingPlan.planned_amount > 0
 					? roundMoney(existingPlan.planned_amount).toString()
 					: ''
 			);
@@ -169,17 +171,22 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			include_in_total: includeInTotal,
 		});
 
-		// Update plan
-		const amount = reverseFormatCurrency(plannedAmount) || 0;
-		await setPlan({
-			id: existingPlan?.id ?? generateId(),
-			entity_id: entity.id,
-			// All plans use 'all-time' period - static budget/goal
-			period: 'all-time',
-			// If updating existing plan, preserve original period_start; otherwise use current period
-			period_start: existingPlan?.period_start ?? currentPeriod,
-			planned_amount: amount,
-		});
+		if (entity.type !== 'account') {
+			const amount = reverseFormatCurrency(plannedAmount);
+			if (!Number.isNaN(amount) && amount > 0) {
+				await setPlan({
+					id: existingPlan?.id ?? generateId(),
+					entity_id: entity.id,
+					// All plans use 'all-time' period - static budget/goal
+					period: 'all-time',
+					// If updating existing plan, preserve original period_start; otherwise use current period
+					period_start: existingPlan?.period_start ?? currentPeriod,
+					planned_amount: amount,
+				});
+			} else if (existingPlan) {
+				await deletePlan(existingPlan.id);
+			}
+		}
 
 		// Handle balance adjustment for accounts
 		if (entity.type === 'account' && isEditingActual) {
@@ -244,6 +251,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		category: 'Expense Category',
 		saving: 'Savings Goal',
 	}[entity.type];
+	const shouldShowRemaining = entity.type !== 'account' && entity.planned > 0;
 
 	return (
 		<Modal
@@ -422,14 +430,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									{formatAmount(entity.actual)}
 								</Text>
 							</View>
-							<View className="items-center">
-								<Text className="font-sans text-xs text-ink-muted">Remaining</Text>
-								<Text
-									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
-								>
-									{formatAmount(entity.remaining)}
-								</Text>
-							</View>
+							{shouldShowRemaining && (
+								<View className="items-center">
+									<Text className="font-sans text-xs text-ink-muted">
+										Remaining
+									</Text>
+									<Text
+										className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+									>
+										{formatAmount(entity.remaining)}
+									</Text>
+								</View>
+							)}
 						</View>
 					)}
 
