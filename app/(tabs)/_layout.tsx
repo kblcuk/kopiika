@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { colors } from '@/src/theme/colors';
 
 export default function TabLayout() {
 	const router = useRouter();
@@ -18,11 +19,11 @@ export default function TabLayout() {
 		<>
 			<Tabs
 				screenOptions={{
-					tabBarActiveTintColor: '#2C2416',
-					tabBarInactiveTintColor: '#9C8B74',
+					tabBarActiveTintColor: colors.ink.DEFAULT,
+					tabBarInactiveTintColor: colors.ink.placeholder,
 					tabBarStyle: {
-						backgroundColor: '#FAF8F5',
-						borderTopColor: '#EBE5DB',
+						backgroundColor: colors.paper.warm,
+						borderTopColor: colors.border.light,
 						overflow: 'visible',
 					},
 					headerShown: false,

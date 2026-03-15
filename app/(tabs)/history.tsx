@@ -14,6 +14,7 @@ import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import { formatAmount } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
+import { colors } from '@/src/theme/colors';
 
 interface TransactionSection {
 	title: string;
@@ -284,7 +285,7 @@ export default function HistoryScreen() {
 				{isStale && (
 					<ActivityIndicator
 						size="small"
-						color="#6B5D4A"
+						color={colors.ink.muted}
 						className="absolute bottom-0 left-0 right-0 top-0 items-center justify-center"
 					/>
 				)}

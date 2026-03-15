@@ -15,6 +15,7 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { isEntityActive } from '@/src/utils/entity-display';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
 function getPriorPeriods(currentPeriod: string, count: number): string[] {
@@ -41,7 +42,7 @@ function MiniSparkline({ values, planned }: { values: number[]; planned: number 
 				const isCurrent = i === values.length - 1;
 				const isOver = planned > 0 && val > planned;
 				const heightPx = Math.max(2, Math.round((val / max) * 18));
-				const color = isOver ? '#C23030' : planned > 0 ? '#2F7D4A' : '#9C8B74';
+				const color = isOver ? colors.negative.DEFAULT : planned > 0 ? colors.positive.DEFAULT : colors.ink.placeholder;
 				const opacity = isCurrent ? 1 : 0.25 + (i / (values.length - 1)) * 0.45;
 				return (
 					<View
