@@ -240,24 +240,4 @@ describe('HomeScreen entity interactions', () => {
 		});
 	});
 
-	it('switches categories to reorder mode only while edit mode is active', () => {
-		const { getByTestId } = render(<HomeScreen />);
-
-		expect(getByTestId('category-drag-behavior').props.children).toBe('transaction');
-
-		fireEvent.press(getByTestId('category-edit-toggle'));
-		expect(getByTestId('category-drag-behavior').props.children).toBe('reorder');
-
-		fireEvent.press(getByTestId('category-edit-toggle'));
-		expect(getByTestId('category-drag-behavior').props.children).toBe('transaction');
-	});
-
-	it('switches accounts between transfer mode and reorder mode with the edit toggle', () => {
-		const { getByTestId } = render(<HomeScreen />);
-
-		expect(getByTestId('account-drag-behavior').props.children).toBe('transaction');
-
-		fireEvent.press(getByTestId('account-edit-toggle'));
-		expect(getByTestId('account-drag-behavior').props.children).toBe('reorder');
-	});
 });

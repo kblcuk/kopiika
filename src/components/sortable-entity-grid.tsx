@@ -25,6 +25,7 @@ import {
 	FixedOrderContext,
 	type FixedOrderContextType,
 } from './sortable-entity-bubble';
+import { resolveGridDragEnd } from './sortable-entity-grid-logic';
 
 // Grid layout constants
 const BUBBLE_WIDTH = 96;
@@ -276,30 +277,32 @@ export function SortableEntityGrid({
 			draggedEntityRef.current = null;
 			lastDropCheckTimeRef.current = 0;
 
-			// Check for drop targets that should create transactions
+			let targetId: string | null = null;
+			let targetType: EntityType | null = null;
+
 			if (isTransactionMode && touch && draggedEntity) {
-				const targetId = findDropTarget(touch.x, touch.y, draggedEntity.id);
+				targetId = findDropTarget(touch.x, touch.y, draggedEntity.id);
 				if (targetId) {
-					const targetEntity = useStore
-						.getState()
-						.entities.find((e) => e.id === targetId);
-
-					if (targetEntity) {
-						const isCrossType = targetEntity.type !== type;
-						const isSameTypeTransfer =
-							type === 'account' && targetEntity.type === 'account';
-
-						if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
-							onDragEnd?.(draggedEntity, targetId);
-							return;
-						}
-					}
+					targetType =
+						useStore.getState().entities.find((e) => e.id === targetId)?.type ?? null;
 				}
 			}
 
-			if (dragBehavior === 'reorder') {
-				const newOrder = data.map((e) => e.id);
-				reorderEntitiesByIds(type, newOrder, maxRows);
+			const outcome = resolveGridDragEnd({
+				dragBehavior,
+				sourceType: type,
+				targetType,
+				targetId,
+				orderedIds: data.map((e) => e.id),
+			});
+
+			if (outcome.kind === 'transaction' && draggedEntity) {
+				onDragEnd?.(draggedEntity, outcome.targetId);
+				return;
+			}
+
+			if (outcome.kind === 'reorder') {
+				reorderEntitiesByIds(type, outcome.orderedIds, maxRows);
 			}
 
 			if (draggedEntity) {
