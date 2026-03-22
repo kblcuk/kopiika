@@ -109,7 +109,7 @@ def sync_ios_native_versions!
 end
 
 def expo_prebuild(platform)
-  sh("cd #{repo_root.shellescape} && bun run expo prebuild --platform #{platform} --non-interactive --no-install")
+  sh("cd #{repo_root.shellescape} && CI=1 bun run expo prebuild --platform #{platform} --no-install")
 end
 
 def required_value!(value, message)
