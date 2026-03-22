@@ -16,6 +16,7 @@ import {
 	unregisterRemeasureCallback,
 } from '@/src/utils/drop-zone';
 import { shouldUseFixedOrderMode } from '@/src/utils/drag-bounds';
+import { updateDragTouch } from '@/src/utils/vertical-auto-scroll';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
 import {
@@ -204,6 +205,7 @@ export function SortableEntityGrid({
 	const handleSortableDragMove = useCallback(
 		({ touchData }: { touchData: TouchData }) => {
 			lastTouchRef.current = { x: touchData.absoluteX, y: touchData.absoluteY };
+			updateDragTouch(touchData.absoluteX, touchData.absoluteY);
 
 			const draggedEntity = draggedEntityRef.current;
 			if (!draggedEntity) return;
@@ -376,7 +378,6 @@ export function SortableEntityGrid({
 											<SortableEntityBubble
 												entity={item}
 												onTap={onTap}
-												dragBehavior={dragBehavior}
 											/>
 										)
 									}
@@ -389,7 +390,8 @@ export function SortableEntityGrid({
 									activeItemScale={1.1}
 									activeItemOpacity={0.9}
 									inactiveItemOpacity={1}
-									dragActivationDelay={50}
+									dragActivationDelay={150}
+									dragActivationFailOffset={10}
 									overflow="visible"
 								/>
 								{onAdd && <View style={{ width: BUBBLE_WIDTH + COLUMN_GAP }} />}

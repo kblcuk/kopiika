@@ -41,7 +41,6 @@ interface SortableEntityBubbleProps {
 	entity: EntityWithBalance;
 	onTap?: (entity: EntityWithBalance) => void;
 	dragDisabled?: boolean;
-	dragBehavior?: 'transaction' | 'reorder';
 }
 
 // Individual entity bubble for the sortable grid - memoized to prevent re-renders during drag
@@ -49,7 +48,6 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	entity,
 	onTap,
 	dragDisabled = false,
-	dragBehavior = 'transaction',
 }: SortableEntityBubbleProps) {
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
@@ -67,9 +65,8 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	// Subscribe to fixed order mode changes - this allows the mode to change mid-drag
 	// without re-rendering the entire Grid (only this bubble re-renders)
 	const fixedOrderContext = useContext(FixedOrderContext);
-	const isTransactionMode = dragBehavior === 'transaction' && !dragDisabled;
 	const [mode, setMode] = useState<'draggable' | 'fixed-order'>(
-		dragDisabled || isTransactionMode ? 'fixed-order' : 'draggable'
+		dragDisabled ? 'fixed-order' : 'draggable'
 	);
 
 	useEffect(() => {
@@ -80,21 +77,16 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 
 		if (!fixedOrderContext) return;
 
-		const newMode =
-			fixedOrderContext.getIsFixed() || isTransactionMode ? 'fixed-order' : 'draggable';
-		setMode(newMode);
+		setMode(fixedOrderContext.getIsFixed() ? 'fixed-order' : 'draggable');
 
 		return fixedOrderContext.subscribe((isFixed) => {
-			// Check if this bubble is the one being dragged (via context, not store)
-			// This avoids timing issues - grid sets draggedId before calling setIsFixed
+			// Dragged item must stay 'draggable' so it can be moved.
+			// Grid sets draggedId before calling setIsFixed to avoid timing issues.
 			const draggedId = fixedOrderContext.getDraggedId();
-			if (entity.id === draggedId) {
-				// Dragged item must stay 'draggable' so it can be moved
-				return;
-			}
-			setMode(isFixed || isTransactionMode ? 'fixed-order' : 'draggable');
+			if (entity.id === draggedId) return;
+			setMode(isFixed ? 'fixed-order' : 'draggable');
 		});
-	}, [entity.id, fixedOrderContext, dragDisabled, isTransactionMode]);
+	}, [entity.id, fixedOrderContext, dragDisabled]);
 
 	// Animation values for drop target highlight
 	const highlightProgress = useSharedValue(0);
@@ -145,23 +137,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	}, [entity, onTap]);
 
 	return (
-		<Sortable.Touchable
-			onTap={handleTap}
-			onTouchesDown={
-				isTransactionMode
-					? () => {
-							setMode('draggable');
-						}
-					: undefined
-			}
-			onTouchesUp={
-				isTransactionMode
-					? () => {
-							setMode('fixed-order');
-						}
-					: undefined
-			}
-		>
+		<Sortable.Touchable onTap={handleTap}>
 			<Sortable.Handle mode={mode}>
 				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
 					{/* Glow effect for drop target */}

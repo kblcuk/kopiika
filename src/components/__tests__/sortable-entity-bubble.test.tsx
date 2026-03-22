@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 
 import { SortableEntityBubble } from '../sortable-entity-bubble';
 import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
@@ -110,28 +110,11 @@ describe('SortableEntityBubble', () => {
 		expect(label.props.style).toEqual(expect.objectContaining({ lineHeight: 14 }));
 	});
 
-	it('starts transaction-mode bubbles in fixed-order until the touch begins', () => {
-		render(<SortableEntityBubble entity={entity} dragBehavior="transaction" />);
-
-		expect(latestHandleMode).toBe('fixed-order');
-
-		act(() => {
-			latestTouchableProps?.onTouchesDown?.();
-		});
+	it('starts all bubbles as draggable (grid controls fixed-order via context)', () => {
+		render(<SortableEntityBubble entity={entity} />);
 
 		expect(latestHandleMode).toBe('draggable');
-
-		act(() => {
-			latestTouchableProps?.onTouchesUp?.();
-		});
-
-		expect(latestHandleMode).toBe('fixed-order');
-	});
-
-	it('keeps reorder-mode bubbles draggable', () => {
-		render(<SortableEntityBubble entity={entity} dragBehavior="reorder" />);
-
-		expect(latestHandleMode).toBe('draggable');
+		// No touch-down/up mode flip — activation race eliminated
 		expect(latestTouchableProps?.onTouchesDown).toBeUndefined();
 		expect(latestTouchableProps?.onTouchesUp).toBeUndefined();
 	});

@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, type NativeScrollEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
 	useAnimatedStyle,
@@ -19,6 +19,12 @@ import {
 	ReservationModal,
 } from '@/src/components';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
+import {
+	setVerticalScrollTarget,
+	updateScrollMetrics,
+	startVerticalAutoScroll,
+	stopVerticalAutoScroll,
+} from '@/src/utils/vertical-auto-scroll';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
@@ -27,6 +33,18 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 export default function HomeScreen() {
 	const router = useRouter();
+	const outerScrollRef = useRef<ScrollView>(null);
+
+	// Wire the outer ScrollView for vertical auto-scroll during drag
+	useEffect(() => {
+		setVerticalScrollTarget(outerScrollRef);
+	}, []);
+
+	const handleOuterScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
+		const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+		updateScrollMetrics(contentOffset.y, contentSize.height, layoutMeasurement.height);
+	}, []);
+
 	const {
 		isLoading,
 		entities,
@@ -100,6 +118,7 @@ export default function HomeScreen() {
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
 			setDraggedEntity(entity);
+			startVerticalAutoScroll();
 		},
 		[setDraggedEntity]
 	);
@@ -107,6 +126,7 @@ export default function HomeScreen() {
 	const handleDragEnd = useCallback(
 		(entity: EntityWithBalance, targetId: string | null) => {
 			setDraggedEntity(null);
+			stopVerticalAutoScroll();
 
 			// If no target, drag was cancelled or same-type reorder was handled by grid
 			if (!targetId) {
@@ -299,9 +319,12 @@ export default function HomeScreen() {
 			<Sortable.PortalProvider>
 				{/* Content */}
 				<ScrollView
+					ref={outerScrollRef}
 					className="flex-1 overflow-visible"
 					contentContainerClassName="overflow-visible"
 					contentContainerStyle={{ paddingVertical: 12 }}
+					onScroll={handleOuterScroll}
+					scrollEventThrottle={16}
 					onScrollEndDrag={handleScrollEnd}
 					onMomentumScrollEnd={handleScrollEnd}
 				>
