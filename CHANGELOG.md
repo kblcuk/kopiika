@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.6](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.6) (2026-03-22)
+
+
+### Bug Fixes
+
+* **dnd:** eliminate activation race and improve drag/scroll separation ([4d6122c](https://codeberg.org/kblcuk/kopiika/commit/4d6122c7a305774d71e93a33bbb087f3b643a45b))
+* **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
+* **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
+
 ## [0.2.5](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.5) (2026-03-14)
 
 
