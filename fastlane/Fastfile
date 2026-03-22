@@ -19,6 +19,33 @@ require 'net/http'
 require 'time'
 require 'uri'
 require 'fileutils'
+require 'timeout'
+
+def match_timeout
+  Integer(ENV['MATCH_TIMEOUT'] || 300)
+end
+
+# match hangs forever when SSH auth stalls (no key, host-key prompt, etc.)
+# GIT_TERMINAL_PROMPT only covers git credential helpers, not SSH itself —
+# BatchMode=yes + ConnectTimeout handle passphrase and host-key prompts at
+# the SSH layer where the actual hang happens.
+def match_with_timeout(**opts)
+  saved_env = ENV.to_h.slice('GIT_TERMINAL_PROMPT', 'GIT_SSH_COMMAND')
+  ENV['GIT_TERMINAL_PROMPT'] = '0'
+  ENV['GIT_SSH_COMMAND'] = "ssh -o BatchMode=yes -o ConnectTimeout=30 #{ENV['GIT_SSH_COMMAND']}"
+
+  timeout = match_timeout
+  Timeout.timeout(timeout) do
+    match(**opts)
+  end
+rescue Timeout::Error
+  UI.user_error!(
+    "match timed out after #{timeout}s. " \
+      'Check SSH key availability (ssh-add -l), codeberg.org in known_hosts, and network.'
+  )
+ensure
+  saved_env.each { |k, v| ENV[k] = v }
+end
 
 def repo_root
   File.expand_path('..', __dir__)
@@ -534,7 +561,7 @@ platform :ios do
 
   desc 'Sync code signing via match'
   lane :setup_signing do
-    match(type: 'appstore', api_key: ensure_asc_api_key!)
+    match_with_timeout(type: 'appstore', api_key: ensure_asc_api_key!)
   end
 
   desc 'Build the app'
@@ -545,7 +572,7 @@ platform :ios do
     export = options[:export_method] || 'development'
     match_type = export == 'app-store' ? 'appstore' : 'development'
 
-    match(type: match_type, api_key: ensure_asc_api_key!)
+    match_with_timeout(type: match_type, readonly: true, api_key: ensure_asc_api_key!)
 
     update_code_signing_settings(
       use_automatic_signing: false,
