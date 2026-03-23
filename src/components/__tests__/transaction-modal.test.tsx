@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
 import type { Entity, EntityWithBalance } from '@/src/types';
@@ -1304,6 +1304,172 @@ describe('TransactionModal', () => {
 
 			// Should NOT show income (invalid: account -> income)
 			expect(queryByText('Salary')).toBeNull();
+		});
+	});
+
+	describe('Quick Add Full Flow', () => {
+		const incomeEntity: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+		const accountEntity: Entity = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+		const categoryEntity: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+
+		it('creates income→account transaction via quickAdd', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				entities: [incomeEntity, accountEntity, categoryEntity],
+				addTransaction: addTransactionSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// From-entity picker auto-opens
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Salary'));
+
+			// To-entity picker auto-opens
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Checking'));
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '500');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'income-1',
+						to_entity_id: 'account-1',
+						amount: 500,
+						currency: 'USD',
+					})
+				);
+			});
+			expect(mockOnClose).toHaveBeenCalled();
+		});
+
+		it('creates account→category transaction via quickAdd', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				entities: [incomeEntity, accountEntity, categoryEntity],
+				addTransaction: addTransactionSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Checking'));
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Groceries'));
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '42.50');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 42.5,
+					})
+				);
+			});
+			expect(mockOnClose).toHaveBeenCalled();
+		});
+
+		it('resets state when visible toggles off and back on', async () => {
+			useStore.setState({
+				entities: [incomeEntity, accountEntity, categoryEntity],
+				addTransaction: jest.fn(),
+			});
+
+			const { getByTestId, getByText, rerender } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Complete first flow: pick entities + type amount
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Salary'));
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Checking'));
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+
+			// Simulate tab blur: visible → false
+			rerender(
+				<TransactionModal
+					visible={false}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Simulate tab focus: visible → true (should reset state)
+			rerender(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Amount should be cleared
+			const amountInput = getByTestId('transaction-amount-input');
+			expect(amountInput.props.value).toBe('');
+
+			// From-entity picker should auto-open again (entities visible)
+			await act(async () => jest.advanceTimersByTime(400));
+			expect(getByText('Salary')).toBeTruthy();
 		});
 	});
 });

@@ -308,122 +308,128 @@ export function TransactionModal({
 	// ── Submit ────────────────────────────────────────────────────────────────
 
 	const handleSubmit = async () => {
-		const now = new Date();
-		const timestamp = isEditing
-			? selectedDate.getTime()
-			: (() => {
-					const result = new Date(selectedDate);
-					result.setHours(
-						now.getHours(),
-						now.getMinutes(),
-						now.getSeconds(),
-						now.getMilliseconds()
+		try {
+			const now = new Date();
+			const timestamp = isEditing
+				? selectedDate.getTime()
+				: (() => {
+						const result = new Date(selectedDate);
+						result.setHours(
+							now.getHours(),
+							now.getMinutes(),
+							now.getSeconds(),
+							now.getMilliseconds()
+						);
+						return result.getTime();
+					})();
+
+			if (isSplitMode && fromEntity) {
+				const txns: Parameters<typeof addTransaction>[0][] = [];
+
+				// Anchor transaction (row 0)
+				if (splits[0]?.toEntityId && anchorAmount > 0) {
+					txns.push({
+						id: generateId(),
+						from_entity_id: fromEntity.id,
+						to_entity_id: splits[0].toEntityId,
+						amount: anchorAmount,
+						currency: fromEntity.currency,
+						timestamp,
+						note: note.trim() || undefined,
+					});
+				}
+				// Non-anchor splits
+				for (const split of splits.slice(1)) {
+					const amt = reverseFormatCurrency(split.amount);
+					if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
+					txns.push({
+						id: generateId(),
+						from_entity_id: fromEntity.id,
+						to_entity_id: split.toEntityId,
+						amount: amt,
+						currency: fromEntity.currency,
+						timestamp,
+						note: note.trim() || undefined,
+					});
+				}
+
+				if (txns.length === 0) return;
+				for (const txn of txns) await addTransaction(txn);
+
+				// Reduce reservations for any savings the user chose to fund from
+				const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
+				for (const f of splitFunded) {
+					await upsertReservation(
+						fromEntity.id,
+						f.savingEntityId,
+						f.currentReservation - f.fundAmount
 					);
-					return result.getTime();
-				})();
+				}
 
-		if (isSplitMode && fromEntity) {
-			const txns: Parameters<typeof addTransaction>[0][] = [];
+				onClose();
+				return;
+			}
 
-			// Anchor transaction (row 0)
-			if (splits[0]?.toEntityId && anchorAmount > 0) {
-				txns.push({
+			const typedAmount = reverseFormatCurrency(amount);
+			if (isNaN(typedAmount) || typedAmount <= 0) return;
+
+			// Transaction total = typed amount + any savings funding released
+			const numAmount = roundMoney(typedAmount + totalFunded);
+
+			if (isEditing && existingTransaction) {
+				const updates: {
+					amount?: number;
+					note?: string;
+					timestamp?: number;
+					from_entity_id?: string;
+					to_entity_id?: string;
+				} = { amount: numAmount, note: note.trim() || undefined, timestamp };
+				if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id)
+					updates.from_entity_id = selectedFromId;
+				if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
+					updates.to_entity_id = selectedToId;
+				await updateTransaction(existingTransaction.id, updates);
+			} else if (quickAdd && selectedFromEntity && selectedToEntity) {
+				await addTransaction({
+					id: generateId(),
+					from_entity_id: selectedFromEntity.id,
+					to_entity_id: selectedToEntity.id,
+					amount: numAmount,
+					currency: selectedFromEntity.currency,
+					timestamp,
+					note: note.trim() || undefined,
+				});
+			} else if (fromEntity && toEntity) {
+				await addTransaction({
 					id: generateId(),
 					from_entity_id: fromEntity.id,
-					to_entity_id: splits[0].toEntityId,
-					amount: anchorAmount,
+					to_entity_id: toEntity.id,
+					amount: numAmount,
 					currency: fromEntity.currency,
 					timestamp,
 					note: note.trim() || undefined,
 				});
 			}
-			// Non-anchor splits
-			for (const split of splits.slice(1)) {
-				const amt = reverseFormatCurrency(split.amount);
-				if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
-				txns.push({
-					id: generateId(),
-					from_entity_id: fromEntity.id,
-					to_entity_id: split.toEntityId,
-					amount: amt,
-					currency: fromEntity.currency,
-					timestamp,
-					note: note.trim() || undefined,
-				});
-			}
-
-			if (txns.length === 0) return;
-			for (const txn of txns) await addTransaction(txn);
 
 			// Reduce reservations for any savings the user chose to fund from
-			const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
-			for (const f of splitFunded) {
-				await upsertReservation(
-					fromEntity.id,
-					f.savingEntityId,
-					f.currentReservation - f.fundAmount
-				);
+			const funded = fundingRef.current?.getFundedReservations() ?? [];
+			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
+			if (accountId) {
+				for (const f of funded) {
+					await upsertReservation(
+						accountId,
+						f.savingEntityId,
+						f.currentReservation - f.fundAmount
+					);
+				}
 			}
 
 			onClose();
-			return;
+		} catch (error) {
+			console.error('Failed to save transaction:', error);
+			// Still close so the user isn't stuck on a dead modal
+			onClose();
 		}
-
-		const typedAmount = reverseFormatCurrency(amount);
-		if (isNaN(typedAmount) || typedAmount <= 0) return;
-
-		// Transaction total = typed amount + any savings funding released
-		const numAmount = roundMoney(typedAmount + totalFunded);
-
-		if (isEditing && existingTransaction) {
-			const updates: {
-				amount?: number;
-				note?: string;
-				timestamp?: number;
-				from_entity_id?: string;
-				to_entity_id?: string;
-			} = { amount: numAmount, note: note.trim() || undefined, timestamp };
-			if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id)
-				updates.from_entity_id = selectedFromId;
-			if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
-				updates.to_entity_id = selectedToId;
-			await updateTransaction(existingTransaction.id, updates);
-		} else if (quickAdd && selectedFromEntity && selectedToEntity) {
-			await addTransaction({
-				id: generateId(),
-				from_entity_id: selectedFromEntity.id,
-				to_entity_id: selectedToEntity.id,
-				amount: numAmount,
-				currency: selectedFromEntity.currency,
-				timestamp,
-				note: note.trim() || undefined,
-			});
-		} else if (fromEntity && toEntity) {
-			await addTransaction({
-				id: generateId(),
-				from_entity_id: fromEntity.id,
-				to_entity_id: toEntity.id,
-				amount: numAmount,
-				currency: fromEntity.currency,
-				timestamp,
-				note: note.trim() || undefined,
-			});
-		}
-
-		// Reduce reservations for any savings the user chose to fund from
-		const funded = fundingRef.current?.getFundedReservations() ?? [];
-		const accountId = selectedFromEntity?.id ?? fromEntity?.id;
-		if (accountId) {
-			for (const f of funded) {
-				await upsertReservation(
-					accountId,
-					f.savingEntityId,
-					f.currentReservation - f.fundAmount
-				);
-			}
-		}
-
-		onClose();
 	};
 
 	// ── Renderers ─────────────────────────────────────────────────────────────
