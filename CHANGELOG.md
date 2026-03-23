@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.7](https://codeberg.org/kblcuk/kopiika/compare/v0.2.6...v0.2.7) (2026-03-23)
+
+
+### Bug Fixes
+
+* **fastlane:** prevent match from hanging on SSH auth failures ([0a2428a](https://codeberg.org/kblcuk/kopiika/commit/0a2428a34131456f2adae92160e5eb1c17aa8d20))
+* **fastlane:** skip beta lanes when build already published ([4d17b19](https://codeberg.org/kblcuk/kopiika/commit/4d17b1948d7f5e7818877074a1df567014f1fb80))
+* **quickadd:** reset transaction modal state on repeated tab visits ([0169e72](https://codeberg.org/kblcuk/kopiika/commit/0169e726c8a943981bd5a9b8acdc11277e502a45))
+
 ## [0.2.6](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.6) (2026-03-22)
 
 
