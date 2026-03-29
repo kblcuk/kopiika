@@ -35,6 +35,7 @@
 		},
 		"plugins": [
 			"expo-router",
+			"@config-plugins/detox",
 			[
 				"./plugins/with-match-signing",
 				{

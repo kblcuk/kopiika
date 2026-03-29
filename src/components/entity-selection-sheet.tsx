@@ -63,6 +63,7 @@ export function EntitySelectionSheet({
 								<Pressable
 									key={entity.id}
 									onPress={() => handleSelect(entity)}
+									testID={`entity-option-${entity.name}`}
 									className="mb-4 w-1/3 items-center"
 								>
 									<View

@@ -311,7 +311,7 @@ export default function HomeScreen() {
 	}
 
 	return (
-		<SafeAreaView className="flex-1 overflow-visible bg-paper-50" edges={[]}>
+		<SafeAreaView testID="home-screen" className="flex-1 overflow-visible bg-paper-50" edges={[]}>
 			{/* Summary bar */}
 			<SummaryHeader onToggleIncome={handleToggleIncome} />
 
@@ -327,6 +327,7 @@ export default function HomeScreen() {
 					scrollEventThrottle={16}
 					onScrollEndDrag={handleScrollEnd}
 					onMomentumScrollEnd={handleScrollEnd}
+					scrollEnabled={process.env.EXPO_PUBLIC_E2E !== 'true'}
 				>
 					<View onLayout={handleContentLayout}>
 						{/* Always render income section, control visibility with animation */}

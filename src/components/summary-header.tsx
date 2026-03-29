@@ -88,6 +88,7 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 				<Pressable
 					onPress={onToggleIncome}
 					hitSlop={8}
+					testID="income-toggle-button"
 					className="ml-4 h-6 w-6 items-center justify-center"
 				>
 					{incomeVisible ? (

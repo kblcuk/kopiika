@@ -140,7 +140,11 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	return (
 		<Sortable.Touchable onTap={handleTap}>
 			<Sortable.Handle mode={mode}>
-				<Animated.View className="w-24 items-center py-1" style={highlightStyle}>
+				<Animated.View
+					className="w-24 items-center py-1"
+					style={highlightStyle}
+					testID={`entity-bubble-${entity.name}`}
+				>
 					{/* Glow effect for drop target */}
 					<Animated.View style={glowStyle} pointerEvents="none" />
 					<View className="mb-2 h-9 justify-center">
@@ -190,6 +194,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 											? 'text-negative'
 											: 'text-ink'
 							}`}
+							testID={`entity-amount-${entity.name}`}
 						>
 							{mainAmount}
 						</Text>

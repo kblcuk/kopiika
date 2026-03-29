@@ -437,12 +437,13 @@ export function TransactionModal({
 	const renderEntityBubble = (
 		entity: Entity | EntityWithBalance | null,
 		onPress?: () => void,
-		emptyLabel?: string
+		emptyLabel?: string,
+		testID?: string
 	) => {
 		if (!entity) {
 			// Placeholder shown in quickAdd mode before entity is selected
 			return (
-				<Pressable onPress={onPress} className="flex-1 items-center">
+				<Pressable onPress={onPress} testID={testID} className="flex-1 items-center">
 					<View
 						className="mb-2 h-12 w-12 items-center justify-center rounded-full bg-paper-200"
 						style={{
@@ -463,7 +464,7 @@ export function TransactionModal({
 		const typeColors = getEntityTypeColors(entity.type);
 		const isTappable = !!onPress;
 		return (
-			<Pressable onPress={onPress} disabled={!isTappable} className="flex-1 items-center">
+			<Pressable onPress={onPress} disabled={!isTappable} testID={testID} className="flex-1 items-center">
 				<View className="relative">
 					<View
 						className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
@@ -532,7 +533,8 @@ export function TransactionModal({
 						{renderEntityBubble(
 							displayFromEntity,
 							isEditing || quickAdd ? () => setShowFromSheet(true) : undefined,
-							quickAdd ? 'From' : undefined
+							quickAdd ? 'From' : undefined,
+							'transaction-from-button'
 						)}
 						<View className="items-center px-2 py-3">
 							<ArrowRight size={24} color={colors.ink.DEFAULT} />
@@ -540,7 +542,8 @@ export function TransactionModal({
 						{renderEntityBubble(
 							displayToEntity,
 							isEditing || quickAdd ? () => setShowToSheet(true) : undefined,
-							quickAdd ? 'To' : undefined
+							quickAdd ? 'To' : undefined,
+							'transaction-to-button'
 						)}
 					</View>
 

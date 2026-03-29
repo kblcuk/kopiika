@@ -57,6 +57,7 @@ export default function TabLayout() {
 								onPress={handleOpenAdd}
 								accessibilityLabel="Add transaction"
 								accessibilityRole="button"
+								testID="add-transaction-button"
 								style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
 							>
 								<View

@@ -10,6 +10,10 @@
 		"test": "bun run test:unit && bun run test:component",
 		"test:unit": "bun test src/db src/store src/utils",
 		"test:component": "jest",
+		"test:e2e:ios": "detox test --configuration ios.sim.debug",
+		"test:e2e:android": "detox test --configuration android.emu.debug",
+		"build:e2e:ios": "detox build --configuration ios.sim.debug",
+		"build:e2e:android": "detox build --configuration android.emu.debug",
 		"test:watch": "jest --watch",
 		"test:coverage": "bun test --coverage && jest --coverage",
 		"lint": "oxlint",
@@ -75,6 +79,7 @@
 		"zustand": "^5.0.11"
 	},
 	"devDependencies": {
+		"@config-plugins/detox": "^11.0.0",
 		"@jest/globals": "^30.3.0",
 		"@resvg/resvg-js": "^2.6.2",
 		"@swc/core": "^1.15.18",
@@ -88,6 +93,7 @@
 		"babel-preset-expo": "^54.0.10",
 		"better-sqlite3": "^12.6.2",
 		"commit-and-tag-version": "^12.6.1",
+		"detox": "^20.47.0",
 		"drizzle-kit": "^0.31.9",
 		"eslint-config-expo": "^10.0.0",
 		"expo-drizzle-studio-plugin": "^0.2.1",

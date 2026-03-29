@@ -11,7 +11,7 @@ interface AddEntityBubbleProps {
 
 export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 	return (
-		<Pressable onPress={() => onPress(type)} className="w-24 items-center py-1">
+		<Pressable onPress={() => onPress(type)} testID={`add-entity-button-${type}`} className="w-24 items-center py-1">
 			{/* Placeholder for name spacing */}
 			<View className="mb-2.5 h-8" />
 
