@@ -17,9 +17,7 @@ describe('EntityIconPicker', () => {
 				icons={icons}
 				selectedIcon={icons[0]}
 				onSelect={onSelect}
-				searchInputTestID="entity-icon-search-input"
 				optionTestIDPrefix="entity-icon-option"
-				emptyStateTestID="entity-icon-empty-state"
 			/>
 		);
 
