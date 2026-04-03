@@ -81,7 +81,7 @@ export function TransactionModal({
 	// Snapshot of amount when split mode was entered — drives the anchor calculation
 	const [splitTotal, setSplitTotal] = useState(0);
 
-	// Savings funding — amount from reservations to add on top of typed amount
+	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
 
 	const insets = useSafeAreaInsets();
@@ -146,15 +146,15 @@ export function TransactionModal({
 		return getValidToEntities(entities, fromEntity, currency);
 	}, [fromEntity, entities, currency]);
 
-	// Anchor = (typed total + savings funding) - sum of all non-anchor splits
+	// Anchor = typed total - sum of all non-anchor splits
 	// Row 0 is always the anchor; its amount field in state is ignored
 	const anchorAmount = useMemo(() => {
 		if (!isSplitMode) return 0;
 		const otherSum = splits
 			.slice(1)
 			.reduce((sum, s) => sum + (reverseFormatCurrency(s.amount) || 0), 0);
-		return roundMoney(splitTotal + totalFunded - otherSum);
-	}, [isSplitMode, splits, splitTotal, totalFunded]);
+		return roundMoney(splitTotal - otherSum);
+	}, [isSplitMode, splits, splitTotal]);
 
 	useEffect(() => {
 		if (visible) {
@@ -368,8 +368,7 @@ export function TransactionModal({
 			const typedAmount = reverseFormatCurrency(amount);
 			if (isNaN(typedAmount) || typedAmount <= 0) return;
 
-			// Transaction total = typed amount + any savings funding released
-			const numAmount = roundMoney(typedAmount + totalFunded);
+			const numAmount = roundMoney(typedAmount);
 
 			if (isEditing && existingTransaction) {
 				const updates: {
@@ -581,25 +580,12 @@ export function TransactionModal({
 								</Text>
 							</Pressable>
 						)}
-						{/* Show total when savings funding adds to the typed amount */}
-						{totalFunded > 0 &&
-							(() => {
-								const typed = isSplitMode
-									? splitTotal
-									: reverseFormatCurrency(amount, currency) || 0;
-								return (
-									<Text className="mt-2 font-sans text-sm text-ink-muted">
-										{formatAmount(typed, currency)} +{' '}
-										{formatAmount(totalFunded, currency)} from savings ={' '}
-										<Text className="font-sans-semibold text-ink">
-											{formatAmount(
-												roundMoney(typed + totalFunded),
-												currency
-											)}
-										</Text>
-									</Text>
-								);
-							})()}
+						{/* Show note when part of the amount is sourced from savings */}
+						{totalFunded > 0 && (
+							<Text className="mt-2 font-sans text-sm text-ink-muted">
+								{formatAmount(totalFunded, currency)} from savings
+							</Text>
+						)}
 					</View>
 
 					{/* Split */}
@@ -830,16 +816,6 @@ export function TransactionModal({
 						</View>
 					)}
 
-					{/* Fund from savings — show when source is an account with reservations */}
-					{!isEditing && displayFromEntity?.type === 'account' && (
-						<SavingsFundingSection
-							ref={fundingRef}
-							accountEntityId={displayFromEntity.id}
-							currency={currency}
-							onFundingChange={setTotalFunded}
-						/>
-					)}
-
 					{/* Date */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center">
@@ -907,6 +883,19 @@ export function TransactionModal({
 							/>
 						</View>
 					</View>
+
+					{/* Fund from savings — show when source is an account with reservations */}
+					{!isEditing && displayFromEntity?.type === 'account' && (
+						<SavingsFundingSection
+							ref={fundingRef}
+							accountEntityId={displayFromEntity.id}
+							currency={currency}
+							enteredAmount={
+								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+							}
+							onFundingChange={setTotalFunded}
+						/>
+					)}
 				</ScrollView>
 			</KeyboardAvoidingView>
 

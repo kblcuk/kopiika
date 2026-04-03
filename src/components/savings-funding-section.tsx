@@ -30,6 +30,8 @@ export interface SavingsFundingHandle {
 interface SavingsFundingSectionProps {
 	accountEntityId: string;
 	currency: string;
+	/** Current entered transaction amount — used as default when toggling a goal on */
+	enteredAmount: number;
 	/** Called whenever the total funded amount changes (toggle or amount edit) */
 	onFundingChange: (totalFunded: number) => void;
 }
@@ -37,7 +39,10 @@ interface SavingsFundingSectionProps {
 const VISIBLE_CAP = 3;
 
 export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFundingSectionProps>(
-	function SavingsFundingSection({ accountEntityId, currency, onFundingChange }, ref) {
+	function SavingsFundingSection(
+		{ accountEntityId, currency, enteredAmount, onFundingChange },
+		ref
+	) {
 		const [rows, setRows] = useState<FundingRow[]>([]);
 		const [showAll, setShowAll] = useState(false);
 
@@ -98,10 +103,14 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 				prev.map((r, i) => {
 					if (i !== index) return r;
 					const willEnable = !r.enabled;
+					const defaultAmount = Math.min(
+						enteredAmount > 0 ? enteredAmount : r.maxAmount,
+						r.maxAmount
+					);
 					return {
 						...r,
 						enabled: willEnable,
-						amount: willEnable ? roundMoney(r.maxAmount).toString() : '',
+						amount: willEnable ? roundMoney(defaultAmount).toString() : '',
 					};
 				})
 			);
