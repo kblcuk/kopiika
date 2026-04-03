@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.9](https://codeberg.org/kblcuk/kopiika/compare/v0.2.8...v0.2.9) (2026-04-03)
+
+
+### Bug Fixes
+
+* **quickadd:** update transaction modal tests for manual entity picker flow ([5e02d1b](https://codeberg.org/kblcuk/kopiika/commit/5e02d1b3416003732898a542e5703abcbadc226c))
+* **ui:** remove icon search field and fix history entity filter persistence ([b0956cf](https://codeberg.org/kblcuk/kopiika/commit/b0956cf4e83b4a0b95e928ce98743b67cc9f2d8b))
+
 ## [0.2.8](https://codeberg.org/kblcuk/kopiika/compare/v0.2.7...v0.2.8) (2026-04-03)
 
 
