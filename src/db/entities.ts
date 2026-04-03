@@ -70,7 +70,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 		return;
 	}
 
-	db.transaction((tx) => {
+	await db.transaction((tx) => {
 		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
 
 		tx.delete(plans).where(eq(plans.entity_id, id)).run();
