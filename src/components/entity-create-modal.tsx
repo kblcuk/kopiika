@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
 	View,
 	Text,
@@ -40,6 +40,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const nameInputRef = useRef<TextInput>(null);
+	const createPressInFlightRef = useRef(false);
 	const insets = useSafeAreaInsets();
 	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
 		useKeyboardAwareScroll();
@@ -62,19 +63,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 	}, [visible, entityType]);
 
-	if (!entityType) return null;
-
-	const iconOptions = ICON_OPTIONS[entityType];
-
-	const typeLabel = {
-		income: 'Income Source',
-		account: 'Account',
-		category: 'Expense Category',
-		saving: 'Savings Goal',
-	}[entityType];
-
-	const handleCreate = async () => {
-		if (!name.trim()) return;
+	const handleCreate = useCallback(async () => {
+		if (!entityType || !name.trim()) return;
 
 		const maxRows = entityType === 'category' ? 3 : 1;
 		const sameTypeEntities = entities.filter((e) => e.type === entityType && isEntityActive(e));
@@ -130,7 +120,37 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 
 		onClose();
-	};
+	}, [entityType, name, selectedIcon, plannedAmount, entities, addEntity, setPlan, currentPeriod, onClose]);
+
+	const handleCreatePress = useCallback(async () => {
+		// Physical iOS devices can swallow the first header onPress while dismissing
+		// the keyboard from a focused TextInput, so trigger on press-in too and
+		// dedupe the same tap across press-in/press.
+		if (createPressInFlightRef.current) {
+			return;
+		}
+
+		createPressInFlightRef.current = true;
+
+		try {
+			await handleCreate();
+		} finally {
+			setTimeout(() => {
+				createPressInFlightRef.current = false;
+			}, 0);
+		}
+	}, [handleCreate]);
+
+	if (!entityType) return null;
+
+	const iconOptions = ICON_OPTIONS[entityType];
+
+	const typeLabel = {
+		income: 'Income Source',
+		account: 'Account',
+		category: 'Expense Category',
+		saving: 'Savings Goal',
+	}[entityType];
 
 	const isValid = name.trim().length > 0;
 
@@ -152,7 +172,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
 					<Pressable
-						onPress={handleCreate}
+						onPressIn={handleCreatePress}
+						onPress={handleCreatePress}
 						disabled={!isValid}
 						hitSlop={20}
 						testID="entity-create-save-button"

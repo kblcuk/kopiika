@@ -113,6 +113,33 @@ describe('EntityCreateModal', () => {
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
+		it('submits from press-in without double-creating when press also fires', async () => {
+			const addEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
+
+			const { getByTestId } = render(
+				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
+			);
+
+			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Checking');
+			fireEvent(getByTestId('entity-create-save-button'), 'pressIn');
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(addEntitySpy).toHaveBeenCalledTimes(1);
+				expect(addEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						type: 'account',
+						name: 'Checking',
+					})
+				);
+			});
+
+			expect(setPlanSpy).not.toHaveBeenCalled();
+			expect(mockOnClose).toHaveBeenCalledTimes(1);
+		});
+
 		it('creates entity with plan when amount specified', async () => {
 			const addEntitySpy = jest.fn();
 			const setPlanSpy = jest.fn();
