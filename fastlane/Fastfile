@@ -30,9 +30,15 @@ end
 # BatchMode=yes + ConnectTimeout handle passphrase and host-key prompts at
 # the SSH layer where the actual hang happens.
 def match_with_timeout(**opts)
-  saved_env = ENV.to_h.slice('GIT_TERMINAL_PROMPT', 'GIT_SSH_COMMAND')
+  had_terminal_prompt = ENV.key?('GIT_TERMINAL_PROMPT')
+  had_ssh_command = ENV.key?('GIT_SSH_COMMAND')
+  saved_terminal_prompt = ENV['GIT_TERMINAL_PROMPT']
+  saved_ssh_command = ENV['GIT_SSH_COMMAND']
+
   ENV['GIT_TERMINAL_PROMPT'] = '0'
-  ENV['GIT_SSH_COMMAND'] = "ssh -o BatchMode=yes -o ConnectTimeout=30 #{ENV['GIT_SSH_COMMAND']}"
+  ssh_command = ['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=30']
+  ssh_command << saved_ssh_command if saved_ssh_command && !saved_ssh_command.empty?
+  ENV['GIT_SSH_COMMAND'] = ssh_command.join(' ')
 
   timeout = match_timeout
   Timeout.timeout(timeout) do
@@ -44,7 +50,8 @@ rescue Timeout::Error
       'Check SSH key availability (ssh-add -l), codeberg.org in known_hosts, and network.'
   )
 ensure
-  saved_env.each { |k, v| ENV[k] = v }
+  had_terminal_prompt ? ENV['GIT_TERMINAL_PROMPT'] = saved_terminal_prompt : ENV.delete('GIT_TERMINAL_PROMPT')
+  had_ssh_command ? ENV['GIT_SSH_COMMAND'] = saved_ssh_command : ENV.delete('GIT_SSH_COMMAND')
 end
 
 def repo_root
@@ -565,7 +572,9 @@ platform :ios do
 
   desc 'Sync code signing via match'
   lane :setup_signing do
-    match_with_timeout(type: 'appstore', api_key: ensure_asc_api_key!)
+    api_key = ensure_asc_api_key!
+    match_with_timeout(type: 'development', api_key: api_key)
+    match_with_timeout(type: 'appstore', api_key: api_key)
   end
 
   desc 'Build the app'

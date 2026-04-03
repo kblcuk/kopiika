@@ -20,7 +20,7 @@ description = "Validate App Store Connect credentials for the current iOS versio
 run = "bundle exec fastlane ios doctor"
 
 [tasks."ios:setup"]
-description = "Sync iOS signing assets via match"
+description = "Sync iOS development and App Store signing assets via match"
 run = "bundle exec fastlane ios setup_signing"
 
 [tasks."ios:build"]

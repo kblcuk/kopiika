@@ -82,7 +82,7 @@ Useful commands:
 # Validate App Store Connect credentials for the current version
 mise run ios:doctor
 
-# Sync signing assets
+# Sync development and App Store signing assets
 mise run ios:setup
 
 # Build an archive only
@@ -103,6 +103,7 @@ TESTFLIGHT_EXTERNAL_GROUPS="External Testers" mise run ios:promote:external
 
 Notes:
 
+- `mise run ios:setup` installs both `match development` and `match appstore` assets so local device builds and release builds use the same signing source of truth.
 - Promotion uses the uploaded TestFlight build for the current app version by default.
 - Set `TESTFLIGHT_APP_VERSION` and/or `TESTFLIGHT_BUILD_NUMBER` if you need to promote a specific build.
 - External distribution waits for App Store Connect processing and submits the build for beta review.

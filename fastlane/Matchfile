@@ -1,4 +1,4 @@
-git_url("ssh://git@codeberg.org/kblcuk/certs.git")
+git_url("git@codeberg.org:kblcuk/certs.git")
 git_branch("main")
 
 storage_mode("git")
@@ -6,6 +6,7 @@ storage_mode("git")
 type("development") # The default type, can be: appstore, adhoc, enterprise or development
 
 app_identifier(["com.kblcuk.kopiika"])
+username("kblcuk@pm.me")
 team_id("N84BXWAR5B") # Your Apple Developer Portal team ID
 
 # For all available options run `fastlane match --help`
