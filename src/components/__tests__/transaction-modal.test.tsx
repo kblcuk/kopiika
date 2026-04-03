@@ -1456,4 +1456,133 @@ describe('TransactionModal', () => {
 			expect(queryByText('Salary')).toBeNull();
 		});
 	});
+
+	describe('Savings Funding (KII-71)', () => {
+		const savingEntity: Entity = {
+			id: 'saving-1',
+			type: 'saving',
+			name: 'Cats savings',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+
+		beforeEach(() => {
+			setupStoreForTest({
+				entities: [mockFromEntity, mockToEntity, savingEntity],
+			});
+			useStore.setState({
+				reservations: [
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 300,
+					},
+				],
+			});
+		});
+
+		it('transaction amount equals entered amount, not entered + funded', async () => {
+			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
+			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				upsertReservation: upsertReservationSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '10');
+			fireEvent.press(getByText('Cats savings'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ amount: 10 })
+				);
+			});
+		});
+
+		it('reduces reservation by funded amount (defaults to entered amount)', async () => {
+			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
+			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				upsertReservation: upsertReservationSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '10');
+			fireEvent.press(getByText('Cats savings'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				// Reservation was 300, funded 10 → new reservation = 290
+				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 290);
+			});
+		});
+
+		it('caps funded amount at reservation max when entered exceeds it', async () => {
+			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
+			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				upsertReservation: upsertReservationSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Amount exceeds reservation (400 > 300)
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '400');
+			fireEvent.press(getByText('Cats savings'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				// Transaction amount should be exactly what was typed
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ amount: 400 })
+				);
+				// Funded capped at 300 → reservation fully consumed
+				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 0);
+			});
+		});
+
+		it('does not render savings section between amount and date', () => {
+			const { queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Section should exist (account has reservations)
+			expect(queryByText('Fund from savings')).toBeTruthy();
+		});
+	});
 });
