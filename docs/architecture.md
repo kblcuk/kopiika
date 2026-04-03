@@ -64,7 +64,7 @@ Dragging one entity onto another opens a transaction modal — except `Account -
 
 Behavioral expectations:
 
-- `Account -> Category`: empty amount field; optional "fund from savings" section lets the user release reserved money into the transaction total
+- `Account -> Category`: empty amount field; optional "fund from savings" section (below note) lets the user source the entered amount from savings reservations — the transaction total stays as entered
 - `Account -> Saving`: opens the reservation modal to set/update the earmarked amount (no transaction created)
 - `Income -> Account`: suggest remaining planned income
 - No validation should block a transaction solely because it exceeds a plan
@@ -76,7 +76,7 @@ A reservation earmarks a portion of an account's balance for a savings goal. The
 
 - Creating/updating: drag an account onto a saving, or edit the amount in the reservation modal.
 - Viewing/editing from saving detail: the saving entity's edit modal shows a "Reserved from" section listing all accounts with reservations for that saving. Tapping a row opens the reservation modal for that account–saving pair.
-- Releasing: when creating a transaction from an account, the "fund from savings" section shows existing reservations as checkboxes. Checked amounts are added to the transaction total and the reservation is reduced (or deleted if fully released).
+- Releasing: when creating a transaction from an account, the "fund from savings" section (below the note field) shows existing reservations as checkboxes. Checking a reservation sources the entered transaction amount from savings — the transaction total stays as entered, and the reservation is reduced by the funded amount (or deleted if fully released).
 - Deletion: setting amount to 0 deletes the row. FK `ON DELETE CASCADE` cleans up when either entity is deleted. CSV import clears all reservations.
 
 ## Visual and Accessibility Principles
