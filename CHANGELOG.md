@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.8](https://codeberg.org/kblcuk/kopiika/compare/v0.2.7...v0.2.8) (2026-04-03)
+
+
+### Bug Fixes
+
+* **create-modal:** Move hooks above early return and add bunfig ([a858cb8](https://codeberg.org/kblcuk/kopiika/commit/a858cb8f595e62aec9e8c5159cbe4e8ee194f0c1))
+* **entity:** Hide remaining for unplanned entities ([0955153](https://codeberg.org/kblcuk/kopiika/commit/0955153927b24996f6d2f61a4d193ac40796232c))
+* **fastlane:** Stabilize match signing setup ([241423f](https://codeberg.org/kblcuk/kopiika/commit/241423f3e9c1364b5d9a4abb609ddad6f17563d3))
+* **income:** Polish dashboard bubble, progress ring, and edit mode ([a5473ce](https://codeberg.org/kblcuk/kopiika/commit/a5473ce219bba4876f5aabcd192828632fb1efc6))
+
 ## [0.2.7](https://codeberg.org/kblcuk/kopiika/compare/v0.2.6...v0.2.7) (2026-03-23)
 
 ### Bug Fixes
