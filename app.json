@@ -36,6 +36,15 @@
 		"plugins": [
 			"expo-router",
 			[
+				"./plugins/with-match-signing",
+				{
+					"targetName": "kopiika",
+					"appleTeamId": "N84BXWAR5B",
+					"developmentProfileName": "match Development com.kblcuk.kopiika",
+					"distributionProfileName": "match AppStore com.kblcuk.kopiika"
+				}
+			],
+			[
 				"expo-splash-screen",
 				{
 					"image": "./assets/images/splash-icon.png",
