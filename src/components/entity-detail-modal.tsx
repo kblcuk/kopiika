@@ -320,9 +320,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									setSelectedIcon(icon);
 									setShowIconPicker(false);
 								}}
-								searchInputTestID="entity-detail-icon-search-input"
 								optionTestIDPrefix="entity-detail-icon-option"
-								emptyStateTestID="entity-detail-icon-empty-state"
 							/>
 						</View>
 					)}

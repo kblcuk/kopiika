@@ -159,11 +159,10 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			await waitFor(() => {
-				jest.advanceTimersByTime(400);
-				expect(getByText('Salary')).toBeTruthy();
-				expect(queryByText('Old Checking')).toBeNull();
-			});
+			// User taps From bubble to open entity picker
+			fireEvent.press(getByText('From'));
+			expect(getByText('Salary')).toBeTruthy();
+			expect(queryByText('Old Checking')).toBeNull();
 		});
 	});
 
@@ -1335,8 +1334,8 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			// From-entity picker auto-opens
-			await act(async () => jest.advanceTimersByTime(400));
+			// User taps From bubble to open entity picker
+			fireEvent.press(getByText('From'));
 			fireEvent.press(getByText('Salary'));
 
 			// To-entity picker auto-opens
@@ -1377,7 +1376,8 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			await act(async () => jest.advanceTimersByTime(400));
+			// User taps From bubble to open entity picker
+			fireEvent.press(getByText('From'));
 			fireEvent.press(getByText('Checking'));
 
 			await act(async () => jest.advanceTimersByTime(400));
@@ -1405,7 +1405,7 @@ describe('TransactionModal', () => {
 				addTransaction: jest.fn(),
 			});
 
-			const { getByTestId, getByText, rerender } = render(
+			const { getByTestId, getByText, queryByText, rerender } = render(
 				<TransactionModal
 					visible={true}
 					fromEntity={null}
@@ -1416,7 +1416,7 @@ describe('TransactionModal', () => {
 			);
 
 			// Complete first flow: pick entities + type amount
-			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('From'));
 			fireEvent.press(getByText('Salary'));
 			await act(async () => jest.advanceTimersByTime(400));
 			fireEvent.press(getByText('Checking'));
@@ -1449,9 +1449,11 @@ describe('TransactionModal', () => {
 			const amountInput = getByTestId('transaction-amount-input');
 			expect(amountInput.props.value).toBe('');
 
-			// From-entity picker should auto-open again (entities visible)
+			// From/To placeholders should be visible, picker should NOT auto-open
+			expect(getByText('From')).toBeTruthy();
+			expect(getByText('To')).toBeTruthy();
 			await act(async () => jest.advanceTimersByTime(400));
-			expect(getByText('Salary')).toBeTruthy();
+			expect(queryByText('Salary')).toBeNull();
 		});
 	});
 });

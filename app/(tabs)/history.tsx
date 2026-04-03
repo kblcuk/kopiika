@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { View, Text, SectionList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useStore } from '@/src/store';
@@ -64,13 +64,18 @@ function groupTransactionsByDay(transactions: Transaction[]): TransactionSection
 
 export default function HistoryScreen() {
 	const params = useLocalSearchParams<{ period?: string; entityId?: string }>();
-	const router = useRouter();
+
 	const [selectedPeriod, setSelectedPeriod] = useState(params.period || getCurrentPeriod());
 	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
 		params.entityId || null
 	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const deferredPeriod = useDeferredValue(selectedPeriod);
+	const paramsRef = useRef(params);
+	paramsRef.current = params;
+	// Tracks the entityId we applied on the last focus so that the same
+	// stale URL param on a subsequent tab-press is treated as "no filter".
+	const lastAppliedEntityId = useRef<string | null>(null);
 
 	const { transactions, entities } = useStore(
 		useShallow((state) => ({
@@ -79,16 +84,23 @@ export default function HistoryScreen() {
 		}))
 	);
 
-	// Apply URL params on focus, clear on blur
+	// On every focus: apply period from URL. For entityId, only apply it if
+	// it's a *new* value we haven't seen before (fresh navigation from an
+	// entity). If it matches what we applied last time, the URL is stale
+	// (user returned via tab bar) and we reset to All Entities instead.
 	useFocusEffect(
 		useCallback(() => {
-			setSelectedPeriod(params.period || getCurrentPeriod());
-			setSelectedEntityId(params.entityId || null);
+			const { entityId, period } = paramsRef.current;
+			setSelectedPeriod(period || getCurrentPeriod());
 
-			return () => {
-				router.setParams({ period: '', entityId: '' });
-			};
-		}, [params.period, params.entityId, router])
+			if (entityId && entityId !== lastAppliedEntityId.current) {
+				setSelectedEntityId(entityId);
+				lastAppliedEntityId.current = entityId;
+			} else {
+				setSelectedEntityId(null);
+				lastAppliedEntityId.current = null;
+			}
+		}, [])
 	);
 
 	const isStale = deferredPeriod !== selectedPeriod;

@@ -218,9 +218,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							icons={iconOptions}
 							selectedIcon={selectedIcon}
 							onSelect={setSelectedIcon}
-							searchInputTestID="entity-create-icon-search-input"
 							optionTestIDPrefix="entity-create-icon-option"
-							emptyStateTestID="entity-create-icon-empty-state"
 						/>
 					</View>
 
