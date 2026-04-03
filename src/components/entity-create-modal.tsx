@@ -120,7 +120,17 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 
 		onClose();
-	}, [entityType, name, selectedIcon, plannedAmount, entities, addEntity, setPlan, currentPeriod, onClose]);
+	}, [
+		entityType,
+		name,
+		selectedIcon,
+		plannedAmount,
+		entities,
+		addEntity,
+		setPlan,
+		currentPeriod,
+		onClose,
+	]);
 
 	const handleCreatePress = useCallback(async () => {
 		// Physical iOS devices can swallow the first header onPress while dismissing

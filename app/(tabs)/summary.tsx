@@ -42,7 +42,11 @@ function MiniSparkline({ values, planned }: { values: number[]; planned: number 
 				const isCurrent = i === values.length - 1;
 				const isOver = planned > 0 && val > planned;
 				const heightPx = Math.max(2, Math.round((val / max) * 18));
-				const color = isOver ? colors.negative.DEFAULT : planned > 0 ? colors.positive.DEFAULT : colors.ink.placeholder;
+				const color = isOver
+					? colors.negative.DEFAULT
+					: planned > 0
+						? colors.positive.DEFAULT
+						: colors.ink.placeholder;
 				const opacity = isCurrent ? 1 : 0.25 + (i / (values.length - 1)) * 0.45;
 				return (
 					<View

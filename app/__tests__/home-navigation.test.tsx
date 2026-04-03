@@ -239,5 +239,4 @@ describe('HomeScreen entity interactions', () => {
 			expect(mockPush).not.toHaveBeenCalled();
 		});
 	});
-
 });
