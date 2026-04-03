@@ -251,7 +251,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		category: 'Expense Category',
 		saving: 'Savings Goal',
 	}[entity.type];
-	const shouldShowRemaining = entity.type !== 'account' && entity.planned > 0;
+	const shouldShowRemaining =
+		entity.type !== 'account' && entity.type !== 'income' && entity.planned > 0;
 
 	return (
 		<Modal

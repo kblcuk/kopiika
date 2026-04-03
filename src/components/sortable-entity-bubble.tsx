@@ -53,10 +53,11 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const progress = getProgressPercent(entity.actual, entity.planned);
 	const IconComponent = getIcon(entity.icon || 'circle');
 	const typeColors = getEntityTypeColors(entity.type);
+	const isIncome = entity.type === 'income';
 	const isAccount = entity.type === 'account';
 	const available = isAccount ? entity.actual - (entity.reserved ?? 0) : 0;
 	const mainAmount = formatAmount(
-		entity.type === 'income' ? entity.remaining : isAccount ? available : entity.actual
+		isIncome ? Math.max(0, entity.actual) : isAccount ? available : entity.actual
 	);
 
 	// Get hovered ID shared value from context
@@ -161,7 +162,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 									strokeWidth={3}
 									progress={progress}
 									planned={entity.planned}
-									inverse={entity.type === 'saving'}
+									inverse={isIncome || entity.type === 'saving'}
 								/>
 							</View>
 						)}
@@ -175,13 +176,19 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 					<View className="mt-2 items-center">
 						<Text
 							className={`font-sans-semibold text-sm ${
-								isAccount
-									? available < 0
-										? 'text-negative'
+								isIncome
+									? entity.planned > 0
+										? entity.actual >= entity.planned
+											? 'text-positive'
+											: 'text-negative'
 										: 'text-ink'
-									: overspent
-										? 'text-negative'
-										: 'text-ink'
+									: isAccount
+										? available < 0
+											? 'text-negative'
+											: 'text-ink'
+										: overspent
+											? 'text-negative'
+											: 'text-ink'
 							}`}
 						>
 							{mainAmount}

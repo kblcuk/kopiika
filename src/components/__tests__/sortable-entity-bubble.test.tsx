@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 
 import { SortableEntityBubble } from '../sortable-entity-bubble';
+import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
 import type { EntityWithBalance } from '@/src/types';
 
 let latestHandleMode: 'draggable' | 'fixed-order' | 'non-draggable' | undefined;
@@ -116,5 +117,73 @@ describe('SortableEntityBubble', () => {
 		// No touch-down/up mode flip — activation race eliminated
 		expect(latestTouchableProps?.onTouchesDown).toBeUndefined();
 		expect(latestTouchableProps?.onTouchesUp).toBeUndefined();
+	});
+
+	describe('Income bubble display', () => {
+		const incomeEntity: EntityWithBalance = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'EUR',
+			icon: 'briefcase',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 3000,
+			planned: 5000,
+			remaining: 2000,
+			upcoming: 0,
+		};
+
+		it('shows actual amount instead of remaining', () => {
+			const { getByText } = render(<SortableEntityBubble entity={incomeEntity} />);
+
+			// Should show actual (3,000.00), not remaining (2,000.00)
+			expect(getByText('3,000.00')).toBeTruthy();
+		});
+
+		it('shows red text when actual is below planned', () => {
+			const { getByText } = render(<SortableEntityBubble entity={incomeEntity} />);
+
+			const amountText = getByText('3,000.00');
+			expect(amountText.props.className).toContain('text-negative');
+		});
+
+		it('shows green text when actual meets planned', () => {
+			const metTarget = { ...incomeEntity, actual: 5000, remaining: 0 };
+			const { getAllByText } = render(<SortableEntityBubble entity={metTarget} />);
+
+			// Both main and planned show 5,000.00; main amount is the first (semibold)
+			const matches = getAllByText('5,000.00');
+			const mainAmount = matches.find((el) =>
+				el.props.className?.includes('font-sans-semibold')
+			);
+			expect(mainAmount?.props.className).toContain('text-positive');
+		});
+
+		it('shows green text when actual exceeds planned', () => {
+			const exceededTarget = { ...incomeEntity, actual: 6000, remaining: -1000 };
+			const { getByText } = render(<SortableEntityBubble entity={exceededTarget} />);
+
+			const amountText = getByText('6,000.00');
+			expect(amountText.props.className).toContain('text-positive');
+		});
+
+		it('shows default ink color when no plan is set', () => {
+			const noPlan = { ...incomeEntity, planned: 0, remaining: -3000 };
+			const { getByText } = render(<SortableEntityBubble entity={noPlan} />);
+
+			const amountText = getByText('3,000.00');
+			expect(amountText.props.className).toContain('text-ink');
+			expect(amountText.props.className).not.toContain('text-negative');
+			expect(amountText.props.className).not.toContain('text-positive');
+		});
+
+		it('clamps negative actual to zero', () => {
+			const negativeActual = { ...incomeEntity, actual: -100, remaining: 5100 };
+			const { getByText } = render(<SortableEntityBubble entity={negativeActual} />);
+
+			expect(getByText('0.00')).toBeTruthy();
+		});
 	});
 });

@@ -4,212 +4,195 @@ All notable changes to this project will be documented in this file. See [commit
 
 ## [0.2.7](https://codeberg.org/kblcuk/kopiika/compare/v0.2.6...v0.2.7) (2026-03-23)
 
-
 ### Bug Fixes
 
-* **fastlane:** prevent match from hanging on SSH auth failures ([0a2428a](https://codeberg.org/kblcuk/kopiika/commit/0a2428a34131456f2adae92160e5eb1c17aa8d20))
-* **fastlane:** skip beta lanes when build already published ([4d17b19](https://codeberg.org/kblcuk/kopiika/commit/4d17b1948d7f5e7818877074a1df567014f1fb80))
-* **quickadd:** reset transaction modal state on repeated tab visits ([0169e72](https://codeberg.org/kblcuk/kopiika/commit/0169e726c8a943981bd5a9b8acdc11277e502a45))
+- **fastlane:** prevent match from hanging on SSH auth failures ([0a2428a](https://codeberg.org/kblcuk/kopiika/commit/0a2428a34131456f2adae92160e5eb1c17aa8d20))
+- **fastlane:** skip beta lanes when build already published ([4d17b19](https://codeberg.org/kblcuk/kopiika/commit/4d17b1948d7f5e7818877074a1df567014f1fb80))
+- **quickadd:** reset transaction modal state on repeated tab visits ([0169e72](https://codeberg.org/kblcuk/kopiika/commit/0169e726c8a943981bd5a9b8acdc11277e502a45))
 
 ## [0.2.6](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.6) (2026-03-22)
 
+### Bug Fixes
+
+- **dnd:** eliminate activation race and improve drag/scroll separation ([4d6122c](https://codeberg.org/kblcuk/kopiika/commit/4d6122c7a305774d71e93a33bbb087f3b643a45b))
+- **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
+- **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
+
+=======
+
+## [0.2.6](https://codeberg.org/kblcuk/kopiika/compare/v0.2.5...v0.2.6) (2026-03-15)
 
 ### Bug Fixes
 
-* **dnd:** eliminate activation race and improve drag/scroll separation ([4d6122c](https://codeberg.org/kblcuk/kopiika/commit/4d6122c7a305774d71e93a33bbb087f3b643a45b))
-* **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
-* **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
+- **entity:** Hide remaining for unplanned entities ([afe4828](https://codeberg.org/kblcuk/kopiika/commit/afe4828283a4b8c6d050acc86a28e582e20715fb))
+- **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
 
 ## [0.2.5](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.5) (2026-03-14)
 
-
 ### Bug Fixes
 
-* **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
+- **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
 
 ## [0.2.4](https://codeberg.org/kblcuk/kopiika/compare/v0.2.3...v0.2.4) (2026-03-14)
 
-
 ### Features
 
-* **entities:** Preserve history for deleted items ([3a50415](https://codeberg.org/kblcuk/kopiika/commit/3a504154e8e31024f45ee1f184691b3df152cf6d))
-
+- **entities:** Preserve history for deleted items ([3a50415](https://codeberg.org/kblcuk/kopiika/commit/3a504154e8e31024f45ee1f184691b3df152cf6d))
 
 ### Bug Fixes
 
-* **plans:** Align all-time plan semantics ([3997946](https://codeberg.org/kblcuk/kopiika/commit/399794635a2e3140315f6eb73b4e2626e959f251))
+- **plans:** Align all-time plan semantics ([3997946](https://codeberg.org/kblcuk/kopiika/commit/399794635a2e3140315f6eb73b4e2626e959f251))
 
 ## [0.2.3](https://codeberg.org/kblcuk/kopiika/compare/v0.2.2...v0.2.3) (2026-03-13)
 
-
 ### Bug Fixes
 
-* **drag:** Prevent accidental reorder in transaction mode ([0aecb2a](https://codeberg.org/kblcuk/kopiika/commit/0aecb2a33b3712d14147c46b30263481b98dc39d))
-* **ui:** a bit more space between entity title and bubble ([cd16547](https://codeberg.org/kblcuk/kopiika/commit/cd16547e450933e41d70fee97793c6570aa432af))
-* **ux:** actually disable auto-capitalization ([afd9fb9](https://codeberg.org/kblcuk/kopiika/commit/afd9fb941d8d0530783df72df6fc42eed7f1e6fe))
+- **drag:** Prevent accidental reorder in transaction mode ([0aecb2a](https://codeberg.org/kblcuk/kopiika/commit/0aecb2a33b3712d14147c46b30263481b98dc39d))
+- **ui:** a bit more space between entity title and bubble ([cd16547](https://codeberg.org/kblcuk/kopiika/commit/cd16547e450933e41d70fee97793c6570aa432af))
+- **ux:** actually disable auto-capitalization ([afd9fb9](https://codeberg.org/kblcuk/kopiika/commit/afd9fb941d8d0530783df72df6fc42eed7f1e6fe))
 
 ## [0.2.2](https://codeberg.org/kblcuk/kopiika/compare/v0.2.1...v0.2.2) (2026-03-13)
 
-
 ### Features
 
-* **release:** orchestrate parallel iOS + Android builds with mise ([b8175b3](https://codeberg.org/kblcuk/kopiika/commit/b8175b370912e87c11646af8c27f42c3a8eca86c))
-
+- **release:** orchestrate parallel iOS + Android builds with mise ([b8175b3](https://codeberg.org/kblcuk/kopiika/commit/b8175b370912e87c11646af8c27f42c3a8eca86c))
 
 ### Bug Fixes
 
-* **android:** Upload only AAB artifacts to Play ([c17e552](https://codeberg.org/kblcuk/kopiika/commit/c17e55266976f655af4e76bc4589723a1bc53663))
-* **dashboard:** Restrict entity reordering to edit mode ([b4b612b](https://codeberg.org/kblcuk/kopiika/commit/b4b612b4548eb005eca76637717bf90fa569bc6a))
-* **dashboard:** Wrap long entity names in bubbles ([ff70792](https://codeberg.org/kblcuk/kopiika/commit/ff70792af85bd3fc2144830453264808e0228a2b))
-* **release:** Sync version metadata before release builds ([634a4bf](https://codeberg.org/kblcuk/kopiika/commit/634a4bf690398b9d156a7b0906adfc382e217992))
-* **startup:** Remove duplicate app initialization paths ([2f66cb3](https://codeberg.org/kblcuk/kopiika/commit/2f66cb341ad900ada5b03e6eb0e3385e13613163))
-* **ux:** disable auto-capitalization ([33f4e3b](https://codeberg.org/kblcuk/kopiika/commit/33f4e3be73b0552a2d1394d5d4aab2894724a861))
+- **android:** Upload only AAB artifacts to Play ([c17e552](https://codeberg.org/kblcuk/kopiika/commit/c17e55266976f655af4e76bc4589723a1bc53663))
+- **dashboard:** Restrict entity reordering to edit mode ([b4b612b](https://codeberg.org/kblcuk/kopiika/commit/b4b612b4548eb005eca76637717bf90fa569bc6a))
+- **dashboard:** Wrap long entity names in bubbles ([ff70792](https://codeberg.org/kblcuk/kopiika/commit/ff70792af85bd3fc2144830453264808e0228a2b))
+- **release:** Sync version metadata before release builds ([634a4bf](https://codeberg.org/kblcuk/kopiika/commit/634a4bf690398b9d156a7b0906adfc382e217992))
+- **startup:** Remove duplicate app initialization paths ([2f66cb3](https://codeberg.org/kblcuk/kopiika/commit/2f66cb341ad900ada5b03e6eb0e3385e13613163))
+- **ux:** disable auto-capitalization ([33f4e3b](https://codeberg.org/kblcuk/kopiika/commit/33f4e3be73b0552a2d1394d5d4aab2894724a861))
 
 ## [0.2.1](https://codeberg.org/kblcuk/kopiika/compare/v0.2.0...v0.2.1) (2026-03-13)
 
-
 ### Features
 
-* **release:** in-app changelog modal, store release notes, and Telegram notifications ([08fcfd7](https://codeberg.org/kblcuk/kopiika/commit/08fcfd7a91f5ab24626c08d7fc583b11b3089906))
-* **savings:** show reservations in saving entity detail modal ([2e2eeb1](https://codeberg.org/kblcuk/kopiika/commit/2e2eeb13cf5bfb597d7ffe9f63cbb03f7e9c1bf6))
+- **release:** in-app changelog modal, store release notes, and Telegram notifications ([08fcfd7](https://codeberg.org/kblcuk/kopiika/commit/08fcfd7a91f5ab24626c08d7fc583b11b3089906))
+- **savings:** show reservations in saving entity detail modal ([2e2eeb1](https://codeberg.org/kblcuk/kopiika/commit/2e2eeb13cf5bfb597d7ffe9f63cbb03f7e9c1bf6))
 
 ## [0.2.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.2.0) (2026-03-13)
 
-
 ### Features
 
-* **db:** add reservations table with migration and CRUD operations ([4b4a3f2](https://codeberg.org/kblcuk/kopiika/commit/4b4a3f2ffdd1a35bb10fa292b512dfc8cb9a8e69))
-* **savings:** add reservation modal for account-to-saving drag ([9cb7b2a](https://codeberg.org/kblcuk/kopiika/commit/9cb7b2ab884e61cec8776a3d1b812530ade06854))
-* **savings:** fund from savings when creating transactions ([554d817](https://codeberg.org/kblcuk/kopiika/commit/554d8170093b875acd8779ddb9323d077aa208c1))
-* **store:** integrate reservations into state and balance calculation ([3519c85](https://codeberg.org/kblcuk/kopiika/commit/3519c8520aac217ccff03aa3bc6a72a23ee00031))
-* **ui:** account bubbles show available/total instead of planned ([2817b61](https://codeberg.org/kblcuk/kopiika/commit/2817b61b98f1170145e17e155690ed6ce41e381b))
-* **ui:** account edit modal shows available instead of planned/remaining ([e89a573](https://codeberg.org/kblcuk/kopiika/commit/e89a5739f8ebc96dafb0b05d4a884717e8e1f6af))
-* **ui:** show reserved amount on account entity bubbles ([1365625](https://codeberg.org/kblcuk/kopiika/commit/1365625aa7a613ff7832ae6cff33b4201ac93cae))
-
+- **db:** add reservations table with migration and CRUD operations ([4b4a3f2](https://codeberg.org/kblcuk/kopiika/commit/4b4a3f2ffdd1a35bb10fa292b512dfc8cb9a8e69))
+- **savings:** add reservation modal for account-to-saving drag ([9cb7b2a](https://codeberg.org/kblcuk/kopiika/commit/9cb7b2ab884e61cec8776a3d1b812530ade06854))
+- **savings:** fund from savings when creating transactions ([554d817](https://codeberg.org/kblcuk/kopiika/commit/554d8170093b875acd8779ddb9323d077aa208c1))
+- **store:** integrate reservations into state and balance calculation ([3519c85](https://codeberg.org/kblcuk/kopiika/commit/3519c8520aac217ccff03aa3bc6a72a23ee00031))
+- **ui:** account bubbles show available/total instead of planned ([2817b61](https://codeberg.org/kblcuk/kopiika/commit/2817b61b98f1170145e17e155690ed6ce41e381b))
+- **ui:** account edit modal shows available instead of planned/remaining ([e89a573](https://codeberg.org/kblcuk/kopiika/commit/e89a5739f8ebc96dafb0b05d4a884717e8e1f6af))
+- **ui:** show reserved amount on account entity bubbles ([1365625](https://codeberg.org/kblcuk/kopiika/commit/1365625aa7a613ff7832ae6cff33b4201ac93cae))
 
 ### Bug Fixes
 
-* **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
-* default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
-* **history:** scope upcoming transactions to selected period ([ed856fa](https://codeberg.org/kblcuk/kopiika/commit/ed856fa8793bf8ee30ab6c31e823f13ad66d7f58))
-* **savings:** block outgoing transactions from savings entities ([6477fb5](https://codeberg.org/kblcuk/kopiika/commit/6477fb53fcc981867bf5a01d9f14507227a4d36e))
-* **savings:** block outgoing transactions from savings via drag-and-drop ([402fdb9](https://codeberg.org/kblcuk/kopiika/commit/402fdb961b8f3fb86dd14b838108d858664e011c))
-* **savings:** review fixes — drop PK mutation on upsert, add reservation tests ([bcbc2aa](https://codeberg.org/kblcuk/kopiika/commit/bcbc2aa8b3b8b0941fb779bd87b3c88ce04da281))
-* **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
+- **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
+- default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
+- **history:** scope upcoming transactions to selected period ([ed856fa](https://codeberg.org/kblcuk/kopiika/commit/ed856fa8793bf8ee30ab6c31e823f13ad66d7f58))
+- **savings:** block outgoing transactions from savings entities ([6477fb5](https://codeberg.org/kblcuk/kopiika/commit/6477fb53fcc981867bf5a01d9f14507227a4d36e))
+- **savings:** block outgoing transactions from savings via drag-and-drop ([402fdb9](https://codeberg.org/kblcuk/kopiika/commit/402fdb961b8f3fb86dd14b838108d858664e011c))
+- **savings:** review fixes — drop PK mutation on upsert, add reservation tests ([bcbc2aa](https://codeberg.org/kblcuk/kopiika/commit/bcbc2aa8b3b8b0941fb779bd87b3c88ce04da281))
+- **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
 
 ## [0.1.0](https://codeberg.org/kblcuk/kopiika/compare/v0.0.23...v0.1.0) (2026-03-08)
 
-
 ### Bug Fixes
 
-* **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
-* default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
-* **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
+- **android:** Normalize custom text input metrics ([6fff675](https://codeberg.org/kblcuk/kopiika/commit/6fff67549eca9d567b8517c4dbeab6130648ed84))
+- default to build 0 for ios ([c8f67ef](https://codeberg.org/kblcuk/kopiika/commit/c8f67ef92e384787d04bf6d036e15ad5a25b7834))
+- **ui:** Normalize entity input sizing ([ae09184](https://codeberg.org/kblcuk/kopiika/commit/ae0918481cf8417d312391bd87e2c00bf1c06e76))
 
 ## [0.0.23](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.23) (2026-03-08)
 
-
 ### Features
 
-* **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
-* privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
-* **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
-* **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
-
+- **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
+- privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
+- **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
+- **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
 
 ### Bug Fixes
 
-* **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
+- **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
 
 ## [0.0.22](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.22) (2026-03-08)
 
-
 ### Features
 
-* **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
-* privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
-* **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
-* **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
-
+- **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
+- privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
+- **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
+- **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
 
 ### Bug Fixes
 
-* **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
+- **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
 
 ## [0.0.21](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.21) (2026-03-07)
 
-
 ### Features
 
-* privacy policy link ([262bacf](https://codeberg.org/kblcuk/kopiika/commit/262bacfbfc8b63275783a2f05b3cd7d61881440f))
-* **release:** Add Android Play Fastlane pipeline ([8ceb3d6](https://codeberg.org/kblcuk/kopiika/commit/8ceb3d6c5782ceb219c13759c415b41f6e289022))
-
+- privacy policy link ([262bacf](https://codeberg.org/kblcuk/kopiika/commit/262bacfbfc8b63275783a2f05b3cd7d61881440f))
+- **release:** Add Android Play Fastlane pipeline ([8ceb3d6](https://codeberg.org/kblcuk/kopiika/commit/8ceb3d6c5782ceb219c13759c415b41f6e289022))
 
 ### Bug Fixes
 
-* **interactions:** unify entity editing behind section edit mode ([1bf9db0](https://codeberg.org/kblcuk/kopiika/commit/1bf9db0b653281016145ec34a729eed2f899ec21))
+- **interactions:** unify entity editing behind section edit mode ([1bf9db0](https://codeberg.org/kblcuk/kopiika/commit/1bf9db0b653281016145ec34a729eed2f899ec21))
 
 ## [0.0.20](https://codeberg.org/kblcuk/kopiika/compare/v0.0.19...v0.0.20) (2026-03-05)
 
-
 ### Features
 
-* add hysteresis utility for drag boundary detection ([2a27933](https://codeberg.org/kblcuk/kopiika/commit/2a279334c86d85cf21bc7887260c3b9e9f8d60f9))
-
+- add hysteresis utility for drag boundary detection ([2a27933](https://codeberg.org/kblcuk/kopiika/commit/2a279334c86d85cf21bc7887260c3b9e9f8d60f9))
 
 ### Bug Fixes
 
-* eliminate drag mode jitter near grid boundaries ([507f991](https://codeberg.org/kblcuk/kopiika/commit/507f991fa6578b081f4e37e2ddd5b2d29e214aa5))
-* pin gradle to exact version ([dcfda2b](https://codeberg.org/kblcuk/kopiika/commit/dcfda2b63e132acbc2765e47ce62c69a12a90441))
-* scope TestFlight build number to current app version ([56611ff](https://codeberg.org/kblcuk/kopiika/commit/56611ffe1401c6d99a5197be7b25528c851e3708))
+- eliminate drag mode jitter near grid boundaries ([507f991](https://codeberg.org/kblcuk/kopiika/commit/507f991fa6578b081f4e37e2ddd5b2d29e214aa5))
+- pin gradle to exact version ([dcfda2b](https://codeberg.org/kblcuk/kopiika/commit/dcfda2b63e132acbc2765e47ce62c69a12a90441))
+- scope TestFlight build number to current app version ([56611ff](https://codeberg.org/kblcuk/kopiika/commit/56611ffe1401c6d99a5197be7b25528c851e3708))
 
 ## [0.0.19](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.19) (2026-03-01)
 
-
 ### Features
 
-* add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
-* add scheduled transaction support ([5bdc4b1](https://codeberg.org/kblcuk/kopiika/commit/5bdc4b1f4cc54cc198ac0278fd470eaea548f378))
-* history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
-* make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
-
+- add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
+- add scheduled transaction support ([5bdc4b1](https://codeberg.org/kblcuk/kopiika/commit/5bdc4b1f4cc54cc198ac0278fd470eaea548f378))
+- history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
+- make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
 
 ### Bug Fixes
 
-* move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
-* summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
-* use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
+- move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
+- summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
+- use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
 
 ## [0.0.18](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.18) (2026-03-01)
 
-
 ### Features
 
-* add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
-* add scheduled transaction support ([5bdc4b1](https://codeberg.org/kblcuk/kopiika/commit/5bdc4b1f4cc54cc198ac0278fd470eaea548f378))
-* history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
-* make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
-
+- add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
+- add scheduled transaction support ([5bdc4b1](https://codeberg.org/kblcuk/kopiika/commit/5bdc4b1f4cc54cc198ac0278fd470eaea548f378))
+- history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
+- make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
 
 ### Bug Fixes
 
-* move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
-* summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
-* use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
+- move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
+- summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
+- use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
 
 ## [0.0.17](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.17) (2026-02-21)
 
-
 ### Features
 
-* add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
-* history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
-* make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
-
+- add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
+- history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
+- make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
 
 ### Bug Fixes
 
-* summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
+- summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
 
 ## [0.0.16](https://codeberg.org/kblcuk/kopiika/compare/v0.0.15...v0.0.16) (2026-02-19)
 

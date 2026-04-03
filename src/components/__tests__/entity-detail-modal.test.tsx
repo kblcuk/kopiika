@@ -104,6 +104,26 @@ describe('EntityDetailModal', () => {
 			expect(queryByText('Remaining')).toBeNull();
 			expect(getByText(formatAmount(actual))).toBeTruthy();
 		});
+
+		it('never shows Remaining for income entities even with a plan', () => {
+			const { queryByText, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{
+						...mockEntity,
+						type: 'income',
+						name: 'Salary',
+						actual: 3000,
+						planned: 5000,
+						remaining: 2000,
+					}}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByText('Remaining')).toBeNull();
+			expect(getByText(formatAmount(3000))).toBeTruthy();
+		});
 	});
 
 	describe('Name Validation', () => {
