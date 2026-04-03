@@ -95,12 +95,7 @@ export function EntityIconPicker({
 								const icon = row[columnIndex];
 
 								if (!icon) {
-									return (
-										<View
-											key={`empty-${columnIndex}`}
-											className="flex-1"
-										/>
-									);
+									return <View key={`empty-${columnIndex}`} className="flex-1" />;
 								}
 
 								const IconComponent = getIcon(icon);
@@ -142,9 +137,7 @@ export function EntityIconPicker({
 
 			{showAll && canTogglePreview && (
 				<Pressable className="mt-3 self-start" onPress={() => setShowAll(false)}>
-					<Text className="font-sans-semibold text-sm text-accent">
-						Show less icons
-					</Text>
+					<Text className="font-sans-semibold text-sm text-accent">Show less icons</Text>
 				</Pressable>
 			)}
 		</View>

@@ -103,7 +103,7 @@ describe('HistoryScreen search params', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		mockParams = {};
-jest.useFakeTimers();
+		jest.useFakeTimers();
 		jest.setSystemTime(fixedNow);
 
 		useStore.setState({
