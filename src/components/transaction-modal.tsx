@@ -179,12 +179,7 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
-			if (quickAdd) {
-				// Auto-open from-entity picker after the modal slide animation settles
-				setTimeout(() => setShowFromSheet(true), 350);
-			} else {
-				setTimeout(() => inputRef.current?.focus(), 100);
-			}
+			setTimeout(() => inputRef.current?.focus(), 100);
 		}
 	}, [visible, existingTransaction, quickAdd]);
 

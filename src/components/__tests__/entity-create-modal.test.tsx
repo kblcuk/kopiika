@@ -49,6 +49,7 @@ describe('EntityCreateModal', () => {
 			expect(toJSON()).toBeNull();
 		});
 
+
 	});
 
 	describe('Entity Creation', () => {
@@ -212,7 +213,7 @@ describe('EntityCreateModal', () => {
 			expect(setPlanSpy).not.toHaveBeenCalled();
 		});
 
-		it('supports searching the broader icon catalog before create', async () => {
+		it('supports browsing the full icon catalog before create', async () => {
 			const addEntitySpy = jest.fn();
 			const setPlanSpy = jest.fn();
 			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
@@ -224,10 +225,9 @@ describe('EntityCreateModal', () => {
 			expect(queryByTestId('entity-create-icon-option-shield')).toBeNull();
 			expect(getByText(`Show all ${ICON_OPTIONS.income.length} icons`)).toBeTruthy();
 
-			fireEvent.changeText(getByTestId('entity-create-icon-search-input'), 'shield');
+			fireEvent.press(getByText(`Show all ${ICON_OPTIONS.income.length} icons`));
 
 			expect(getByTestId('entity-create-icon-option-shield')).toBeTruthy();
-			expect(queryByTestId('entity-create-icon-option-wallet')).toBeNull();
 
 			fireEvent.press(getByTestId('entity-create-icon-option-shield'));
 			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Safety Net');

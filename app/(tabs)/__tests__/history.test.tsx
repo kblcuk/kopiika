@@ -1,31 +1,29 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, act } from '@testing-library/react-native';
 import HistoryScreen from '../history';
 import { useStore } from '@/src/store';
 import type { Entity, Transaction } from '@/src/types';
 
-const mockSetParams = jest.fn();
 let mockParams: { period?: string; entityId?: string } = {};
 const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
 
 jest.mock('expo-router', () => ({
 	useLocalSearchParams: () => mockParams,
-	useRouter: () => ({ setParams: mockSetParams }),
 }));
 
-// Track blur callback for testing cleanup behavior
-let capturedBlurCallback: (() => void) | null = null;
+// Expose a handle to re-trigger focus on the mounted component
+let triggerFocus: (() => void) | null = null;
 
 jest.mock('@react-navigation/native', () => ({
 	useFocusEffect: (createCallback: () => (() => void) | void) => {
-		// Use React.useEffect to properly handle the focus effect mock
 		const React = jest.requireActual('react');
 		React.useEffect(() => {
+			triggerFocus = () => createCallback();
 			const cleanup = createCallback();
-			if (typeof cleanup === 'function') {
-				capturedBlurCallback = cleanup;
-			}
-			return cleanup;
+			return () => {
+				triggerFocus = null;
+				if (typeof cleanup === 'function') cleanup();
+			};
 		}, [createCallback]);
 	},
 }));
@@ -105,7 +103,6 @@ describe('HistoryScreen search params', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		mockParams = {};
-		capturedBlurCallback = null;
 		jest.useFakeTimers();
 		jest.setSystemTime(fixedNow);
 
@@ -146,43 +143,49 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
-	it('clears search params when navigating away (blur)', async () => {
+	it('resets to All Entities on second focus when URL params are stale', async () => {
+		// Simulate navigation from entity tap: entityId is in params
 		mockParams = { period: '2025-12', entityId: 'category-1' };
-
-		const { unmount } = render(<HistoryScreen />);
-
-		// Wait for effect to run and capture blur callback
-		await waitFor(() => {
-			expect(capturedBlurCallback).not.toBeNull();
-		});
-
-		// Simulate unmount/blur - the cleanup function should be called
-		unmount();
-
-		expect(mockSetParams).toHaveBeenCalledWith({ period: '', entityId: '' });
-	});
-
-	it('resets to defaults on next focus after params were cleared', async () => {
-		// First render with params
-		mockParams = { period: '2025-12', entityId: 'category-1' };
-		const { getByTestId, unmount } = render(<HistoryScreen />);
+		const { getByTestId } = render(<HistoryScreen />);
 
 		await waitFor(() => {
 			expect(getByTestId('entity-filter').props.children).toBe('category-1');
 		});
 
-		// Unmount triggers cleanup which clears params
-		unmount();
-		expect(mockSetParams).toHaveBeenCalledWith({ period: '', entityId: '' });
+		// Simulate user going to another tab and returning (second focus, same stale params)
+		act(() => {
+			triggerFocus?.();
+		});
 
-		// Simulate returning to history via tab bar (no params)
-		mockParams = {};
-		const { getByTestId: getByTestId2 } = render(<HistoryScreen />);
-
-		// Should show defaults since params were cleared
 		await waitFor(() => {
-			expect(getByTestId2('entity-filter').props.children).toBe('all');
-			expect(getByTestId2('period-picker').props.children).toMatch(/^\d{4}-\d{2}$/);
+			expect(getByTestId('entity-filter').props.children).toBe('all');
+		});
+	});
+
+	it('reapplies entity filter when navigating from entity after a reset', async () => {
+		mockParams = { entityId: 'category-1' };
+		const { getByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('entity-filter').props.children).toBe('category-1');
+		});
+
+		// Second focus (tab press) — resets
+		act(() => {
+			triggerFocus?.();
+		});
+
+		await waitFor(() => {
+			expect(getByTestId('entity-filter').props.children).toBe('all');
+		});
+
+		// Third focus — new navigation with same entityId (lastApplied was cleared)
+		act(() => {
+			triggerFocus?.();
+		});
+
+		await waitFor(() => {
+			expect(getByTestId('entity-filter').props.children).toBe('category-1');
 		});
 	});
 

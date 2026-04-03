@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "kopiika",
 		"slug": "kopiika",
-		"version": "0.2.8",
+		"version": "0.2.9",
 		"orientation": "portrait",
 		"icon": "./assets/images/icon.png",
 		"scheme": "kopiika",
@@ -26,7 +26,7 @@
 			},
 			"edgeToEdgeEnabled": true,
 			"package": "com.kblcuk.kopiika",
-			"versionCode": 15
+			"versionCode": 16
 		},
 		"web": {
 			"output": "static",

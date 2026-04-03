@@ -378,10 +378,7 @@ export function SortableEntityGrid({
 												<AddEntityBubble type={type} onPress={onAdd} />
 											</Sortable.Handle>
 										) : (
-											<SortableEntityBubble
-												entity={item}
-												onTap={onTap}
-											/>
+											<SortableEntityBubble entity={item} onTap={onTap} />
 										)
 									}
 									keyExtractor={(item: EntityWithBalance) => item.id}
