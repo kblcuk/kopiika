@@ -11,6 +11,7 @@ import {
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
 import { createTransaction, getAllTransactions } from '../transactions';
+import { upsertReservation, getAllReservations } from '../reservations';
 import { resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -369,7 +370,7 @@ describe('entities.ts', () => {
 			await upsertPlan({
 				id: 'plan-1',
 				entity_id: 'cascade-test',
-					period: 'all-time',
+				period: 'all-time',
 				period_start: '2025-01',
 				planned_amount: 1000,
 			});
@@ -423,6 +424,145 @@ describe('entities.ts', () => {
 			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
 			expect(await getAllTransactions()).toContainEqual(
 				expect.objectContaining({ id: transaction.id, to_entity_id: account.id })
+			);
+		});
+
+		test('should remove plans AND preserve transactions when both exist', async () => {
+			const income: Entity = {
+				id: 'inc-combo',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const category: Entity = {
+				id: 'cat-combo',
+				type: 'category',
+				name: 'Groceries',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			await createEntity(income);
+			await createEntity(category);
+
+			await upsertPlan({
+				id: 'plan-combo',
+				entity_id: category.id,
+				period: 'all-time',
+				period_start: '2025-01',
+				planned_amount: 500,
+			});
+			await createTransaction({
+				id: 'tx-combo',
+				from_entity_id: income.id,
+				to_entity_id: category.id,
+				amount: 200,
+				currency: 'USD',
+				timestamp: Date.now(),
+			});
+
+			await deleteEntity(category.id);
+
+			expect(await getEntityById(category.id)).toMatchObject({ is_deleted: true });
+			expect(await getPlanForEntity(category.id, '2025-01')).toBeNull();
+			expect(await getAllTransactions()).toContainEqual(
+				expect.objectContaining({ id: 'tx-combo', to_entity_id: category.id })
+			);
+		});
+
+		test('should remove reservations for deleted account and preserve transactions', async () => {
+			const income: Entity = {
+				id: 'inc-res',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const account: Entity = {
+				id: 'acc-res',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const saving: Entity = {
+				id: 'sav-res',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			await createEntity(income);
+			await createEntity(account);
+			await createEntity(saving);
+
+			await upsertReservation('res-1', account.id, saving.id, 300);
+			await createTransaction({
+				id: 'tx-res',
+				from_entity_id: income.id,
+				to_entity_id: account.id,
+				amount: 1000,
+				currency: 'USD',
+				timestamp: Date.now(),
+			});
+
+			await deleteEntity(account.id);
+
+			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
+			expect(await getAllReservations()).toEqual([]);
+			expect(await getAllTransactions()).toContainEqual(
+				expect.objectContaining({ id: 'tx-res' })
+			);
+		});
+
+		test('should remove reservations for deleted saving and preserve transactions', async () => {
+			const account: Entity = {
+				id: 'acc-sav',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const saving: Entity = {
+				id: 'sav-del',
+				type: 'saving',
+				name: 'Vacation',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			await createEntity(account);
+			await createEntity(saving);
+
+			await upsertReservation('res-sav', account.id, saving.id, 500);
+			await createTransaction({
+				id: 'tx-sav',
+				from_entity_id: account.id,
+				to_entity_id: saving.id,
+				amount: 200,
+				currency: 'USD',
+				timestamp: Date.now(),
+			});
+
+			await deleteEntity(saving.id);
+
+			expect(await getEntityById(saving.id)).toMatchObject({ is_deleted: true });
+			expect(await getAllReservations()).toEqual([]);
+			expect(await getAllTransactions()).toContainEqual(
+				expect.objectContaining({ id: 'tx-sav' })
 			);
 		});
 	});
