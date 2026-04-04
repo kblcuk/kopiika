@@ -72,10 +72,10 @@ export default function HomeScreen() {
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
 
-	// Refund picker state (category → account)
+	// Refund picker state — originalFrom/originalTo reflect the direction of original transactions
 	const [refundPickerVisible, setRefundPickerVisible] = useState(false);
-	const [refundAccount, setRefundAccount] = useState<EntityWithBalance | null>(null);
-	const [refundCategory, setRefundCategory] = useState<EntityWithBalance | null>(null);
+	const [refundOriginalFrom, setRefundOriginalFrom] = useState<EntityWithBalance | null>(null);
+	const [refundOriginalTo, setRefundOriginalTo] = useState<EntityWithBalance | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
 	// Detail modal state
@@ -148,10 +148,18 @@ export default function HomeScreen() {
 				return;
 			}
 
-			// Category → Account: open refund picker (select past transaction to edit)
+			// Category → Account: open refund picker (original: account → category)
 			if (entity.type === 'category' && targetEntity.type === 'account') {
-				setRefundCategory(entity);
-				setRefundAccount(targetEntity);
+				setRefundOriginalFrom(targetEntity);
+				setRefundOriginalTo(entity);
+				setRefundPickerVisible(true);
+				return;
+			}
+
+			// Account → Income: open refund picker (original: income → account)
+			if (entity.type === 'account' && targetEntity.type === 'income') {
+				setRefundOriginalFrom(targetEntity);
+				setRefundOriginalTo(entity);
 				setRefundPickerVisible(true);
 				return;
 			}
@@ -178,8 +186,8 @@ export default function HomeScreen() {
 		setFromEntity(null);
 		setToEntity(null);
 		setEditingTransaction(null);
-		setRefundAccount(null);
-		setRefundCategory(null);
+		setRefundOriginalFrom(null);
+		setRefundOriginalTo(null);
 	}, []);
 
 	const handleCloseReservationModal = useCallback(() => {
@@ -204,8 +212,8 @@ export default function HomeScreen() {
 
 	const handleCloseRefundPicker = useCallback(() => {
 		setRefundPickerVisible(false);
-		setRefundAccount(null);
-		setRefundCategory(null);
+		setRefundOriginalFrom(null);
+		setRefundOriginalTo(null);
 	}, []);
 
 	const handleTap = useCallback(
@@ -456,11 +464,11 @@ export default function HomeScreen() {
 				existingTransaction={editingTransaction ?? undefined}
 			/>
 
-			{/* Refund Picker Modal (category → account) */}
+			{/* Refund Picker Modal (category → account, account → income) */}
 			<RefundPickerModal
 				visible={refundPickerVisible}
-				account={refundAccount}
-				category={refundCategory}
+				originalFrom={refundOriginalFrom}
+				originalTo={refundOriginalTo}
 				onSelect={handleRefundSelect}
 				onClose={handleCloseRefundPicker}
 			/>

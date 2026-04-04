@@ -23,16 +23,18 @@ import { getEntityDisplayName } from '@/src/utils/entity-display';
 
 interface RefundPickerModalProps {
 	visible: boolean;
-	account: EntityWithBalance | null;
-	category: EntityWithBalance | null;
+	/** The entity that was the "from" in the original transaction (e.g. account for purchases, income for salary) */
+	originalFrom: EntityWithBalance | null;
+	/** The entity that was the "to" in the original transaction (e.g. category for purchases, account for salary) */
+	originalTo: EntityWithBalance | null;
 	onSelect: (transaction: Transaction) => void;
 	onClose: () => void;
 }
 
 export function RefundPickerModal({
 	visible,
-	account,
-	category,
+	originalFrom,
+	originalTo,
 	onSelect,
 	onClose,
 }: RefundPickerModalProps) {
@@ -42,17 +44,17 @@ export function RefundPickerModal({
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		if (visible && account && category) {
+		if (visible && originalFrom && originalTo) {
 			setLoading(true);
-			// Fetch account → category transactions (the original purchases)
-			getTransactionsBetweenEntities(account.id, category.id).then((txs) => {
+			// Fetch transactions in the original direction (e.g. account→category, income→account)
+			getTransactionsBetweenEntities(originalFrom.id, originalTo.id).then((txs) => {
 				setPastTransactions(txs);
 				setLoading(false);
 			});
 		} else {
 			setPastTransactions([]);
 		}
-	}, [visible, account, category]);
+	}, [visible, originalFrom, originalTo]);
 
 	const entityMap = new Map(entities.map((e) => [e.id, e]));
 
@@ -94,10 +96,10 @@ export function RefundPickerModal({
 							<X size={24} color={colors.ink.muted} />
 						</Pressable>
 					</View>
-					{account && category && (
+					{originalFrom && originalTo && (
 						<Text className="mt-1 font-sans text-sm text-ink-muted">
-							Past purchases from {getEntityDisplayName(account)} to{' '}
-							{getEntityDisplayName(category)}
+							Past transactions: {getEntityDisplayName(originalFrom)} →{' '}
+							{getEntityDisplayName(originalTo)}
 						</Text>
 					)}
 				</View>
