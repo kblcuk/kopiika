@@ -105,47 +105,40 @@ export default function HistoryScreen() {
 
 	const isStale = deferredPeriod !== selectedPeriod;
 
-	const filteredTransactions = useMemo(() => {
+	// Single memo for both past and upcoming — one Date.now() call ensures a
+	// transaction at the boundary can never fall between two different "now"
+	// snapshots and disappear from both lists (KII-73).
+	const { filteredTransactions, upcomingTransactions } = useMemo(() => {
 		const { start, end } = getPeriodRange(deferredPeriod);
 		const now = Date.now();
 
-		return transactions.filter((tx) => {
-			// Only past/present transactions in period sections
-			if (tx.timestamp < start || tx.timestamp > Math.min(end, now)) return false;
+		const filtered: Transaction[] = [];
+		const upcoming: Transaction[] = [];
 
-			if (selectedEntityId) {
-				if (
-					tx.from_entity_id !== selectedEntityId &&
-					tx.to_entity_id !== selectedEntityId
-				) {
-					return false;
-				}
+		for (const tx of transactions) {
+			// Entity filter
+			if (
+				selectedEntityId &&
+				tx.from_entity_id !== selectedEntityId &&
+				tx.to_entity_id !== selectedEntityId
+			) {
+				continue;
 			}
 
-			return true;
-		});
-	}, [transactions, deferredPeriod, selectedEntityId]);
+			// Period boundary
+			if (tx.timestamp < start || tx.timestamp > end) continue;
 
-	const upcomingTransactions = useMemo(() => {
-		const { end } = getPeriodRange(deferredPeriod);
-		const now = Date.now();
+			// Past/present vs upcoming split
+			if (tx.timestamp <= now) {
+				filtered.push(tx);
+			} else {
+				upcoming.push(tx);
+			}
+		}
 
-		// Period is entirely in the past — no upcoming section
-		if (end <= now) return [];
+		upcoming.sort((a, b) => a.timestamp - b.timestamp);
 
-		return transactions
-			.filter((tx) => {
-				if (tx.timestamp <= now || tx.timestamp > end) return false;
-				if (
-					selectedEntityId &&
-					tx.from_entity_id !== selectedEntityId &&
-					tx.to_entity_id !== selectedEntityId
-				) {
-					return false;
-				}
-				return true;
-			})
-			.sort((a, b) => a.timestamp - b.timestamp);
+		return { filteredTransactions: filtered, upcomingTransactions: upcoming };
 	}, [transactions, deferredPeriod, selectedEntityId]);
 
 	const sections = useMemo(() => {
