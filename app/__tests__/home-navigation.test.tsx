@@ -130,6 +130,7 @@ jest.mock('@/src/components', () => {
 			) : null,
 		EntityCreateModal: () => null,
 		ReservationModal: () => null,
+		RefundPickerModal: () => null,
 	};
 });
 

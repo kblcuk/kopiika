@@ -8,4 +8,5 @@ export { TransactionModal } from './transaction-modal';
 export { EntityDetailModal } from './entity-detail-modal';
 export { EntityCreateModal } from './entity-create-modal';
 export { ReservationModal } from './reservation-modal';
+export { RefundPickerModal } from './refund-picker-modal';
 export { WhatsNewModal } from './whats-new-modal';

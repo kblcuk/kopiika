@@ -49,6 +49,23 @@ export async function getTransactionsForEntity(
 		.orderBy(desc(transactions.timestamp));
 }
 
+export async function getTransactionsBetweenEntities(
+	fromEntityId: string,
+	toEntityId: string
+): Promise<Transaction[]> {
+	const db = await getDrizzleDb();
+	return await db
+		.select()
+		.from(transactions)
+		.where(
+			and(
+				eq(transactions.from_entity_id, fromEntityId),
+				eq(transactions.to_entity_id, toEntityId)
+			)
+		)
+		.orderBy(desc(transactions.timestamp));
+}
+
 export async function createTransaction(transaction: Transaction): Promise<void> {
 	const db = await getDrizzleDb();
 	await db.insert(transactions).values({
