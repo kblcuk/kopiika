@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.11](https://codeberg.org/kblcuk/kopiika/compare/v0.2.10...v0.2.11) (2026-04-04)
+
+
+### Features
+
+* **transactions:** Add account→income refund flow and generalize RefundPickerModal ([9074b2d](https://codeberg.org/kblcuk/kopiika/commit/9074b2dbf5e330044c15e795f3aaa35a962da4ee))
+* **transactions:** Enforce allowed/blocked transaction pairs and add refund flow (KII-49) ([540e49a](https://codeberg.org/kblcuk/kopiika/commit/540e49ade0cbe7943878e928037a61ae45c62705))
+
 ## [0.2.10](https://codeberg.org/kblcuk/kopiika/compare/v0.2.9...v0.2.10) (2026-04-04)
 
 
