@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.10](https://codeberg.org/kblcuk/kopiika/compare/v0.2.9...v0.2.10) (2026-04-04)
+
+
+### Bug Fixes
+
+* **db:** await transaction in softDeleteEntity ([4b2113d](https://codeberg.org/kblcuk/kopiika/commit/4b2113d3a025557d846c9d41c2bb52ffd3d41082))
+* **dnd:** defer re-renders during drag start to prevent gesture loss ([2024212](https://codeberg.org/kblcuk/kopiika/commit/20242127d8badd0dfa1f79dbcd5f5f6ecbfc75a2))
+* **history:** Prevent timestamp-boundary race in past/upcoming split ([7dc5056](https://codeberg.org/kblcuk/kopiika/commit/7dc50565d59f03e7a9960a9e3e99c0e1436d2233))
+* **savings:** use entered amount as transaction total, not entered + funded (KII-71) ([26c25e9](https://codeberg.org/kblcuk/kopiika/commit/26c25e9820db894be0440a99b84b9bc9aba4455f))
+
 ## [0.2.9](https://codeberg.org/kblcuk/kopiika/compare/v0.2.8...v0.2.9) (2026-04-03)
 
 
