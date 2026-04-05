@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.12](https://codeberg.org/kblcuk/kopiika/compare/v0.2.11...v0.2.12) (2026-04-05)
+
+
+### Features
+
+* **transactions:** Add arithmetic expression support to amount input (KII-44) ([3ae96c1](https://codeberg.org/kblcuk/kopiika/commit/3ae96c18dd921894d7cb9f350db712021bfb2ab8))
+
 ## [0.2.11](https://codeberg.org/kblcuk/kopiika/compare/v0.2.10...v0.2.11) (2026-04-04)
 
 
