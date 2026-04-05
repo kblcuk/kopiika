@@ -1,13 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	ScrollView,
-} from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Trash2 } from 'lucide-react-native';
 
@@ -23,8 +16,9 @@ import { sharedNumericTextInputProps, styles, textInputClassNames } from '../sty
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { OperatorToolbar } from './operator-toolbar';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -36,9 +30,9 @@ interface ReservationModalProps {
 export function ReservationModal({ visible, account, saving, onClose }: ReservationModalProps) {
 	const [amount, setAmount] = useState('');
 	const insets = useSafeAreaInsets();
-	const inputRef = useRef<TextInput>(null);
 	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
 		useKeyboardAwareScroll();
+	const amountExpr = useExpressionInput(amount, setAmount);
 
 	const upsertReservation = useStore((s) => s.upsertReservation);
 	const reservations = useStore((s) => s.reservations);
@@ -55,9 +49,10 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	useEffect(() => {
 		if (visible && account && saving) {
 			setAmount(existingAmount !== undefined ? String(existingAmount) : '');
-			setTimeout(() => inputRef.current?.focus(), 100);
+			const ref = amountExpr.inputRef;
+			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, account, saving, existingAmount]);
+	}, [visible, account, saving, existingAmount, amountExpr.inputRef]);
 
 	if (!account || !saving) return null;
 
@@ -67,7 +62,10 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
-		await upsertReservation(account.id, saving.id, parsedAmount);
+		const resolved = amountExpr.resolve();
+		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
+		if (isNaN(finalAmount) || finalAmount <= 0) return;
+		await upsertReservation(account.id, saving.id, finalAmount);
 		onClose();
 	};
 
@@ -134,18 +132,23 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 								{getCurrencySymbol(currency)}
 							</Text>
 							<TextInput
-								ref={inputRef}
-								value={amount}
-								onChangeText={(value) => setAmount(normalizeNumericInput(value))}
-								onFocus={handleInputFocus}
+								{...sharedNumericTextInputProps}
+								{...amountExpr.inputProps}
+								onFocus={(e) => {
+									amountExpr.inputProps.onFocus(e);
+									handleInputFocus(e);
+								}}
 								placeholder="0"
-								keyboardType="decimal-pad"
 								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								{...sharedNumericTextInputProps}
 							/>
 						</View>
+						{amountExpr.preview && (
+							<Text className="mt-1 font-sans text-xs text-ink-muted">
+								{amountExpr.preview}
+							</Text>
+						)}
 						{existing && (
 							<Text className="text-ink-faint mt-1 font-sans text-xs">
 								Currently reserved: {formatAmount(existing.amount, currency)}
@@ -197,6 +200,13 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>
+
+			<KeyboardExtender enabled={amountExpr.focused}>
+				<OperatorToolbar
+					onOperator={amountExpr.insertOperator}
+					onEquals={amountExpr.resolve}
+				/>
+			</KeyboardExtender>
 		</Modal>
 	);
 }

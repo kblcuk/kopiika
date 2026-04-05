@@ -34,17 +34,15 @@ import { getValidFromEntities, getValidToEntities } from '@/src/utils/transactio
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
-import { OperatorToolbar, OPERATORS, type Operator } from './operator-toolbar';
+import { OperatorToolbar } from './operator-toolbar';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { evaluateExpression } from '@/src/utils/evaluate-expression';
-import { tryInsertOperator, normalizeDecimalSeparator } from '@/src/utils/expression-input';
+import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
-
-const EXPR_CHAR_RE = new RegExp(`[${OPERATORS.map((c) => `\\${c}`).join('')}]`);
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
 
 interface SplitRow {
 	id: string;
@@ -89,14 +87,9 @@ export function TransactionModal({
 
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
-	const [amountFocused, setAmountFocused] = useState(false);
-
 	const insets = useSafeAreaInsets();
-	const amountRef = useRef<TextInput>(null);
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
-	const selectionRef = useRef({ start: 0, end: 0 });
-	const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
 		useKeyboardAwareScroll();
 	const addTransaction = useStore((state) => state.addTransaction);
@@ -104,55 +97,19 @@ export function TransactionModal({
 	const upsertReservation = useStore((state) => state.upsertReservation);
 	const entities = useStore((state) => state.entities);
 
-	const amountValue = isSplitMode ? splitTotal.toString() : amount;
-	const isExpression = EXPR_CHAR_RE.test(amountValue);
-	const amountPreview = useMemo(() => {
-		if (!isExpression) return null;
-		const result = evaluateExpression(amountValue);
-		if (result === null) return null;
-		return `= ${formatAmount(result)}`;
-	}, [amountValue, isExpression]);
-
-	const setAmountValue = useCallback(
-		(v: string) => {
-			const normalized = normalizeDecimalSeparator(v);
-			if (isSplitMode) {
-				// Expressions are resolved before entering split mode; plain numbers only
-				const n = reverseFormatCurrency(normalized);
-				setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
-			} else {
-				setAmount(EXPR_CHAR_RE.test(normalized) ? normalized : normalizeNumericInput(normalized));
-			}
-		},
-		[isSplitMode]
-	);
-
-	const resolveExpression = useCallback((): string => {
-		if (!isExpression) return amountValue;
-		const evaluated = evaluateExpression(amountValue);
-		if (evaluated === null) return amountValue;
-		const resolved = evaluated.toString();
-		setAmountValue(resolved);
-		return resolved;
-	}, [amountValue, isExpression, setAmountValue]);
-
-	const [amountSelection, setAmountSelection] = useState<
-		{ start: number; end: number } | undefined
-	>(undefined);
-
-	const insertOperator = useCallback(
-		(op: Operator) => {
-			const { start, end } = selectionRef.current;
-			const result = tryInsertOperator(amountValue, op, start, end);
-			if (!result) return;
-
-			setAmountValue(result.value);
-			selectionRef.current = { start: result.cursor, end: result.cursor };
-			setAmountSelection({ start: result.cursor, end: result.cursor });
-			setTimeout(() => setAmountSelection(undefined), 0);
-			amountRef.current?.focus();
-		},
-		[amountValue, setAmountValue]
+	const amountExpr = useExpressionInput(
+		isSplitMode ? splitTotal.toString() : amount,
+		useCallback(
+			(v: string) => {
+				if (isSplitMode) {
+					const n = reverseFormatCurrency(normalizeDecimalSeparator(v));
+					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
+				} else {
+					setAmount(v);
+				}
+			},
+			[isSplitMode]
+		)
 	);
 
 	const isEditing = !!existingTransaction;
@@ -240,9 +197,10 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
-			setTimeout(() => amountRef.current?.focus(), 100);
+			const ref = amountExpr.inputRef;
+			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, existingTransaction, quickAdd]);
+	}, [visible, existingTransaction, quickAdd, amountExpr.inputRef]);
 
 	const handleFromSelect = (entity: Entity) => {
 		setSelectedFromId(entity.id);
@@ -260,7 +218,7 @@ export function TransactionModal({
 		setSelectedToId(entity.id);
 		// In quickAdd: focus amount field after picking destination
 		if (quickAdd) {
-			setTimeout(() => amountRef.current?.focus(), 350);
+			setTimeout(() => amountExpr.inputRef.current?.focus(), 350);
 		}
 	};
 
@@ -285,7 +243,7 @@ export function TransactionModal({
 	// ── Split mode handlers ───────────────────────────────────────────────────
 
 	const handleEnterSplitMode = () => {
-		const resolved = resolveExpression();
+		const resolved = amountExpr.resolve();
 		const total = reverseFormatCurrency(resolved) || 0;
 		setSplitTotal(total);
 		setIsSplitMode(true);
@@ -304,7 +262,7 @@ export function TransactionModal({
 		// Restore the amount the user had typed before entering split mode
 		setAmount(splitTotal > 0 ? roundMoney(splitTotal).toString() : '');
 		setSplitTotal(0);
-		setTimeout(() => amountRef.current?.focus(), 50);
+		setTimeout(() => amountExpr.inputRef.current?.focus(), 50);
 	};
 
 	const handleSplitEntitySelect = (entity: Entity) => {
@@ -366,7 +324,7 @@ export function TransactionModal({
 
 	const handleSubmit = async () => {
 		// Resolve any pending calculator expression before submitting
-		const resolvedAmount = resolveExpression();
+		const resolvedAmount = amountExpr.resolve();
 
 		try {
 			const now = new Date();
@@ -611,26 +569,12 @@ export function TransactionModal({
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
 								{...sharedNumericTextInputProps}
-								ref={amountRef}
-								value={amountValue}
-								selection={amountSelection}
-								onChangeText={(v) => setAmountValue(v)}
-								onSelectionChange={(e) => {
-									selectionRef.current = e.nativeEvent.selection;
-								}}
+								{...amountExpr.inputProps}
 								onFocus={(e) => {
-									if (blurTimeout.current) clearTimeout(blurTimeout.current);
-									setAmountFocused(true);
+									amountExpr.inputProps.onFocus(e);
 									handleInputFocus(e);
 								}}
-								onBlur={() => {
-									blurTimeout.current = setTimeout(
-										() => setAmountFocused(false),
-										150
-									);
-								}}
 								placeholder="0"
-								keyboardType="decimal-pad"
 								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
@@ -640,9 +584,9 @@ export function TransactionModal({
 								{getCurrencySymbol(currency)}
 							</Text>
 						</View>
-						{amountPreview && (
+						{amountExpr.preview && (
 							<Text className="mt-1 font-sans text-base text-ink-muted">
-								{amountPreview}
+								{amountExpr.preview}
 							</Text>
 						)}
 						{!isEditing && suggestedAmount && (
@@ -996,10 +940,10 @@ export function TransactionModal({
 				</ScrollView>
 			</KeyboardAvoidingView>
 
-			<KeyboardExtender enabled={amountFocused}>
+			<KeyboardExtender enabled={amountExpr.focused}>
 				<OperatorToolbar
-					onOperator={insertOperator}
-					onEquals={resolveExpression}
+					onOperator={amountExpr.insertOperator}
+					onEquals={amountExpr.resolve}
 				/>
 			</KeyboardExtender>
 

@@ -14,10 +14,6 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
-jest.mock('react-native-keyboard-controller', () => ({
-	KeyboardExtender: 'KeyboardExtender',
-	KeyboardProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
 
 describe('TransactionModal', () => {
 	const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();

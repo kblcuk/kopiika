@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	Platform,
-	ScrollView,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -26,8 +18,9 @@ import {
 } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { isEntityActive } from '@/src/utils/entity-display';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -44,6 +37,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const insets = useSafeAreaInsets();
 	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
 		useKeyboardAwareScroll();
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
 		useShallow((state) => ({
@@ -108,7 +102,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			position: nextPosition,
 		});
 
-		const amount = reverseFormatCurrency(plannedAmount);
+		const amount = reverseFormatCurrency(plannedExpr.resolve());
 		if (!isNaN(amount) && amount > 0) {
 			await setPlan({
 				id: generateId(),
@@ -124,7 +118,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		entityType,
 		name,
 		selectedIcon,
-		plannedAmount,
+		plannedExpr,
 		entities,
 		addEntity,
 		setPlan,
@@ -242,13 +236,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						>
 							<TextInput
 								{...sharedNumericTextInputProps}
-								value={plannedAmount}
-								onChangeText={(value) =>
-									setPlannedAmount(normalizeNumericInput(value))
-								}
-								onFocus={handleInputFocus}
+								{...plannedExpr.inputProps}
+								onFocus={(e) => {
+									plannedExpr.inputProps.onFocus(e);
+									handleInputFocus(e);
+								}}
 								placeholder="0"
-								keyboardType="numeric"
 								className={`flex-1 ${textInputClassNames.input}`}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
@@ -258,9 +251,21 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								{getCurrencySymbol(DEFAULT_CURRENCY)}
 							</Text>
 						</View>
+						{plannedExpr.preview && (
+							<Text className="mt-1 font-sans text-sm text-ink-muted">
+								{plannedExpr.preview}
+							</Text>
+						)}
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>
+
+			<KeyboardExtender enabled={plannedExpr.focused}>
+				<OperatorToolbar
+					onOperator={plannedExpr.insertOperator}
+					onEquals={plannedExpr.resolve}
+				/>
+			</KeyboardExtender>
 		</Modal>
 	);
 }

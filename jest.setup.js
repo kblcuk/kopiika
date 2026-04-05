@@ -5,3 +5,16 @@ jest.mock('react-native-safe-area-context', () => ({
 	SafeAreaProvider: ({ children }) => children,
 	SafeAreaView: ({ children }) => children,
 }));
+
+jest.mock('react-native-keyboard-controller', () => ({
+	KeyboardExtender: 'KeyboardExtender',
+	KeyboardProvider: ({ children }) => children,
+}));
+
+jest.mock('expo-haptics', () => ({
+	impactAsync: jest.fn(),
+	notificationAsync: jest.fn(),
+	selectionAsync: jest.fn(),
+	ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+	NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+}));
