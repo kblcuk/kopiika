@@ -14,6 +14,10 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
+jest.mock('react-native-keyboard-controller', () => ({
+	KeyboardExtender: 'KeyboardExtender',
+	KeyboardProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 describe('TransactionModal', () => {
 	const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
@@ -280,8 +284,7 @@ describe('TransactionModal', () => {
 			});
 		});
 
-		it('creates transaction with decimal amount using comma separator', async () => {
-			// This tests the European locale input format where comma is decimal separator
+		it('evaluates arithmetic expression on save (KII-44)', async () => {
 			const addTransactionSpy = jest.fn();
 			useStore.setState({ addTransaction: addTransactionSpy });
 
@@ -294,13 +297,13 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			fireEvent.changeText(getByTestId('transaction-amount-input'), '1,15');
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '10+60');
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
 				expect(addTransactionSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
-						amount: 1.15,
+						amount: 70,
 					})
 				);
 			});
