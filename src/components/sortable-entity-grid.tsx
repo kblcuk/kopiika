@@ -193,12 +193,17 @@ export function SortableEntityGrid({
 			// Set dragged ID in context ref BEFORE setIsFixed so bubbles can check it
 			draggedIdRef.current = entity?.id || null;
 
-			// Transaction mode keeps the local layout fixed so drags can leave the section cleanly.
-			setIsFixed(isTransactionMode);
-
-			if (entity) {
-				onDragStart?.(entity);
-			}
+			// Defer mode changes and parent callback to the next frame.
+			// react-native-sortables drops the active gesture when React re-renders
+			// grid children (mode flip + store update) during its drag initialisation.
+			requestAnimationFrame(() => {
+				// Guard: skip if drag was already cancelled before this frame
+				if (!draggedIdRef.current) return;
+				setIsFixed(isTransactionMode);
+				if (entity) {
+					onDragStart?.(entity);
+				}
+			});
 		},
 		[entities, onDragStart, setIsFixed, isTransactionMode]
 	);

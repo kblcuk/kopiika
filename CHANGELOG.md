@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.13](https://codeberg.org/kblcuk/kopiika/compare/v0.2.12...v0.2.13) (2026-04-06)
+
+
+### Features
+
+* **transactions:** Add expression support to all amount modals (KII-44) ([35a87ad](https://codeberg.org/kblcuk/kopiika/commit/35a87ad0dc6d901f557359b4007de3f942ddd610))
+
+
+### Bug Fixes
+
+* **ui:** Replace KeyboardAvoidingView with KeyboardAwareScrollView (KII-72) ([c8db52d](https://codeberg.org/kblcuk/kopiika/commit/c8db52dda15bacaca30f9cc7fdfd0faf4e4a7d97))
+
+## [0.2.12](https://codeberg.org/kblcuk/kopiika/compare/v0.2.11...v0.2.12) (2026-04-05)
+
+
+### Features
+
+* **transactions:** Add arithmetic expression support to amount input (KII-44) ([3ae96c1](https://codeberg.org/kblcuk/kopiika/commit/3ae96c18dd921894d7cb9f350db712021bfb2ab8))
+
+## [0.2.11](https://codeberg.org/kblcuk/kopiika/compare/v0.2.10...v0.2.11) (2026-04-04)
+
+
+### Features
+
+* **transactions:** Add account→income refund flow and generalize RefundPickerModal ([9074b2d](https://codeberg.org/kblcuk/kopiika/commit/9074b2dbf5e330044c15e795f3aaa35a962da4ee))
+* **transactions:** Enforce allowed/blocked transaction pairs and add refund flow (KII-49) ([540e49a](https://codeberg.org/kblcuk/kopiika/commit/540e49ade0cbe7943878e928037a61ae45c62705))
+
+## [0.2.10](https://codeberg.org/kblcuk/kopiika/compare/v0.2.9...v0.2.10) (2026-04-04)
+
+
+### Bug Fixes
+
+* **db:** await transaction in softDeleteEntity ([4b2113d](https://codeberg.org/kblcuk/kopiika/commit/4b2113d3a025557d846c9d41c2bb52ffd3d41082))
+* **dnd:** defer re-renders during drag start to prevent gesture loss ([2024212](https://codeberg.org/kblcuk/kopiika/commit/20242127d8badd0dfa1f79dbcd5f5f6ecbfc75a2))
+* **history:** Prevent timestamp-boundary race in past/upcoming split ([7dc5056](https://codeberg.org/kblcuk/kopiika/commit/7dc50565d59f03e7a9960a9e3e99c0e1436d2233))
+* **savings:** use entered amount as transaction total, not entered + funded (KII-71) ([26c25e9](https://codeberg.org/kblcuk/kopiika/commit/26c25e9820db894be0440a99b84b9bc9aba4455f))
+
 ## [0.2.9](https://codeberg.org/kblcuk/kopiika/compare/v0.2.8...v0.2.9) (2026-04-03)
 
 

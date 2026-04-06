@@ -48,8 +48,6 @@ describe('EntityCreateModal', () => {
 
 			expect(toJSON()).toBeNull();
 		});
-
-
 	});
 
 	describe('Entity Creation', () => {

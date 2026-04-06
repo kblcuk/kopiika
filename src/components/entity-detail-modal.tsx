@@ -1,16 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	Platform,
-	Alert,
-	ScrollView,
-	Switch,
-} from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, Text, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -38,8 +28,8 @@ import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityDetailModalProps {
 	visible: boolean;
@@ -60,10 +50,14 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [includeInTotal, setIncludeInTotal] = useState(true);
 	// Reservation modal state (for saving entities)
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
-	const inputRef = useRef<TextInput>(null);
 	const insets = useSafeAreaInsets();
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
+	const actualExpr = useExpressionInput(actualAmount, (v) => {
+		setActualAmount(v);
+		setIsEditingActual(true);
+	});
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
+	// Show toolbar when either amount input is focused
+	const showExprToolbar = actualExpr.focused || plannedExpr.focused;
 
 	const {
 		plans,
@@ -172,7 +166,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		});
 
 		if (entity.type !== 'account') {
-			const amount = reverseFormatCurrency(plannedAmount);
+			const amount = reverseFormatCurrency(plannedExpr.resolve());
 			if (!Number.isNaN(amount) && amount > 0) {
 				await setPlan({
 					id: existingPlan?.id ?? generateId(),
@@ -191,7 +185,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		// Handle balance adjustment for accounts
 		if (entity.type === 'account' && isEditingActual) {
 			const currentBalance = entity.actual;
-			const targetBalance = reverseFormatCurrency(actualAmount) || 0;
+			const targetBalance = reverseFormatCurrency(actualExpr.resolve()) || 0;
 			const adjustment = targetBalance - currentBalance;
 
 			const roundedAdjustment = roundMoney(adjustment);
@@ -261,8 +255,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<KeyboardAvoidingView
-				{...keyboardAvoidingViewProps}
+			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -287,7 +280,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				</View>
 
 				{/* Content */}
-				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-5 pt-6"
+				>
 					{/* Entity icon with edit indicator */}
 					<View className="mb-6 items-center">
 						<Pressable
@@ -366,14 +364,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
 									{...sharedNumericTextInputProps}
-									value={actualAmount}
-									onChangeText={(text) => {
-										setActualAmount(normalizeNumericInput(text));
-										setIsEditingActual(true);
-									}}
-									onFocus={handleInputFocus}
+									{...actualExpr.inputProps}
 									placeholder="0"
-									keyboardType="numeric"
 									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}
 									placeholderTextColor={colors.ink.placeholder}
@@ -453,14 +445,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
 									{...sharedNumericTextInputProps}
-									ref={inputRef}
-									value={plannedAmount}
-									onChangeText={(value) =>
-										setPlannedAmount(normalizeNumericInput(value))
-									}
-									onFocus={handleInputFocus}
+									{...plannedExpr.inputProps}
 									placeholder="0"
-									keyboardType="numeric"
 									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}
 									placeholderTextColor={colors.ink.placeholder}
@@ -535,8 +521,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							Delete Entity
 						</Text>
 					</Pressable>
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
 
 			{/* Reservation edit modal — opens from saving detail when tapping a reservation row */}
 			{entity.type === 'saving' && (
@@ -547,6 +533,14 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					onClose={() => setReservationAccount(null)}
 				/>
 			)}
+			<KeyboardExtender enabled={showExprToolbar}>
+				<OperatorToolbar
+					onOperator={
+						actualExpr.focused ? actualExpr.insertOperator : plannedExpr.insertOperator
+					}
+					onEquals={actualExpr.focused ? actualExpr.resolve : plannedExpr.resolve}
+				/>
+			</KeyboardExtender>
 		</Modal>
 	);
 }

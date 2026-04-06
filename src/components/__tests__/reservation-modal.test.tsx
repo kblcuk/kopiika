@@ -48,7 +48,12 @@ describe('ReservationModal', () => {
 
 	it('uses the shared numeric input behavior for reservation amounts', async () => {
 		const { getByPlaceholderText, getByDisplayValue } = render(
-			<ReservationModal visible={true} account={account} saving={saving} onClose={mockOnClose} />
+			<ReservationModal
+				visible={true}
+				account={account}
+				saving={saving}
+				onClose={mockOnClose}
+			/>
 		);
 
 		const amountInput = await waitFor(() => getByPlaceholderText('0'));
@@ -64,7 +69,12 @@ describe('ReservationModal', () => {
 		useStore.setState({ upsertReservation, reservations: [] });
 
 		const { getByPlaceholderText, getByText } = render(
-			<ReservationModal visible={true} account={account} saving={saving} onClose={mockOnClose} />
+			<ReservationModal
+				visible={true}
+				account={account}
+				saving={saving}
+				onClose={mockOnClose}
+			/>
 		);
 
 		fireEvent.changeText(getByPlaceholderText('0'), '250');
@@ -91,7 +101,12 @@ describe('ReservationModal', () => {
 		});
 
 		const { getByDisplayValue, getByText } = render(
-			<ReservationModal visible={true} account={account} saving={saving} onClose={mockOnClose} />
+			<ReservationModal
+				visible={true}
+				account={account}
+				saving={saving}
+				onClose={mockOnClose}
+			/>
 		);
 
 		expect(getByText('Currently reserved: 300.00')).toBeTruthy();
@@ -120,7 +135,12 @@ describe('ReservationModal', () => {
 		});
 
 		const { getByTestId } = render(
-			<ReservationModal visible={true} account={account} saving={saving} onClose={mockOnClose} />
+			<ReservationModal
+				visible={true}
+				account={account}
+				saving={saving}
+				onClose={mockOnClose}
+			/>
 		);
 
 		fireEvent.press(getByTestId('reservation-clear-button'));

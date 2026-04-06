@@ -25,7 +25,7 @@ function withMatchSigning(config, props) {
 
 		for (const [, buildConfig] of getBuildConfigurationsForListId(
 			project,
-			nativeTarget.buildConfigurationList,
+			nativeTarget.buildConfigurationList
 		)) {
 			if (buildConfig.name === 'Debug') {
 				setBuildSettings(buildConfig.buildSettings, {
@@ -48,7 +48,8 @@ function withMatchSigning(config, props) {
 			}
 
 			item.attributes.TargetAttributes[nativeTargetId].ProvisioningStyle = 'Manual';
-			item.attributes.TargetAttributes[nativeTargetId].DevelopmentTeam = `"${props.appleTeamId}"`;
+			item.attributes.TargetAttributes[nativeTargetId].DevelopmentTeam =
+				`"${props.appleTeamId}"`;
 		}
 
 		return config;

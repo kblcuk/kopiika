@@ -309,6 +309,68 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
+	it('classifies a just-created transaction as past, not upcoming (KII-73)', async () => {
+		// Transaction created at exactly "now" — the common case when a user
+		// creates a transaction and immediately views History.
+		const justCreated: Transaction = {
+			id: 'tx-just-created',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 42,
+			currency: 'USD',
+			timestamp: fixedNow,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [justCreated],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByTestId, queryByText } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-just-created').props.children.join('')).toBe(
+				'tx-just-created:past:editable'
+			);
+			expect(queryByText('Upcoming')).toBeNull();
+		});
+	});
+
+	it('shows a just-created transaction in entity-filtered history (KII-73)', async () => {
+		const justCreated: Transaction = {
+			id: 'tx-just-created',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 42,
+			currency: 'USD',
+			timestamp: fixedNow,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [justCreated],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		// Navigate with entity filter for the source account
+		mockParams = { period: '2026-01', entityId: 'account-1' };
+
+		const { getByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-just-created').props.children.join('')).toBe(
+				'tx-just-created:past:editable'
+			);
+		});
+	});
+
 	it('renders transactions with deleted entities as read-only', async () => {
 		const deletedEntityTransaction: Transaction = {
 			...mockTransaction,

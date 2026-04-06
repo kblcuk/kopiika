@@ -10,7 +10,7 @@ import { isEntityDeleted } from './entity-display';
 const ALLOWED_COMBINATIONS: Record<EntityType, EntityType[]> = {
 	income: ['account'],
 	account: ['category', 'account'],
-	category: [],
+	category: ['account'],
 	saving: [],
 };
 

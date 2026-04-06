@@ -17,6 +17,7 @@ import {
 	EntityDetailModal,
 	EntityCreateModal,
 	ReservationModal,
+	RefundPickerModal,
 } from '@/src/components';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import {
@@ -26,7 +27,7 @@ import {
 	stopVerticalAutoScroll,
 } from '@/src/utils/vertical-auto-scroll';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
-import type { EntityType, EntityWithBalance } from '@/src/types';
+import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -70,6 +71,12 @@ export default function HomeScreen() {
 	const [reservationModalVisible, setReservationModalVisible] = useState(false);
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
+
+	// Refund picker state — originalFrom/originalTo reflect the direction of original transactions
+	const [refundPickerVisible, setRefundPickerVisible] = useState(false);
+	const [refundOriginalFrom, setRefundOriginalFrom] = useState<EntityWithBalance | null>(null);
+	const [refundOriginalTo, setRefundOriginalTo] = useState<EntityWithBalance | null>(null);
+	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
 	// Detail modal state
 	const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -141,6 +148,22 @@ export default function HomeScreen() {
 				return;
 			}
 
+			// Category → Account: open refund picker (original: account → category)
+			if (entity.type === 'category' && targetEntity.type === 'account') {
+				setRefundOriginalFrom(targetEntity);
+				setRefundOriginalTo(entity);
+				setRefundPickerVisible(true);
+				return;
+			}
+
+			// Account → Income: open refund picker (original: income → account)
+			if (entity.type === 'account' && targetEntity.type === 'income') {
+				setRefundOriginalFrom(targetEntity);
+				setRefundOriginalTo(entity);
+				setRefundPickerVisible(true);
+				return;
+			}
+
 			// Account → Saving: open reservation modal instead of transaction
 			if (entity.type === 'account' && targetEntity.type === 'saving') {
 				setReservationAccount(entity);
@@ -162,12 +185,35 @@ export default function HomeScreen() {
 		setModalVisible(false);
 		setFromEntity(null);
 		setToEntity(null);
+		setEditingTransaction(null);
+		setRefundOriginalFrom(null);
+		setRefundOriginalTo(null);
 	}, []);
 
 	const handleCloseReservationModal = useCallback(() => {
 		setReservationModalVisible(false);
 		setReservationAccount(null);
 		setReservationSaving(null);
+	}, []);
+
+	const handleRefundSelect = useCallback(
+		(transaction: Transaction) => {
+			setRefundPickerVisible(false);
+			// Open edit modal for the selected transaction
+			const from = allEntities.find((e) => e.id === transaction.from_entity_id) ?? null;
+			const to = allEntities.find((e) => e.id === transaction.to_entity_id) ?? null;
+			setFromEntity(from);
+			setToEntity(to);
+			setEditingTransaction(transaction);
+			setModalVisible(true);
+		},
+		[allEntities]
+	);
+
+	const handleCloseRefundPicker = useCallback(() => {
+		setRefundPickerVisible(false);
+		setRefundOriginalFrom(null);
+		setRefundOriginalTo(null);
 	}, []);
 
 	const handleTap = useCallback(
@@ -417,6 +463,16 @@ export default function HomeScreen() {
 				fromEntity={fromEntity}
 				toEntity={toEntity}
 				onClose={handleCloseModal}
+				existingTransaction={editingTransaction ?? undefined}
+			/>
+
+			{/* Refund Picker Modal (category → account, account → income) */}
+			<RefundPickerModal
+				visible={refundPickerVisible}
+				originalFrom={refundOriginalFrom}
+				originalTo={refundOriginalTo}
+				onSelect={handleRefundSelect}
+				onClose={handleCloseRefundPicker}
 			/>
 
 			{/* Reservation Modal (account → saving) */}

@@ -14,6 +14,7 @@ import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { WhatsNewModal } from '@/src/components';
 import { getLastSeenVersion, setLastSeenVersion } from '@/src/utils/app-prefs';
 import DatabaseProvider from '@/src/components/database-provider';
@@ -82,8 +83,10 @@ function App() {
 
 export default function RootLayoutNav() {
 	return (
-		<DatabaseProvider>
-			<App />
-		</DatabaseProvider>
+		<KeyboardProvider>
+			<DatabaseProvider>
+				<App />
+			</DatabaseProvider>
+		</KeyboardProvider>
 	);
 }

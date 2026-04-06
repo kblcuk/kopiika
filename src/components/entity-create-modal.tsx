@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	Platform,
-	ScrollView,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -26,8 +18,8 @@ import {
 } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { isEntityActive } from '@/src/utils/entity-display';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityCreateModalProps {
 	visible: boolean;
@@ -42,8 +34,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
 	const insets = useSafeAreaInsets();
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
 		useShallow((state) => ({
@@ -108,7 +99,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			position: nextPosition,
 		});
 
-		const amount = reverseFormatCurrency(plannedAmount);
+		const amount = reverseFormatCurrency(plannedExpr.resolve());
 		if (!isNaN(amount) && amount > 0) {
 			await setPlan({
 				id: generateId(),
@@ -120,7 +111,17 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 
 		onClose();
-	}, [entityType, name, selectedIcon, plannedAmount, entities, addEntity, setPlan, currentPeriod, onClose]);
+	}, [
+		entityType,
+		name,
+		selectedIcon,
+		plannedExpr,
+		entities,
+		addEntity,
+		setPlan,
+		currentPeriod,
+		onClose,
+	]);
 
 	const handleCreatePress = useCallback(async () => {
 		// Physical iOS devices can swallow the first header onPress while dismissing
@@ -161,8 +162,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<KeyboardAvoidingView
-				{...keyboardAvoidingViewProps}
+			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -186,7 +186,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					</Pressable>
 				</View>
 
-				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-5 pt-6"
+				>
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
@@ -232,13 +237,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						>
 							<TextInput
 								{...sharedNumericTextInputProps}
-								value={plannedAmount}
-								onChangeText={(value) =>
-									setPlannedAmount(normalizeNumericInput(value))
-								}
-								onFocus={handleInputFocus}
+								{...plannedExpr.inputProps}
 								placeholder="0"
-								keyboardType="numeric"
 								className={`flex-1 ${textInputClassNames.input}`}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
@@ -248,9 +248,21 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 								{getCurrencySymbol(DEFAULT_CURRENCY)}
 							</Text>
 						</View>
+						{plannedExpr.preview && (
+							<Text className="mt-1 font-sans text-sm text-ink-muted">
+								{plannedExpr.preview}
+							</Text>
+						)}
 					</View>
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
+
+			<KeyboardExtender enabled={plannedExpr.focused}>
+				<OperatorToolbar
+					onOperator={plannedExpr.insertOperator}
+					onEquals={plannedExpr.resolve}
+				/>
+			</KeyboardExtender>
 		</Modal>
 	);
 }
