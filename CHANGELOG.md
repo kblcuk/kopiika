@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.13](https://codeberg.org/kblcuk/kopiika/compare/v0.2.12...v0.2.13) (2026-04-06)
+
+
+### Features
+
+* **transactions:** Add expression support to all amount modals (KII-44) ([35a87ad](https://codeberg.org/kblcuk/kopiika/commit/35a87ad0dc6d901f557359b4007de3f942ddd610))
+
+
+### Bug Fixes
+
+* **ui:** Replace KeyboardAvoidingView with KeyboardAwareScrollView (KII-72) ([c8db52d](https://codeberg.org/kblcuk/kopiika/commit/c8db52dda15bacaca30f9cc7fdfd0faf4e4a7d97))
+
 ## [0.2.12](https://codeberg.org/kblcuk/kopiika/compare/v0.2.11...v0.2.12) (2026-04-05)
 
 
