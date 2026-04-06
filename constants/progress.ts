@@ -4,7 +4,7 @@
 
 export const PROGRESS_THRESHOLDS = {
 	/** Progress below this threshold shows as healthy (green) */
-	healthy: 70,
+	healthy: 60,
 	/** Progress above healthy but below limit shows as warning (amber) */
 	limit: 100,
 	/** Progress above limit shows as overspent (red) */
