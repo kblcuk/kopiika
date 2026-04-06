@@ -1,4 +1,5 @@
-import { device, waitFor, element, by, expect as detoxExpect } from 'detox';
+import { device, waitFor, element, by } from 'detox';
+import { expect as jestExpect } from '@jest/globals';
 import { TestIDs } from './test-ids';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -14,20 +15,13 @@ async function dismissWhatsNewIfPresent() {
 	}
 }
 
-async function createEntity(type: string, name: string, plannedAmount?: string) {
-	await element(by.id(TestIDs.addEntityButton(type))).tap();
-	await waitFor(element(by.id(TestIDs.entityCreate.nameInput)))
-		.toBeVisible()
-		.withTimeout(5000);
-	await element(by.id(TestIDs.entityCreate.nameInput)).typeText(name);
-	if (plannedAmount) {
-		await element(by.id(TestIDs.entityCreate.amountInput)).tap();
-		await element(by.id(TestIDs.entityCreate.amountInput)).typeText(plannedAmount);
-	}
-	await element(by.id(TestIDs.entityCreate.saveButton)).tap();
-	await waitFor(element(by.id(TestIDs.entityBubble(name))))
-		.toBeVisible()
-		.withTimeout(5000);
+// Reads the numeric amount shown on a bubble. Handles both "," and "." as
+// decimal separator depending on platform/locale.
+async function getAmount(entityName: string): Promise<number> {
+	const attrs = (await element(by.id(TestIDs.entityAmount(entityName))).getAttributes()) as {
+		text: string;
+	};
+	return parseFloat(attrs.text.replace(',', '.'));
 }
 
 async function createTransaction(fromName: string, toName: string, amount: string) {
@@ -42,13 +36,39 @@ async function createTransaction(fromName: string, toName: string, amount: strin
 		.withTimeout(5000);
 	await element(by.id(TestIDs.entityOption(fromName))).tap();
 
-	await element(by.id(TestIDs.transaction.toButton)).tap();
+	// In quickAdd mode the to-picker opens automatically after selecting from
 	await waitFor(element(by.id(TestIDs.entityOption(toName))))
 		.toBeVisible()
 		.withTimeout(5000);
 	await element(by.id(TestIDs.entityOption(toName))).tap();
 
-	await element(by.id(TestIDs.transaction.amountInput)).clearText();
+	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
+	await element(by.id(TestIDs.transaction.saveButton)).tap();
+
+	await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
+}
+
+async function createTransactionViaDnD(fromName: string, toName: string, amount: string) {
+	// On Android a drag starting near the top edge triggers the notification
+	// shade — scroll down first to move bubbles away from the status bar.
+	if (device.getPlatform() === 'android') {
+		await element(by.id(TestIDs.homeScrollView)).scroll(150, 'down');
+	}
+
+	await element(by.id(TestIDs.entityBubble(fromName))).longPressAndDrag(
+		600, // hold duration ms (> 150ms activation delay)
+		0.5, // source X center
+		0.5, // source Y center
+		element(by.id(TestIDs.entityBubble(toName))),
+		0.5, // target X center
+		0.5, // target Y center
+		'slow',
+		300, // holdDuration after reaching target
+	);
+
+	await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+		.toBeVisible()
+		.withTimeout(5000);
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
@@ -57,9 +77,16 @@ async function createTransaction(fromName: string, toName: string, amount: strin
 
 // ── Suite ────────────────────────────────────────────────────────────────────
 
+// Uses default seed entities (Salary, Main Card, Cash, Groceries, …) so no
+// entity creation is needed. Amounts accumulate across tests — assertions
+// check deltas, not absolute values.
+//
+// Note: income section is collapsed by default (incomeVisible=false). The [+]
+// modal picker reads from the store directly, so Salary is selectable even
+// when collapsed. Avoid calling getAmount('Salary') — its bubble is hidden.
 describe('Transactions', () => {
 	beforeAll(async () => {
-		// Clean install — ensures fresh storage for the whole suite
+		// Clean install — ensures fresh seed data for the whole suite
 		await device.launchApp({ delete: true });
 		await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(15000);
 		await dismissWhatsNewIfPresent();
@@ -72,48 +99,46 @@ describe('Transactions', () => {
 
 	// ── Account → Category ──────────────────────────────────────────────────
 
-	it('Account → Category: category actual increases, account goes negative', async () => {
-		await createEntity('account', 'Wallet');
-		await createEntity('category', 'Groceries', '200');
+	it('Account → Category: category actual increases, account decreases', async () => {
+		const before = {
+			cat: await getAmount('Groceries'),
+			acct: await getAmount('Main Card'),
+		};
 
-		await createTransaction('Wallet', 'Groceries', '50');
+		await createTransaction('Main Card', 'Groceries', '43.21');
 
-		await detoxExpect(element(by.id(TestIDs.entityAmount('Groceries')))).toHaveText('50.00');
-		await detoxExpect(element(by.id(TestIDs.entityAmount('Wallet')))).toHaveText('-50.00');
+		jestExpect(await getAmount('Groceries')).toBeCloseTo(before.cat + 43.21, 2);
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(before.acct - 43.21, 2);
 	});
 
 	// ── Income → Account ────────────────────────────────────────────────────
 
 	it('Income → Account: account balance increases', async () => {
-		await createEntity('income', 'Salary', '500');
-		await createEntity('account', 'MainCard');
+		const before = await getAmount('Main Card');
 
-		await createTransaction('Salary', 'MainCard', '500');
+		await createTransaction('Salary', 'Main Card', '127.50');
 
-		await detoxExpect(element(by.id(TestIDs.entityAmount('MainCard')))).toHaveText('500.00');
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(before + 127.50, 2);
 	});
 
 	// ── Account → Account ───────────────────────────────────────────────────
 
 	it('Account → Account: money moves between accounts', async () => {
-		await createEntity('income', 'WireIncome');
-		await createEntity('account', 'Checking');
-		await createEntity('account', 'Savings');
+		const before = {
+			from: await getAmount('Main Card'),
+			to: await getAmount('Cash'),
+		};
 
-		// Fund Checking first
-		await createTransaction('WireIncome', 'Checking', '500');
-		// Transfer
-		await createTransaction('Checking', 'Savings', '200');
+		await createTransaction('Main Card', 'Cash', '89.99');
 
-		await detoxExpect(element(by.id(TestIDs.entityAmount('Checking')))).toHaveText('300.00');
-		await detoxExpect(element(by.id(TestIDs.entityAmount('Savings')))).toHaveText('200.00');
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(before.from - 89.99, 2);
+		jestExpect(await getAmount('Cash')).toBeCloseTo(before.to + 89.99, 2);
 	});
 
 	// ── Cancel ──────────────────────────────────────────────────────────────
 
 	it('Cancel: discarding the form does not change entity amounts', async () => {
-		await createEntity('account', 'CancelWallet');
-		await createEntity('category', 'CancelCat', '100');
+		const before = await getAmount('Groceries');
 
 		await element(by.id(TestIDs.addTransactionButton)).tap();
 		await waitFor(element(by.id(TestIDs.transaction.cancelButton)))
@@ -122,6 +147,20 @@ describe('Transactions', () => {
 		await element(by.id(TestIDs.transaction.cancelButton)).tap();
 
 		await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
-		await detoxExpect(element(by.id(TestIDs.entityAmount('CancelCat')))).toHaveText('0.00');
+		jestExpect(await getAmount('Groceries')).toBeCloseTo(before, 2);
+	});
+
+	// ── Drag & Drop ─────────────────────────────────────────────────────────
+
+	it('DnD Account → Category: drag-and-drop opens modal with prefilled entities', async () => {
+		const before = {
+			cat: await getAmount('Groceries'),
+			acct: await getAmount('Main Card'),
+		};
+
+		await createTransactionViaDnD('Main Card', 'Groceries', '17.33');
+
+		jestExpect(await getAmount('Groceries')).toBeCloseTo(before.cat + 17.33, 2);
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(before.acct - 17.33, 2);
 	});
 });

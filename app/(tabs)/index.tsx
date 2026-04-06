@@ -320,6 +320,7 @@ export default function HomeScreen() {
 				{/* Content */}
 				<ScrollView
 					ref={outerScrollRef}
+					testID="home-scroll-view"
 					className="flex-1 overflow-visible"
 					contentContainerClassName="overflow-visible"
 					contentContainerStyle={{ paddingVertical: 12 }}

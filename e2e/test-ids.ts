@@ -1,5 +1,6 @@
 export const TestIDs = {
 	homeScreen: 'home-screen',
+	homeScrollView: 'home-scroll-view',
 
 	addTransactionButton: 'add-transaction-button',
 	addEntityButton: (type: string) => `add-entity-button-${type}`,
