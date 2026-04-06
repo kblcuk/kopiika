@@ -18,12 +18,14 @@ const COLORS = {
 		warning: colors.track.warning,
 		overspent: colors.track.overspent,
 		neutral: colors.track.DEFAULT,
+		goal: colors.track.goal,
 	},
 	progress: {
 		healthy: colors.positive.DEFAULT,
 		warning: colors.warning.DEFAULT,
 		overspent: colors.negative.DEFAULT,
 		neutral: colors.ink.muted,
+		goal: colors.info.DEFAULT,
 	},
 };
 
@@ -67,6 +69,11 @@ export function CircularProgress({
 				return {
 					track: COLORS.track.neutral,
 					progress: COLORS.progress.neutral,
+				};
+			case 'goal':
+				return {
+					track: COLORS.track.goal,
+					progress: COLORS.progress.goal,
 				};
 		}
 	};

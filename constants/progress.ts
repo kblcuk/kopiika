@@ -10,7 +10,7 @@ export const PROGRESS_THRESHOLDS = {
 	/** Progress above limit shows as overspent (red) */
 } as const;
 
-export type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral';
+export type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral' | 'goal';
 
 /**
  * Determines the progress state based on percentage
@@ -20,14 +20,11 @@ export type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral';
  */
 export function getProgressState(progress: number, inverse = false): ProgressState {
 	if (inverse) {
-		// For savings/goals: red when low, yellow when approaching, green when achieved
-		if (progress < PROGRESS_THRESHOLDS.healthy) {
-			return 'overspent'; // Maps to red color
+		// For savings/goals: light blue while in progress, green when reached
+		if (progress >= PROGRESS_THRESHOLDS.limit) {
+			return 'healthy'; // Maps to green color
 		}
-		if (progress < PROGRESS_THRESHOLDS.limit) {
-			return 'warning'; // Maps to yellow color
-		}
-		return 'healthy'; // Maps to green color
+		return 'goal'; // Maps to info/blue color
 	}
 
 	// For spending: green when low, yellow when approaching, red when over
