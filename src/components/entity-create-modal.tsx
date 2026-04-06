@@ -99,15 +99,17 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			position: nextPosition,
 		});
 
-		const amount = reverseFormatCurrency(plannedExpr.resolve());
-		if (!isNaN(amount) && amount > 0) {
-			await setPlan({
-				id: generateId(),
-				entity_id: entityId,
-				period: 'all-time',
-				period_start: currentPeriod,
-				planned_amount: amount,
-			});
+		if (entityType !== 'account') {
+			const amount = reverseFormatCurrency(plannedExpr.resolve());
+			if (!isNaN(amount) && amount > 0) {
+				await setPlan({
+					id: generateId(),
+					entity_id: entityId,
+					period: 'all-time',
+					period_start: currentPeriod,
+					planned_amount: amount,
+				});
+			}
 		}
 
 		onClose();
@@ -227,42 +229,46 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						/>
 					</View>
 
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Planned Amount (optional)
-						</Text>
-						<View
-							className={textInputClassNames.inlineContainer}
-							testID="entity-create-amount-input-container"
-						>
-							<TextInput
-								{...sharedNumericTextInputProps}
-								{...plannedExpr.inputProps}
-								placeholder="0"
-								className={`flex-1 ${textInputClassNames.input}`}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="entity-create-amount-input"
-							/>
-							<Text className={textInputClassNames.suffix}>
-								{getCurrencySymbol(DEFAULT_CURRENCY)}
+					{entityType !== 'account' && (
+						<View className="mb-6">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Planned Amount (optional)
 							</Text>
+							<View
+								className={textInputClassNames.inlineContainer}
+								testID="entity-create-amount-input-container"
+							>
+								<TextInput
+									{...sharedNumericTextInputProps}
+									{...plannedExpr.inputProps}
+									placeholder="0"
+									className={`flex-1 ${textInputClassNames.input}`}
+									style={styles.input}
+									placeholderTextColor={colors.ink.placeholder}
+									testID="entity-create-amount-input"
+								/>
+								<Text className={textInputClassNames.suffix}>
+									{getCurrencySymbol(DEFAULT_CURRENCY)}
+								</Text>
+							</View>
+							{plannedExpr.preview && (
+								<Text className="mt-1 font-sans text-sm text-ink-muted">
+									{plannedExpr.preview}
+								</Text>
+							)}
 						</View>
-						{plannedExpr.preview && (
-							<Text className="mt-1 font-sans text-sm text-ink-muted">
-								{plannedExpr.preview}
-							</Text>
-						)}
-					</View>
+					)}
 				</KeyboardAwareScrollView>
 			</View>
 
-			<KeyboardExtender enabled={plannedExpr.focused}>
-				<OperatorToolbar
-					onOperator={plannedExpr.insertOperator}
-					onEquals={plannedExpr.resolve}
-				/>
-			</KeyboardExtender>
+			{entityType !== 'account' && (
+				<KeyboardExtender enabled={plannedExpr.focused}>
+					<OperatorToolbar
+						onOperator={plannedExpr.insertOperator}
+						onEquals={plannedExpr.resolve}
+					/>
+				</KeyboardExtender>
+			)}
 		</Modal>
 	);
 }

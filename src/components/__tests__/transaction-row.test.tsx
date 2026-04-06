@@ -140,7 +140,7 @@ describe('TransactionRow', () => {
 			/>
 		);
 
-		expect(getByText('Removed account')).toBeTruthy();
+		expect(getByText('Removed (Checking)')).toBeTruthy();
 		expect(getByText('Groceries')).toBeTruthy();
 	});
 
