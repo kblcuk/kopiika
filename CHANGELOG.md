@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.14](https://codeberg.org/kblcuk/kopiika/compare/v0.2.13...v0.2.14) (2026-04-06)
+
+
+### Features
+
+* **accounts:** Remove planned amount from creation and show entity name in removed labels (KII-52) ([97edcc6](https://codeberg.org/kblcuk/kopiika/commit/97edcc6997b60176d371d76571da97e25d3916d8))
+* **savings:** Use light blue progress for in-progress goals (KII-54) ([34657a0](https://codeberg.org/kblcuk/kopiika/commit/34657a0c48662b8dcaea1fe866a97b1d05ef5589))
+
+
+### Bug Fixes
+
+* **categories:** Lower healthy progress threshold from 70% to 60% (KII-53) ([c877653](https://codeberg.org/kblcuk/kopiika/commit/c877653520006949be7874772df87b334310c93a))
+* **keyboard:** Update react-native-keyboard-controller ([1767bdd](https://codeberg.org/kblcuk/kopiika/commit/1767bdd1c50e447c4ef421784277ae89b19439d0))
+
 ## [0.2.13](https://codeberg.org/kblcuk/kopiika/compare/v0.2.12...v0.2.13) (2026-04-06)
 
 
