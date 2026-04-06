@@ -170,9 +170,11 @@ export function SortableEntityGrid({
 
 		registerRemeasureCallback(gridCallbackId, registerGridDropZones);
 
-		const timeout = setTimeout(registerGridDropZones, 100);
+		// Measure immediately — no-op if native view isn't laid out yet (width/height 0).
+		// onLayout on the grid View will fire once the real layout is ready.
+		registerGridDropZones();
+
 		return () => {
-			clearTimeout(timeout);
 			sortedEntities.forEach((e) => unregisterDropZone(e.id));
 			unregisterRemeasureCallback(gridCallbackId);
 		};
@@ -180,7 +182,7 @@ export function SortableEntityGrid({
 
 	const handleScrollEnd = useCallback(() => {
 		if (!dropZonesDisabled) {
-			setTimeout(registerGridDropZones, 50);
+			registerGridDropZones();
 		}
 	}, [dropZonesDisabled, registerGridDropZones]);
 
@@ -369,7 +371,11 @@ export function SortableEntityGrid({
 							onScrollEndDrag={handleScrollEnd}
 							onMomentumScrollEnd={handleScrollEnd}
 						>
-							<View ref={gridRef} className="relative flex-row">
+							<View
+								ref={gridRef}
+								className="relative flex-row"
+								onLayout={registerGridDropZones}
+							>
 								<Sortable.Grid
 									data={displayedEntities}
 									rows={maxRows}
