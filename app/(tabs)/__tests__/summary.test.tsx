@@ -2,7 +2,6 @@ import React from 'react';
 import { render, waitFor, act } from '@testing-library/react-native';
 import SummaryScreen from '../summary';
 import { useStore } from '@/src/store';
-import * as transactionsDb from '@/src/db/transactions';
 import type { Entity, Plan, Transaction } from '@/src/types';
 
 // Mock dependencies
@@ -14,10 +13,6 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
 	SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
-}));
-
-jest.mock('@/src/db/transactions', () => ({
-	getBatchEntityActuals: jest.fn(),
 }));
 
 jest.mock('@/src/components/period-picker', () => ({
@@ -81,9 +76,6 @@ describe('SummaryScreen', () => {
 			draggedEntity: null,
 			incomeVisible: false,
 		});
-
-		// Default mock implementation
-		(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(new Map());
 	});
 
 	describe('Transaction reactivity', () => {
@@ -97,16 +89,11 @@ describe('SummaryScreen', () => {
 				timestamp: Date.now(),
 			};
 
-			// Set up initial store state
 			useStore.setState({
 				entities: [mockCategory, mockAccount],
 				plans: [mockPlan],
 				transactions: [existingTransaction],
 			});
-
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 100]])
-			);
 
 			const { getAllByText, queryByText, rerender } = render(<SummaryScreen />);
 
@@ -114,10 +101,6 @@ describe('SummaryScreen', () => {
 				expect(getAllByText('100.00').length).toBeGreaterThan(0);
 				expect(queryByText('250.00')).toBeNull();
 			});
-
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 250]])
-			);
 
 			const updatedTransaction: Transaction = {
 				...existingTransaction,
@@ -154,20 +137,12 @@ describe('SummaryScreen', () => {
 				],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 300]])
-			);
-
 			const { getAllByText, queryByText, rerender } = render(<SummaryScreen />);
 
 			await waitFor(() => {
 				expect(getAllByText('300.00').length).toBeGreaterThan(0);
 				expect(queryByText('0.00')).toBeNull();
 			});
-
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 0]])
-			);
 
 			await act(async () => {
 				useStore.setState({
@@ -185,26 +160,20 @@ describe('SummaryScreen', () => {
 	});
 
 	describe('Section rendering', () => {
-		it('should render categories section when category entities exist', async () => {
+		it('should render categories section when category entities exist', () => {
 			useStore.setState({
 				entities: [mockCategory],
 				plans: [mockPlan],
 				transactions: [],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 100]])
-			);
-
 			const { getByText } = render(<SummaryScreen />);
 
-			await waitFor(() => {
-				expect(getByText('Categories')).toBeTruthy();
-				expect(getByText('Groceries')).toBeTruthy();
-			});
+			expect(getByText('Categories')).toBeTruthy();
+			expect(getByText('Groceries')).toBeTruthy();
 		});
 
-		it('should display planned values from all-time plans', async () => {
+		it('should display planned values from all-time plans', () => {
 			useStore.setState({
 				entities: [mockCategory],
 				plans: [
@@ -220,20 +189,13 @@ describe('SummaryScreen', () => {
 				transactions: [],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['category-1', 100]])
-			);
-
 			const { getByText, queryByText } = render(<SummaryScreen />);
 
-			await waitFor(() => {
-				expect(getByText('/ 500.00')).toBeTruthy();
-			});
-
+			expect(getByText('/ 500.00')).toBeTruthy();
 			expect(queryByText('/ 250.00')).toBeNull();
 		});
 
-		it('should render savings section when saving entities exist', async () => {
+		it('should render savings section when saving entities exist', () => {
 			useStore.setState({
 				entities: [mockSaving],
 				plans: [],
@@ -241,19 +203,13 @@ describe('SummaryScreen', () => {
 				reservations: [],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['saving-1', 500]])
-			);
-
 			const { getByText } = render(<SummaryScreen />);
 
-			await waitFor(() => {
-				expect(getByText('Savings')).toBeTruthy();
-				expect(getByText('Vacation')).toBeTruthy();
-			});
+			expect(getByText('Savings')).toBeTruthy();
+			expect(getByText('Vacation')).toBeTruthy();
 		});
 
-		it('should use reservations for savings actuals', async () => {
+		it('should use reservations for savings actuals', () => {
 			useStore.setState({
 				entities: [mockSaving],
 				plans: [],
@@ -268,19 +224,13 @@ describe('SummaryScreen', () => {
 				],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(
-				new Map([['saving-1', 999]])
-			);
-
 			const { getByText } = render(<SummaryScreen />);
 
-			await waitFor(() => {
-				expect(getByText('Vacation')).toBeTruthy();
-				expect(getByText('350.00')).toBeTruthy();
-			});
+			expect(getByText('Vacation')).toBeTruthy();
+			expect(getByText('350.00')).toBeTruthy();
 		});
 
-		it('should show empty state when no entities exist', async () => {
+		it('should show empty state when no entities exist', () => {
 			useStore.setState({
 				entities: [],
 				plans: [],
@@ -288,13 +238,93 @@ describe('SummaryScreen', () => {
 				reservations: [],
 			});
 
-			(transactionsDb.getBatchEntityActuals as jest.Mock).mockResolvedValue(new Map());
-
 			const { getByText } = render(<SummaryScreen />);
 
-			await waitFor(() => {
-				expect(getByText('No data this period')).toBeTruthy();
+			expect(getByText('No data this period')).toBeTruthy();
+		});
+	});
+
+	describe('Canonical derivation rules', () => {
+		it('should only include current-period transactions for categories', () => {
+			const now = new Date();
+			const currentMonthTs = now.getTime();
+			const lastMonthTs = new Date(now.getFullYear(), now.getMonth() - 1, 15).getTime();
+
+			useStore.setState({
+				entities: [mockCategory, mockAccount],
+				plans: [mockPlan],
+				transactions: [
+					{
+						id: 'tx-current',
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 100,
+						currency: 'USD',
+						timestamp: currentMonthTs,
+					},
+					{
+						id: 'tx-old',
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 200,
+						currency: 'USD',
+						timestamp: lastMonthTs,
+					},
+				],
 			});
+
+			const { getAllByText, queryByText } = render(<SummaryScreen />);
+
+			// Only current-month 100 should appear, not 300 (100+200)
+			expect(getAllByText('100.00').length).toBeGreaterThan(0);
+			expect(queryByText('300.00')).toBeNull();
+		});
+
+		it('should exclude soft-deleted entities', () => {
+			useStore.setState({
+				entities: [mockCategory, { ...mockSaving, is_deleted: true }],
+				plans: [mockPlan],
+				transactions: [],
+				reservations: [
+					{
+						id: 'res-1',
+						account_entity_id: 'account-1',
+						saving_entity_id: 'saving-1',
+						amount: 500,
+					},
+				],
+			});
+
+			const { getByText, queryByText } = render(<SummaryScreen />);
+
+			expect(getByText('Groceries')).toBeTruthy();
+			expect(queryByText('Vacation')).toBeNull();
+			expect(queryByText('500.00')).toBeNull();
+		});
+
+		it('should not render income or account entities', () => {
+			const mockIncome: Entity = {
+				id: 'income-1',
+				type: 'income',
+				name: 'Salary',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+
+			useStore.setState({
+				entities: [mockCategory, mockAccount, mockIncome],
+				plans: [mockPlan],
+				transactions: [],
+				reservations: [],
+			});
+
+			const { getByText, queryByText } = render(<SummaryScreen />);
+
+			expect(getByText('Groceries')).toBeTruthy();
+			expect(queryByText('Checking')).toBeNull();
+			expect(queryByText('Salary')).toBeNull();
 		});
 	});
 });
