@@ -4,10 +4,7 @@ import { TextInput } from 'react-native';
 import { evaluateExpression } from '@/src/utils/evaluate-expression';
 import { formatAmount } from '@/src/utils/format';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import {
-	tryInsertOperator,
-	normalizeDecimalSeparator,
-} from '@/src/utils/expression-input';
+import { tryInsertOperator, normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { OPERATORS, type Operator } from '@/src/components/operator-toolbar';
 
 const EXPR_CHAR_RE = new RegExp(`[${OPERATORS.map((c) => `\\${c}`).join('')}]`);
@@ -24,9 +21,9 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 	const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
 	const [focused, setFocused] = useState(false);
-	const [selection, setSelection] = useState<
-		{ start: number; end: number } | undefined
-	>(undefined);
+	const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(
+		undefined
+	);
 
 	const isExpression = EXPR_CHAR_RE.test(value);
 
@@ -40,7 +37,9 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 	const setValue = useCallback(
 		(v: string) => {
 			const normalized = normalizeDecimalSeparator(v);
-			onChange(EXPR_CHAR_RE.test(normalized) ? normalized : normalizeNumericInput(normalized));
+			onChange(
+				EXPR_CHAR_RE.test(normalized) ? normalized : normalizeNumericInput(normalized)
+			);
 		},
 		[onChange]
 	);
@@ -69,14 +68,11 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 		[value, setValue]
 	);
 
-	const onFocus = useCallback(
-		(e?: { nativeEvent: { target?: number | null } }) => {
-			if (blurTimeout.current) clearTimeout(blurTimeout.current);
-			setFocused(true);
-			return e;
-		},
-		[]
-	);
+	const onFocus = useCallback((e?: { nativeEvent: { target?: number | null } }) => {
+		if (blurTimeout.current) clearTimeout(blurTimeout.current);
+		setFocused(true);
+		return e;
+	}, []);
 
 	const onBlur = useCallback(() => {
 		blurTimeout.current = setTimeout(() => setFocused(false), 150);

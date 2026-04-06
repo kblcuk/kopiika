@@ -6,10 +6,14 @@ jest.mock('react-native-safe-area-context', () => ({
 	SafeAreaView: ({ children }) => children,
 }));
 
-jest.mock('react-native-keyboard-controller', () => ({
-	KeyboardExtender: 'KeyboardExtender',
-	KeyboardProvider: ({ children }) => children,
-}));
+jest.mock('react-native-keyboard-controller', () => {
+	const { ScrollView } = require('react-native');
+	return {
+		KeyboardAwareScrollView: ScrollView,
+		KeyboardExtender: 'KeyboardExtender',
+		KeyboardProvider: ({ children }) => children,
+	};
+});
 
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),

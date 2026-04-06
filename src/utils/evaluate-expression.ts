@@ -36,7 +36,10 @@ export function evaluateExpression(input: string): number | null {
 		let hasDot = false;
 		while (pos < expr.length && ((expr[pos] >= '0' && expr[pos] <= '9') || expr[pos] === '.')) {
 			if (expr[pos] === '.') {
-				if (hasDot) { pos = start; return null; }
+				if (hasDot) {
+					pos = start;
+					return null;
+				}
 				hasDot = true;
 			}
 			pos++;

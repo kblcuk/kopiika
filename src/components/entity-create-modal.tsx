@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -18,7 +18,6 @@ import {
 } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { isEntityActive } from '@/src/utils/entity-display';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
 
@@ -35,8 +34,6 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
 	const insets = useSafeAreaInsets();
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
 	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
@@ -165,8 +162,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<KeyboardAvoidingView
-				{...keyboardAvoidingViewProps}
+			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -190,7 +186,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					</Pressable>
 				</View>
 
-				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-5 pt-6"
+				>
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 							Name
@@ -237,10 +238,6 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							<TextInput
 								{...sharedNumericTextInputProps}
 								{...plannedExpr.inputProps}
-								onFocus={(e) => {
-									plannedExpr.inputProps.onFocus(e);
-									handleInputFocus(e);
-								}}
 								placeholder="0"
 								className={`flex-1 ${textInputClassNames.input}`}
 								style={styles.input}
@@ -257,8 +254,8 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							</Text>
 						)}
 					</View>
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
 
 			<KeyboardExtender enabled={plannedExpr.focused}>
 				<OperatorToolbar

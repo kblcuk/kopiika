@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Trash2 } from 'lucide-react-native';
 
@@ -16,7 +16,6 @@ import { sharedNumericTextInputProps, styles, textInputClassNames } from '../sty
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
 
@@ -30,8 +29,6 @@ interface ReservationModalProps {
 export function ReservationModal({ visible, account, saving, onClose }: ReservationModalProps) {
 	const [amount, setAmount] = useState('');
 	const insets = useSafeAreaInsets();
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
 	const amountExpr = useExpressionInput(amount, setAmount);
 
 	const upsertReservation = useStore((s) => s.upsertReservation);
@@ -93,11 +90,13 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-			<KeyboardAvoidingView {...keyboardAvoidingViewProps} className="flex-1 justify-end">
+			<View className="flex-1 justify-end">
 				<Pressable className="flex-1" onPress={onClose} />
 
-				<ScrollView
-					{...scrollViewProps}
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
 					className="overflow-hidden rounded-t-3xl bg-paper-50"
 					contentContainerStyle={{
 						paddingBottom: Math.max(insets.bottom, 16),
@@ -134,10 +133,6 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<TextInput
 								{...sharedNumericTextInputProps}
 								{...amountExpr.inputProps}
-								onFocus={(e) => {
-									amountExpr.inputProps.onFocus(e);
-									handleInputFocus(e);
-								}}
 								placeholder="0"
 								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
@@ -198,8 +193,8 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							</Text>
 						</Pressable>
 					</View>
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
 
 			<KeyboardExtender enabled={amountExpr.focused}>
 				<OperatorToolbar

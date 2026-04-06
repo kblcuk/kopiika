@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	Platform,
-	ScrollView,
-} from 'react-native';
-import { KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
@@ -41,7 +32,6 @@ import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 
 interface SplitRow {
@@ -90,8 +80,6 @@ export function TransactionModal({
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
 	const upsertReservation = useStore((state) => state.upsertReservation);
@@ -512,8 +500,7 @@ export function TransactionModal({
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<KeyboardAvoidingView
-				{...keyboardAvoidingViewProps}
+			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -543,7 +530,12 @@ export function TransactionModal({
 					</Pressable>
 				</View>
 
-				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-5 pt-6"
+				>
 					{/* From → To */}
 					<View className="mb-8 flex-row items-start">
 						{renderEntityBubble(
@@ -570,10 +562,6 @@ export function TransactionModal({
 							<TextInput
 								{...sharedNumericTextInputProps}
 								{...amountExpr.inputProps}
-								onFocus={(e) => {
-									amountExpr.inputProps.onFocus(e);
-									handleInputFocus(e);
-								}}
 								placeholder="0"
 								className={textInputClassNames.heroAmountInput}
 								style={styles.input}
@@ -768,7 +756,6 @@ export function TransactionModal({
 																			v
 																		)
 																	}
-																	onFocus={handleInputFocus}
 																	placeholder="0"
 																	keyboardType="numeric"
 																	className={
@@ -915,7 +902,6 @@ export function TransactionModal({
 								ref={inputRef}
 								value={note}
 								onChangeText={setNote}
-								onFocus={handleInputFocus}
 								placeholder="Add a note..."
 								className={textInputClassNames.input}
 								style={styles.input}
@@ -937,8 +923,8 @@ export function TransactionModal({
 							onFundingChange={setTotalFunded}
 						/>
 					)}
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
 
 			<KeyboardExtender enabled={amountExpr.focused}>
 				<OperatorToolbar

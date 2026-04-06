@@ -1,17 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-	View,
-	Text,
-	TextInput,
-	Pressable,
-	Modal,
-	KeyboardAvoidingView,
-	Platform,
-	Alert,
-	ScrollView,
-	Switch,
-} from 'react-native';
-import { KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, Text, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -39,7 +28,6 @@ import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
-import { useKeyboardAwareScroll } from '@/src/hooks/use-keyboard-aware-scroll';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
 
@@ -63,8 +51,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	// Reservation modal state (for saving entities)
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const insets = useSafeAreaInsets();
-	const { handleInputFocus, keyboardAvoidingViewProps, scrollViewProps } =
-		useKeyboardAwareScroll();
 	const actualExpr = useExpressionInput(actualAmount, (v) => {
 		setActualAmount(v);
 		setIsEditingActual(true);
@@ -269,8 +255,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<KeyboardAvoidingView
-				{...keyboardAvoidingViewProps}
+			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
@@ -295,7 +280,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				</View>
 
 				{/* Content */}
-				<ScrollView {...scrollViewProps} className="flex-1 px-5 pt-6">
+				<KeyboardAwareScrollView
+					bottomOffset={50}
+					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-5 pt-6"
+				>
 					{/* Entity icon with edit indicator */}
 					<View className="mb-6 items-center">
 						<Pressable
@@ -375,10 +365,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<TextInput
 									{...sharedNumericTextInputProps}
 									{...actualExpr.inputProps}
-									onFocus={(e) => {
-										actualExpr.inputProps.onFocus(e);
-										handleInputFocus(e);
-									}}
 									placeholder="0"
 									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}
@@ -460,10 +446,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<TextInput
 									{...sharedNumericTextInputProps}
 									{...plannedExpr.inputProps}
-									onFocus={(e) => {
-										plannedExpr.inputProps.onFocus(e);
-										handleInputFocus(e);
-									}}
 									placeholder="0"
 									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}
@@ -539,8 +521,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							Delete Entity
 						</Text>
 					</Pressable>
-				</ScrollView>
-			</KeyboardAvoidingView>
+				</KeyboardAwareScrollView>
+			</View>
 
 			{/* Reservation edit modal — opens from saving detail when tapping a reservation row */}
 			{entity.type === 'saving' && (
@@ -553,7 +535,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			)}
 			<KeyboardExtender enabled={showExprToolbar}>
 				<OperatorToolbar
-					onOperator={actualExpr.focused ? actualExpr.insertOperator : plannedExpr.insertOperator}
+					onOperator={
+						actualExpr.focused ? actualExpr.insertOperator : plannedExpr.insertOperator
+					}
 					onEquals={actualExpr.focused ? actualExpr.resolve : plannedExpr.resolve}
 				/>
 			</KeyboardExtender>
