@@ -182,12 +182,11 @@ export default function SummaryScreen() {
 	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
 
-	const { entities, plans, transactions, reservations } = useStore(
+	const { entities, plans, transactions } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
-			reservations: state.reservations,
 		}))
 	);
 
@@ -204,11 +203,10 @@ export default function SummaryScreen() {
 					plans,
 					transactions,
 					selectedPeriod,
-					'category',
-					reservations
+					'category'
 				),
 			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
-		[entities, plans, transactions, reservations, selectedPeriod]
+		[entities, plans, transactions, selectedPeriod]
 	);
 
 	const savings = useMemo(
@@ -219,11 +217,10 @@ export default function SummaryScreen() {
 					plans,
 					transactions,
 					selectedPeriod,
-					'saving',
-					reservations
+					'saving'
 				),
 			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
-		[entities, plans, transactions, reservations, selectedPeriod]
+		[entities, plans, transactions, selectedPeriod]
 	);
 
 	// Sparkline trend: 3 prior months + selected period (categories only)
@@ -236,14 +233,13 @@ export default function SummaryScreen() {
 				plans,
 				transactions,
 				period,
-				'category',
-				reservations
+				'category'
 			);
 			const map = new Map<string, number>();
 			for (const e of cats) map.set(e.id, e.actual);
 			return map;
 		});
-	}, [entities, plans, transactions, reservations, selectedPeriod]);
+	}, [entities, plans, transactions, selectedPeriod]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>

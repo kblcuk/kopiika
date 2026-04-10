@@ -41,9 +41,6 @@ describe('ReservationModal', () => {
 	beforeEach(() => {
 		setupStoreForTest();
 		jest.clearAllMocks();
-		useStore.setState({
-			reservations: [],
-		});
 	});
 
 	it('uses the shared numeric input behavior for reservation amounts', async () => {
@@ -65,8 +62,8 @@ describe('ReservationModal', () => {
 	});
 
 	it('creates a reservation for a new account-saving pair', async () => {
-		const upsertReservation = jest.fn().mockResolvedValue(undefined);
-		useStore.setState({ upsertReservation, reservations: [] });
+		const reserveToSaving = jest.fn().mockResolvedValue(undefined);
+		useStore.setState({ reserveToSaving, transactions: [] });
 
 		const { getByPlaceholderText, getByText } = render(
 			<ReservationModal
@@ -81,21 +78,24 @@ describe('ReservationModal', () => {
 		fireEvent.press(getByText('Reserve'));
 
 		await waitFor(() => {
-			expect(upsertReservation).toHaveBeenCalledWith('account-1', 'saving-1', 250);
+			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 250);
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
 
 	it('updates an existing reservation amount', async () => {
-		const upsertReservation = jest.fn().mockResolvedValue(undefined);
+		const reserveToSaving = jest.fn().mockResolvedValue(undefined);
+		// Simulate existing reservation via an account→saving transaction
 		useStore.setState({
-			upsertReservation,
-			reservations: [
+			reserveToSaving,
+			transactions: [
 				{
-					id: 'reservation-1',
-					account_entity_id: 'account-1',
-					saving_entity_id: 'saving-1',
+					id: 'tx-existing',
+					from_entity_id: 'account-1',
+					to_entity_id: 'saving-1',
 					amount: 300,
+					currency: 'EUR',
+					timestamp: Date.now(),
 				},
 			],
 		});
@@ -115,21 +115,23 @@ describe('ReservationModal', () => {
 		fireEvent.press(getByText('Update'));
 
 		await waitFor(() => {
-			expect(upsertReservation).toHaveBeenCalledWith('account-1', 'saving-1', 450);
+			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 450);
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
 
 	it('clears an existing reservation from the trash action', async () => {
-		const upsertReservation = jest.fn().mockResolvedValue(undefined);
+		const reserveToSaving = jest.fn().mockResolvedValue(undefined);
 		useStore.setState({
-			upsertReservation,
-			reservations: [
+			reserveToSaving,
+			transactions: [
 				{
-					id: 'reservation-1',
-					account_entity_id: 'account-1',
-					saving_entity_id: 'saving-1',
+					id: 'tx-existing',
+					from_entity_id: 'account-1',
+					to_entity_id: 'saving-1',
 					amount: 300,
+					currency: 'EUR',
+					timestamp: Date.now(),
 				},
 			],
 		});
@@ -146,7 +148,7 @@ describe('ReservationModal', () => {
 		fireEvent.press(getByTestId('reservation-clear-button'));
 
 		await waitFor(() => {
-			expect(upsertReservation).toHaveBeenCalledWith('account-1', 'saving-1', 0);
+			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 0);
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});

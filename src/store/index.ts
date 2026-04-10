@@ -7,7 +7,6 @@ import type {
 	EntityWithBalance,
 	Plan,
 	Transaction,
-	Reservation,
 } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
@@ -15,13 +14,13 @@ import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { isEntityActive } from '@/src/utils/entity-display';
+import { getReservationForPair, getTotalReservedForAccount } from '@/src/utils/savings-transactions';
 
 interface AppState {
 	// Data
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];
-	reservations: Reservation[];
 
 	// UI State
 	currentPeriod: string;
@@ -59,14 +58,12 @@ interface AppState {
 	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 
-	// Reservation actions
-	upsertReservation: (
+	// Savings reservation action — creates account↔saving transactions to reach desiredTotal
+	reserveToSaving: (
 		accountEntityId: string,
 		savingEntityId: string,
-		amount: number
+		desiredTotal: number
 	) => Promise<void>;
-	deleteReservation: (id: string) => Promise<void>;
-	clearSavingReservations: (savingEntityId: string) => Promise<void>;
 }
 
 let initializePromise: Promise<void> | null = null;
@@ -84,7 +81,6 @@ export const useStore = create<AppState>((set, get) => ({
 	entities: [],
 	plans: [],
 	transactions: [],
-	reservations: [],
 	currentPeriod: getCurrentPeriod(),
 	isLoading: true,
 	draggedEntity: null,
@@ -100,18 +96,17 @@ export const useStore = create<AppState>((set, get) => ({
 			set({ isLoading: true });
 			try {
 				console.info('Hydrating store from database');
-				const [entities, plans, transactions, reservations] = await Promise.all([
+				const [entities, plans, transactions] = await Promise.all([
 					db.getAllEntities(),
 					db.getAllPlans(),
 					db.getAllTransactions(),
-					db.getAllReservations(),
 				]);
 
 				// Filter out orphaned plans that reference non-existent entities
 				const entityIds = new Set(entities.map((e) => e.id));
 				const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
 
-				set({ entities, plans: validPlans, transactions, reservations, isLoading: false });
+				set({ entities, plans: validPlans, transactions, isLoading: false });
 			} catch (error) {
 				console.error('Failed to initialize store:', error);
 				set({ isLoading: false });
@@ -125,15 +120,12 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	// Replace all data atomically — used by CSV import.
-	// Reservations are cleared because the CSV format doesn't include them;
-	// users will need to re-create savings reservations after import.
 	replaceAllData: async (newEntities, newPlans, newTransactions) => {
 		const drizzleDb = await db.getDrizzleDb();
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		drizzleDb.transaction((tx) => {
-			// Delete in FK-safe order: reservations/transactions → plans → entities
-			tx.delete(schema.reservations).run();
+			// Delete in FK-safe order: transactions → plans → entities
 			tx.delete(schema.transactions).run();
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
@@ -175,13 +167,12 @@ export const useStore = create<AppState>((set, get) => ({
 		});
 
 		// Re-read all data from DB into store state
-		const [entities, plans, transactions, reservations] = await Promise.all([
+		const [entities, plans, transactions] = await Promise.all([
 			db.getAllEntities(),
 			db.getAllPlans(),
 			db.getAllTransactions(),
-			db.getAllReservations(),
 		]);
-		set({ entities, plans, transactions, reservations });
+		set({ entities, plans, transactions });
 	},
 
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
@@ -222,10 +213,6 @@ export const useStore = create<AppState>((set, get) => ({
 		set({
 			entities: updatedEntities,
 			plans: state.plans.filter((p) => p.entity_id !== id),
-			// Soft delete preserves transactions, but linked plans/reservations are removed.
-			reservations: state.reservations.filter(
-				(r) => r.account_entity_id !== id && r.saving_entity_id !== id
-			),
 		});
 	},
 
@@ -363,69 +350,34 @@ export const useStore = create<AppState>((set, get) => ({
 		}));
 	},
 
-	// Reservation actions
-	upsertReservation: async (accountEntityId, savingEntityId, amount) => {
+	// Savings reservation — computes delta from current net and creates a transaction
+	reserveToSaving: async (accountEntityId, savingEntityId, desiredTotal) => {
 		const state = get();
 		const account = state.entities.find((e) => e.id === accountEntityId && !e.is_deleted);
 		const saving = state.entities.find((e) => e.id === savingEntityId && !e.is_deleted);
 		if (!account || !saving) {
 			console.warn(
-				`Cannot update reservation with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
+				`Cannot reserve with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
 			);
 			return;
 		}
 
-		const existing = state.reservations.find(
-			(r) => r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId
-		);
-		const id = existing?.id ?? generateId();
+		const currentNet = getReservationForPair(state.transactions, accountEntityId, savingEntityId);
+		const delta = desiredTotal - currentNet;
 
-		await db.upsertReservation(id, accountEntityId, savingEntityId, amount);
+		if (Math.abs(delta) < 0.005) return; // no meaningful change
 
-		// amount <= 0 deletes the reservation in DB
-		if (amount <= 0) {
-			set((s) => ({
-				reservations: s.reservations.filter(
-					(r) =>
-						!(
-							r.account_entity_id === accountEntityId &&
-							r.saving_entity_id === savingEntityId
-						)
-				),
-			}));
-			return;
-		}
-
-		const updated: Reservation = {
-			id,
-			account_entity_id: accountEntityId,
-			saving_entity_id: savingEntityId,
-			amount,
+		const transaction: Transaction = {
+			id: generateId(),
+			from_entity_id: delta > 0 ? accountEntityId : savingEntityId,
+			to_entity_id: delta > 0 ? savingEntityId : accountEntityId,
+			amount: Math.abs(delta),
+			currency: account.currency,
+			timestamp: Date.now(),
 		};
-		set((s) => {
-			const idx = s.reservations.findIndex(
-				(r) =>
-					r.account_entity_id === accountEntityId && r.saving_entity_id === savingEntityId
-			);
-			if (idx >= 0) {
-				const next = [...s.reservations];
-				next[idx] = updated;
-				return { reservations: next };
-			}
-			return { reservations: [...s.reservations, updated] };
-		});
-	},
 
-	deleteReservation: async (id) => {
-		await db.deleteReservation(id);
-		set((s) => ({ reservations: s.reservations.filter((r) => r.id !== id) }));
-	},
-
-	clearSavingReservations: async (savingEntityId) => {
-		await db.deleteAllReservationsForSaving(savingEntityId);
-		set((s) => ({
-			reservations: s.reservations.filter((r) => r.saving_entity_id !== savingEntityId),
-		}));
+		await db.createTransaction(transaction);
+		set((s) => ({ transactions: [transaction, ...s.transactions] }));
 	},
 }));
 
@@ -437,8 +389,7 @@ export function getEntitiesWithBalance(
 	plans: Plan[],
 	transactions: Transaction[],
 	currentPeriod: string,
-	type: EntityType,
-	reservations: Reservation[] = []
+	type: EntityType
 ): EntityWithBalance[] {
 	const { start, end } = getPeriodRange(currentPeriod);
 	// Filter by type and exclude system entities (balance adjustments)
@@ -455,10 +406,9 @@ export function getEntitiesWithBalance(
 		const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
 		const planned = plan?.planned_amount ?? 0;
 
-		// Accounts use all transactions (all-time balance)
+		// Accounts and savings use all transactions (all-time balance)
 		// Income and categories use current period only
-		// Savings use reservations, not transactions
-		const useAllTime = entity.type === 'account';
+		const useAllTime = entity.type === 'account' || entity.type === 'saving';
 		const relevantTransactions = useAllTime
 			? transactions
 			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
@@ -474,6 +424,8 @@ export function getEntitiesWithBalance(
 		): number {
 			switch (type) {
 				case 'account':
+				case 'saving':
+					// Both use net flow: incoming (+), outgoing (-)
 					return txns
 						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
 						.reduce(
@@ -489,11 +441,6 @@ export function getEntitiesWithBalance(
 								t.from_entity_id === entityId ? sum + t.amount : sum - t.amount,
 							0
 						);
-				case 'saving':
-					// Savings balance comes from reservations, not transactions
-					return reservations
-						.filter((r) => r.saving_entity_id === entityId)
-						.reduce((sum, r) => sum + r.amount, 0);
 				case 'category':
 					return txns
 						.filter((t) => t.to_entity_id === entityId)
@@ -502,17 +449,13 @@ export function getEntitiesWithBalance(
 		}
 
 		const txActual = calcBalance(pastTxns, entity.id, entity.type);
-		// Savings have no time-based upcoming — reservations are static
-		const upcoming =
-			entity.type === 'saving' ? 0 : calcBalance(futureTxns, entity.id, entity.type);
+		const upcoming = calcBalance(futureTxns, entity.id, entity.type);
 
 		// Track how much of the account balance is reserved for savings (virtual earmark)
 		// actual = full bank balance (matches reality); reserved is shown separately in UI
 		const reserved =
 			entity.type === 'account'
-				? reservations
-						.filter((r) => r.account_entity_id === entity.id)
-						.reduce((sum, r) => sum + r.amount, 0)
+				? getTotalReservedForAccount(transactions, entities, entity.id)
 				: 0;
 
 		return {
@@ -528,12 +471,11 @@ export function getEntitiesWithBalance(
 
 // React hook that wraps the pure function
 export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
-	const { entities, plans, transactions, reservations, currentPeriod } = useStore(
+	const { entities, plans, transactions, currentPeriod } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
-			reservations: state.reservations,
 			currentPeriod: state.currentPeriod,
 		}))
 	);
@@ -545,9 +487,8 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 				plans,
 				transactions,
 				currentPeriod,
-				type,
-				reservations
+				type
 			),
-		[entities, plans, transactions, currentPeriod, type, reservations]
+		[entities, plans, transactions, currentPeriod, type]
 	);
 }

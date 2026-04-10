@@ -70,7 +70,6 @@ describe('SummaryScreen', () => {
 			entities: [],
 			plans: [],
 			transactions: [],
-			reservations: [],
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
@@ -200,8 +199,7 @@ describe('SummaryScreen', () => {
 				entities: [mockSaving],
 				plans: [],
 				transactions: [],
-				reservations: [],
-			});
+				});
 
 			const { getByText } = render(<SummaryScreen />);
 
@@ -209,17 +207,18 @@ describe('SummaryScreen', () => {
 			expect(getByText('Vacation')).toBeTruthy();
 		});
 
-		it('should use reservations for savings actuals', () => {
+		it('should use transactions for savings actuals', () => {
 			useStore.setState({
-				entities: [mockSaving],
+				entities: [mockSaving, mockAccount],
 				plans: [],
-				transactions: [],
-				reservations: [
+				transactions: [
 					{
-						id: 'res-1',
-						account_entity_id: 'account-1',
-						saving_entity_id: 'saving-1',
+						id: 'tx-res-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
 						amount: 350,
+						currency: 'USD',
+						timestamp: Date.now(),
 					},
 				],
 			});
@@ -235,8 +234,7 @@ describe('SummaryScreen', () => {
 				entities: [],
 				plans: [],
 				transactions: [],
-				reservations: [],
-			});
+				});
 
 			const { getByText } = render(<SummaryScreen />);
 
@@ -282,15 +280,16 @@ describe('SummaryScreen', () => {
 
 		it('should exclude soft-deleted entities', () => {
 			useStore.setState({
-				entities: [mockCategory, { ...mockSaving, is_deleted: true }],
+				entities: [mockCategory, mockAccount, { ...mockSaving, is_deleted: true }],
 				plans: [mockPlan],
-				transactions: [],
-				reservations: [
+				transactions: [
 					{
-						id: 'res-1',
-						account_entity_id: 'account-1',
-						saving_entity_id: 'saving-1',
+						id: 'tx-res-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
 						amount: 500,
+						currency: 'USD',
+						timestamp: Date.now(),
 					},
 				],
 			});
@@ -317,8 +316,7 @@ describe('SummaryScreen', () => {
 				entities: [mockCategory, mockAccount, mockIncome],
 				plans: [mockPlan],
 				transactions: [],
-				reservations: [],
-			});
+				});
 
 			const { getByText, queryByText } = render(<SummaryScreen />);
 

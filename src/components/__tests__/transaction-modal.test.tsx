@@ -1471,13 +1471,16 @@ describe('TransactionModal', () => {
 			setupStoreForTest({
 				entities: [mockFromEntity, mockToEntity, savingEntity],
 			});
+			// Simulate existing reservation via account→saving transaction
 			useStore.setState({
-				reservations: [
+				transactions: [
 					{
-						id: 'res-1',
-						account_entity_id: 'account-1',
-						saving_entity_id: 'saving-1',
+						id: 'tx-res-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
 						amount: 300,
+						currency: 'USD',
+						timestamp: Date.now(),
 					},
 				],
 			});
@@ -1485,11 +1488,7 @@ describe('TransactionModal', () => {
 
 		it('transaction amount equals entered amount, not entered + funded', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1505,19 +1504,16 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
+				// Main transaction should be exactly what was typed
 				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ amount: 10 })
+					expect.objectContaining({ amount: 10, from_entity_id: 'account-1' })
 				);
 			});
 		});
 
-		it('reduces reservation by funded amount (defaults to entered amount)', async () => {
+		it('creates saving→account release transaction for funded amount', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1533,18 +1529,20 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				// Reservation was 300, funded 10 → new reservation = 290
-				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 290);
+				// Should create a saving→account release transaction for funded amount (10, clamped to max 300)
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'saving-1',
+						to_entity_id: 'account-1',
+						amount: 10,
+					})
+				);
 			});
 		});
 
 		it('caps funded amount at reservation max when entered exceeds it', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1565,8 +1563,14 @@ describe('TransactionModal', () => {
 				expect(addTransactionSpy).toHaveBeenCalledWith(
 					expect.objectContaining({ amount: 400 })
 				);
-				// Funded capped at 300 → reservation fully consumed
-				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 0);
+				// Release capped at 300 (max reservation)
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'saving-1',
+						to_entity_id: 'account-1',
+						amount: 300,
+					})
+				);
 			});
 		});
 

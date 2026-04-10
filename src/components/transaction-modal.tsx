@@ -82,7 +82,6 @@ export function TransactionModal({
 	const fundingRef = useRef<SavingsFundingHandle>(null);
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
-	const upsertReservation = useStore((state) => state.upsertReservation);
 	const entities = useStore((state) => state.entities);
 
 	const amountExpr = useExpressionInput(
@@ -362,14 +361,17 @@ export function TransactionModal({
 				if (txns.length === 0) return;
 				for (const txn of txns) await addTransaction(txn);
 
-				// Reduce reservations for any savings the user chose to fund from
+				// Release savings reservations via saving→account transactions
 				const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
 				for (const f of splitFunded) {
-					await upsertReservation(
-						fromEntity.id,
-						f.savingEntityId,
-						f.currentReservation - f.fundAmount
-					);
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: f.savingEntityId,
+						to_entity_id: fromEntity.id,
+						amount: f.fundAmount,
+						currency: fromEntity.currency,
+						timestamp,
+					});
 				}
 
 				onClose();
@@ -416,16 +418,20 @@ export function TransactionModal({
 				});
 			}
 
-			// Reduce reservations for any savings the user chose to fund from
+			// Release savings reservations via saving→account transactions
 			const funded = fundingRef.current?.getFundedReservations() ?? [];
 			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
+			const fundCurrency = selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
 			if (accountId) {
 				for (const f of funded) {
-					await upsertReservation(
-						accountId,
-						f.savingEntityId,
-						f.currentReservation - f.fundAmount
-					);
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: f.savingEntityId,
+						to_entity_id: accountId,
+						amount: f.fundAmount,
+						currency: fundCurrency,
+						timestamp,
+					});
 				}
 			}
 

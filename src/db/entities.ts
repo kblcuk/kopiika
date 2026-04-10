@@ -1,7 +1,7 @@
 import { eq, max, and } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { entities, plans, reservations } from './drizzle-schema';
+import { entities, plans } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
@@ -74,14 +74,6 @@ export async function softDeleteEntity(id: string): Promise<void> {
 		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
 
 		tx.delete(plans).where(eq(plans.entity_id, id)).run();
-
-		if (entity.type === 'account') {
-			tx.delete(reservations).where(eq(reservations.account_entity_id, id)).run();
-		}
-
-		if (entity.type === 'saving') {
-			tx.delete(reservations).where(eq(reservations.saving_entity_id, id)).run();
-		}
 	});
 }
 

@@ -18,6 +18,7 @@ import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
+import { getReservationForPair } from '@/src/utils/savings-transactions';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -31,25 +32,21 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const insets = useSafeAreaInsets();
 	const amountExpr = useExpressionInput(amount, setAmount);
 
-	const upsertReservation = useStore((s) => s.upsertReservation);
-	const reservations = useStore((s) => s.reservations);
+	const reserveToSaving = useStore((s) => s.reserveToSaving);
+	const transactions = useStore((s) => s.transactions);
 
-	// Find existing reservation for this pair
-	const existing =
-		account && saving
-			? reservations.find(
-					(r) => r.account_entity_id === account.id && r.saving_entity_id === saving.id
-				)
-			: null;
-	const existingAmount = existing?.amount;
+	// Derive current reservation for this pair from transactions
+	const currentNet =
+		account && saving ? getReservationForPair(transactions, account.id, saving.id) : 0;
+	const hasExisting = currentNet > 0;
 
 	useEffect(() => {
 		if (visible && account && saving) {
-			setAmount(existingAmount !== undefined ? String(existingAmount) : '');
+			setAmount(hasExisting ? String(currentNet) : '');
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, account, saving, existingAmount, amountExpr.inputRef]);
+	}, [visible, account, saving, hasExisting, currentNet, amountExpr.inputRef]);
 
 	if (!account || !saving) return null;
 
@@ -62,12 +59,12 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const resolved = amountExpr.resolve();
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
-		await upsertReservation(account.id, saving.id, finalAmount);
+		await reserveToSaving(account.id, saving.id, finalAmount);
 		onClose();
 	};
 
 	const handleClear = async () => {
-		await upsertReservation(account.id, saving.id, 0);
+		await reserveToSaving(account.id, saving.id, 0);
 		onClose();
 	};
 
@@ -144,9 +141,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 								{amountExpr.preview}
 							</Text>
 						)}
-						{existing && (
+						{hasExisting && (
 							<Text className="text-ink-faint mt-1 font-sans text-xs">
-								Currently reserved: {formatAmount(existing.amount, currency)}
+								Currently reserved: {formatAmount(currentNet, currency)}
 							</Text>
 						)}
 					</View>
@@ -171,7 +168,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 					{/* Actions */}
 					<View className="flex-row gap-3">
-						{existing && (
+						{hasExisting && (
 							<Pressable
 								onPress={handleClear}
 								testID="reservation-clear-button"
@@ -189,7 +186,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<Text
 								className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
 							>
-								{existing ? 'Update' : 'Reserve'}
+								{hasExisting ? 'Update' : 'Reserve'}
 							</Text>
 						</Pressable>
 					</View>

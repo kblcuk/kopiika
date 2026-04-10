@@ -29,6 +29,7 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { getReservationsForSaving } from '@/src/utils/savings-transactions';
 import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityDetailModalProps {
@@ -62,7 +63,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const {
 		plans,
 		currentPeriod,
-		reservations,
+		transactions,
+		entities,
 		setPlan,
 		deletePlan,
 		deleteEntity,
@@ -72,7 +74,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		useShallow((state) => ({
 			plans: state.plans,
 			currentPeriod: state.currentPeriod,
-			reservations: state.reservations,
+			transactions: state.transactions,
+			entities: state.entities,
 			setPlan: state.setPlan,
 			deletePlan: state.deletePlan,
 			deleteEntity: state.deleteEntity,
@@ -83,21 +86,20 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 	const accounts = useEntitiesWithBalance('account');
 
-	// For saving entities: find all reservations pointing to this saving, resolved to account entities
+	// For saving entities: derive per-account reservation amounts from transactions
 	const savingReservations = useMemo(() => {
 		if (!entity || entity.type !== 'saving') return [];
 
-		return reservations
-			.filter((r) => r.saving_entity_id === entity.id)
-			.map((r) => {
-				const account = accounts.find((a) => a.id === r.account_entity_id);
-				return account ? { reservation: r, account } : null;
+		return getReservationsForSaving(transactions, entities, entity.id)
+			.map(({ accountEntityId, amount }) => {
+				const account = accounts.find((a) => a.id === accountEntityId);
+				return account ? { amount, account } : null;
 			})
 			.filter(Boolean) as {
-			reservation: { id: string; amount: number };
+			amount: number;
 			account: EntityWithBalance;
 		}[];
-	}, [entity, reservations, accounts]);
+	}, [entity, transactions, entities, accounts]);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
@@ -467,12 +469,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							{savingReservations.length > 0 ? (
 								<View className="rounded-lg bg-paper-100">
-									{savingReservations.map(({ reservation, account }, index) => {
+									{savingReservations.map(({ amount, account }, index) => {
 										const AccountIcon = getIcon(account.icon || 'circle');
 										const accountColors = getEntityTypeColors('account');
 										return (
 											<Pressable
-												key={reservation.id}
+												key={account.id}
 												onPress={() => setReservationAccount(account)}
 												className={`flex-row items-center px-4 py-3 ${
 													index > 0 ? 'border-t border-paper-300' : ''
@@ -495,7 +497,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 													style={{ fontVariant: ['tabular-nums'] }}
 												>
 													{formatAmount(
-														reservation.amount,
+														amount,
 														entity.currency
 													)}
 												</Text>

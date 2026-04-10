@@ -259,8 +259,7 @@ export function SortableEntityGrid({
 				const isCrossType = targetEntity.type !== type;
 				const isSameTypeTransfer = type === 'account' && targetEntity.type === 'account';
 
-				// Savings are virtual reservations — no outgoing transactions
-				if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
+				if (isCrossType || isSameTypeTransfer) {
 					hoveredIdShared.value = targetId;
 				} else {
 					hoveredIdShared.value = '';

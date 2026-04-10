@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
 // Entities table
@@ -63,26 +63,6 @@ export const transactions = sqliteTable(
 	]
 );
 
-// Reservations table — mutable account→saving money reservations
-export const reservations = sqliteTable(
-	'reservations',
-	{
-		id: text('id').primaryKey(),
-		account_entity_id: text('account_entity_id')
-			.notNull()
-			.references(() => entities.id, { onDelete: 'cascade' }),
-		saving_entity_id: text('saving_entity_id')
-			.notNull()
-			.references(() => entities.id, { onDelete: 'cascade' }),
-		amount: real('amount').notNull(),
-	},
-	(table) => [
-		index('idx_reservations_account').on(table.account_entity_id),
-		index('idx_reservations_saving').on(table.saving_entity_id),
-		uniqueIndex('unq_reservations_pair').on(table.account_entity_id, table.saving_entity_id),
-	]
-);
-
 // Relations for cascade deletes and joins
 export const entitiesRelations = relations(entities, ({ many }) => ({
 	plans: many(plans),
@@ -91,12 +71,6 @@ export const entitiesRelations = relations(entities, ({ many }) => ({
 	}),
 	transactionsTo: many(transactions, {
 		relationName: 'to_entity',
-	}),
-	reservationsAsAccount: many(reservations, {
-		relationName: 'reservation_account',
-	}),
-	reservationsAsSaving: many(reservations, {
-		relationName: 'reservation_saving',
 	}),
 }));
 
@@ -120,15 +94,3 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 	}),
 }));
 
-export const reservationsRelations = relations(reservations, ({ one }) => ({
-	account: one(entities, {
-		fields: [reservations.account_entity_id],
-		references: [entities.id],
-		relationName: 'reservation_account',
-	}),
-	saving: one(entities, {
-		fields: [reservations.saving_entity_id],
-		references: [entities.id],
-		relationName: 'reservation_saving',
-	}),
-}));

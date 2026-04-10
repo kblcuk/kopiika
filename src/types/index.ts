@@ -21,8 +21,6 @@ export type Transaction = Omit<DrizzleTransaction, 'note'> & {
 	note?: string | null;
 };
 
-export type { Reservation } from '@/src/db/reservations';
-
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
 // Period type kept for backwards compatibility - all plans now use 'all-time'

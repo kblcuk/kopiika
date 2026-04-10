@@ -139,21 +139,30 @@ describe('transaction-validation', () => {
 				expect(result.some((e) => e.id === 'income-1')).toBe(false);
 			});
 
-			it('returns category entities when to is account (category -> account refund)', () => {
+			it('returns category and saving entities when to is account (refund/release)', () => {
 				const result = getValidFromEntities(allEntities, account1, 'USD');
 
 				// Should include categories (valid refund flow)
 				expect(result.some((e) => e.id === 'category-1')).toBe(true);
 				expect(result.some((e) => e.id === 'category-2')).toBe(true);
+
+				// Should include savings (saving -> account release)
+				expect(result.some((e) => e.id === 'saving-1')).toBe(true);
 			});
 
-			it('returns empty when to is saving (savings use reservations, not transactions)', () => {
+			it('returns account entities when to is saving (account -> saving)', () => {
 				const result = getValidFromEntities(allEntities, saving1, 'USD');
 
 				const nonBalanceAdjustment = result.filter(
 					(e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID
 				);
-				expect(nonBalanceAdjustment).toEqual([]);
+				// Should include accounts
+				expect(nonBalanceAdjustment.some((e) => e.id === 'account-1')).toBe(true);
+				expect(nonBalanceAdjustment.some((e) => e.id === 'account-2')).toBe(true);
+				// Should NOT include income, categories, or savings
+				expect(nonBalanceAdjustment.some((e) => e.type === 'income')).toBe(false);
+				expect(nonBalanceAdjustment.some((e) => e.type === 'category')).toBe(false);
+				expect(nonBalanceAdjustment.some((e) => e.type === 'saving')).toBe(false);
 			});
 
 			it('returns empty for invalid destination types (nothing can go to income)', () => {
@@ -227,15 +236,15 @@ describe('transaction-validation', () => {
 				expect(result.some((e) => e.id === 'saving-1')).toBe(false);
 			});
 
-			it('returns category and account (not saving) when from is account', () => {
+			it('returns category, account, and saving when from is account', () => {
 				const result = getValidToEntities(allEntities, account1, 'USD');
 
 				// Should include categories
 				expect(result.some((e) => e.id === 'category-1')).toBe(true);
 				expect(result.some((e) => e.id === 'category-2')).toBe(true);
 
-				// Should NOT include savings (reservations, not transactions)
-				expect(result.some((e) => e.id === 'saving-1')).toBe(false);
+				// Should include savings
+				expect(result.some((e) => e.id === 'saving-1')).toBe(true);
 
 				// Should include other accounts (account-to-account)
 				expect(result.some((e) => e.id === 'account-2')).toBe(true);
@@ -257,9 +266,19 @@ describe('transaction-validation', () => {
 				expect(result.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)).toBe(false);
 			});
 
-			it('returns empty for saving (saving cannot send)', () => {
+			it('returns account entities when from is saving (saving -> account release)', () => {
 				const result = getValidToEntities(allEntities, saving1, 'USD');
-				expect(result).toEqual([]);
+
+				// Should include accounts
+				expect(result.some((e) => e.id === 'account-1')).toBe(true);
+				expect(result.some((e) => e.id === 'account-2')).toBe(true);
+
+				// Should NOT include categories, income, or other savings
+				expect(result.some((e) => e.type === 'category')).toBe(false);
+				expect(result.some((e) => e.type === 'income')).toBe(false);
+
+				// Should NOT include balance adjustment
+				expect(result.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)).toBe(false);
 			});
 		});
 

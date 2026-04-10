@@ -6,12 +6,13 @@ import { isEntityDeleted } from './entity-display';
  * Defines which entity types can send money to which other types.
  * Core money flow: Income -> Account -> Category/Saving
  * Account can also transfer to other accounts.
+ * Savings can release funds back to accounts.
  */
 const ALLOWED_COMBINATIONS: Record<EntityType, EntityType[]> = {
 	income: ['account'],
-	account: ['category', 'account'],
+	account: ['category', 'account', 'saving'],
 	category: ['account'],
-	saving: [],
+	saving: ['account'],
 };
 
 /**
