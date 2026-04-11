@@ -173,7 +173,14 @@ export function TransactionModal({
 				setAmount('');
 				setNote('');
 				setSelectedDate(new Date());
-				setSelectedFromId(null);
+				// Pre-fill with default account in quickAdd mode
+				const currentEntities = useStore.getState().entities;
+				const defaultAccount = quickAdd
+					? currentEntities.find(
+							(e) => e.type === 'account' && e.is_default && !e.is_deleted
+						)
+					: null;
+				setSelectedFromId(defaultAccount?.id ?? null);
 				setSelectedToId(null);
 			}
 			setShowDatePicker(false);

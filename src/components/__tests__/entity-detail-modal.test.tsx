@@ -916,6 +916,143 @@ describe('EntityDetailModal', () => {
 		});
 	});
 
+	describe('Default Account Toggle', () => {
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+			upcoming: 0,
+		};
+
+		it('shows default account toggle for account entities', () => {
+			const { getByTestId, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('entity-detail-is-default-switch')).toBeTruthy();
+			expect(getByText('Default account')).toBeTruthy();
+			expect(getByText('Pre-selected when adding transactions')).toBeTruthy();
+		});
+
+		it('does not show default account toggle for non-account entities', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			expect(queryByTestId('entity-detail-is-default-switch')).toBeNull();
+		});
+
+		it('initializes toggle to off when entity is not default', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const toggle = getByTestId('entity-detail-is-default-switch');
+			expect(toggle.props.value).toBe(false);
+		});
+
+		it('initializes toggle to on when entity is default', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_default: true }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const toggle = getByTestId('entity-detail-is-default-switch');
+			expect(toggle.props.value).toBe(true);
+		});
+
+		it('calls setDefaultAccount when toggling on', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(setDefaultAccountSpy).toHaveBeenCalledWith('account-1');
+			});
+		});
+
+		it('calls setDefaultAccount(null) when toggling off', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_default: true }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', false);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(setDefaultAccountSpy).toHaveBeenCalledWith(null);
+			});
+		});
+
+		it('does not call setDefaultAccount when toggle unchanged', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalled();
+			});
+			expect(setDefaultAccountSpy).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('Account Reservations (Reserved For)', () => {
 		const mockAccountEntity: EntityWithBalance = {
 			id: 'account-1',

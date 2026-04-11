@@ -8,11 +8,15 @@ type DrizzlePlan = InferSelectModel<typeof schema.plans>;
 type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 
 // Convert Drizzle's null types to optional (undefined) for better TypeScript ergonomics
-export type Entity = Omit<DrizzleEntity, 'icon' | 'color' | 'include_in_total' | 'is_deleted'> & {
+export type Entity = Omit<
+	DrizzleEntity,
+	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default'
+> & {
 	icon?: string | null;
 	color?: string | null;
 	include_in_total?: boolean;
 	is_deleted?: boolean;
+	is_default?: boolean;
 };
 
 export type Plan = DrizzlePlan;

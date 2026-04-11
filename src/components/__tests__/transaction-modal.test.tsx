@@ -1456,6 +1456,144 @@ describe('TransactionModal', () => {
 		});
 	});
 
+	describe('Default Account Pre-fill (KII-35)', () => {
+		const incomeEntity: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+		const defaultAccount: Entity = {
+			id: 'account-default',
+			type: 'account',
+			name: 'Main Card',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+			is_default: true,
+		};
+		const otherAccount: Entity = {
+			id: 'account-other',
+			type: 'account',
+			name: 'Savings',
+			currency: 'USD',
+			order: 1,
+			row: 0,
+			position: 1,
+		};
+		const categoryEntity: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+
+		it('pre-selects the default account as From in quickAdd mode', () => {
+			useStore.setState({
+				entities: [incomeEntity, defaultAccount, otherAccount, categoryEntity],
+			});
+
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Default account name should be visible as the From entity
+			expect(getByText('Main Card')).toBeTruthy();
+			// "From" placeholder should NOT be visible (entity is pre-selected)
+			expect(queryByText('From')).toBeNull();
+		});
+
+		it('does not pre-select a deleted default account', () => {
+			useStore.setState({
+				entities: [{ ...defaultAccount, is_deleted: true }, otherAccount, categoryEntity],
+			});
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Should show empty "From" placeholder
+			expect(getByText('From')).toBeTruthy();
+		});
+
+		it('shows empty From when no default account exists', () => {
+			useStore.setState({
+				entities: [incomeEntity, otherAccount, categoryEntity],
+			});
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			expect(getByText('From')).toBeTruthy();
+		});
+
+		it('allows overriding the pre-selected default account', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				entities: [incomeEntity, defaultAccount, otherAccount, categoryEntity],
+				addTransaction: addTransactionSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Pre-selected, user taps to change
+			fireEvent.press(getByText('Main Card'));
+			fireEvent.press(getByText('Savings'));
+
+			// Pick destination
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Groceries'));
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '25');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-other',
+						to_entity_id: 'category-1',
+						amount: 25,
+					})
+				);
+			});
+		});
+	});
+
 	describe('Savings Funding (KII-71)', () => {
 		const savingEntity: Entity = {
 			id: 'saving-1',

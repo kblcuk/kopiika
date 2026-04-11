@@ -52,6 +52,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
+	const [isDefault, setIsDefault] = useState(false);
 	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
@@ -74,6 +75,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		deleteEntity,
 		updateEntity,
 		addTransaction,
+		setDefaultAccount,
 	} = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
@@ -85,6 +87,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
 			addTransaction: state.addTransaction,
+			setDefaultAccount: state.setDefaultAccount,
 		}))
 	);
 
@@ -139,6 +142,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setActualAmount(roundMoney(entity.actual).toString());
 			setIsEditingActual(false);
 			setIncludeInTotal(entity.include_in_total !== false);
+			setIsDefault(entity.is_default === true);
 			setNameError(null);
 			setShowIconPicker(false);
 		}
@@ -202,6 +206,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			} else if (existingPlan) {
 				await deletePlan(existingPlan.id);
 			}
+		}
+
+		// Handle default account toggle
+		if (entity.type === 'account' && isDefault !== (entity.is_default === true)) {
+			await setDefaultAccount(isDefault ? entity.id : null);
 		}
 
 		// Handle balance adjustment for accounts
@@ -434,6 +443,28 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									}}
 									thumbColor={colors.paper.warm}
 									testID="entity-detail-include-in-total-switch"
+								/>
+							</View>
+
+							{/* Default account toggle */}
+							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+								<View className="flex-1 pr-4">
+									<Text className="font-sans text-base text-ink">
+										Default account
+									</Text>
+									<Text className="font-sans text-xs text-ink-muted">
+										Pre-selected when adding transactions
+									</Text>
+								</View>
+								<Switch
+									value={isDefault}
+									onValueChange={setIsDefault}
+									trackColor={{
+										false: colors.border.DEFAULT,
+										true: colors.accent.DEFAULT,
+									}}
+									thumbColor={colors.paper.warm}
+									testID="entity-detail-is-default-switch"
 								/>
 							</View>
 

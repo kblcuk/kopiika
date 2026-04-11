@@ -55,6 +55,9 @@ interface AppState {
 	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 
+	// Default account — toggle the default flag; only one account at a time
+	setDefaultAccount: (accountId: string | null) => Promise<void>;
+
 	// Savings reservation action — creates account↔saving transactions to reach desiredTotal
 	reserveToSaving: (
 		accountEntityId: string,
@@ -142,6 +145,7 @@ export const useStore = create<AppState>((set, get) => ({
 						order: entity.order ?? 0,
 						include_in_total: entity.include_in_total ?? true,
 						is_deleted: entity.is_deleted ?? false,
+						is_default: entity.is_default ?? false,
 					})
 					.run();
 			}
@@ -344,6 +348,20 @@ export const useStore = create<AppState>((set, get) => ({
 		await db.deleteTransaction(id);
 		set((state) => ({
 			transactions: state.transactions.filter((t) => t.id !== id),
+		}));
+	},
+
+	// Default account — clear old default and optionally set a new one
+	setDefaultAccount: async (accountId) => {
+		await db.clearDefaultAccount(accountId ?? undefined);
+		if (accountId) {
+			const entity = get().entities.find((e) => e.id === accountId);
+			if (entity) await db.updateEntity({ ...entity, is_default: true });
+		}
+		set((state) => ({
+			entities: state.entities.map((e) =>
+				e.type === 'account' ? { ...e, is_default: e.id === accountId } : e
+			),
 		}));
 	},
 
