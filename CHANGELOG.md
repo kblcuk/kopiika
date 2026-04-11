@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.18](https://codeberg.org/kblcuk/kopiika/compare/v0.2.17...v0.2.18) (2026-04-11)
+
+
+### Features
+
+* **accounts:** Add default account setting for transactions ([7fa3b41](https://codeberg.org/kblcuk/kopiika/commit/7fa3b41649b8d0bdaf7d3c82e8fd3e5cb2ef14ad))
+* **history:** Redesign transaction row to stacked layout ([72bf663](https://codeberg.org/kblcuk/kopiika/commit/72bf663f45a18bb97a6f835fdb75b8e23546e009))
+
 ## [0.2.17](https://codeberg.org/kblcuk/kopiika/compare/v0.2.16...v0.2.17) (2026-04-11)
 
 
