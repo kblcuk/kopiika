@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.15](https://codeberg.org/kblcuk/kopiika/compare/v0.2.14...v0.2.15) (2026-04-11)
+
+
+### Features
+
+* **savings:** Promote reservations to transactions for History visibility (KII-61) ([c30e180](https://codeberg.org/kblcuk/kopiika/commit/c30e18027539f7136d0d56c6554e200e13d00428))
+
 ## [0.2.14](https://codeberg.org/kblcuk/kopiika/compare/v0.2.13...v0.2.14) (2026-04-06)
 
 
