@@ -29,7 +29,10 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
-import { getReservationsForSaving } from '@/src/utils/savings-transactions';
+import {
+	getReservationsForSaving,
+	getReservationsForAccount,
+} from '@/src/utils/savings-transactions';
 import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityDetailModalProps {
@@ -49,8 +52,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
-	// Reservation modal state (for saving entities)
+	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
+	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
 	const insets = useSafeAreaInsets();
 	const actualExpr = useExpressionInput(actualAmount, (v) => {
 		setActualAmount(v);
@@ -85,6 +89,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	);
 
 	const accounts = useEntitiesWithBalance('account');
+	const savings = useEntitiesWithBalance('saving');
 
 	// For saving entities: derive per-account reservation amounts from transactions
 	const savingReservations = useMemo(() => {
@@ -100,6 +105,21 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			account: EntityWithBalance;
 		}[];
 	}, [entity, transactions, entities, accounts]);
+
+	// For account entities: derive per-saving reservation amounts from transactions
+	const accountReservations = useMemo(() => {
+		if (!entity || entity.type !== 'account') return [];
+
+		return getReservationsForAccount(transactions, entities, entity.id)
+			.map(({ savingEntityId, amount }) => {
+				const saving = savings.find((s) => s.id === savingEntityId);
+				return saving ? { amount, saving } : null;
+			})
+			.filter(Boolean) as {
+			amount: number;
+			saving: EntityWithBalance;
+		}[];
+	}, [entity, transactions, entities, savings]);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
@@ -413,6 +433,53 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									testID="entity-detail-include-in-total-switch"
 								/>
 							</View>
+
+							{/* Reserved for — per-saving breakdown */}
+							<View className="mt-4" testID="account-reservations-section">
+								<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+									Reserved for
+								</Text>
+								{accountReservations.length > 0 ? (
+									<View className="rounded-lg bg-paper-100">
+										{accountReservations.map(({ amount, saving }, index) => {
+											const SavingIcon = getIcon(saving.icon || 'circle');
+											const savingColors = getEntityTypeColors('saving');
+											return (
+												<Pressable
+													key={saving.id}
+													onPress={() => setReservationSaving(saving)}
+													className={`flex-row items-center px-4 py-3 ${
+														index > 0 ? 'border-t border-paper-300' : ''
+													}`}
+													testID={`account-reservation-row-${saving.id}`}
+												>
+													<View
+														className={`mr-3 h-8 w-8 items-center justify-center rounded-full ${savingColors.bg}`}
+													>
+														<SavingIcon
+															size={16}
+															color={savingColors.iconColor}
+														/>
+													</View>
+													<Text className="flex-1 font-sans text-base text-ink">
+														{saving.name}
+													</Text>
+													<Text
+														className="font-sans-semibold text-base text-ink"
+														style={{ fontVariant: ['tabular-nums'] }}
+													>
+														{formatAmount(amount, entity.currency)}
+													</Text>
+												</Pressable>
+											);
+										})}
+									</View>
+								) : (
+									<Text className="text-ink-faint font-sans text-sm">
+										Drag a savings goal onto this account to reserve funds
+									</Text>
+								)}
+							</View>
 						</View>
 					) : (
 						/* Original read-only status for other entity types */
@@ -530,6 +597,15 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					account={reservationAccount}
 					saving={entity}
 					onClose={() => setReservationAccount(null)}
+				/>
+			)}
+			{/* Reservation edit modal — opens from account detail when tapping a reservation row */}
+			{entity.type === 'account' && (
+				<ReservationModal
+					visible={reservationSaving !== null}
+					account={entity}
+					saving={reservationSaving}
+					onClose={() => setReservationSaving(null)}
 				/>
 			)}
 			<KeyboardExtender enabled={showExprToolbar}>

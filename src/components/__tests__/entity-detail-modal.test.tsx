@@ -2,7 +2,11 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { EntityDetailModal } from '../entity-detail-modal';
-import { setupStoreForTest } from '@/src/test-utils-component';
+import {
+	setupStoreForTest,
+	createMockEntity,
+	createMockTransaction,
+} from '@/src/test-utils-component';
 import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -909,6 +913,109 @@ describe('EntityDetailModal', () => {
 			fireEvent.changeText(actualInput, '05');
 
 			expect(getByTestId('entity-detail-actual-input').props.value).toBe('5');
+		});
+	});
+
+	describe('Account Reservations (Reserved For)', () => {
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Main Card',
+			currency: 'EUR',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+			upcoming: 0,
+			reserved: 250,
+		};
+
+		it('shows "Reserved for" section with per-saving breakdown', () => {
+			const savingEntity = createMockEntity({
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Emergency Fund',
+				icon: 'shield',
+			});
+			const savingEntity2 = createMockEntity({
+				id: 'saving-2',
+				type: 'saving',
+				name: 'Vacation',
+				icon: 'palmtree',
+			});
+
+			setupStoreForTest({
+				entities: [
+					createMockEntity({ id: 'account-1', type: 'account', name: 'Main Card' }),
+					savingEntity,
+					savingEntity2,
+				],
+				transactions: [
+					createMockTransaction({
+						id: 'tx-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
+						amount: 100,
+					}),
+					createMockTransaction({
+						id: 'tx-2',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-2',
+						amount: 150,
+					}),
+				],
+			});
+
+			const { getByTestId, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('account-reservations-section')).toBeTruthy();
+			expect(getByText('Reserved for')).toBeTruthy();
+			expect(getByTestId('account-reservation-row-saving-1')).toBeTruthy();
+			expect(getByTestId('account-reservation-row-saving-2')).toBeTruthy();
+			expect(getByText('Emergency Fund')).toBeTruthy();
+			expect(getByText('Vacation')).toBeTruthy();
+		});
+
+		it('shows empty state when no reservations exist', () => {
+			setupStoreForTest({
+				entities: [
+					createMockEntity({ id: 'account-1', type: 'account', name: 'Main Card' }),
+				],
+				transactions: [],
+			});
+
+			const { getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, reserved: 0 }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(
+				getByText('Drag a savings goal onto this account to reserve funds')
+			).toBeTruthy();
+		});
+
+		it('does not show "Reserved for" section for non-account entities', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, type: 'category', id: 'cat-1' }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('account-reservations-section')).toBeNull();
 		});
 	});
 });
