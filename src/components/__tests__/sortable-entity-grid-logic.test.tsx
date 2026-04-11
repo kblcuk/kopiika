@@ -3,67 +3,65 @@ import { resolveGridDragEnd } from '../sortable-entity-grid-logic';
 describe('resolveGridDragEnd', () => {
 	const orderedIds = ['a', 'b', 'c'];
 
-	describe('transaction mode', () => {
-		it('returns transaction for cross-type drop (account → category)', () => {
+	describe('transaction mode — allowed pairs (forward)', () => {
+		it.each([
+			['income', 'account'],
+			['account', 'category'],
+			['account', 'account'],
+			['account', 'saving'],
+			['category', 'account'],
+			['saving', 'account'],
+		] as const)('%s → %s returns transaction', (sourceType, targetType) => {
+			expect(
+				resolveGridDragEnd({
+					dragBehavior: 'transaction',
+					sourceType,
+					targetType,
+					targetId: 'target-1',
+					orderedIds,
+				})
+			).toEqual({ kind: 'transaction', targetId: 'target-1' });
+		});
+	});
+
+	describe('transaction mode — allowed pairs (reverse / refund)', () => {
+		it('account → income returns transaction (reverse of income→account)', () => {
 			expect(
 				resolveGridDragEnd({
 					dragBehavior: 'transaction',
 					sourceType: 'account',
-					targetType: 'category',
-					targetId: 'cat-1',
+					targetType: 'income',
+					targetId: 'inc-1',
 					orderedIds,
 				})
-			).toEqual({ kind: 'transaction', targetId: 'cat-1' });
+			).toEqual({ kind: 'transaction', targetId: 'inc-1' });
 		});
+	});
 
-		it('returns transaction for account → account (same-type transfer)', () => {
+	describe('transaction mode — blocked pairs', () => {
+		it.each([
+			['income', 'income'],
+			['income', 'category'],
+			['income', 'saving'],
+			['category', 'category'],
+			['category', 'saving'],
+			['saving', 'saving'],
+			['saving', 'income'],
+			['saving', 'category'],
+		] as const)('%s → %s returns none', (sourceType, targetType) => {
 			expect(
 				resolveGridDragEnd({
 					dragBehavior: 'transaction',
-					sourceType: 'account',
-					targetType: 'account',
-					targetId: 'acc-2',
-					orderedIds,
-				})
-			).toEqual({ kind: 'transaction', targetId: 'acc-2' });
-		});
-
-		it('returns transaction for income → account', () => {
-			expect(
-				resolveGridDragEnd({
-					dragBehavior: 'transaction',
-					sourceType: 'income',
-					targetType: 'account',
-					targetId: 'acc-1',
-					orderedIds,
-				})
-			).toEqual({ kind: 'transaction', targetId: 'acc-1' });
-		});
-
-		it('blocks outgoing transactions from savings', () => {
-			expect(
-				resolveGridDragEnd({
-					dragBehavior: 'transaction',
-					sourceType: 'saving',
-					targetType: 'account',
-					targetId: 'acc-1',
+					sourceType,
+					targetType,
+					targetId: 'target-1',
 					orderedIds,
 				})
 			).toEqual({ kind: 'none' });
 		});
+	});
 
-		it('returns none when same non-account type (category → category)', () => {
-			expect(
-				resolveGridDragEnd({
-					dragBehavior: 'transaction',
-					sourceType: 'category',
-					targetType: 'category',
-					targetId: 'cat-2',
-					orderedIds,
-				})
-			).toEqual({ kind: 'none' });
-		});
-
+	describe('transaction mode — missing target', () => {
 		it('returns none when targetId is null (dropped in empty space)', () => {
 			expect(
 				resolveGridDragEnd({

@@ -1,6 +1,10 @@
 import type { Entity } from '@/src/types';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
-import { getValidFromEntities, getValidToEntities } from '../transaction-validation';
+import {
+	getValidFromEntities,
+	getValidToEntities,
+	isAllowedPair,
+} from '../transaction-validation';
 
 describe('transaction-validation', () => {
 	// Test entities with different types and currencies
@@ -340,6 +344,34 @@ describe('transaction-validation', () => {
 				expect(result.some((e) => e.id === 'account-eur')).toBe(true);
 				expect(result.some((e) => e.id === 'account-1')).toBe(false);
 			});
+		});
+	});
+
+	describe('isAllowedPair', () => {
+		it.each([
+			['income', 'account'],
+			['account', 'category'],
+			['account', 'account'],
+			['account', 'saving'],
+			['category', 'account'],
+			['saving', 'account'],
+		] as const)('%s → %s is allowed', (from, to) => {
+			expect(isAllowedPair(from, to)).toBe(true);
+		});
+
+		it.each([
+			['income', 'income'],
+			['income', 'category'],
+			['income', 'saving'],
+			['account', 'income'],
+			['category', 'category'],
+			['category', 'income'],
+			['category', 'saving'],
+			['saving', 'saving'],
+			['saving', 'income'],
+			['saving', 'category'],
+		] as const)('%s → %s is blocked', (from, to) => {
+			expect(isAllowedPair(from, to)).toBe(false);
 		});
 	});
 });

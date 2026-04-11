@@ -26,6 +26,7 @@ import {
 	type FixedOrderContextType,
 } from './sortable-entity-bubble';
 import { resolveGridDragEnd } from './sortable-entity-grid-logic';
+import { isAllowedPair } from '@/src/utils/transaction-validation';
 
 // Grid layout constants
 const BUBBLE_WIDTH = 96;
@@ -256,10 +257,10 @@ export function SortableEntityGrid({
 					return;
 				}
 
-				const isCrossType = targetEntity.type !== type;
-				const isSameTypeTransfer = type === 'account' && targetEntity.type === 'account';
-
-				if (isCrossType || isSameTypeTransfer) {
+				if (
+					isAllowedPair(type, targetEntity.type) ||
+					isAllowedPair(targetEntity.type, type)
+				) {
 					hoveredIdShared.value = targetId;
 				} else {
 					hoveredIdShared.value = '';

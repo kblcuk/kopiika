@@ -16,6 +16,14 @@ const ALLOWED_COMBINATIONS: Record<EntityType, EntityType[]> = {
 };
 
 /**
+ * Returns whether a direct from→to transaction is allowed by type rules.
+ * Does not check currency, deletion, or entity identity — just the type graph.
+ */
+export function isAllowedPair(fromType: EntityType, toType: EntityType): boolean {
+	return ALLOWED_COMBINATIONS[fromType]?.includes(toType) ?? false;
+}
+
+/**
  * Returns which entity types can send money TO the given type.
  */
 function getValidFromTypes(toType: EntityType): EntityType[] {

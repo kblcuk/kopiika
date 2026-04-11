@@ -58,9 +58,22 @@ The primary screen shows:
 
 Each item should present name, icon, actual amount, and progress. Accounts show available balance as primary and total as secondary. Other entity types show actual and planned. Negative remaining amounts are emphasized rather than hidden.
 
+## Transaction Rules
+
+Allowed transaction pairs are defined once in `src/utils/transaction-validation.ts` (`ALLOWED_COMBINATIONS`). Every entry point — drag-and-drop, quick add, edit, split, and import — must validate against the same rules.
+
+| From \ To | Income | Account | Category | Saving |
+|-----------|--------|---------|----------|--------|
+| Income    |        | ✅      |          |        |
+| Account   |        | ✅      | ✅       | ✅     |
+| Category  |        | ✅      |          |        |
+| Saving    |        | ✅      |          |        |
+
+Drag-and-drop also allows reverse pairs (e.g. category→account) to trigger refund flows.
+
 ## Interaction Rules
 
-Dragging one entity onto another opens a transaction modal — except `Account -> Saving`, which opens a reservation modal (set-total UX that creates delta transactions internally).
+Dragging one entity onto another opens a transaction modal — except `Account -> Saving`, which opens a reservation modal (set-total UX that creates delta transactions internally). Reverse drags (e.g. `Category -> Account`, `Account -> Income`) open the refund picker.
 
 Behavioral expectations:
 
@@ -68,6 +81,8 @@ Behavioral expectations:
 - `Account -> Saving`: opens the reservation modal to set/update the total reserved amount (creates an `account -> saving` or `saving -> account` transaction for the delta)
 - `Saving -> Account`: opens the transaction modal for explicit release
 - `Income -> Account`: suggest remaining planned income
+- `Category -> Account`: opens refund picker (reverse of account → category)
+- `Account -> Income`: opens refund picker (reverse of income → account)
 - No validation should block a transaction solely because it exceeds a plan
 
 ### Savings Reservations
