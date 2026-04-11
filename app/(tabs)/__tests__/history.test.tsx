@@ -422,9 +422,7 @@ describe('HistoryScreen search params', () => {
 
 		mockParams = { period: '2026-01' };
 
-		const { getByPlaceholderText, getByTestId, queryByTestId } = render(
-			<HistoryScreen />
-		);
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
 		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), 'ikea');
 
@@ -463,9 +461,7 @@ describe('HistoryScreen search params', () => {
 
 		mockParams = { period: '2026-01' };
 
-		const { getByPlaceholderText, getByTestId, queryByTestId } = render(
-			<HistoryScreen />
-		);
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
 		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), '44.3');
 
@@ -505,9 +501,7 @@ describe('HistoryScreen search params', () => {
 
 		mockParams = { period: '2026-01' };
 
-		const { getByPlaceholderText, getByTestId, queryByTestId } = render(
-			<HistoryScreen />
-		);
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
 		const searchInput = getByPlaceholderText('Search by note or amount');
 
@@ -562,9 +556,7 @@ describe('HistoryScreen search params', () => {
 		// separate them — but search for "Lidl" will.
 		mockParams = { period: '2026-01', entityId: 'category-1' };
 
-		const { getByPlaceholderText, getByTestId, queryByTestId } = render(
-			<HistoryScreen />
-		);
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
 		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), 'Lidl');
 

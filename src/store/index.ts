@@ -452,8 +452,8 @@ export function getEntitiesWithBalance(
 		const txActual = calcBalance(pastTxns, entity.id, entity.type);
 		const upcoming = calcBalance(futureTxns, entity.id, entity.type);
 
-		// Track how much of the account balance is reserved for savings (virtual earmark)
-		// actual = full bank balance (matches reality); reserved is shown separately in UI
+		// Track how much of the account's outflows went to savings (for funding-section breakdown)
+		// Since KII-61 savings are real transactions already reflected in actual
 		const reserved =
 			entity.type === 'account'
 				? getTotalReservedForAccount(transactions, entities, entity.id)

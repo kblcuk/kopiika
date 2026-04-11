@@ -38,7 +38,6 @@ Derived values belong in selectors, not persisted state:
 - planned vs actual
 - remaining amounts
 - overspending state
-- available balance (account actual minus reserved)
 - per-account savings reservation amounts (derived from net `account <-> saving` transaction flow)
 
 Time scope rules:

@@ -186,4 +186,44 @@ describe('SortableEntityBubble', () => {
 			expect(getByText('0.00')).toBeTruthy();
 		});
 	});
+
+	describe('Account bubble display', () => {
+		const accountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Main account',
+			currency: 'EUR',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 3800,
+			planned: 0,
+			remaining: -3800,
+			upcoming: 0,
+			reserved: 1000,
+		};
+
+		it('shows actual balance, not actual minus reserved', () => {
+			const { getByText } = render(<SortableEntityBubble entity={accountEntity} />);
+
+			// Main amount should be actual (3,800.00), NOT actual - reserved (2,800.00)
+			expect(getByText('3,800.00')).toBeTruthy();
+		});
+
+		it('shows total (actual + reserved) when reserved > 0', () => {
+			const { getByText } = render(<SortableEntityBubble entity={accountEntity} />);
+
+			// Subtitle: actual + reserved = 3800 + 1000 = 4800
+			expect(getByText('4,800.00 total')).toBeTruthy();
+		});
+
+		it('shows red text when actual is negative', () => {
+			const negative = { ...accountEntity, actual: -200, remaining: 200 };
+			const { getByText } = render(<SortableEntityBubble entity={negative} />);
+
+			const amountText = getByText('200.00');
+			expect(amountText.props.className).toContain('text-negative');
+		});
+	});
 });

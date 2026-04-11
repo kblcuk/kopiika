@@ -402,15 +402,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								created.
 							</Text>
 
-							{/* Available = current minus reservations */}
-							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
-								<Text className="font-sans text-xs text-ink-muted">Available</Text>
-								<Text
-									className={`font-sans-semibold text-lg ${entity.actual - (entity.reserved ?? 0) < 0 ? 'text-negative' : 'text-ink'}`}
-								>
-									{formatAmount(entity.actual - (entity.reserved ?? 0))}
-								</Text>
-							</View>
+							{!!entity.reserved && entity.reserved > 0 && (
+								<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
+									<Text className="font-sans text-xs text-ink-muted">
+										Total (incl. savings)
+									</Text>
+									<Text
+										className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
+									>
+										{formatAmount(entity.actual + entity.reserved)}
+									</Text>
+								</View>
+							)}
 
 							{/* Include in total toggle */}
 							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">

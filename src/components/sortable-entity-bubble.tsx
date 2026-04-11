@@ -55,10 +55,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const typeColors = getEntityTypeColors(entity.type);
 	const isIncome = entity.type === 'income';
 	const isAccount = entity.type === 'account';
-	const available = isAccount ? entity.actual - (entity.reserved ?? 0) : 0;
-	const mainAmount = formatAmount(
-		isIncome ? Math.max(0, entity.actual) : isAccount ? available : entity.actual
-	);
+	const mainAmount = formatAmount(isIncome ? Math.max(0, entity.actual) : entity.actual);
 
 	// Get hovered ID shared value from context
 	const hoveredIdShared = useContext(HoveredIdContext);
@@ -183,7 +180,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 											: 'text-negative'
 										: 'text-ink'
 									: isAccount
-										? available < 0
+										? entity.actual < 0
 											? 'text-negative'
 											: 'text-ink'
 										: overspent
@@ -194,18 +191,16 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 							{mainAmount}
 						</Text>
 						{isAccount ? (
-							// Accounts: show total balance when some is reserved
 							!!entity.reserved &&
 							entity.reserved > 0 && (
 								<Text
 									className="font-sans text-xs text-ink-muted"
 									numberOfLines={1}
 								>
-									{formatAmount(entity.actual)} total
+									{formatAmount(entity.actual + entity.reserved)} total
 								</Text>
 							)
 						) : (
-							// Other entities: show planned amount
 							<Text className="font-sans text-xs text-ink-muted">
 								{formatAmount(entity.planned)}
 							</Text>
