@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.16](https://codeberg.org/kblcuk/kopiika/compare/v0.2.15...v0.2.16) (2026-04-11)
+
+
+### Features
+
+* **accounts:** Show per-saving reservation breakdown in account edit mode (KII-70) ([fa8564b](https://codeberg.org/kblcuk/kopiika/commit/fa8564bc0c5d9194d4c5382fa2069393da349586))
+* **history:** Add transaction search by note and amount (KII-78) ([218139c](https://codeberg.org/kblcuk/kopiika/commit/218139ce56706e54798d7d09301e6998733eabf1))
+
 ## [0.2.15](https://codeberg.org/kblcuk/kopiika/compare/v0.2.14...v0.2.15) (2026-04-11)
 
 
