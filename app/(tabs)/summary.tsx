@@ -212,13 +212,7 @@ export default function SummaryScreen() {
 	const savings = useMemo(
 		() =>
 			[
-				...getEntitiesWithBalance(
-					entities,
-					plans,
-					transactions,
-					selectedPeriod,
-					'saving'
-				),
+				...getEntitiesWithBalance(entities, plans, transactions, selectedPeriod, 'saving'),
 			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
 		[entities, plans, transactions, selectedPeriod]
 	);
@@ -228,13 +222,7 @@ export default function SummaryScreen() {
 		const priorPeriods = getPriorPeriods(selectedPeriod, 3);
 		const allPeriods = [...priorPeriods, selectedPeriod];
 		return allPeriods.map((period) => {
-			const cats = getEntitiesWithBalance(
-				entities,
-				plans,
-				transactions,
-				period,
-				'category'
-			);
+			const cats = getEntitiesWithBalance(entities, plans, transactions, period, 'category');
 			const map = new Map<string, number>();
 			for (const e of cats) map.set(e.id, e.actual);
 			return map;

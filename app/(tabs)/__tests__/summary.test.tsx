@@ -199,7 +199,7 @@ describe('SummaryScreen', () => {
 				entities: [mockSaving],
 				plans: [],
 				transactions: [],
-				});
+			});
 
 			const { getByText } = render(<SummaryScreen />);
 
@@ -234,7 +234,7 @@ describe('SummaryScreen', () => {
 				entities: [],
 				plans: [],
 				transactions: [],
-				});
+			});
 
 			const { getByText } = render(<SummaryScreen />);
 
@@ -316,7 +316,7 @@ describe('SummaryScreen', () => {
 				entities: [mockCategory, mockAccount, mockIncome],
 				plans: [mockPlan],
 				transactions: [],
-				});
+			});
 
 			const { getByText, queryByText } = render(<SummaryScreen />);
 

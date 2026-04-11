@@ -63,7 +63,7 @@ Each item should present name, icon, actual amount, and progress. Accounts show 
 Allowed transaction pairs are defined once in `src/utils/transaction-validation.ts` (`ALLOWED_COMBINATIONS`). Every entry point — drag-and-drop, quick add, edit, split, and import — must validate against the same rules.
 
 | From \ To | Income | Account | Category | Saving |
-|-----------|--------|---------|----------|--------|
+| --------- | ------ | ------- | -------- | ------ |
 | Income    |        | ✅      |          |        |
 | Account   |        | ✅      | ✅       | ✅     |
 | Category  |        | ✅      |          |        |

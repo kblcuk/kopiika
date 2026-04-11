@@ -496,10 +496,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 													className="font-sans-semibold text-base text-ink"
 													style={{ fontVariant: ['tabular-nums'] }}
 												>
-													{formatAmount(
-														amount,
-														entity.currency
-													)}
+													{formatAmount(amount, entity.currency)}
 												</Text>
 											</Pressable>
 										);

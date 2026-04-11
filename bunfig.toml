@@ -2,3 +2,4 @@
 # Component/E2E tests are run by Jest (`bun run test:component`).
 # Exclude them from bun's test runner to avoid React Native parse errors.
 pathIgnorePatterns = ["**/app/**", "**/src/components/**", "**/e2e/**"]
+preload = ["./test/preload.ts"]

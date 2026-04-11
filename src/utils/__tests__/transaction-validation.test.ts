@@ -1,10 +1,6 @@
 import type { Entity } from '@/src/types';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
-import {
-	getValidFromEntities,
-	getValidToEntities,
-	isAllowedPair,
-} from '../transaction-validation';
+import { getValidFromEntities, getValidToEntities, isAllowedPair } from '../transaction-validation';
 
 describe('transaction-validation', () => {
 	// Test entities with different types and currencies

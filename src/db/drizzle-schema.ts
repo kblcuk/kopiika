@@ -93,4 +93,3 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 		relationName: 'to_entity',
 	}),
 }));
-

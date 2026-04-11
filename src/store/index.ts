@@ -1,20 +1,17 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { useMemo } from 'react';
-import type {
-	Entity,
-	EntityType,
-	EntityWithBalance,
-	Plan,
-	Transaction,
-} from '@/src/types';
+import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { isEntityActive } from '@/src/utils/entity-display';
-import { getReservationForPair, getTotalReservedForAccount } from '@/src/utils/savings-transactions';
+import {
+	getReservationForPair,
+	getTotalReservedForAccount,
+} from '@/src/utils/savings-transactions';
 
 interface AppState {
 	// Data
@@ -362,7 +359,11 @@ export const useStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		const currentNet = getReservationForPair(state.transactions, accountEntityId, savingEntityId);
+		const currentNet = getReservationForPair(
+			state.transactions,
+			accountEntityId,
+			savingEntityId
+		);
 		const delta = desiredTotal - currentNet;
 
 		if (Math.abs(delta) < 0.005) return; // no meaningful change
@@ -481,14 +482,7 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 	);
 
 	return useMemo(
-		() =>
-			getEntitiesWithBalance(
-				entities,
-				plans,
-				transactions,
-				currentPeriod,
-				type
-			),
+		() => getEntitiesWithBalance(entities, plans, transactions, currentPeriod, type),
 		[entities, plans, transactions, currentPeriod, type]
 	);
 }
