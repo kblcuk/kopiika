@@ -98,52 +98,53 @@ export const TransactionRow = memo(function TransactionRow({
 	const rowBg = isUpcoming ? 'bg-info/5' : index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
 
 	const rowContent = (
-		<View className="flex-row items-center">
-			{/* Left side: entity flow + optional note */}
-			<View className="flex-1">
-				{/* Entity flow row */}
-				<View className="flex-row items-center">
-					<View
-						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+		<View>
+			{/* From row: icon + name + amount */}
+			<View className="flex-row items-center">
+				<View
+					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+				>
+					<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+				</View>
+				<Text className="flex-1 font-sans-medium text-base text-ink" numberOfLines={1}>
+					{fromLabel}
+				</Text>
+				<View className="ml-3 items-end">
+					{isUpcoming && (
+						<Clock size={12} color={colors.info.DEFAULT} style={{ marginBottom: 2 }} />
+					)}
+					<Text
+						className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
 					>
-						<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-					</View>
-					<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
-						{fromLabel}
-					</Text>
-					<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
-					<View
-						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
-					>
-						<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-					</View>
-					<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
-						{toLabel}
+						{formatAmount(transaction.amount, transaction.currency)}{' '}
+						<Text className="font-sans text-sm text-ink-muted">
+							{getCurrencySymbol(transaction.currency)}
+						</Text>
 					</Text>
 				</View>
-
-				{/* Note */}
-				{transaction.note && (
-					<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
-						{transaction.note}
-					</Text>
-				)}
 			</View>
 
-			{/* Amount and currency */}
-			<View className="items-end">
-				{isUpcoming && (
-					<Clock size={12} color={colors.info.DEFAULT} style={{ marginBottom: 2 }} />
-				)}
-				<Text
-					className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
+			{/* Vertical connector line, centered under From icon */}
+			<View className="ml-4 h-2 w-0.5 bg-paper-300" />
+
+			{/* To row: icon + name */}
+			<View className="flex-row items-center">
+				<View
+					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
 				>
-					{formatAmount(transaction.amount, transaction.currency)}{' '}
-					<Text className="font-sans text-sm text-ink-muted">
-						{getCurrencySymbol(transaction.currency)}
-					</Text>
+					<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+				</View>
+				<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
+					{toLabel}
 				</Text>
 			</View>
+
+			{/* Note on its own row */}
+			{transaction.note && (
+				<Text className="mt-1 pl-10 font-sans text-sm text-ink-muted" numberOfLines={3}>
+					{transaction.note}
+				</Text>
+			)}
 		</View>
 	);
 
