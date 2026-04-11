@@ -587,7 +587,7 @@ describe('EntityDetailModal', () => {
 			expect(queryByTestId('entity-detail-amount-input')).toBeNull();
 		});
 
-		it('shows available amount (balance minus reservations)', () => {
+		it('shows total including savings when reserved > 0', () => {
 			const entityWithReservation = {
 				...mockAccountEntity,
 				actual: 1000,
@@ -601,8 +601,8 @@ describe('EntityDetailModal', () => {
 				/>
 			);
 
-			expect(getByText('Available')).toBeTruthy();
-			expect(getByText(formatAmount(700))).toBeTruthy();
+			expect(getByText('Total (incl. savings)')).toBeTruthy();
+			expect(getByText(formatAmount(1300))).toBeTruthy();
 		});
 
 		it('creates positive adjustment transaction when increasing balance', async () => {

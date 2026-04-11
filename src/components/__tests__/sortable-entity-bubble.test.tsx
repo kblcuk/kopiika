@@ -222,7 +222,7 @@ describe('SortableEntityBubble', () => {
 			const negative = { ...accountEntity, actual: -200, remaining: 200 };
 			const { getByText } = render(<SortableEntityBubble entity={negative} />);
 
-			const amountText = getByText('200.00');
+			const amountText = getByText('-200.00');
 			expect(amountText.props.className).toContain('text-negative');
 		});
 	});
