@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
-import { View, Text, SectionList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, SectionList, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { Search, X } from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
@@ -70,7 +71,9 @@ export default function HistoryScreen() {
 		params.entityId || null
 	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [searchQuery, setSearchQuery] = useState('');
 	const deferredPeriod = useDeferredValue(selectedPeriod);
+	const deferredSearch = useDeferredValue(searchQuery);
 	const paramsRef = useRef(params);
 	paramsRef.current = params;
 	// Tracks the entityId we applied on the last focus so that the same
@@ -103,7 +106,7 @@ export default function HistoryScreen() {
 		}, [])
 	);
 
-	const isStale = deferredPeriod !== selectedPeriod;
+	const isStale = deferredPeriod !== selectedPeriod || deferredSearch !== searchQuery;
 
 	// Single memo for both past and upcoming — one Date.now() call ensures a
 	// transaction at the boundary can never fall between two different "now"
@@ -111,6 +114,7 @@ export default function HistoryScreen() {
 	const { filteredTransactions, upcomingTransactions } = useMemo(() => {
 		const { start, end } = getPeriodRange(deferredPeriod);
 		const now = Date.now();
+		const query = deferredSearch.trim().toLowerCase();
 
 		const filtered: Transaction[] = [];
 		const upcoming: Transaction[] = [];
@@ -128,6 +132,15 @@ export default function HistoryScreen() {
 			// Period boundary
 			if (tx.timestamp < start || tx.timestamp > end) continue;
 
+			// Search filter — match note (case-insensitive) or amount (partial)
+			if (
+				query &&
+				!tx.note?.toLowerCase().includes(query) &&
+				!String(tx.amount).includes(query)
+			) {
+				continue;
+			}
+
 			// Past/present vs upcoming split
 			if (tx.timestamp <= now) {
 				filtered.push(tx);
@@ -139,7 +152,7 @@ export default function HistoryScreen() {
 		upcoming.sort((a, b) => a.timestamp - b.timestamp);
 
 		return { filteredTransactions: filtered, upcomingTransactions: upcoming };
-	}, [transactions, deferredPeriod, selectedEntityId]);
+	}, [transactions, deferredPeriod, selectedEntityId, deferredSearch]);
 
 	const sections = useMemo(() => {
 		const pastSections = groupTransactionsByDay(filteredTransactions);
@@ -242,6 +255,25 @@ export default function HistoryScreen() {
 				<EntityFilter selectedEntityId={selectedEntityId} onChange={setSelectedEntityId} />
 			</View>
 
+			{/* Search */}
+			<View className="border-paper-400 mx-5 mb-3 flex-row items-center rounded-lg border bg-paper-100 px-3">
+				<Search size={16} color={colors.ink.placeholder} />
+				<TextInput
+					value={searchQuery}
+					onChangeText={setSearchQuery}
+					placeholder="Search by note or amount"
+					placeholderTextColor={colors.ink.placeholder}
+					className="ml-2 flex-1 py-2.5 font-sans text-base text-ink"
+					autoCorrect={false}
+					returnKeyType="search"
+				/>
+				{searchQuery.length > 0 && (
+					<Pressable onPress={() => setSearchQuery('')} hitSlop={12}>
+						<X size={16} color={colors.ink.muted} />
+					</Pressable>
+				)}
+			</View>
+
 			{/* Period totals */}
 			<View className="flex-row items-center justify-between border-b border-paper-300 bg-paper-100 px-5 py-2">
 				<Text className="font-sans text-xs text-ink-muted">
@@ -282,7 +314,9 @@ export default function HistoryScreen() {
 					ListEmptyComponent={
 						<View className="flex-1 items-center justify-center px-5 py-16">
 							<Text className="font-sans text-base text-ink-muted">
-								No transactions this period
+								{deferredSearch.trim()
+									? 'No matching transactions'
+									: 'No transactions this period'}
 							</Text>
 						</View>
 					}
