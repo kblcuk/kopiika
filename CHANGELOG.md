@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.17](https://codeberg.org/kblcuk/kopiika/compare/v0.2.16...v0.2.17) (2026-04-11)
+
+
+### Bug Fixes
+
+* **accounts:** Stop double-counting savings transfers in account available balance ([b81af7c](https://codeberg.org/kblcuk/kopiika/commit/b81af7c33ee2de4a60533cfefdc85a4391a7dae4))
+
 ## [0.2.16](https://codeberg.org/kblcuk/kopiika/compare/v0.2.15...v0.2.16) (2026-04-11)
 
 
