@@ -118,14 +118,14 @@ export function TransactionModal({
 	// In quickAdd mode, currency follows the selected from-entity
 	const currency =
 		existingTransaction?.currency ??
-		fromEntity?.currency ??
 		selectedFromEntity?.currency ??
+		fromEntity?.currency ??
 		DEFAULT_CURRENCY;
 
 	const validFromEntities = useMemo(() => {
-		if (!isEditing || !selectedToEntity) return [];
+		if (!selectedToEntity) return [];
 		return getValidFromEntities(entities, selectedToEntity, currency);
-	}, [isEditing, selectedToEntity, entities, currency]);
+	}, [selectedToEntity, entities, currency]);
 
 	// In quickAdd mode, valid from-sources are income + account entities (things that can send money)
 	const quickAddFromEntities = useMemo(() => {
@@ -139,7 +139,6 @@ export function TransactionModal({
 	}, [quickAdd, entities]);
 
 	const validToEntities = useMemo(() => {
-		if (!isEditing && !quickAdd) return [];
 		if (!selectedFromEntity) return [];
 		return getValidToEntities(
 			entities,
@@ -147,13 +146,14 @@ export function TransactionModal({
 			currency,
 			selectedFromId ?? undefined
 		);
-	}, [isEditing, quickAdd, selectedFromEntity, entities, currency, selectedFromId]);
+	}, [selectedFromEntity, entities, currency, selectedFromId]);
 
 	// Valid targets for split entity picker
 	const validSplitTargets = useMemo(() => {
-		if (!fromEntity) return [];
-		return getValidToEntities(entities, fromEntity, currency);
-	}, [fromEntity, entities, currency]);
+		const source = selectedFromEntity ?? fromEntity;
+		if (!source) return [];
+		return getValidToEntities(entities, source, currency);
+	}, [selectedFromEntity, fromEntity, entities, currency]);
 
 	// Anchor = typed total - sum of all non-anchor splits
 	// Row 0 is always the anchor; its amount field in state is ignored
@@ -184,8 +184,8 @@ export function TransactionModal({
 							(e) => e.type === 'account' && e.is_default && !e.is_deleted
 						)
 					: null;
-				setSelectedFromId(defaultAccount?.id ?? null);
-				setSelectedToId(null);
+				setSelectedFromId(fromEntity?.id ?? defaultAccount?.id ?? null);
+				setSelectedToId(toEntity?.id ?? null);
 			}
 			setShowDatePicker(false);
 			setShowFromSheet(false);
@@ -202,20 +202,24 @@ export function TransactionModal({
 
 	const handleFromSelect = (entity: Entity) => {
 		setSelectedFromId(entity.id);
+		let toInvalidated = false;
 		if (selectedToId) {
 			const validTos = getValidToEntities(entities, entity, currency, entity.id);
-			if (!validTos.some((e) => e.id === selectedToId)) setSelectedToId(null);
+			if (!validTos.some((e) => e.id === selectedToId)) {
+				setSelectedToId(null);
+				toInvalidated = true;
+			}
 		}
-		// In quickAdd: automatically advance to the to-entity picker
-		if (quickAdd && !selectedToId) {
+		// Automatically advance to the to-entity picker when needed
+		if (toInvalidated || (!isEditing && !selectedToId)) {
 			setTimeout(() => setShowToSheet(true), 350);
 		}
 	};
 
 	const handleToSelect = (entity: Entity) => {
 		setSelectedToId(entity.id);
-		// In quickAdd: focus amount field after picking destination
-		if (quickAdd) {
+		// Focus amount field after picking destination
+		if (!isEditing) {
 			setTimeout(() => amountExpr.inputRef.current?.focus(), 350);
 		}
 	};
@@ -296,12 +300,15 @@ export function TransactionModal({
 		if (!fromEntity || !toEntity) return null;
 	}
 
-	// quickAdd uses selectedFrom/To (picked via sheets); drag-mode uses prop entities
-	const displayFromEntity = isEditing || quickAdd ? selectedFromEntity : fromEntity;
-	const displayToEntity = isEditing || quickAdd ? selectedToEntity : toEntity;
+	// All modes track selection via state; prop entities are fallback for first render
+	const displayFromEntity = selectedFromEntity ?? fromEntity;
+	const displayToEntity = selectedToEntity ?? toEntity;
 
 	const getSuggestedAmount = (): number | null => {
 		if (isEditing || !fromEntity || !toEntity || isSplitMode) return null;
+		// Hide if user changed entities from the DnD originals
+		if (displayFromEntity?.id !== fromEntity.id || displayToEntity?.id !== toEntity.id)
+			return null;
 		if (fromEntity.type === 'income')
 			return fromEntity.remaining > 0 ? fromEntity.remaining : null;
 		if (fromEntity.type === 'account' && toEntity.type === 'saving')
@@ -310,7 +317,7 @@ export function TransactionModal({
 	};
 	const suggestedAmount = getSuggestedAmount();
 
-	const entitiesSelected = quickAdd ? !!(selectedFromId && selectedToId) : true;
+	const entitiesSelected = !!(selectedFromId && selectedToId);
 
 	const canSave = isSplitMode
 		? // At least one saveable transaction: anchor with entity & positive amount, or any non-anchor with entity & positive amount
@@ -339,17 +346,18 @@ export function TransactionModal({
 						return result.getTime();
 					})();
 
-			if (isSplitMode && fromEntity) {
+			const splitFrom = displayFromEntity;
+			if (isSplitMode && splitFrom) {
 				const txns: Parameters<typeof addTransaction>[0][] = [];
 
 				// Anchor transaction (row 0)
 				if (splits[0]?.toEntityId && anchorAmount > 0) {
 					txns.push({
 						id: generateId(),
-						from_entity_id: fromEntity.id,
+						from_entity_id: splitFrom.id,
 						to_entity_id: splits[0].toEntityId,
 						amount: anchorAmount,
-						currency: fromEntity.currency,
+						currency: splitFrom.currency,
 						timestamp,
 						note: note.trim() || undefined,
 					});
@@ -360,10 +368,10 @@ export function TransactionModal({
 					if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
 					txns.push({
 						id: generateId(),
-						from_entity_id: fromEntity.id,
+						from_entity_id: splitFrom.id,
 						to_entity_id: split.toEntityId,
 						amount: amt,
-						currency: fromEntity.currency,
+						currency: splitFrom.currency,
 						timestamp,
 						note: note.trim() || undefined,
 					});
@@ -378,9 +386,9 @@ export function TransactionModal({
 					await addTransaction({
 						id: generateId(),
 						from_entity_id: f.savingEntityId,
-						to_entity_id: fromEntity.id,
+						to_entity_id: splitFrom.id,
 						amount: f.fundAmount,
-						currency: fromEntity.currency,
+						currency: splitFrom.currency,
 						timestamp,
 					});
 				}
@@ -408,23 +416,13 @@ export function TransactionModal({
 				if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
 					updates.to_entity_id = selectedToId;
 				await updateTransaction(existingTransaction.id, updates);
-			} else if (quickAdd && selectedFromEntity && selectedToEntity) {
+			} else if (selectedFromEntity && selectedToEntity) {
 				await addTransaction({
 					id: generateId(),
 					from_entity_id: selectedFromEntity.id,
 					to_entity_id: selectedToEntity.id,
 					amount: numAmount,
 					currency: selectedFromEntity.currency,
-					timestamp,
-					note: note.trim() || undefined,
-				});
-			} else if (fromEntity && toEntity) {
-				await addTransaction({
-					id: generateId(),
-					from_entity_id: fromEntity.id,
-					to_entity_id: toEntity.id,
-					amount: numAmount,
-					currency: fromEntity.currency,
 					timestamp,
 					note: note.trim() || undefined,
 				});
@@ -560,7 +558,7 @@ export function TransactionModal({
 					<View className="mb-8 flex-row items-start">
 						{renderEntityBubble(
 							displayFromEntity,
-							isEditing || quickAdd ? () => setShowFromSheet(true) : undefined,
+							() => setShowFromSheet(true),
 							quickAdd ? 'From' : undefined
 						)}
 						<View className="items-center px-2 py-3">
@@ -568,7 +566,7 @@ export function TransactionModal({
 						</View>
 						{renderEntityBubble(
 							displayToEntity,
-							isEditing || quickAdd ? () => setShowToSheet(true) : undefined,
+							() => setShowToSheet(true),
 							quickAdd ? 'To' : undefined
 						)}
 					</View>
@@ -953,7 +951,7 @@ export function TransactionModal({
 				/>
 			</KeyboardExtender>
 
-			{/* Entity pickers (edit-mode and quickAdd) */}
+			{/* Entity pickers */}
 			<EntitySelectionSheet
 				visible={showFromSheet}
 				title="Select Source"

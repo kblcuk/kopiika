@@ -51,7 +51,9 @@ describe('TransactionModal', () => {
 		jest.clearAllMocks();
 		jest.useFakeTimers();
 		jest.setSystemTime(fixedNow);
-		setupStoreForTest();
+		setupStoreForTest({
+			entities: [mockFromEntity, mockToEntity],
+		});
 	});
 
 	afterEach(() => {
@@ -1194,8 +1196,12 @@ describe('TransactionModal', () => {
 			expect(callArgs.to_entity_id).toBeUndefined();
 		});
 
-		it('entity bubbles are not tappable in new transaction mode', () => {
-			const { getByText, queryByText } = render(
+		it('entity bubbles are tappable in new transaction mode (KII-80)', () => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText } = render(
 				<TransactionModal
 					visible={true}
 					fromEntity={mockFromEntity}
@@ -1204,11 +1210,79 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			// Try to tap on the from entity bubble
+			// Tap on the from entity bubble
 			fireEvent.press(getByText('Checking'));
 
-			// Selection sheet should NOT open
-			expect(queryByText('Select Source')).toBeNull();
+			// Selection sheet should open
+			expect(getByText('Select Source')).toBeTruthy();
+		});
+
+		it('saves DnD transaction with changed From entity (KII-80)', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change From from Checking to Savings
+			fireEvent.press(getByText('Checking'));
+			fireEvent.press(getByText('Savings'));
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-2',
+						to_entity_id: 'category-1',
+						amount: 50,
+					})
+				);
+			});
+		});
+
+		it('saves DnD transaction with changed To entity (KII-80)', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change To from Groceries to Transport
+			fireEvent.press(getByText('Groceries'));
+			fireEvent.press(getByText('Transport'));
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '75');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-2',
+						amount: 75,
+					})
+				);
+			});
 		});
 
 		it('shows only valid entity options in from selection sheet', () => {
