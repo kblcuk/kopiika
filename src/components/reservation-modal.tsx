@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Trash2 } from 'lucide-react-native';
 
@@ -60,11 +64,13 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
 		await reserveToSaving(account.id, saving.id, finalAmount);
+		KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleClear = async () => {
 		await reserveToSaving(account.id, saving.id, 0);
+		KeyboardController.dismiss();
 		onClose();
 	};
 

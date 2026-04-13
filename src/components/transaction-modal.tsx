@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
@@ -381,6 +385,7 @@ export function TransactionModal({
 					});
 				}
 
+				await KeyboardController.dismiss();
 				onClose();
 				return;
 			}
@@ -442,10 +447,12 @@ export function TransactionModal({
 				}
 			}
 
+			KeyboardController.dismiss();
 			onClose();
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
 			// Still close so the user isn't stuck on a dead modal
+			KeyboardController.dismiss();
 			onClose();
 		}
 	};
