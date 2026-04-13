@@ -46,7 +46,7 @@ function getValidToTypes(fromType: EntityType): EntityType[] {
 /**
  * Filters entities that can be valid "from" sources for a given "to" entity.
  * Considers: type combination rules, currency matching, excludes same entity.
- * Includes BALANCE_ADJUSTMENT as a valid source when editing.
+ * Balance adjustment is always excluded — it only applies at the account level.
  */
 export function getValidFromEntities(
 	entities: Entity[],
@@ -58,18 +58,10 @@ export function getValidFromEntities(
 	const validFromTypes = getValidFromTypes(toEntity.type);
 
 	return entities.filter((entity) => {
-		// Skip the same entity
 		if (entity.id === toEntity.id) return false;
-
-		// Allow balance adjustment entity (special case for editing)
-		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return true;
-
+		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return false;
 		if (isEntityDeleted(entity)) return false;
-
-		// Must have matching currency
 		if (entity.currency !== currency) return false;
-
-		// Must be a valid type combination
 		return validFromTypes.includes(entity.type);
 	});
 }

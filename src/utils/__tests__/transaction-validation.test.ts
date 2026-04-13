@@ -153,26 +153,18 @@ describe('transaction-validation', () => {
 			it('returns account entities when to is saving (account -> saving)', () => {
 				const result = getValidFromEntities(allEntities, saving1, 'USD');
 
-				const nonBalanceAdjustment = result.filter(
-					(e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID
-				);
 				// Should include accounts
-				expect(nonBalanceAdjustment.some((e) => e.id === 'account-1')).toBe(true);
-				expect(nonBalanceAdjustment.some((e) => e.id === 'account-2')).toBe(true);
+				expect(result.some((e) => e.id === 'account-1')).toBe(true);
+				expect(result.some((e) => e.id === 'account-2')).toBe(true);
 				// Should NOT include income, categories, or savings
-				expect(nonBalanceAdjustment.some((e) => e.type === 'income')).toBe(false);
-				expect(nonBalanceAdjustment.some((e) => e.type === 'category')).toBe(false);
-				expect(nonBalanceAdjustment.some((e) => e.type === 'saving')).toBe(false);
+				expect(result.some((e) => e.type === 'income')).toBe(false);
+				expect(result.some((e) => e.type === 'category')).toBe(false);
+				expect(result.some((e) => e.type === 'saving')).toBe(false);
 			});
 
 			it('returns empty for invalid destination types (nothing can go to income)', () => {
 				const result = getValidFromEntities(allEntities, income1, 'USD');
-
-				// Only balance adjustment should be valid (special case)
-				const nonBalanceAdjustment = result.filter(
-					(e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID
-				);
-				expect(nonBalanceAdjustment).toEqual([]);
+				expect(result).toEqual([]);
 			});
 		});
 
@@ -203,16 +195,9 @@ describe('transaction-validation', () => {
 		});
 
 		describe('balance adjustment handling', () => {
-			it('includes balance adjustment entity regardless of type rules', () => {
+			it('always excludes balance adjustment entity', () => {
 				const result = getValidFromEntities(allEntities, account1, 'USD');
-
-				expect(result.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)).toBe(true);
-			});
-
-			it('includes balance adjustment even when going to category', () => {
-				const result = getValidFromEntities(allEntities, category1, 'USD');
-
-				expect(result.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)).toBe(true);
+				expect(result.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)).toBe(false);
 			});
 		});
 	});
