@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.19](https://codeberg.org/kblcuk/kopiika/compare/v0.2.18...v0.2.19) (2026-04-13)
+
+
+### Features
+
+* **transactions:** Allow changing From and To entities in DnD flow ([d3c68ce](https://codeberg.org/kblcuk/kopiika/commit/d3c68ce7af3362fa0882c480f82af041b796b2f4))
+
+
+### Bug Fixes
+
+* **modals:** Dismiss keyboard before closing modals ([81ad076](https://codeberg.org/kblcuk/kopiika/commit/81ad076e8c4335b623a5de6ffcd05cb400308c1f))
+* **transactions:** Exclude balance adjustment from entity pickers ([c903782](https://codeberg.org/kblcuk/kopiika/commit/c9037823e55ce289420042f02cb4f9299648cc6f))
+
 ## [0.2.18](https://codeberg.org/kblcuk/kopiika/compare/v0.2.17...v0.2.18) (2026-04-11)
 
 
