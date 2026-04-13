@@ -87,7 +87,7 @@
 		"@types/react": "~19.1.17",
 		"babel-plugin-inline-import": "^3.0.0",
 		"babel-preset-expo": "^54.0.10",
-		"better-sqlite3": "^12.8.0",
+		"better-sqlite3": "^12.9.0",
 		"commit-and-tag-version": "^12.7.1",
 		"drizzle-kit": "^0.31.10",
 		"eslint-config-expo": "^10.0.0",
