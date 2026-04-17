@@ -149,6 +149,11 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 	}, [handleCreate]);
 
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	if (!entityType) return null;
 
 	const iconOptions = ICON_OPTIONS[entityType];
@@ -167,14 +172,14 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="entity-create-cancel-button">
+					<Pressable onPress={handleCancel} hitSlop={20} testID="entity-create-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>

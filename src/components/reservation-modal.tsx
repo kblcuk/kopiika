@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
 import {
 	KeyboardAwareScrollView,
@@ -52,6 +52,11 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		}
 	}, [visible, account, saving, hasExisting, currentNet, amountExpr.inputRef]);
 
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	if (!account || !saving) return null;
 
 	const currency = account.currency;
@@ -92,9 +97,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	};
 
 	return (
-		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+		<Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
 			<View className="flex-1 justify-end">
-				<Pressable className="flex-1" onPress={onClose} />
+				<Pressable className="flex-1" onPress={handleCancel} />
 
 				<KeyboardAwareScrollView
 					bottomOffset={50}

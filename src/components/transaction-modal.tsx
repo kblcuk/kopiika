@@ -292,6 +292,13 @@ export function TransactionModal({
 		setSplits((prev) => prev.filter((_, i) => i !== index));
 	};
 
+	// ── Cancel ────────────────────────────────────────────────────────────────
+
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	// ── Guard: require entities ───────────────────────────────────────────────
 
 	if (isEditing) {
@@ -516,7 +523,7 @@ export function TransactionModal({
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
@@ -524,7 +531,7 @@ export function TransactionModal({
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="transaction-cancel-button">
+					<Pressable onPress={handleCancel} hitSlop={20} testID="transaction-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">

@@ -1,6 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -166,6 +170,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const isNameValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH;
 	const canSave = isNameValid;
 
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	if (!entity) return null;
 
 	// Get the icon component from registry for live preview
@@ -236,6 +245,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			}
 		}
 
+		KeyboardController.dismiss();
 		onClose();
 	};
 
@@ -284,7 +294,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
@@ -292,7 +302,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="entity-detail-cancel-button">
+					<Pressable onPress={handleCancel} hitSlop={20} testID="entity-detail-cancel-button">
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
