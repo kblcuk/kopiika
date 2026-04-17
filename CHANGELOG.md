@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.20](https://codeberg.org/kblcuk/kopiika/compare/v0.2.19...v0.2.20) (2026-04-17)
+
+
+### Bug Fixes
+
+* **modals:** Dismiss keyboard on cancel/dismiss paths (iOS) ([8da2bec](https://codeberg.org/kblcuk/kopiika/commit/8da2bec5dfb35a5ce88a756e1608297480a04778))
+* **transactions:** Add missing useEffect deps for entity pre-fill ([39dab6b](https://codeberg.org/kblcuk/kopiika/commit/39dab6b054e09e061248b0c3132c4206b0327a3a))
+
 ## [0.2.19](https://codeberg.org/kblcuk/kopiika/compare/v0.2.18...v0.2.19) (2026-04-13)
 
 
