@@ -49,6 +49,16 @@ describe('formatAmount', () => {
 	test('should format negative amounts with minus sign', () => {
 		expect(formatAmount(-1234.5)).toBe('-1,234.50');
 	});
+
+	test('should not display negative zero', () => {
+		// Tiny negative from floating-point accumulation rounds to "0.00", not "-0.00"
+		expect(formatAmount(-0.001)).toBe('0.00');
+		expect(formatAmount(-0.004)).toBe('0.00');
+		expect(formatAmount(-0.005)).toBe('0.00');
+		expect(formatAmount(-0.0000001)).toBe('0.00');
+		// JS negative zero
+		expect(formatAmount(-0)).toBe('0.00');
+	});
 });
 
 describe('getProgressPercent', () => {
