@@ -302,7 +302,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={handleCancel} hitSlop={20} testID="entity-detail-cancel-button">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="entity-detail-cancel-button"
+					>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
