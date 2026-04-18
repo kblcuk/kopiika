@@ -914,6 +914,197 @@ describe('EntityDetailModal', () => {
 
 			expect(getByTestId('entity-detail-actual-input').props.value).toBe('5');
 		});
+
+		it('creates adjustment from zero starting balance', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...mockAccountEntity,
+				actual: 0,
+				remaining: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+						note: expect.stringContaining('Balance correction'),
+					})
+				);
+			});
+		});
+
+		it('creates adjustment when updateEntity triggers a store re-render', async () => {
+			// Use updateEntity that actually triggers re-render via Zustand set()
+			// to verify the async closure isn't broken by the re-render cycle.
+			const addTransactionSpy = jest.fn();
+			const balanceAdjEntity = {
+				id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				type: 'account' as const,
+				name: 'Balance Adjustments',
+				currency: 'USD',
+				icon: 'refresh-cw',
+				order: 0,
+				row: 0,
+				position: -1,
+			};
+			const accountEntity = {
+				id: 'account-1',
+				type: 'account' as const,
+				name: 'Checking',
+				currency: 'USD',
+				icon: 'wallet',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+
+			setupStoreForTest({
+				entities: [balanceAdjEntity, accountEntity],
+				currentPeriod: '2026-01',
+			});
+
+			useStore.setState({
+				updateEntity: async (entity) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) =>
+							e.id === entity.id ? entity : e
+						),
+					}));
+				},
+				addTransaction: addTransactionSpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...accountEntity,
+				actual: 0,
+				planned: 0,
+				remaining: 0,
+				upcoming: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+					})
+				);
+			});
+		});
+
+		it('creates adjustment when updateEntity + setDefaultAccount both re-render', async () => {
+			// Simulate full save path: updateEntity re-renders, then
+			// setDefaultAccount re-renders again, then addTransaction runs.
+			const addTransactionSpy = jest.fn();
+			const balanceAdjEntity = {
+				id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				type: 'account' as const,
+				name: 'Balance Adjustments',
+				currency: 'USD',
+				icon: 'refresh-cw',
+				order: 0,
+				row: 0,
+				position: -1,
+			};
+			const accountEntity = {
+				id: 'account-1',
+				type: 'account' as const,
+				name: 'Checking',
+				currency: 'USD',
+				icon: 'wallet',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+
+			setupStoreForTest({
+				entities: [balanceAdjEntity, accountEntity],
+				currentPeriod: '2026-01',
+			});
+
+			useStore.setState({
+				updateEntity: async (entity) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) =>
+							e.id === entity.id ? entity : e
+						),
+					}));
+				},
+				setDefaultAccount: async (accountId) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) =>
+							e.type === 'account'
+								? { ...e, is_default: e.id === accountId }
+								: e
+						),
+					}));
+				},
+				addTransaction: addTransactionSpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...accountEntity,
+				actual: 0,
+				planned: 0,
+				remaining: 0,
+				upcoming: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change balance AND toggle default account (to trigger both re-renders)
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+					})
+				);
+			});
+		});
 	});
 
 	describe('Default Account Toggle', () => {

@@ -223,13 +223,14 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		}
 
 		// Handle balance adjustment for accounts
-		if (entity.type === 'account' && isEditingActual) {
+		if (entity.type === 'account') {
+			const resolved = actualExpr.resolve();
 			const currentBalance = entity.actual;
-			const targetBalance = reverseFormatCurrency(actualExpr.resolve()) || 0;
+			const targetBalance = reverseFormatCurrency(resolved) || 0;
 			const adjustment = targetBalance - currentBalance;
-
 			const roundedAdjustment = roundMoney(adjustment);
-			if (roundedAdjustment !== 0) {
+			console.info('[balance-adj]', { isEditingActual, resolved, currentBalance, targetBalance, roundedAdjustment });
+			if (isEditingActual && roundedAdjustment !== 0) {
 				const adjustmentTransaction: Transaction = {
 					id: generateId(),
 					from_entity_id:
