@@ -2390,6 +2390,48 @@ describe('Store Data Integrity', () => {
 			expect(state.transactions).toHaveLength(2);
 		});
 
+		test('should recreate system entity on initialize if missing (e.g. after data reset)', async () => {
+			// Simulate data reset: system entity removed from DB
+			await useStore.getState().initialize();
+			resetDrizzleDb();
+
+			// Re-initialize — should recreate the system entity
+			await useStore.getState().initialize();
+
+			const state = useStore.getState();
+			const systemEntity = state.entities.find(
+				(e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID
+			);
+			expect(systemEntity).toBeDefined();
+
+			// And balance adjustments should work
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			await db.createEntity(account);
+			await useStore.getState().initialize();
+
+			const adjustment: Transaction = {
+				id: 'tx-adjust-after-reset',
+				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				to_entity_id: 'account-1',
+				amount: 500,
+				currency: 'USD',
+				timestamp: Date.now(),
+				note: 'Balance correction after reset',
+			};
+			await useStore.getState().addTransaction(adjustment);
+
+			expect(useStore.getState().transactions).toHaveLength(1);
+			expect(useStore.getState().transactions[0].amount).toBe(500);
+		});
+
 		test('should include adjustment transactions in account balance calculations via getEntitiesWithBalance', async () => {
 			const account: Entity = {
 				id: 'account-1',

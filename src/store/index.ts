@@ -6,7 +6,10 @@ import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
-import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import {
+	BALANCE_ADJUSTMENT_ENTITY_ID,
+	createBalanceAdjustmentEntity,
+} from '@/src/constants/system-entities';
 import { isEntityActive } from '@/src/utils/entity-display';
 import {
 	getReservationForPair,
@@ -101,6 +104,13 @@ export const useStore = create<AppState>((set, get) => ({
 					db.getAllPlans(),
 					db.getAllTransactions(),
 				]);
+
+				// Ensure balance adjustment system entity exists (may be missing after data reset)
+				if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
+					const systemEntity = createBalanceAdjustmentEntity();
+					await db.createEntity(systemEntity);
+					entities.push(systemEntity);
+				}
 
 				// Filter out orphaned plans that reference non-existent entities
 				const entityIds = new Set(entities.map((e) => e.id));
