@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.0](https://codeberg.org/kblcuk/kopiika/compare/v0.2.20...v0.3.0) (2026-04-18)
+
+
+### Bug Fixes
+
+* **accounts:** Recreate system entity on initialize if missing ([2e0369d](https://codeberg.org/kblcuk/kopiika/commit/2e0369d1b9fb9c3056d80a2e8df4322eb69052ec))
+* **format:** prevent "-0,00" display for near-zero balances ([010ac9a](https://codeberg.org/kblcuk/kopiika/commit/010ac9a575bd3782a72d9e2deab685bc39421511))
+
 ## [0.2.20](https://codeberg.org/kblcuk/kopiika/compare/v0.2.19...v0.2.20) (2026-04-17)
 
 
