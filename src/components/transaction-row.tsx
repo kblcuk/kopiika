@@ -119,12 +119,8 @@ export const TransactionRow = memo(function TransactionRow({
 				</Text>
 				<View className="ml-3 items-end">
 					<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
-						{transaction.series_id && (
-							<Repeat size={12} color={colors.info.DEFAULT} />
-						)}
-						{isUpcoming && (
-							<Clock size={12} color={colors.info.DEFAULT} />
-						)}
+						{transaction.series_id && <Repeat size={12} color={colors.info.DEFAULT} />}
+						{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
 					</View>
 					<Text
 						className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}

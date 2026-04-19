@@ -7,7 +7,7 @@ import {
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo, Repeat } from 'lucide-react-native';
+import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
 import type { RecurrenceFrequency } from '@/src/types/recurrence';
 import { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from '@/src/types/recurrence';
 
@@ -635,7 +635,9 @@ export function TransactionModal({
 						<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
 							<Text className="font-sans text-sm text-info">
 								Part of a recurring series
-								{seriesScope === 'future' ? ' — editing all future' : ' — editing this one'}
+								{seriesScope === 'future'
+									? ' — editing all future'
+									: ' — editing this one'}
 							</Text>
 						</View>
 					)}
@@ -683,251 +685,38 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Split — only for account → category */}
-					{!isEditing &&
-						!quickAdd &&
-						fromEntity?.type === 'account' &&
-						toEntity?.type === 'category' && (
-							<View className="mb-6">
-								{isSplitMode ? (
-									<>
-										<View className="mb-2 flex-row items-center justify-between">
-											<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
-												Split
-											</Text>
-											<Pressable
-												onPress={handleMerge}
-												hitSlop={12}
-												className="flex-row items-center"
-												testID="split-merge-button"
-											>
-												<Undo size={14} color={colors.ink.muted} />
-												<Text className="ml-1 font-sans text-sm text-ink-muted">
-													Merge
-												</Text>
-											</Pressable>
-										</View>
-										<View className="overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
-											{splits.map((split, index) => {
-												const splitEntity = split.toEntityId
-													? entities.find(
-															(e) => e.id === split.toEntityId
-														)
-													: null;
-												const typeColors = splitEntity
-													? getEntityTypeColors(splitEntity.type)
-													: null;
-												const IconComponent = splitEntity
-													? getIcon(splitEntity.icon || 'circle')
-													: null;
-												const isAnchor = index === 0;
+					{/* Fund from savings — show when source is an account with reservations */}
+					{!isEditing && displayFromEntity?.type === 'account' && (
+						<SavingsFundingSection
+							ref={fundingRef}
+							accountEntityId={displayFromEntity.id}
+							currency={currency}
+							enteredAmount={
+								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+							}
+							onFundingChange={setTotalFunded}
+						/>
+					)}
 
-												return (
-													<View
-														key={split.id}
-														className="flex-row items-center px-3 py-2.5"
-														style={
-															index > 0
-																? {
-																		borderTopWidth: 1,
-																		borderTopColor:
-																			colors.border.light,
-																	}
-																: undefined
-														}
-														testID={`split-row-${index}`}
-													>
-														{/* Entity chip */}
-														<Pressable
-															onPress={() =>
-																setActiveSplitIndex(index)
-															}
-															className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
-															style={{ maxWidth: 140 }}
-															testID={`split-entity-${index}`}
-														>
-															{splitEntity &&
-															typeColors &&
-															IconComponent ? (
-																<>
-																	<View
-																		className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
-																	>
-																		<IconComponent
-																			size={11}
-																			color={
-																				typeColors.iconColor
-																			}
-																		/>
-																	</View>
-																	<Text
-																		className="font-sans text-sm text-ink"
-																		numberOfLines={1}
-																		style={{ flexShrink: 1 }}
-																	>
-																		{splitEntity.name}
-																	</Text>
-																</>
-															) : (
-																<Text className="font-sans text-sm text-ink-muted">
-																	Pick category
-																</Text>
-															)}
-															<Pencil
-																size={9}
-																color={colors.ink.placeholder}
-																style={{
-																	marginLeft: 4,
-																	flexShrink: 0,
-																}}
-															/>
-														</Pressable>
-
-														{/* Amount area */}
-														{isAnchor ? (
-															// Anchor: auto-computed, read-only
-															<View
-																className="flex-1 flex-row items-center justify-end"
-																testID="split-anchor-amount"
-															>
-																<Text
-																	className="font-sans-semibold text-lg"
-																	style={{
-																		color:
-																			anchorAmount >= 0
-																				? colors.ink.light
-																				: colors.negative
-																						.DEFAULT,
-																	}}
-																>
-																	{anchorAmount < 0 ? '-' : ''}
-																	{roundMoney(
-																		Math.abs(anchorAmount)
-																	)}
-																</Text>
-																<Text className="ml-1 font-sans text-xs text-ink-muted">
-																	auto
-																</Text>
-															</View>
-														) : (
-															// Non-anchor: editable + "use remaining" chip
-															<View className="flex-1 flex-row items-center justify-end">
-																{!split.amount &&
-																	anchorAmount > 0 && (
-																		<Pressable
-																			onPress={() =>
-																				handleSplitAmountChange(
-																					index,
-																					roundMoney(
-																						anchorAmount
-																					).toString()
-																				)
-																			}
-																			className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
-																			testID={`split-remaining-chip-${index}`}
-																		>
-																			<Text className="font-sans text-xs text-positive">
-																				→{' '}
-																				{formatAmount(
-																					anchorAmount
-																				)}
-																			</Text>
-																		</Pressable>
-																	)}
-																<TextInput
-																	{...sharedNumericTextInputProps}
-																	value={split.amount}
-																	onChangeText={(v) =>
-																		handleSplitAmountChange(
-																			index,
-																			v
-																		)
-																	}
-																	placeholder="0"
-																	keyboardType="numeric"
-																	className={
-																		textInputClassNames.inlineAmountInput
-																	}
-																	style={[
-																		styles.input,
-																		{
-																			textAlign: 'right',
-																			minWidth: 48,
-																		},
-																	]}
-																	placeholderTextColor={
-																		colors.ink.placeholder
-																	}
-																	testID={`split-amount-${index}`}
-																/>
-															</View>
-														)}
-
-														<Text className="ml-1 font-sans text-sm text-ink-muted">
-															{getCurrencySymbol(currency)}
-														</Text>
-
-														{/* Remove (non-anchor only, disabled at minimum) */}
-														{!isAnchor && (
-															<Pressable
-																onPress={() =>
-																	handleRemoveSplit(index)
-																}
-																disabled={splits.length <= 2}
-																hitSlop={12}
-																className="ml-2"
-																testID={`split-remove-${index}`}
-															>
-																<X
-																	size={16}
-																	color={
-																		splits.length <= 2
-																			? colors.border.DEFAULT
-																			: colors.ink.placeholder
-																	}
-																/>
-															</Pressable>
-														)}
-													</View>
-												);
-											})}
-
-											{/* Add split */}
-											<Pressable
-												onPress={handleAddSplit}
-												className="flex-row items-center px-3 py-2.5"
-												style={{
-													borderTopWidth: 1,
-													borderTopColor: colors.border.light,
-												}}
-												testID="split-add-button"
-											>
-												<Plus size={14} color={colors.ink.muted} />
-												<Text className="ml-2 font-sans text-sm text-ink-muted">
-													Add split
-												</Text>
-											</Pressable>
-										</View>
-									</>
-								) : (
-									<Pressable
-										onPress={handleEnterSplitMode}
-										className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
-										style={{
-											borderWidth: 1,
-											borderColor: colors.border.dashed,
-											borderStyle: 'dashed',
-										}}
-										testID="split-toggle-button"
-									>
-										<Split size={14} color={colors.ink.muted} />
-										<Text className="ml-2 font-sans text-sm text-ink-muted">
-											Split between categories
-										</Text>
-									</Pressable>
-								)}
-							</View>
-						)}
+					{/* Note */}
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Note (optional)
+						</Text>
+						<View className={textInputClassNames.container}>
+							<TextInput
+								{...sharedTextInputProps}
+								ref={inputRef}
+								value={note}
+								onChangeText={setNote}
+								placeholder="Add a note..."
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="transaction-note-input"
+							/>
+						</View>
+					</View>
 
 					{/* Date */}
 					<View className="mb-6">
@@ -978,6 +767,230 @@ export function TransactionModal({
 						)}
 					</View>
 
+					{/* Split — only for account → category */}
+					{!isEditing &&
+						!quickAdd &&
+						fromEntity?.type === 'account' &&
+						toEntity?.type === 'category' && (
+							<View className="mb-6">
+								<Pressable
+									onPress={isSplitMode ? handleMerge : handleEnterSplitMode}
+									className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+									style={{
+										borderWidth: 1,
+										borderColor: isSplitMode
+											? colors.accent.DEFAULT
+											: colors.border.dashed,
+										borderStyle: isSplitMode ? 'solid' : 'dashed',
+									}}
+									testID="split-toggle-button"
+								>
+									<Split
+										size={14}
+										color={
+											isSplitMode ? colors.accent.DEFAULT : colors.ink.muted
+										}
+									/>
+									<Text
+										className={`ml-2 font-sans text-sm ${isSplitMode ? 'text-accent' : 'text-ink-muted'}`}
+									>
+										Split
+									</Text>
+								</Pressable>
+
+								{isSplitMode && (
+									<View className="mt-3 overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
+										{splits.map((split, index) => {
+											const splitEntity = split.toEntityId
+												? entities.find((e) => e.id === split.toEntityId)
+												: null;
+											const typeColors = splitEntity
+												? getEntityTypeColors(splitEntity.type)
+												: null;
+											const IconComponent = splitEntity
+												? getIcon(splitEntity.icon || 'circle')
+												: null;
+											const isAnchor = index === 0;
+
+											return (
+												<View
+													key={split.id}
+													className="flex-row items-center px-3 py-2.5"
+													style={
+														index > 0
+															? {
+																	borderTopWidth: 1,
+																	borderTopColor:
+																		colors.border.light,
+																}
+															: undefined
+													}
+													testID={`split-row-${index}`}
+												>
+													{/* Entity chip */}
+													<Pressable
+														onPress={() => setActiveSplitIndex(index)}
+														className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
+														style={{ maxWidth: 140 }}
+														testID={`split-entity-${index}`}
+													>
+														{splitEntity &&
+														typeColors &&
+														IconComponent ? (
+															<>
+																<View
+																	className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
+																>
+																	<IconComponent
+																		size={11}
+																		color={typeColors.iconColor}
+																	/>
+																</View>
+																<Text
+																	className="font-sans text-sm text-ink"
+																	numberOfLines={1}
+																	style={{ flexShrink: 1 }}
+																>
+																	{splitEntity.name}
+																</Text>
+															</>
+														) : (
+															<Text className="font-sans text-sm text-ink-muted">
+																Pick category
+															</Text>
+														)}
+														<Pencil
+															size={9}
+															color={colors.ink.placeholder}
+															style={{
+																marginLeft: 4,
+																flexShrink: 0,
+															}}
+														/>
+													</Pressable>
+
+													{/* Amount area */}
+													{isAnchor ? (
+														// Anchor: auto-computed, read-only
+														<View
+															className="flex-1 flex-row items-center justify-end"
+															testID="split-anchor-amount"
+														>
+															<Text
+																className="font-sans-semibold text-lg"
+																style={{
+																	color:
+																		anchorAmount >= 0
+																			? colors.ink.light
+																			: colors.negative
+																					.DEFAULT,
+																}}
+															>
+																{anchorAmount < 0 ? '-' : ''}
+																{roundMoney(Math.abs(anchorAmount))}
+															</Text>
+															<Text className="ml-1 font-sans text-xs text-ink-muted">
+																auto
+															</Text>
+														</View>
+													) : (
+														// Non-anchor: editable + "use remaining" chip
+														<View className="flex-1 flex-row items-center justify-end">
+															{!split.amount && anchorAmount > 0 && (
+																<Pressable
+																	onPress={() =>
+																		handleSplitAmountChange(
+																			index,
+																			roundMoney(
+																				anchorAmount
+																			).toString()
+																		)
+																	}
+																	className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
+																	testID={`split-remaining-chip-${index}`}
+																>
+																	<Text className="font-sans text-xs text-positive">
+																		→{' '}
+																		{formatAmount(anchorAmount)}
+																	</Text>
+																</Pressable>
+															)}
+															<TextInput
+																{...sharedNumericTextInputProps}
+																value={split.amount}
+																onChangeText={(v) =>
+																	handleSplitAmountChange(
+																		index,
+																		v
+																	)
+																}
+																placeholder="0"
+																keyboardType="numeric"
+																className={
+																	textInputClassNames.inlineAmountInput
+																}
+																style={[
+																	styles.input,
+																	{
+																		textAlign: 'right',
+																		minWidth: 48,
+																	},
+																]}
+																placeholderTextColor={
+																	colors.ink.placeholder
+																}
+																testID={`split-amount-${index}`}
+															/>
+														</View>
+													)}
+
+													<Text className="ml-1 font-sans text-sm text-ink-muted">
+														{getCurrencySymbol(currency)}
+													</Text>
+
+													{/* Remove (non-anchor only, disabled at minimum) */}
+													{!isAnchor && (
+														<Pressable
+															onPress={() => handleRemoveSplit(index)}
+															disabled={splits.length <= 2}
+															hitSlop={12}
+															className="ml-2"
+															testID={`split-remove-${index}`}
+														>
+															<X
+																size={16}
+																color={
+																	splits.length <= 2
+																		? colors.border.DEFAULT
+																		: colors.ink.placeholder
+																}
+															/>
+														</Pressable>
+													)}
+												</View>
+											);
+										})}
+
+										{/* Add split */}
+										<Pressable
+											onPress={handleAddSplit}
+											className="flex-row items-center px-3 py-2.5"
+											style={{
+												borderTopWidth: 1,
+												borderTopColor: colors.border.light,
+											}}
+											testID="split-add-button"
+										>
+											<Plus size={14} color={colors.ink.muted} />
+											<Text className="ml-2 font-sans text-sm text-ink-muted">
+												Add split
+											</Text>
+										</Pressable>
+									</View>
+								)}
+							</View>
+						)}
+
 					{/* Repeat — create mode only */}
 					{!isEditing && (
 						<View className="mb-6">
@@ -986,12 +999,17 @@ export function TransactionModal({
 								className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
 								style={{
 									borderWidth: 1,
-									borderColor: isRepeat ? colors.accent.DEFAULT : colors.border.dashed,
+									borderColor: isRepeat
+										? colors.accent.DEFAULT
+										: colors.border.dashed,
 									borderStyle: isRepeat ? 'solid' : 'dashed',
 								}}
 								testID="repeat-toggle"
 							>
-								<Repeat size={14} color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted} />
+								<Repeat
+									size={14}
+									color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted}
+								/>
 								<Text
 									className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
 								>
@@ -1006,24 +1024,30 @@ export function TransactionModal({
 										Frequency
 									</Text>
 									<View className="mb-4 flex-row gap-2">
-										{(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => (
-											<Pressable
-												key={freq}
-												onPress={() => setRepeatFrequency(freq)}
-												className={`flex-1 items-center rounded-lg py-2 ${
-													repeatFrequency === freq ? 'bg-accent' : 'bg-paper-200'
-												}`}
-												testID={`repeat-freq-${freq}`}
-											>
-												<Text
-													className={`font-sans text-sm capitalize ${
-														repeatFrequency === freq ? 'text-on-color' : 'text-ink-muted'
+										{(['daily', 'weekly', 'monthly', 'yearly'] as const).map(
+											(freq) => (
+												<Pressable
+													key={freq}
+													onPress={() => setRepeatFrequency(freq)}
+													className={`flex-1 items-center rounded-lg py-2 ${
+														repeatFrequency === freq
+															? 'bg-accent'
+															: 'bg-paper-200'
 													}`}
+													testID={`repeat-freq-${freq}`}
 												>
-													{freq}
-												</Text>
-											</Pressable>
-										))}
+													<Text
+														className={`font-sans text-sm capitalize ${
+															repeatFrequency === freq
+																? 'text-on-color'
+																: 'text-ink-muted'
+														}`}
+													>
+														{freq}
+													</Text>
+												</Pressable>
+											)
+										)}
 									</View>
 
 									{/* End condition */}
@@ -1036,13 +1060,17 @@ export function TransactionModal({
 												key={mode}
 												onPress={() => setRepeatEndMode(mode)}
 												className={`flex-1 items-center rounded-lg py-2 ${
-													repeatEndMode === mode ? 'bg-accent' : 'bg-paper-200'
+													repeatEndMode === mode
+														? 'bg-accent'
+														: 'bg-paper-200'
 												}`}
 												testID={`repeat-end-${mode}`}
 											>
 												<Text
 													className={`font-sans text-sm ${
-														repeatEndMode === mode ? 'text-on-color' : 'text-ink-muted'
+														repeatEndMode === mode
+															? 'text-on-color'
+															: 'text-ink-muted'
 													}`}
 												>
 													{mode === 'never'
@@ -1060,8 +1088,12 @@ export function TransactionModal({
 											<DateTimePicker
 												value={repeatEndDate ?? new Date()}
 												mode="date"
-												display={Platform.OS === 'ios' ? 'compact' : 'default'}
-												onChange={(_, date) => date && setRepeatEndDate(date)}
+												display={
+													Platform.OS === 'ios' ? 'compact' : 'default'
+												}
+												onChange={(_, date) =>
+													date && setRepeatEndDate(date)
+												}
 												minimumDate={selectedDate}
 												accentColor={colors.accent.deeper}
 											/>
@@ -1094,7 +1126,9 @@ export function TransactionModal({
 												key={opt.days}
 												onPress={() => setRepeatHorizon(opt.days)}
 												className={`flex-1 items-center rounded-lg py-2 ${
-													repeatHorizon === opt.days ? 'bg-accent' : 'bg-paper-200'
+													repeatHorizon === opt.days
+														? 'bg-accent'
+														: 'bg-paper-200'
 												}`}
 												testID={`repeat-horizon-${opt.days}`}
 											>
@@ -1113,39 +1147,6 @@ export function TransactionModal({
 								</View>
 							)}
 						</View>
-					)}
-
-					{/* Note */}
-					<View className="pb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Note (optional)
-						</Text>
-						<View className={textInputClassNames.container}>
-							<TextInput
-								{...sharedTextInputProps}
-								ref={inputRef}
-								value={note}
-								onChangeText={setNote}
-								placeholder="Add a note..."
-								className={textInputClassNames.input}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="transaction-note-input"
-							/>
-						</View>
-					</View>
-
-					{/* Fund from savings — show when source is an account with reservations */}
-					{!isEditing && displayFromEntity?.type === 'account' && (
-						<SavingsFundingSection
-							ref={fundingRef}
-							accountEntityId={displayFromEntity.id}
-							currency={currency}
-							enteredAmount={
-								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
-							}
-							onFundingChange={setTotalFunded}
-						/>
 					)}
 				</KeyboardAwareScrollView>
 			</View>

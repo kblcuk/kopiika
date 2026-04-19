@@ -10,8 +10,7 @@ export function showSeriesScopeAlert(
 	action: 'edit' | 'delete',
 	onSelect: (scope: SeriesScope) => void
 ): void {
-	const title =
-		action === 'edit' ? 'Edit Recurring Transaction' : 'Delete Recurring Transaction';
+	const title = action === 'edit' ? 'Edit Recurring Transaction' : 'Delete Recurring Transaction';
 	const message =
 		action === 'edit'
 			? 'Apply changes to this transaction only, or this and all future occurrences?'
