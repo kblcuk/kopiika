@@ -96,6 +96,7 @@
 		"jest-expo": "~55.0.16",
 		"oxfmt": "^0.34.0",
 		"oxlint": "^1.60.0",
+		"react-test-renderer": "19.2.0",
 		"prettier-plugin-tailwindcss": "^0.5.14",
 		"ts-jest": "^29.4.9",
 		"typescript": "~5.9.3"
