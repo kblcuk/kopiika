@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
+import { showSeriesScopeAlert, type SeriesScope } from '@/src/components/series-action-sheet';
 import { View, Text, TextInput, SectionList, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -71,6 +72,7 @@ export default function HistoryScreen() {
 		params.entityId || null
 	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [editScope, setEditScope] = useState<SeriesScope>('single');
 	const [searchQuery, setSearchQuery] = useState('');
 	const deferredPeriod = useDeferredValue(selectedPeriod);
 	const deferredSearch = useDeferredValue(searchQuery);
@@ -178,7 +180,14 @@ export default function HistoryScreen() {
 	}, [filteredTransactions, selectedEntityId]);
 
 	const handleEdit = useCallback((transaction: Transaction) => {
-		setEditingTransaction(transaction);
+		if (transaction.series_id) {
+			showSeriesScopeAlert('edit', (scope) => {
+				setEditScope(scope);
+				setEditingTransaction(transaction);
+			});
+		} else {
+			setEditingTransaction(transaction);
+		}
 	}, []);
 
 	const handleCloseEdit = () => {
@@ -338,6 +347,7 @@ export default function HistoryScreen() {
 					toEntity={getEntityWithBalance(editingTransaction.to_entity_id)}
 					onClose={handleCloseEdit}
 					existingTransaction={editingTransaction}
+					seriesScope={editingTransaction.series_id ? editScope : undefined}
 				/>
 			)}
 		</SafeAreaView>

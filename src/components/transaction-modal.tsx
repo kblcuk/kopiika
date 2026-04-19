@@ -55,6 +55,7 @@ interface TransactionModalProps {
 	existingTransaction?: Transaction;
 	/** Opens in quick-add mode: entity pickers shown upfront, no drag required */
 	quickAdd?: boolean;
+	seriesScope?: 'single' | 'future';
 }
 
 export function TransactionModal({
@@ -64,6 +65,7 @@ export function TransactionModal({
 	onClose,
 	existingTransaction,
 	quickAdd,
+	seriesScope,
 }: TransactionModalProps) {
 	const [amount, setAmount] = useState('');
 	const [note, setNote] = useState('');
@@ -95,6 +97,7 @@ export function TransactionModal({
 
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
+	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 	const entities = useStore((state) => state.entities);
 
@@ -438,7 +441,11 @@ export function TransactionModal({
 					updates.from_entity_id = selectedFromId;
 				if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
 					updates.to_entity_id = selectedToId;
-				await updateTransaction(existingTransaction.id, updates);
+				if (seriesScope) {
+					await updateTransactionWithScope(existingTransaction.id, updates, seriesScope);
+				} else {
+					await updateTransaction(existingTransaction.id, updates);
+				}
 			} else if (selectedFromEntity && selectedToEntity) {
 				if (isRepeat) {
 					await addRecurringTransaction(
@@ -622,6 +629,16 @@ export function TransactionModal({
 							quickAdd ? 'To' : undefined
 						)}
 					</View>
+
+					{/* Series indicator */}
+					{isEditing && existingTransaction?.series_id && (
+						<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
+							<Text className="font-sans text-sm text-info">
+								Part of a recurring series
+								{seriesScope === 'future' ? ' — editing all future' : ' — editing this one'}
+							</Text>
+						</View>
+					)}
 
 					{/* Amount / Total Paid */}
 					<View className="mb-6">

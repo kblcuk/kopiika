@@ -13,6 +13,7 @@ import { Clock, Trash2, Repeat } from 'lucide-react-native';
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
+import { showSeriesScopeAlert } from './series-action-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
@@ -39,6 +40,7 @@ export const TransactionRow = memo(function TransactionRow({
 	editable = true,
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
+	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
 
 	const translateX = useSharedValue(0);
 	const deleteOpacity = useSharedValue(0);
@@ -55,19 +57,25 @@ export const TransactionRow = memo(function TransactionRow({
 	const toColors = toEntity ? getEntityTypeColors(toEntity.type) : null;
 
 	const confirmDelete = useCallback(() => {
-		Alert.alert(
-			'Delete Transaction',
-			`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
-			[
-				{ text: 'Cancel', style: 'cancel' },
-				{
-					text: 'Delete',
-					style: 'destructive',
-					onPress: () => deleteTransaction(transaction.id),
-				},
-			]
-		);
-	}, [transaction, fromLabel, toLabel, deleteTransaction]);
+		if (transaction.series_id) {
+			showSeriesScopeAlert('delete', (scope) => {
+				deleteTransactionWithScope(transaction.id, scope);
+			});
+		} else {
+			Alert.alert(
+				'Delete Transaction',
+				`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Delete',
+						style: 'destructive',
+						onPress: () => deleteTransaction(transaction.id),
+					},
+				]
+			);
+		}
+	}, [transaction, fromLabel, toLabel, deleteTransaction, deleteTransactionWithScope]);
 
 	const handlePress = useCallback(() => {
 		onEdit(transaction);
