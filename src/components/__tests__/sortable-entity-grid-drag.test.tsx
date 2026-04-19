@@ -55,12 +55,6 @@ jest.mock('@/src/utils/drop-zone', () => ({
 	remeasureAllDropZones: jest.fn(),
 }));
 
-jest.mock('@/src/utils/vertical-auto-scroll', () => ({
-	updateDragTouch: jest.fn(),
-	startVerticalAutoScroll: jest.fn(),
-	stopVerticalAutoScroll: jest.fn(),
-}));
-
 jest.mock('@/src/store', () => ({
 	useStore: Object.assign(
 		(selector: any) =>
@@ -142,6 +136,7 @@ describe('SortableEntityGrid drag lifecycle (KII-76)', () => {
 				onDragStart={onDragStart}
 				onDragEnd={onDragEnd}
 				dragBehavior="transaction"
+				updateDragTouch={jest.fn()}
 			/>
 		);
 
@@ -169,6 +164,7 @@ describe('SortableEntityGrid drag lifecycle (KII-76)', () => {
 				onDragStart={onDragStart}
 				onDragEnd={onDragEnd}
 				dragBehavior="transaction"
+				updateDragTouch={jest.fn()}
 			/>
 		);
 

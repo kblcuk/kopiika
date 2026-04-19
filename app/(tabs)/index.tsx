@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, type NativeScrollEvent } from 'react-native';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
 	useAnimatedStyle,
@@ -20,12 +20,8 @@ import {
 	RefundPickerModal,
 } from '@/src/components';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
-import {
-	setVerticalScrollTarget,
-	updateScrollMetrics,
-	startVerticalAutoScroll,
-	stopVerticalAutoScroll,
-} from '@/src/utils/vertical-auto-scroll';
+import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
+import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
@@ -34,17 +30,19 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 export default function HomeScreen() {
 	const router = useRouter();
-	const outerScrollRef = useRef<ScrollView>(null);
-
-	// Wire the outer ScrollView for vertical auto-scroll during drag
-	useEffect(() => {
-		setVerticalScrollTarget(outerScrollRef);
-	}, []);
-
-	const handleOuterScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
-		const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-		updateScrollMetrics(contentOffset.y, contentSize.height, layoutMeasurement.height);
-	}, []);
+	const {
+		outerScrollRef,
+		scrollHandler,
+		handleOuterLayout,
+		handleOuterContentSizeChange,
+		startAutoScroll,
+		stopAutoScroll,
+		updateDragTouch,
+		sectionRefs,
+		setDragSourceIndex,
+		updateSectionBounds,
+		updateSectionMaxOffset,
+	} = useDragAutoScroll();
 
 	const {
 		isLoading,
@@ -125,15 +123,16 @@ export default function HomeScreen() {
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
 			setDraggedEntity(entity);
-			startVerticalAutoScroll();
+			setDragSourceIndex(SECTION_INDEX[entity.type]);
+			startAutoScroll();
 		},
-		[setDraggedEntity]
+		[setDraggedEntity, setDragSourceIndex, startAutoScroll]
 	);
 
 	const handleDragEnd = useCallback(
 		(entity: EntityWithBalance, targetId: string | null) => {
 			setDraggedEntity(null);
-			stopVerticalAutoScroll();
+			stopAutoScroll();
 
 			// If no target, drag was cancelled or same-type reorder was handled by grid
 			if (!targetId) {
@@ -178,7 +177,7 @@ export default function HomeScreen() {
 			setToEntity(targetEntity);
 			setModalVisible(true);
 		},
-		[setDraggedEntity, allEntities]
+		[setDraggedEntity, stopAutoScroll, allEntities]
 	);
 
 	const handleCloseModal = useCallback(() => {
@@ -364,15 +363,17 @@ export default function HomeScreen() {
 			{/* PortalProvider ensures dragged items render above all other content */}
 			<Sortable.PortalProvider>
 				{/* Content */}
-				<ScrollView
+				<Animated.ScrollView
 					ref={outerScrollRef}
 					className="flex-1 overflow-visible"
 					contentContainerClassName="overflow-visible"
 					contentContainerStyle={{ paddingVertical: 12 }}
-					onScroll={handleOuterScroll}
+					onScroll={scrollHandler}
 					scrollEventThrottle={16}
 					onScrollEndDrag={handleScrollEnd}
 					onMomentumScrollEnd={handleScrollEnd}
+					onLayout={handleOuterLayout}
+					onContentSizeChange={handleOuterContentSizeChange}
 				>
 					<View onLayout={handleContentLayout}>
 						{/* Always render income section, control visibility with animation */}
@@ -403,6 +404,11 @@ export default function HomeScreen() {
 									dragBehavior={incomeEditMode ? 'reorder' : 'transaction'}
 									editMode={incomeEditMode}
 									onToggleEditMode={handleToggleIncomeEditMode}
+									updateDragTouch={updateDragTouch}
+									sectionScrollRef={sectionRefs[0]}
+									sectionIndex={0}
+									onSectionMaxOffset={updateSectionMaxOffset}
+									onSectionBounds={updateSectionBounds}
 								/>
 							</View>
 						</Animated.View>
@@ -417,6 +423,11 @@ export default function HomeScreen() {
 							dragBehavior={accountsEditMode ? 'reorder' : 'transaction'}
 							editMode={accountsEditMode}
 							onToggleEditMode={handleToggleAccountsEditMode}
+							updateDragTouch={updateDragTouch}
+							sectionScrollRef={sectionRefs[1]}
+							sectionIndex={1}
+							onSectionMaxOffset={updateSectionMaxOffset}
+							onSectionBounds={updateSectionBounds}
 						/>
 						<SortableEntityGrid
 							title="Categories"
@@ -430,6 +441,11 @@ export default function HomeScreen() {
 							dragBehavior={categoriesEditMode ? 'reorder' : 'transaction'}
 							editMode={categoriesEditMode}
 							onToggleEditMode={handleToggleCategoriesEditMode}
+							updateDragTouch={updateDragTouch}
+							sectionScrollRef={sectionRefs[2]}
+							sectionIndex={2}
+							onSectionMaxOffset={updateSectionMaxOffset}
+							onSectionBounds={updateSectionBounds}
 						/>
 						<SortableEntityGrid
 							title="Savings · Goal"
@@ -442,6 +458,11 @@ export default function HomeScreen() {
 							dragBehavior={savingsEditMode ? 'reorder' : 'transaction'}
 							editMode={savingsEditMode}
 							onToggleEditMode={handleToggleSavingsEditMode}
+							updateDragTouch={updateDragTouch}
+							sectionScrollRef={sectionRefs[3]}
+							sectionIndex={3}
+							onSectionMaxOffset={updateSectionMaxOffset}
+							onSectionBounds={updateSectionBounds}
 						/>
 
 						{entities.length === 0 && (
@@ -452,7 +473,7 @@ export default function HomeScreen() {
 							</View>
 						)}
 					</View>
-				</ScrollView>
+				</Animated.ScrollView>
 			</Sortable.PortalProvider>
 
 			{/* Transaction Modal */}
