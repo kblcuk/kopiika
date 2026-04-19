@@ -28,10 +28,10 @@ Persistence uses SQLite through the code in `src/db/`. State management uses Zus
 
 The authoritative model is:
 
-- `entities`: labels, type, ordering, icon, optional color
+- `entities`: labels, type, ordering, icon, optional color, currency, `is_default` flag (pre-selects in transaction flows)
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
 - `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` FK links to a recurrence template
-- `recurrence_templates`: rules for recurring transactions — frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
+- `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
 
 Derived values belong in selectors, not persisted state:
 

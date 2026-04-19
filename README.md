@@ -22,7 +22,8 @@ Offline-first personal finance app for monthly planning vs reality. Built with E
 - **Transaction history** — grouped by day, full-text search, entity filter, inline editing
 - **Scheduled transactions** — upcoming transactions visible in history before they land
 - **Default account** — pre-selects your main account in transaction flows
-- **CSV import/export** — full data portability (entities, plans, transactions)
+- **Quick-add** — floating `+` button in the tab bar opens the transaction modal from anywhere
+- **CSV import/export** — full data portability (entities, plans, transactions), managed from Settings
 - **In-app changelog** — "What's New" modal on app update
 - **Accessibility** — WCAG AA contrast, large touch targets, no color-only indicators
 
