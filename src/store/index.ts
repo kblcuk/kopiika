@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { useMemo } from 'react';
 import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
+import type { RecurrenceTemplate, RecurrenceRule } from '@/src/types/recurrence';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
+import { generateOccurrences } from '@/src/utils/recurrence';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -21,6 +23,7 @@ interface AppState {
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];
+	recurrenceTemplates: RecurrenceTemplate[];
 
 	// UI State
 	currentPeriod: string;
@@ -58,6 +61,24 @@ interface AppState {
 	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 
+	// Recurrence actions
+	addRecurringTransaction: (
+		transaction: Omit<Transaction, 'id' | 'series_id'>,
+		recurrence: {
+			rule: RecurrenceRule;
+			endDate?: number | null;
+			endCount?: number | null;
+			horizon: number;
+		}
+	) => Promise<void>;
+	updateTransactionWithScope: (
+		id: string,
+		updates: Omit<Partial<Transaction>, 'id'>,
+		scope: 'single' | 'future'
+	) => Promise<void>;
+	deleteTransactionWithScope: (id: string, scope: 'single' | 'future') => Promise<void>;
+	deactivateTemplatesForEntity: (entityId: string) => Promise<void>;
+
 	// Default account — toggle the default flag; only one account at a time
 	setDefaultAccount: (accountId: string | null) => Promise<void>;
 
@@ -79,11 +100,65 @@ function hasActiveEntity(entities: Entity[], id: string): boolean {
 	return getActiveEntities(entities).some((entity) => entity.id === id);
 }
 
+async function backfillRecurrences(
+	templates: RecurrenceTemplate[],
+	existingTransactions: Transaction[],
+	set: (fn: (state: AppState) => Partial<AppState>) => void,
+	get: () => AppState
+): Promise<void> {
+	const now = Date.now();
+	const newTransactions: Transaction[] = [];
+
+	for (const template of templates) {
+		if (template.is_deleted) continue;
+
+		const rule: RecurrenceRule = JSON.parse(template.rule);
+		const exclusions: number[] = JSON.parse(template.exclusions ?? '[]');
+
+		const expectedTimestamps = generateOccurrences({
+			rule,
+			startDate: template.start_date,
+			horizonDays: template.horizon,
+			now,
+			endDate: template.end_date,
+			endCount: template.end_count,
+			exclusions,
+		});
+
+		const existingTimestamps = new Set(
+			existingTransactions.filter((t) => t.series_id === template.id).map((t) => t.timestamp)
+		);
+
+		for (const ts of expectedTimestamps) {
+			if (!existingTimestamps.has(ts)) {
+				newTransactions.push({
+					id: generateId(),
+					from_entity_id: template.from_entity_id,
+					to_entity_id: template.to_entity_id,
+					amount: template.amount,
+					currency: template.currency,
+					timestamp: ts,
+					note: template.note,
+					series_id: template.id,
+				});
+			}
+		}
+	}
+
+	if (newTransactions.length > 0) {
+		await db.createTransactionBatch(newTransactions);
+		set((state) => ({
+			transactions: [...newTransactions, ...state.transactions],
+		}));
+	}
+}
+
 export const useStore = create<AppState>((set, get) => ({
 	// Initial state
 	entities: [],
 	plans: [],
 	transactions: [],
+	recurrenceTemplates: [],
 	currentPeriod: getCurrentPeriod(),
 	isLoading: true,
 	draggedEntity: null,
@@ -99,10 +174,11 @@ export const useStore = create<AppState>((set, get) => ({
 			set({ isLoading: true });
 			try {
 				console.info('Hydrating store from database');
-				const [entities, plans, transactions] = await Promise.all([
+				const [entities, plans, transactions, recurrenceTemplates] = await Promise.all([
 					db.getAllEntities(),
 					db.getAllPlans(),
 					db.getAllTransactions(),
+					db.getAllRecurrenceTemplates(),
 				]);
 
 				// Ensure balance adjustment system entity exists (may be missing after data reset)
@@ -116,7 +192,16 @@ export const useStore = create<AppState>((set, get) => ({
 				const entityIds = new Set(entities.map((e) => e.id));
 				const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
 
-				set({ entities, plans: validPlans, transactions, isLoading: false });
+				set({
+					entities,
+					plans: validPlans,
+					transactions,
+					recurrenceTemplates,
+					isLoading: false,
+				});
+
+				// Backfill any missing occurrences within the horizon window
+				await backfillRecurrences(recurrenceTemplates, transactions, set, get);
 			} catch (error) {
 				console.error('Failed to initialize store:', error);
 				set({ isLoading: false });
@@ -135,8 +220,9 @@ export const useStore = create<AppState>((set, get) => ({
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		drizzleDb.transaction((tx) => {
-			// Delete in FK-safe order: transactions → plans → entities
+			// Delete in FK-safe order: transactions → recurrenceTemplates → plans → entities
 			tx.delete(schema.transactions).run();
+			tx.delete(schema.recurrenceTemplates).run();
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
 
@@ -178,12 +264,13 @@ export const useStore = create<AppState>((set, get) => ({
 		});
 
 		// Re-read all data from DB into store state
-		const [entities, plans, transactions] = await Promise.all([
+		const [entities, plans, transactions, recurrenceTemplates] = await Promise.all([
 			db.getAllEntities(),
 			db.getAllPlans(),
 			db.getAllTransactions(),
+			db.getAllRecurrenceTemplates(),
 		]);
-		set({ entities, plans, transactions });
+		set({ entities, plans, transactions, recurrenceTemplates });
 	},
 
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
@@ -359,6 +446,173 @@ export const useStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			transactions: state.transactions.filter((t) => t.id !== id),
 		}));
+	},
+
+	// Recurrence actions
+	addRecurringTransaction: async (transaction, recurrence) => {
+		const state = get();
+		const fromExists = hasActiveEntity(state.entities, transaction.from_entity_id);
+		const toExists = hasActiveEntity(state.entities, transaction.to_entity_id);
+		if (!fromExists || !toExists) return;
+
+		const templateId = generateId();
+		const template: RecurrenceTemplate = {
+			id: templateId,
+			from_entity_id: transaction.from_entity_id,
+			to_entity_id: transaction.to_entity_id,
+			amount: transaction.amount,
+			currency: transaction.currency,
+			note: transaction.note,
+			rule: JSON.stringify(recurrence.rule),
+			start_date: transaction.timestamp,
+			end_date: recurrence.endDate ?? null,
+			end_count: recurrence.endCount ?? null,
+			horizon: recurrence.horizon,
+			created_at: Date.now(),
+		};
+
+		await db.createRecurrenceTemplate(template);
+
+		const occurrences = generateOccurrences({
+			rule: recurrence.rule,
+			startDate: transaction.timestamp,
+			horizonDays: recurrence.horizon,
+			now: Date.now(),
+			endDate: recurrence.endDate,
+			endCount: recurrence.endCount,
+		});
+
+		const txns: Transaction[] = occurrences.map((ts) => ({
+			id: generateId(),
+			from_entity_id: transaction.from_entity_id,
+			to_entity_id: transaction.to_entity_id,
+			amount: transaction.amount,
+			currency: transaction.currency,
+			timestamp: ts,
+			note: transaction.note,
+			series_id: templateId,
+		}));
+
+		if (txns.length > 0) {
+			await db.createTransactionBatch(txns);
+			set((state) => ({
+				recurrenceTemplates: [...state.recurrenceTemplates, template],
+				transactions: [...txns, ...state.transactions],
+			}));
+		}
+	},
+
+	updateTransactionWithScope: async (id, updates, scope) => {
+		const state = get();
+		const transaction = state.transactions.find((t) => t.id === id);
+		if (!transaction) return;
+
+		if (scope === 'single' || !transaction.series_id) {
+			await get().updateTransaction(id, updates);
+			return;
+		}
+
+		// scope === 'future': update template + all future transactions
+		const seriesId = transaction.series_id;
+		const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
+
+		if (template) {
+			const templateUpdates: Partial<RecurrenceTemplate> = {};
+			if (updates.amount !== undefined) templateUpdates.amount = updates.amount;
+			if (updates.from_entity_id !== undefined)
+				templateUpdates.from_entity_id = updates.from_entity_id;
+			if (updates.to_entity_id !== undefined)
+				templateUpdates.to_entity_id = updates.to_entity_id;
+			if (updates.note !== undefined) templateUpdates.note = updates.note;
+
+			await db.updateRecurrenceTemplate(seriesId, templateUpdates);
+			await db.updateTransactionsBySeriesFuture(seriesId, transaction.timestamp, updates);
+
+			const updatedTemplate = { ...template, ...templateUpdates };
+			set((state) => ({
+				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+					t.id === seriesId ? updatedTemplate : t
+				),
+				transactions: state.transactions.map((t) =>
+					t.series_id === seriesId && t.timestamp >= transaction.timestamp
+						? { ...t, ...updates }
+						: t
+				),
+			}));
+		}
+	},
+
+	deleteTransactionWithScope: async (id, scope) => {
+		const state = get();
+		const transaction = state.transactions.find((t) => t.id === id);
+		if (!transaction) return;
+
+		if (scope === 'single' || !transaction.series_id) {
+			await db.deleteTransaction(id);
+			if (transaction.series_id) {
+				await db.addExclusion(transaction.series_id, transaction.timestamp);
+			}
+			set((state) => ({
+				transactions: state.transactions.filter((t) => t.id !== id),
+			}));
+			return;
+		}
+
+		// scope === 'future'
+		const seriesId = transaction.series_id;
+		await db.deleteTransactionsBySeriesFuture(seriesId, transaction.timestamp);
+
+		const remaining = state.transactions.filter(
+			(t) => t.series_id === seriesId && t.timestamp < transaction.timestamp
+		);
+
+		if (remaining.length === 0) {
+			await db.softDeleteRecurrenceTemplate(seriesId);
+			set((state) => ({
+				transactions: state.transactions.filter(
+					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
+				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+					t.id === seriesId ? { ...t, is_deleted: true } : t
+				),
+			}));
+		} else {
+			const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
+			await db.updateRecurrenceTemplate(seriesId, { end_date: lastRemaining });
+			set((state) => ({
+				transactions: state.transactions.filter(
+					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
+				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+					t.id === seriesId ? { ...t, end_date: lastRemaining } : t
+				),
+			}));
+		}
+	},
+
+	deactivateTemplatesForEntity: async (entityId) => {
+		const state = get();
+		const templates = state.recurrenceTemplates.filter(
+			(t) => !t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
+		);
+
+		for (const template of templates) {
+			await db.deleteTransactionsBySeriesFuture(template.id, Date.now());
+			await db.softDeleteRecurrenceTemplate(template.id);
+		}
+
+		if (templates.length > 0) {
+			const templateIds = new Set(templates.map((t) => t.id));
+			const now = Date.now();
+			set((state) => ({
+				transactions: state.transactions.filter(
+					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
+				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+					templateIds.has(t.id) ? { ...t, is_deleted: true } : t
+				),
+			}));
+		}
 	},
 
 	// Default account — clear old default and optionally set a new one

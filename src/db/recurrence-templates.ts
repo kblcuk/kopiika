@@ -11,9 +11,7 @@ export async function getAllRecurrenceTemplates(): Promise<RecurrenceTemplate[]>
 		.where(eq(recurrenceTemplates.is_deleted, false));
 }
 
-export async function getRecurrenceTemplateById(
-	id: string
-): Promise<RecurrenceTemplate | null> {
+export async function getRecurrenceTemplateById(id: string): Promise<RecurrenceTemplate | null> {
 	const db = await getDrizzleDb();
 	const result = await db
 		.select()
@@ -53,10 +51,7 @@ export async function updateRecurrenceTemplate(
 		if (value !== undefined) updateData[key] = value;
 	}
 	if (Object.keys(updateData).length > 0) {
-		await db
-			.update(recurrenceTemplates)
-			.set(updateData)
-			.where(eq(recurrenceTemplates.id, id));
+		await db.update(recurrenceTemplates).set(updateData).where(eq(recurrenceTemplates.id, id));
 	}
 }
 
@@ -82,9 +77,7 @@ export async function addExclusion(templateId: string, timestamp: number): Promi
 		.where(eq(recurrenceTemplates.id, templateId));
 }
 
-export async function getActiveTemplatesForEntity(
-	entityId: string
-): Promise<RecurrenceTemplate[]> {
+export async function getActiveTemplatesForEntity(entityId: string): Promise<RecurrenceTemplate[]> {
 	const db = await getDrizzleDb();
 	return await db
 		.select()
