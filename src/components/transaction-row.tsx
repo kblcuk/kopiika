@@ -130,6 +130,17 @@ export const TransactionRow = memo(function TransactionRow({
 							{getCurrencySymbol(transaction.currency)}
 						</Text>
 					</Text>
+
+					{/* Scheduled date for upcoming transactions */}
+					{isUpcoming && (
+						<Text className="mt-1 pl-10 font-sans text-xs text-info">
+							{new Date(transaction.timestamp).toLocaleDateString(undefined, {
+								weekday: 'short',
+								month: 'short',
+								day: 'numeric',
+							})}
+						</Text>
+					)}
 				</View>
 			</View>
 
