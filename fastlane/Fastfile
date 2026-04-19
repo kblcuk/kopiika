@@ -487,14 +487,25 @@ def parsed_changelog(version = app_version)
   sections.reject { |s| s[:items].empty? }
 end
 
-# Plain text changelog for TestFlight "What to Test" / Play Store release notes
-def changelog_for_store(version = app_version)
+# Plain text changelog for TestFlight "What to Test" / Play Store release notes.
+# Google Play limits release notes to 500 characters per locale.
+def changelog_for_store(version = app_version, limit: 500)
   sections = parsed_changelog(version)
   return nil if sections.nil? || sections.empty?
 
-  sections.map do |s|
+  full = sections.map do |s|
     "#{s[:type]}:\n" + s[:items].map { |i| "\u2022 #{i}" }.join("\n")
   end.join("\n\n")
+
+  return full if full.length <= limit
+
+  truncated = full[0, limit]
+  # Cut back to last complete line
+  last_newline = truncated.rindex("\n")
+  truncated = truncated[0, last_newline] if last_newline
+  # Ensure room for ellipsis
+  truncated = truncated[0, limit - 1] if truncated.length >= limit
+  "#{truncated}\u2026"
 end
 
 # Escape Telegram Markdown v1 special characters in plain text
