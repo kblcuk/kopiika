@@ -1,7 +1,7 @@
 {
 	"name": "kopiika",
 	"main": "expo-router/entry",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"scripts": {
 		"start": "expo start",
 		"android": "expo run:android",
@@ -98,7 +98,6 @@
 		"oxlint": "^1.60.0",
 		"react-test-renderer": "19.2.0",
 		"prettier-plugin-tailwindcss": "^0.5.14",
-		"react-test-renderer": "19.2.0",
 		"ts-jest": "^29.4.9",
 		"typescript": "~5.9.3"
 	},

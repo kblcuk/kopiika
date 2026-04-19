@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.1](https://codeberg.org/kblcuk/kopiika/compare/v0.3.0...v0.3.1) (2026-04-19)
+
+
+### Features
+
+* **dnd:** add computeEdgeSpeed worklet utility and SECTION_INDEX (KII-12) ([258b068](https://codeberg.org/kblcuk/kopiika/commit/258b0685e82258bf705748e39d22692798dda364))
+* **dnd:** useDragAutoScroll hook — UI-thread vertical + horizontal auto-scroll (KII-12) ([c6a057f](https://codeberg.org/kblcuk/kopiika/commit/c6a057f0004c908ea1ce47e44baaaca2ee70821f))
+* **dnd:** wire drag auto-scroll into grid and home screen (KII-12) ([38806db](https://codeberg.org/kblcuk/kopiika/commit/38806dbd24354d5f423ecc0daa016a5bace7c52a))
+* **history:** show scheduled date on upcoming transactions ([819c602](https://codeberg.org/kblcuk/kopiika/commit/819c60261e4a4a4a836bf2bb856f35486fd1a705))
+* **recurrence:** Add entity deletion prompt for active templates ([d35a7a3](https://codeberg.org/kblcuk/kopiika/commit/d35a7a32d99afbb0403ae9de77af2caec63d3782))
+* **recurrence:** Add occurrence generation logic with TDD (KII-66) ([f699af6](https://codeberg.org/kblcuk/kopiika/commit/f699af6403db7a9cc805aec039423f17637104f5))
+* **recurrence:** Add recurrence state, backfill, and series actions to store ([34e15c7](https://codeberg.org/kblcuk/kopiika/commit/34e15c78ca967c0d877caf974dc893d20cccd745))
+* **recurrence:** add recurrence template CRUD with TDD (KII-66) ([b9863b7](https://codeberg.org/kblcuk/kopiika/commit/b9863b7badcd6d410507e63a276fb17dd18b0ba4))
+* **recurrence:** add recurrence_templates schema and migration (KII-66) ([7f3adf3](https://codeberg.org/kblcuk/kopiika/commit/7f3adf33547d110b901294fd1bee9b1eee6580df))
+* **recurrence:** Add repeat UI to transaction modal (KII-66) ([0a5e7f4](https://codeberg.org/kblcuk/kopiika/commit/0a5e7f47742c469f80a41376c261bee658f61450))
+* **recurrence:** Add series action sheets for edit/delete (KII-66) ([6d457ba](https://codeberg.org/kblcuk/kopiika/commit/6d457ba390e4c98f208d0a8fc1d335c6be65c5cc))
+* **recurrence:** add series-aware transaction queries with TDD (KII-66) ([720e72a](https://codeberg.org/kblcuk/kopiika/commit/720e72a092e298c9843d567a5e0ad6d67a992b49))
+* **recurrence:** final integration and export/import support (KII-66) ([08a6f71](https://codeberg.org/kblcuk/kopiika/commit/08a6f71914e0f165deabbbe24ecfeb33eaba0c1b))
+* **recurrence:** show repeat icon on series transactions (KII-66) ([396eea5](https://codeberg.org/kblcuk/kopiika/commit/396eea5843f8cd84819230c5b7069823209dd753))
+* **savings:** Open reservation amount field empty instead of pre-filled ([fcc8a3e](https://codeberg.org/kblcuk/kopiika/commit/fcc8a3e4c069a620ff9329bdb19c07bc75adf02e))
+* **sheet:** add SheetHeader and backdrop dimming to whats-new modal ([66db069](https://codeberg.org/kblcuk/kopiika/commit/66db06936ba05fa385f327ea48f32f2cbc8c7c73))
+* **sheet:** add SheetHeader component with grabber pill and close button ([d5490ea](https://codeberg.org/kblcuk/kopiika/commit/d5490ea6d15744b5c4b3652e4c4bbe7cfab7f567))
+* **sheet:** convert reservation modal to pageSheet with header bar ([cf40cd0](https://codeberg.org/kblcuk/kopiika/commit/cf40cd02ffb8d6bebcb4c3a8e8ee8d5b1c62d4b1))
+
+
+### Bug Fixes
+
+* **recurrence:** add entity relation backrefs and series_id comment ([5b6897f](https://codeberg.org/kblcuk/kopiika/commit/5b6897f2f40d00faf0404f99c8a9db614d745a05))
+* **recurrence:** address review — monthly drift, batch atomicity, import series_id, store consistency ([3e6e0c2](https://codeberg.org/kblcuk/kopiika/commit/3e6e0c21a04824df7ec4dd4c0884071fc24c734e))
+* **recurrence:** review fixes — template store sync, Date.now race, unused param ([ef53508](https://codeberg.org/kblcuk/kopiika/commit/ef53508fcb72eeeefdee3e5e72d7fe4178253d88))
+* **test:** Align react-test-renderer with React 19.2 and fix test setup ([fbaf7b4](https://codeberg.org/kblcuk/kopiika/commit/fbaf7b43885542bee6615742c55fa4110bdce490))
+
 ## [0.3.0](https://codeberg.org/kblcuk/kopiika/compare/v0.2.20...v0.3.0) (2026-04-18)
 
 
