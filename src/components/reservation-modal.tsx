@@ -6,7 +6,7 @@ import {
 	KeyboardExtender,
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, Trash2 } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
 import {
@@ -97,23 +97,37 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	};
 
 	return (
-		<Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
-			<View className="flex-1 justify-end">
-				<Pressable className="flex-1" onPress={handleCancel} />
-
+		<Modal
+			visible={visible}
+			animationType="slide"
+			presentationStyle="pageSheet"
+			onRequestClose={handleCancel}
+		>
+			<View
+				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+			>
+				{/* Header */}
+				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+					<Pressable onPress={handleCancel} hitSlop={20}>
+						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+					</Pressable>
+					<Text className="font-sans-semibold text-base text-ink">
+						{hasExisting ? 'Edit Reservation' : 'Reserve'}
+					</Text>
+					<View style={{ width: 48 }} />
+				</View>
 				<KeyboardAwareScrollView
 					bottomOffset={50}
 					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
 					keyboardShouldPersistTaps="handled"
-					className="overflow-hidden rounded-t-3xl bg-paper-50"
+					className="flex-1 px-6"
 					contentContainerStyle={{
 						paddingBottom: Math.max(insets.bottom, 16),
-						paddingHorizontal: 24,
-						paddingTop: 24,
 					}}
 				>
 					{/* Header: account → saving */}
-					<View className="mb-6 flex-row items-center justify-center">
+					<View className="mb-6 mt-4 flex-row items-center justify-center">
 						{renderBubble(account)}
 						<ArrowRight
 							size={20}
@@ -183,9 +197,11 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<Pressable
 								onPress={handleClear}
 								testID="reservation-clear-button"
-								className="h-12 w-12 items-center justify-center rounded-2xl bg-paper-200"
+								className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
 							>
-								<Trash2 size={18} color={colors.ink.muted} />
+								<Text className="font-sans-semibold text-base text-negative">
+									Clear
+								</Text>
 							</Pressable>
 						)}
 						<Pressable
@@ -202,14 +218,14 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						</Pressable>
 					</View>
 				</KeyboardAwareScrollView>
-			</View>
 
-			<KeyboardExtender enabled={amountExpr.focused}>
-				<OperatorToolbar
-					onOperator={amountExpr.insertOperator}
-					onEquals={amountExpr.resolve}
-				/>
-			</KeyboardExtender>
+				<KeyboardExtender enabled={amountExpr.focused}>
+					<OperatorToolbar
+						onOperator={amountExpr.insertOperator}
+						onEquals={amountExpr.resolve}
+					/>
+				</KeyboardExtender>
+			</View>
 		</Modal>
 	);
 }

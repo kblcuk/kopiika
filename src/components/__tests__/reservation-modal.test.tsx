@@ -65,7 +65,7 @@ describe('ReservationModal', () => {
 		const reserveToSaving = jest.fn().mockResolvedValue(undefined);
 		useStore.setState({ reserveToSaving, transactions: [] });
 
-		const { getByPlaceholderText, getByText } = render(
+		const { getByPlaceholderText, getByTestId } = render(
 			<ReservationModal
 				visible={true}
 				account={account}
@@ -75,7 +75,7 @@ describe('ReservationModal', () => {
 		);
 
 		fireEvent.changeText(getByPlaceholderText('0'), '250');
-		fireEvent.press(getByText('Reserve'));
+		fireEvent.press(getByTestId('reservation-submit-button'));
 
 		await waitFor(() => {
 			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 250);
