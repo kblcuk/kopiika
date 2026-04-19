@@ -8,7 +8,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Clock, Trash2 } from 'lucide-react-native';
+import { Clock, Trash2, Repeat } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
@@ -110,9 +110,14 @@ export const TransactionRow = memo(function TransactionRow({
 					{fromLabel}
 				</Text>
 				<View className="ml-3 items-end">
-					{isUpcoming && (
-						<Clock size={12} color={colors.info.DEFAULT} style={{ marginBottom: 2 }} />
-					)}
+					<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
+						{transaction.series_id && (
+							<Repeat size={12} color={colors.info.DEFAULT} />
+						)}
+						{isUpcoming && (
+							<Clock size={12} color={colors.info.DEFAULT} />
+						)}
+					</View>
 					<Text
 						className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
 					>
