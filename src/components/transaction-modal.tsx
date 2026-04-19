@@ -7,7 +7,9 @@ import {
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
+import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo, Repeat } from 'lucide-react-native';
+import type { RecurrenceFrequency } from '@/src/types/recurrence';
+import { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from '@/src/types/recurrence';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
@@ -84,8 +86,16 @@ export function TransactionModal({
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
+	const [isRepeat, setIsRepeat] = useState(false);
+	const [repeatFrequency, setRepeatFrequency] = useState<RecurrenceFrequency>('monthly');
+	const [repeatEndMode, setRepeatEndMode] = useState<'never' | 'until' | 'count'>('never');
+	const [repeatEndDate, setRepeatEndDate] = useState<Date | null>(null);
+	const [repeatEndCount, setRepeatEndCount] = useState('');
+	const [repeatHorizon, setRepeatHorizon] = useState(DEFAULT_HORIZON_DAYS);
+
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
+	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 	const entities = useStore((state) => state.entities);
 
 	const amountExpr = useExpressionInput(
@@ -195,6 +205,12 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
+			setIsRepeat(false);
+			setRepeatFrequency('monthly');
+			setRepeatEndMode('never');
+			setRepeatEndDate(null);
+			setRepeatEndCount('');
+			setRepeatHorizon(DEFAULT_HORIZON_DAYS);
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
@@ -424,15 +440,40 @@ export function TransactionModal({
 					updates.to_entity_id = selectedToId;
 				await updateTransaction(existingTransaction.id, updates);
 			} else if (selectedFromEntity && selectedToEntity) {
-				await addTransaction({
-					id: generateId(),
-					from_entity_id: selectedFromEntity.id,
-					to_entity_id: selectedToEntity.id,
-					amount: numAmount,
-					currency: selectedFromEntity.currency,
-					timestamp,
-					note: note.trim() || undefined,
-				});
+				if (isRepeat) {
+					await addRecurringTransaction(
+						{
+							from_entity_id: selectedFromEntity.id,
+							to_entity_id: selectedToEntity.id,
+							amount: numAmount,
+							currency: selectedFromEntity.currency,
+							timestamp,
+							note: note.trim() || undefined,
+						},
+						{
+							rule: { type: repeatFrequency },
+							endDate:
+								repeatEndMode === 'until' && repeatEndDate
+									? repeatEndDate.getTime()
+									: null,
+							endCount:
+								repeatEndMode === 'count' && repeatEndCount
+									? parseInt(repeatEndCount, 10)
+									: null,
+							horizon: repeatHorizon,
+						}
+					);
+				} else {
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: selectedFromEntity.id,
+						to_entity_id: selectedToEntity.id,
+						amount: numAmount,
+						currency: selectedFromEntity.currency,
+						timestamp,
+						note: note.trim() || undefined,
+					});
+				}
 			}
 
 			// Release savings reservations via saving→account transactions
@@ -919,6 +960,143 @@ export function TransactionModal({
 							</>
 						)}
 					</View>
+
+					{/* Repeat — create mode only */}
+					{!isEditing && (
+						<View className="mb-6">
+							<Pressable
+								onPress={() => setIsRepeat((v) => !v)}
+								className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+								style={{
+									borderWidth: 1,
+									borderColor: isRepeat ? colors.accent.DEFAULT : colors.border.dashed,
+									borderStyle: isRepeat ? 'solid' : 'dashed',
+								}}
+								testID="repeat-toggle"
+							>
+								<Repeat size={14} color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted} />
+								<Text
+									className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+								>
+									Repeat
+								</Text>
+							</Pressable>
+
+							{isRepeat && (
+								<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
+									{/* Frequency */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Frequency
+									</Text>
+									<View className="mb-4 flex-row gap-2">
+										{(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => (
+											<Pressable
+												key={freq}
+												onPress={() => setRepeatFrequency(freq)}
+												className={`flex-1 items-center rounded-lg py-2 ${
+													repeatFrequency === freq ? 'bg-accent' : 'bg-paper-200'
+												}`}
+												testID={`repeat-freq-${freq}`}
+											>
+												<Text
+													className={`font-sans text-sm capitalize ${
+														repeatFrequency === freq ? 'text-on-color' : 'text-ink-muted'
+													}`}
+												>
+													{freq}
+												</Text>
+											</Pressable>
+										))}
+									</View>
+
+									{/* End condition */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Ends
+									</Text>
+									<View className="mb-4 flex-row gap-2">
+										{(['never', 'until', 'count'] as const).map((mode) => (
+											<Pressable
+												key={mode}
+												onPress={() => setRepeatEndMode(mode)}
+												className={`flex-1 items-center rounded-lg py-2 ${
+													repeatEndMode === mode ? 'bg-accent' : 'bg-paper-200'
+												}`}
+												testID={`repeat-end-${mode}`}
+											>
+												<Text
+													className={`font-sans text-sm ${
+														repeatEndMode === mode ? 'text-on-color' : 'text-ink-muted'
+													}`}
+												>
+													{mode === 'never'
+														? 'Never'
+														: mode === 'until'
+															? 'Until date'
+															: 'After N'}
+												</Text>
+											</Pressable>
+										))}
+									</View>
+
+									{repeatEndMode === 'until' && (
+										<View className="mb-4">
+											<DateTimePicker
+												value={repeatEndDate ?? new Date()}
+												mode="date"
+												display={Platform.OS === 'ios' ? 'compact' : 'default'}
+												onChange={(_, date) => date && setRepeatEndDate(date)}
+												minimumDate={selectedDate}
+												accentColor={colors.accent.deeper}
+											/>
+										</View>
+									)}
+
+									{repeatEndMode === 'count' && (
+										<View className="mb-4">
+											<TextInput
+												{...sharedNumericTextInputProps}
+												value={repeatEndCount}
+												onChangeText={setRepeatEndCount}
+												placeholder="Number of times"
+												keyboardType="number-pad"
+												className={textInputClassNames.input}
+												style={styles.input}
+												placeholderTextColor={colors.ink.placeholder}
+												testID="repeat-end-count-input"
+											/>
+										</View>
+									)}
+
+									{/* Horizon */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Generate ahead
+									</Text>
+									<View className="flex-row gap-2">
+										{HORIZON_OPTIONS.map((opt) => (
+											<Pressable
+												key={opt.days}
+												onPress={() => setRepeatHorizon(opt.days)}
+												className={`flex-1 items-center rounded-lg py-2 ${
+													repeatHorizon === opt.days ? 'bg-accent' : 'bg-paper-200'
+												}`}
+												testID={`repeat-horizon-${opt.days}`}
+											>
+												<Text
+													className={`font-sans text-xs ${
+														repeatHorizon === opt.days
+															? 'text-on-color'
+															: 'text-ink-muted'
+													}`}
+												>
+													{opt.label}
+												</Text>
+											</Pressable>
+										))}
+									</View>
+								</View>
+							)}
+						</View>
+					)}
 
 					{/* Note */}
 					<View className="pb-6">
