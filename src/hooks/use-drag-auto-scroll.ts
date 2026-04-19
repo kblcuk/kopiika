@@ -85,43 +85,66 @@ export function useDragAutoScroll() {
 	function getSectionOffset(i: number): number {
 		'worklet';
 		switch (i) {
-			case 0: return sectionOffset0.value;
-			case 1: return sectionOffset1.value;
-			case 2: return sectionOffset2.value;
-			case 3: return sectionOffset3.value;
-			default: return 0;
+			case 0:
+				return sectionOffset0.value;
+			case 1:
+				return sectionOffset1.value;
+			case 2:
+				return sectionOffset2.value;
+			case 3:
+				return sectionOffset3.value;
+			default:
+				return 0;
 		}
 	}
 
 	function getSectionBounds(i: number): { top: number; bot: number } {
 		'worklet';
 		switch (i) {
-			case 0: return { top: sectionTop0.value, bot: sectionBot0.value };
-			case 1: return { top: sectionTop1.value, bot: sectionBot1.value };
-			case 2: return { top: sectionTop2.value, bot: sectionBot2.value };
-			case 3: return { top: sectionTop3.value, bot: sectionBot3.value };
-			default: return { top: 0, bot: 0 };
+			case 0:
+				return { top: sectionTop0.value, bot: sectionBot0.value };
+			case 1:
+				return { top: sectionTop1.value, bot: sectionBot1.value };
+			case 2:
+				return { top: sectionTop2.value, bot: sectionBot2.value };
+			case 3:
+				return { top: sectionTop3.value, bot: sectionBot3.value };
+			default:
+				return { top: 0, bot: 0 };
 		}
 	}
 
 	function getSectionMaxOffset(i: number): number {
 		'worklet';
 		switch (i) {
-			case 0: return sectionMaxH0.value;
-			case 1: return sectionMaxH1.value;
-			case 2: return sectionMaxH2.value;
-			case 3: return sectionMaxH3.value;
-			default: return 0;
+			case 0:
+				return sectionMaxH0.value;
+			case 1:
+				return sectionMaxH1.value;
+			case 2:
+				return sectionMaxH2.value;
+			case 3:
+				return sectionMaxH3.value;
+			default:
+				return 0;
 		}
 	}
 
 	function scrollSectionTo(i: number, x: number): void {
 		'worklet';
 		switch (i) {
-			case 0: scrollTo(sectionRef0, x, 0, false); break;
-			case 1: scrollTo(sectionRef1, x, 0, false); break;
-			case 2: scrollTo(sectionRef2, x, 0, false); break;
-			case 3: scrollTo(sectionRef3, x, 0, false); break;
+			case 0:
+				scrollTo(sectionRef0, x, 0, false);
+				break;
+			case 1:
+				scrollTo(sectionRef1, x, 0, false);
+				break;
+			case 2:
+				scrollTo(sectionRef2, x, 0, false);
+				break;
+			case 3:
+				scrollTo(sectionRef3, x, 0, false);
+				break;
 		}
 	}
 

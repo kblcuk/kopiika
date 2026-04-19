@@ -2,7 +2,12 @@ import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
-import Animated, { useAnimatedRef, makeMutable, type SharedValue, type AnimatedRef } from 'react-native-reanimated';
+import Animated, {
+	useAnimatedRef,
+	makeMutable,
+	type SharedValue,
+	type AnimatedRef,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Check, Pencil } from 'lucide-react-native';
 
@@ -218,7 +223,11 @@ export function SortableEntityGrid({
 		(e: { nativeEvent: { layout: { width: number } } }) => {
 			scrollViewVisibleWidth.current = e.nativeEvent.layout.width;
 			if (sectionIndex != null && onSectionMaxOffset && scrollViewContentWidth.current > 0) {
-				onSectionMaxOffset(sectionIndex, scrollViewContentWidth.current, e.nativeEvent.layout.width);
+				onSectionMaxOffset(
+					sectionIndex,
+					scrollViewContentWidth.current,
+					e.nativeEvent.layout.width
+				);
 			}
 		},
 		[sectionIndex, onSectionMaxOffset]
