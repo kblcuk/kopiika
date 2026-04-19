@@ -257,6 +257,7 @@ export const useStore = create<AppState>((set, get) => ({
 						currency: txn.currency,
 						timestamp: txn.timestamp,
 						note: txn.note ?? null,
+						series_id: txn.series_id ?? null,
 					})
 					.run();
 			}
@@ -550,10 +551,22 @@ export const useStore = create<AppState>((set, get) => ({
 			await db.deleteTransaction(id);
 			if (transaction.series_id) {
 				await db.addExclusion(transaction.series_id, transaction.timestamp);
+				const seriesId = transaction.series_id;
+				const ts = transaction.timestamp;
+				set((state) => ({
+					transactions: state.transactions.filter((t) => t.id !== id),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+						if (t.id !== seriesId) return t;
+						const exclusions: number[] = JSON.parse(t.exclusions ?? '[]');
+						exclusions.push(ts);
+						return { ...t, exclusions: JSON.stringify(exclusions) };
+					}),
+				}));
+			} else {
+				set((state) => ({
+					transactions: state.transactions.filter((t) => t.id !== id),
+				}));
 			}
-			set((state) => ({
-				transactions: state.transactions.filter((t) => t.id !== id),
-			}));
 			return;
 		}
 

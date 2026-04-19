@@ -16,7 +16,7 @@ export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): num
 			break;
 		case 'monthly': {
 			const originalDay = d.getDate();
-			d.setMonth(d.getMonth() + 1, 1); // move to 1st of next month
+			d.setMonth(d.getMonth() + 1, 1);
 			const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 			d.setDate(Math.min(originalDay, maxDay));
 			break;
@@ -28,6 +28,52 @@ export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): num
 			const maxDay = new Date(d.getFullYear(), origMonth + 1, 0).getDate();
 			d.setDate(Math.min(origDay, maxDay));
 			break;
+		}
+		default: {
+			const _exhaustive: never = rule.type;
+			throw new Error(`Unsupported recurrence type: ${_exhaustive}`);
+		}
+	}
+
+	return d.getTime();
+}
+
+/**
+ * Compute the Nth occurrence from a start date, always deriving from the
+ * original start date to avoid cumulative day-of-month clamping drift.
+ * E.g. monthly from Jan 31: Jan 31 → Feb 28 → Mar 31 → Apr 30 (not Mar 28).
+ */
+function nthOccurrence(startDate: number, n: number, rule: RecurrenceRule): number {
+	if (n === 0) return startDate;
+
+	const start = new Date(startDate);
+	const d = new Date(startDate);
+
+	switch (rule.type) {
+		case 'daily':
+			d.setDate(start.getDate() + n);
+			break;
+		case 'weekly':
+			d.setDate(start.getDate() + n * 7);
+			break;
+		case 'monthly': {
+			const originalDay = start.getDate();
+			d.setMonth(start.getMonth() + n, 1);
+			const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+			d.setDate(Math.min(originalDay, maxDay));
+			break;
+		}
+		case 'yearly': {
+			const origMonth = start.getMonth();
+			const origDay = start.getDate();
+			d.setFullYear(start.getFullYear() + n, origMonth, 1);
+			const maxDay = new Date(d.getFullYear(), origMonth + 1, 0).getDate();
+			d.setDate(Math.min(origDay, maxDay));
+			break;
+		}
+		default: {
+			const _exhaustive: never = rule.type;
+			throw new Error(`Unsupported recurrence type: ${_exhaustive}`);
 		}
 	}
 
@@ -48,6 +94,9 @@ interface GenerateOptions {
  * Generate all occurrence timestamps for a recurrence template.
  * Returns timestamps from startDate up to min(endDate, now + horizonDays).
  * Exclusions are skipped but still count toward endCount slots.
+ *
+ * Uses nthOccurrence (computed from start date) instead of chaining
+ * nextOccurrence to avoid cumulative day-of-month clamping drift.
  */
 export function generateOccurrences(opts: GenerateOptions): number[] {
 	const { rule, startDate, horizonDays, now, endDate, endCount, exclusions } = opts;
@@ -57,18 +106,18 @@ export function generateOccurrences(opts: GenerateOptions): number[] {
 	const exclusionSet = new Set(exclusions ?? []);
 
 	const timestamps: number[] = [];
-	let current = startDate;
-	let totalSlots = 0; // counts all slots including excluded ones
+	let n = 0;
 
-	while (current <= effectiveEnd) {
-		totalSlots++;
-		if (endCount != null && totalSlots > endCount) break;
+	while (true) {
+		const current = nthOccurrence(startDate, n, rule);
+		if (current > effectiveEnd) break;
+		if (endCount != null && n >= endCount) break;
 
 		if (!exclusionSet.has(current)) {
 			timestamps.push(current);
 		}
 
-		current = nextOccurrence(current, rule);
+		n++;
 	}
 
 	return timestamps;

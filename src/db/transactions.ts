@@ -220,16 +220,20 @@ export async function updateTransactionsBySeriesFuture(
 export async function createTransactionBatch(txns: Transaction[]): Promise<void> {
 	if (txns.length === 0) return;
 	const db = await getDrizzleDb();
-	for (const txn of txns) {
-		await db.insert(transactions).values({
-			id: txn.id,
-			from_entity_id: txn.from_entity_id,
-			to_entity_id: txn.to_entity_id,
-			amount: txn.amount,
-			currency: txn.currency,
-			timestamp: txn.timestamp,
-			note: txn.note ?? null,
-			series_id: txn.series_id ?? null,
-		});
-	}
+	db.transaction((tx) => {
+		for (const txn of txns) {
+			tx.insert(transactions)
+				.values({
+					id: txn.id,
+					from_entity_id: txn.from_entity_id,
+					to_entity_id: txn.to_entity_id,
+					amount: txn.amount,
+					currency: txn.currency,
+					timestamp: txn.timestamp,
+					note: txn.note ?? null,
+					series_id: txn.series_id ?? null,
+				})
+				.run();
+		}
+	});
 }

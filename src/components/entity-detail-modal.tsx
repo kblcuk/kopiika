@@ -255,15 +255,13 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 	const handleDelete = () => {
 		const activeTemplates = recurrenceTemplates.filter(
-			(t) =>
-				!t.is_deleted &&
-				(t.from_entity_id === entity.id || t.to_entity_id === entity.id)
+			(t) => !t.is_deleted && (t.from_entity_id === entity.id || t.to_entity_id === entity.id)
 		);
 
 		if (activeTemplates.length > 0) {
 			Alert.alert(
 				'Entity Used in Recurring Transactions',
-				`"${entity.name}" is used in ${activeTemplates.length} recurring transaction ${activeTemplates.length === 1 ? 'series' : 'series'}. Also delete future occurrences and stop the recurrence?`,
+				`"${entity.name}" is used in ${activeTemplates.length} recurring transaction series. Also delete future occurrences and stop the recurrence?`,
 				[
 					{ text: 'Cancel', style: 'cancel' },
 					{

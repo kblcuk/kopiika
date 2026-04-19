@@ -95,6 +95,38 @@ describe('generateOccurrences', () => {
 		expect(result.length).toBe(4);
 	});
 
+	test('monthly: no day-of-month drift through short months', () => {
+		const start = localTs(2026, 1, 31); // Jan 31
+		const result = generateOccurrences({
+			rule: { type: 'monthly' },
+			startDate: start,
+			horizonDays: 120,
+			now: start,
+		});
+		// Jan 31, Feb 28, Mar 31, Apr 30, May 31
+		expect(result.length).toBe(5);
+		expect(new Date(result[0]).getDate()).toBe(31); // Jan 31
+		expect(new Date(result[1]).getDate()).toBe(28); // Feb 28 (clamped)
+		expect(new Date(result[2]).getDate()).toBe(31); // Mar 31 (back to 31!)
+		expect(new Date(result[3]).getDate()).toBe(30); // Apr 30 (clamped)
+		expect(new Date(result[4]).getDate()).toBe(31); // May 31
+	});
+
+	test('yearly: Feb 29 returns to 29 on next leap year', () => {
+		const start = localTs(2028, 2, 29); // leap year
+		const result = generateOccurrences({
+			rule: { type: 'yearly' },
+			startDate: start,
+			horizonDays: 365 * 5,
+			now: start,
+		});
+		// 2028 Feb 29, 2029 Feb 28, 2030 Feb 28, 2031 Feb 28, 2032 Feb 29
+		expect(result.length).toBe(5);
+		expect(new Date(result[0]).getDate()).toBe(29); // 2028
+		expect(new Date(result[1]).getDate()).toBe(28); // 2029
+		expect(new Date(result[4]).getDate()).toBe(29); // 2032 (leap!)
+	});
+
 	test('respects end_date', () => {
 		const start = localTs(2026, 4, 1);
 		const endDate = localTs(2026, 4, 15);
