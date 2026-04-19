@@ -6,7 +6,7 @@
 
 ## Architecture & Product Rules
 
-Read `docs/architecture.md` before changing data flow, transaction behavior, plans, reservations, or major UI patterns. The short version: `entities`, `plans`, `transactions`, and `reservations` are the core model; balances are derived, overspending stays visible, and drag-and-drop remains the primary interaction. Savings are virtual reservations of account money — they have no transactions.
+Read `docs/architecture.md` before changing data flow, transaction behavior, plans, reservations, or major UI patterns. The short version: `entities`, `plans`, `transactions`, and `reservations` are the core model; balances are derived, overspending stays visible, and drag-and-drop remains the primary interaction. Savings use real `account <-> saving` transactions — balances are derived from net transaction flow, same as accounts.
 
 ## Build, Test, and Development Commands
 

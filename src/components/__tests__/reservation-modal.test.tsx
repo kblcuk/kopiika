@@ -83,7 +83,7 @@ describe('ReservationModal', () => {
 		});
 	});
 
-	it('updates an existing reservation amount', async () => {
+	it('adds to an existing reservation (additive semantics)', async () => {
 		const reserveToSaving = jest.fn().mockResolvedValue(undefined);
 		// Simulate existing reservation via an account→saving transaction
 		useStore.setState({
@@ -100,7 +100,7 @@ describe('ReservationModal', () => {
 			],
 		});
 
-		const { getByDisplayValue, getByText } = render(
+		const { getByPlaceholderText, getByText, getByTestId } = render(
 			<ReservationModal
 				visible={true}
 				account={account}
@@ -111,10 +111,12 @@ describe('ReservationModal', () => {
 
 		expect(getByText('Currently reserved: 300.00')).toBeTruthy();
 
-		fireEvent.changeText(getByDisplayValue('300'), '450');
-		fireEvent.press(getByText('Update'));
+		// Field starts empty; user types the increment
+		fireEvent.changeText(getByPlaceholderText('0'), '150');
+		fireEvent.press(getByTestId('reservation-submit-button'));
 
 		await waitFor(() => {
+			// 300 existing + 150 entered = 450 desired total
 			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 450);
 			expect(mockOnClose).toHaveBeenCalled();
 		});

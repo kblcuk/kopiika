@@ -72,12 +72,12 @@ Drag-and-drop also allows reverse pairs (e.g. category→account) to trigger ref
 
 ## Interaction Rules
 
-Dragging one entity onto another opens a transaction modal — except `Account -> Saving`, which opens a reservation modal (set-total UX that creates delta transactions internally). Reverse drags (e.g. `Category -> Account`, `Account -> Income`) open the refund picker.
+Dragging one entity onto another opens a transaction modal — except `Account -> Saving`, which opens a reservation modal (additive UX where the entered amount is added on top of the existing balance). Reverse drags (e.g. `Category -> Account`, `Account -> Income`) open the refund picker.
 
 Behavioral expectations:
 
 - `Account -> Category`: empty amount field; optional "fund from savings" section (below note) lets the user release savings to fund the transaction — creates explicit `saving -> account` release transactions
-- `Account -> Saving`: opens the reservation modal to set/update the total reserved amount (creates an `account -> saving` or `saving -> account` transaction for the delta)
+- `Account -> Saving`: opens the reservation modal with an empty amount field; the entered amount is added on top of the existing savings balance
 - `Saving -> Account`: opens the transaction modal for explicit release
 - `Income -> Account`: suggest remaining planned income
 - `Category -> Account`: opens refund picker (reverse of account → category)
@@ -88,8 +88,8 @@ Behavioral expectations:
 
 Savings reservations are tracked through `account <-> saving` transactions — there is no separate reservations table. The net amount reserved from a specific account to a specific saving is derived by summing all transactions between that pair.
 
-- Creating/updating: drag an account onto a saving to open the reservation modal. The user enters the desired total; the system creates a delta transaction.
-- Viewing/editing from saving detail: the saving entity's edit modal shows a "Reserved from" section listing all accounts with net positive reservation amounts. Tapping a row opens the reservation modal for that account–saving pair.
+- Creating/adding: drag an account onto a saving to open the reservation modal. The user enters the amount to add; the system creates a transaction for that amount.
+- Viewing from saving detail: the saving entity's edit modal shows a "Reserved from" section listing all accounts with net positive reservation amounts. Tapping a row opens the reservation modal for that account–saving pair.
 - Releasing: when creating a transaction from an account, the "fund from savings" section (below the note field) shows existing reservations as checkboxes. Checking a reservation creates a `saving -> account` release transaction for the funded amount. The main transaction total stays as entered.
 - History: all savings transactions appear in the History tab, filterable by entity and with editable amounts.
 

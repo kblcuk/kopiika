@@ -46,11 +46,11 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 	useEffect(() => {
 		if (visible && account && saving) {
-			setAmount(hasExisting ? String(currentNet) : '');
+			setAmount('');
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, account, saving, hasExisting, currentNet, amountExpr.inputRef]);
+	}, [visible, account, saving, amountExpr.inputRef]);
 
 	const handleCancel = useCallback(() => {
 		KeyboardController.dismiss();
@@ -68,7 +68,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const resolved = amountExpr.resolve();
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
-		await reserveToSaving(account.id, saving.id, finalAmount);
+		await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
 		KeyboardController.dismiss();
 		onClose();
 	};
@@ -113,7 +113,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">
-						{hasExisting ? 'Edit Reservation' : 'Reserve'}
+						Reserve
 					</Text>
 					<View style={{ width: 48 }} />
 				</View>
@@ -213,7 +213,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<Text
 								className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
 							>
-								{hasExisting ? 'Update' : 'Reserve'}
+								Reserve
 							</Text>
 						</Pressable>
 					</View>
