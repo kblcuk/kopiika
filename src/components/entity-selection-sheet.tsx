@@ -15,6 +15,9 @@ interface EntitySelectionSheetProps {
 	selectedId: string | null;
 	onSelect: (entity: Entity) => void;
 	onClose: () => void;
+	testID?: string;
+	/** Prefix for entity option testIDs to disambiguate multiple sheets */
+	testIDPrefix?: string;
 }
 
 export function EntitySelectionSheet({
@@ -24,6 +27,8 @@ export function EntitySelectionSheet({
 	selectedId,
 	onSelect,
 	onClose,
+	testID,
+	testIDPrefix,
 }: EntitySelectionSheetProps) {
 	const insets = useSafeAreaInsets();
 	const handleSelect = (entity: Entity) => {
@@ -42,11 +47,12 @@ export function EntitySelectionSheet({
 			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+				testID={testID}
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 					<Text className="font-sans-semibold text-base text-ink">{title}</Text>
-					<Pressable onPress={onClose} hitSlop={20}>
+					<Pressable onPress={onClose} hitSlop={20} testID="entity-selection-sheet-close">
 						<X size={24} color={colors.ink.muted} />
 					</Pressable>
 				</View>
@@ -63,7 +69,7 @@ export function EntitySelectionSheet({
 								<Pressable
 									key={entity.id}
 									onPress={() => handleSelect(entity)}
-									testID={`entity-option-${entity.name}`}
+									testID={`${testIDPrefix ?? 'entity-option'}-${entity.name}`}
 									className="mb-4 w-1/3 items-center"
 								>
 									<View

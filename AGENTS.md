@@ -17,6 +17,10 @@ Use Bun for app and development scripts. Use `mise run ...` for deployment, sign
 - `bun run web`: run the web target.
 - `bun run test`: run Bun unit tests plus Jest component/screen tests.
 - `bun run test:coverage`: collect coverage from both test runners.
+- `bun run build:e2e:ios` / `bun run build:e2e:android`: build the E2E binary (required after native/dependency changes; compiles with `EXPO_PUBLIC_E2E=true`).
+- `bun run test:e2e:ios` / `bun run test:e2e:android`: run the full Detox E2E suite on simulator/emulator.
+- `bunx detox test --configuration ios.sim.debug e2e/foo.test.ts`: run a single E2E test file.
+- `bunx detox test --configuration ios.sim.debug -t "test name"`: run a single E2E test by name substring. Replace `ios.sim.debug` with `android.emu.debug` for Android.
 - `bun run lint`: run `oxlint`.
 - `bun run format` / `bun run format:check`: apply or verify `oxfmt`.
 - `bun run types`: run TypeScript type checking.

@@ -536,6 +536,7 @@ export function TransactionModal({
 					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
 					keyboardShouldPersistTaps="handled"
 					className="flex-1 px-5 pt-6"
+					testID="transaction-form-scroll"
 				>
 					{/* From → To */}
 					<View className="mb-8 flex-row items-start">
@@ -944,6 +945,8 @@ export function TransactionModal({
 				selectedId={selectedFromId}
 				onSelect={handleFromSelect}
 				onClose={() => setShowFromSheet(false)}
+				testID="entity-selection-sheet-from"
+				testIDPrefix="from-option"
 			/>
 			<EntitySelectionSheet
 				visible={showToSheet}
@@ -952,6 +955,8 @@ export function TransactionModal({
 				selectedId={selectedToId}
 				onSelect={handleToSelect}
 				onClose={() => setShowToSheet(false)}
+				testID="entity-selection-sheet-to"
+				testIDPrefix="to-option"
 			/>
 
 			{/* Split entity picker */}

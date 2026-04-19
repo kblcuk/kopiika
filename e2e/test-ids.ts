@@ -5,6 +5,8 @@ export const TestIDs = {
 	addTransactionButton: 'add-transaction-button',
 	addEntityButton: (type: string) => `add-entity-button-${type}`,
 	entityOption: (name: string) => `entity-option-${name}`,
+	fromOption: (name: string) => `from-option-${name}`,
+	toOption: (name: string) => `to-option-${name}`,
 
 	entityBubble: (name: string) => `entity-bubble-${name}`,
 	entityAmount: (name: string) => `entity-amount-${name}`,
@@ -15,6 +17,7 @@ export const TestIDs = {
 		amountInput: 'transaction-amount-input',
 		saveButton: 'transaction-save-button',
 		cancelButton: 'transaction-cancel-button',
+		formScroll: 'transaction-form-scroll',
 		noteInput: 'transaction-note-input',
 		suggestedAmountButton: 'transaction-suggested-amount-button',
 		splitToggleButton: 'split-toggle-button',
@@ -46,6 +49,25 @@ export const TestIDs = {
 		includeInTotalSwitch: 'entity-detail-include-in-total-switch',
 		savingReservationsSection: 'saving-reservations-section',
 		savingReservationRow: (accountId: string) => `saving-reservation-row-${accountId}`,
+	},
+
+	incomeToggleButton: 'income-toggle-button',
+
+	entitySelectionSheet: {
+		closeButton: 'entity-selection-sheet-close',
+		fromSheet: 'entity-selection-sheet-from',
+		toSheet: 'entity-selection-sheet-to',
+	},
+
+	refundPicker: {
+		close: 'refund-picker-close',
+	},
+
+	reservation: {
+		modal: 'reservation-modal',
+		backdrop: 'reservation-backdrop',
+		submitButton: 'reservation-submit-button',
+		clearButton: 'reservation-clear-button',
 	},
 
 	whatsNew: {

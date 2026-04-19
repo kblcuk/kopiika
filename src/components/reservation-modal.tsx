@@ -91,13 +91,13 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
 			<View className="flex-1 justify-end">
-				<Pressable className="flex-1" onPress={onClose} />
+				<Pressable className="flex-1" onPress={onClose} testID="reservation-backdrop" />
 
+				<View testID="reservation-modal" className="overflow-hidden rounded-t-3xl bg-paper-50">
 				<KeyboardAwareScrollView
 					bottomOffset={50}
 					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
 					keyboardShouldPersistTaps="handled"
-					className="overflow-hidden rounded-t-3xl bg-paper-50"
 					contentContainerStyle={{
 						paddingBottom: Math.max(insets.bottom, 16),
 						paddingHorizontal: 24,
@@ -194,6 +194,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 						</Pressable>
 					</View>
 				</KeyboardAwareScrollView>
+			</View>
 			</View>
 
 			<KeyboardExtender enabled={amountExpr.focused}>

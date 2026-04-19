@@ -8,4 +8,5 @@ module.exports = {
   reporters: ['detox/runners/jest/reporter'],
   testEnvironment: 'detox/runners/jest/testEnvironment',
   verbose: true,
+  setupFilesAfterEnv: ['<rootDir>/e2e/animationSetup.ts'],
 };
