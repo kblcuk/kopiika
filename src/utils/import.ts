@@ -270,6 +270,7 @@ function parseTransactions(
 			currency: row.currency,
 			timestamp,
 			note: row.note || null,
+			series_id: row.series_id || undefined,
 		});
 	}
 
