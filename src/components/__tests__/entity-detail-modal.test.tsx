@@ -986,9 +986,7 @@ describe('EntityDetailModal', () => {
 			useStore.setState({
 				updateEntity: async (entity) => {
 					useStore.setState((state) => ({
-						entities: state.entities.map((e) =>
-							e.id === entity.id ? entity : e
-						),
+						entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
 					}));
 				},
 				addTransaction: addTransactionSpy,
@@ -1057,17 +1055,13 @@ describe('EntityDetailModal', () => {
 			useStore.setState({
 				updateEntity: async (entity) => {
 					useStore.setState((state) => ({
-						entities: state.entities.map((e) =>
-							e.id === entity.id ? entity : e
-						),
+						entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
 					}));
 				},
 				setDefaultAccount: async (accountId) => {
 					useStore.setState((state) => ({
 						entities: state.entities.map((e) =>
-							e.type === 'account'
-								? { ...e, is_default: e.id === accountId }
-								: e
+							e.type === 'account' ? { ...e, is_default: e.id === accountId } : e
 						),
 					}));
 				},

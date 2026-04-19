@@ -15,6 +15,7 @@
 ### Task 1: Pure `computeEdgeSpeed` utility + tests
 
 **Files:**
+
 - Create: `src/utils/drag-auto-scroll.ts`
 - Create: `src/utils/__tests__/drag-auto-scroll.test.ts`
 
@@ -117,9 +118,11 @@ git commit -m "feat(dnd): add computeEdgeSpeed utility for drag auto-scroll (KII
 ### Task 2: Create `useDragAutoScroll` hook
 
 **Files:**
+
 - Create: `src/hooks/use-drag-auto-scroll.ts`
 
 **Context:**
+
 - Reanimated `scrollTo` signature: `scrollTo(animatedRef, x, y, animated)`
 - `useFrameCallback(callback, autostart?)` — set `autostart: false`, control via `.setActive()`
 - `useAnimatedScrollHandler` returns a worklet-based scroll handler
@@ -243,6 +246,7 @@ git commit -m "feat(dnd): add useDragAutoScroll hook with UI-thread vertical scr
 ### Task 3: Wire hook into home screen
 
 **Files:**
+
 - Modify: `app/(tabs)/index.tsx`
 
 - [ ] **Step 1: Update imports**
@@ -281,29 +285,24 @@ import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 Remove these lines near the top of `HomeScreen`:
 
 ```ts
-	const outerScrollRef = useRef<ScrollView>(null);
+const outerScrollRef = useRef<ScrollView>(null);
 
-	// Wire the outer ScrollView for vertical auto-scroll during drag
-	useEffect(() => {
-		setVerticalScrollTarget(outerScrollRef);
-	}, []);
+// Wire the outer ScrollView for vertical auto-scroll during drag
+useEffect(() => {
+	setVerticalScrollTarget(outerScrollRef);
+}, []);
 
-	const handleOuterScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
-		const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-		updateScrollMetrics(contentOffset.y, contentSize.height, layoutMeasurement.height);
-	}, []);
+const handleOuterScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
+	const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+	updateScrollMetrics(contentOffset.y, contentSize.height, layoutMeasurement.height);
+}, []);
 ```
 
 Add after `const router = useRouter();`:
 
 ```ts
-	const {
-		outerScrollRef,
-		scrollHandler,
-		startAutoScroll,
-		stopAutoScroll,
-		updateDragTouch,
-	} = useDragAutoScroll();
+const { outerScrollRef, scrollHandler, startAutoScroll, stopAutoScroll, updateDragTouch } =
+	useDragAutoScroll();
 ```
 
 - [ ] **Step 3: Update drag handlers**
@@ -311,13 +310,13 @@ Add after `const router = useRouter();`:
 In `handleDragStart`, replace `startVerticalAutoScroll()` with `startAutoScroll()`:
 
 ```ts
-	const handleDragStart = useCallback(
-		(entity: EntityWithBalance) => {
-			setDraggedEntity(entity);
-			startAutoScroll();
-		},
-		[setDraggedEntity, startAutoScroll]
-	);
+const handleDragStart = useCallback(
+	(entity: EntityWithBalance) => {
+		setDraggedEntity(entity);
+		startAutoScroll();
+	},
+	[setDraggedEntity, startAutoScroll]
+);
 ```
 
 In `handleDragEnd`, replace `stopVerticalAutoScroll()` with `stopAutoScroll()`:
@@ -410,6 +409,7 @@ git commit -m "refactor(dnd): wire useDragAutoScroll hook into home screen (KII-
 ### Task 4: Update grid to receive `updateDragTouch` as prop
 
 **Files:**
+
 - Modify: `src/components/sortable-entity-grid.tsx`
 
 - [ ] **Step 1: Remove old import**
@@ -468,6 +468,7 @@ git commit -m "refactor(dnd): receive updateDragTouch via props instead of modul
 ### Task 5: Update grid drag test
 
 **Files:**
+
 - Modify: `src/components/__tests__/sortable-entity-grid-drag.test.tsx`
 
 - [ ] **Step 1: Remove the old mock**
@@ -515,6 +516,7 @@ git commit -m "test(dnd): update grid drag tests for prop-based updateDragTouch 
 ### Task 6: Delete old module + tests
 
 **Files:**
+
 - Delete: `src/utils/vertical-auto-scroll.ts`
 - Delete: `src/utils/__tests__/vertical-auto-scroll.test.ts`
 

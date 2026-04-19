@@ -16,35 +16,35 @@
 
 ### New files
 
-| File | Responsibility |
-|------|---------------|
-| `src/types/recurrence.ts` | `RecurrenceRule`, `RecurrenceTemplate` types, horizon constants |
-| `src/utils/recurrence.ts` | Pure `generateOccurrences()` + date math helpers |
-| `src/utils/__tests__/recurrence.test.ts` | Unit tests for occurrence generation |
-| `src/db/recurrence-templates.ts` | CRUD for `recurrence_templates` table |
-| `src/db/__tests__/recurrence-templates.test.ts` | DB layer tests |
-| `src/components/series-action-sheet.tsx` | "This one only" / "All future" action sheet |
+| File                                            | Responsibility                                                  |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| `src/types/recurrence.ts`                       | `RecurrenceRule`, `RecurrenceTemplate` types, horizon constants |
+| `src/utils/recurrence.ts`                       | Pure `generateOccurrences()` + date math helpers                |
+| `src/utils/__tests__/recurrence.test.ts`        | Unit tests for occurrence generation                            |
+| `src/db/recurrence-templates.ts`                | CRUD for `recurrence_templates` table                           |
+| `src/db/__tests__/recurrence-templates.test.ts` | DB layer tests                                                  |
+| `src/components/series-action-sheet.tsx`        | "This one only" / "All future" action sheet                     |
 
 ### Modified files
 
-| File | Changes |
-|------|---------|
-| `src/db/drizzle-schema.ts` | Add `recurrence_templates` table, `series_id` column on `transactions` |
-| `src/types/index.ts` | Add `series_id` to `Transaction` type |
-| `src/db/index.ts` | Re-export `recurrence-templates` module |
-| `src/db/transactions.ts` | Add `getTransactionsBySeriesId`, `deleteTransactionsBySeriesFuture`, `updateTransactionsBySeriesFuture`, `createTransactionBatch` |
-| `src/store/index.ts` | Add `recurrenceTemplates` state, `backfillRecurrences()`, series-aware `updateTransaction`/`deleteTransaction`, `addRecurringTransaction()` |
-| `src/components/transaction-modal.tsx` | Repeat toggle, frequency picker, end condition, horizon dropdown |
-| `src/components/transaction-row.tsx` | Repeat icon (↻) for series transactions |
-| `app/(tabs)/history.tsx` | Wire series action sheet for edit/delete of series transactions |
-| `drizzle/migrations.js` | Add m0011 import |
-| `drizzle/meta/_journal.json` | Add entry for 0011 |
+| File                                   | Changes                                                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/db/drizzle-schema.ts`             | Add `recurrence_templates` table, `series_id` column on `transactions`                                                                      |
+| `src/types/index.ts`                   | Add `series_id` to `Transaction` type                                                                                                       |
+| `src/db/index.ts`                      | Re-export `recurrence-templates` module                                                                                                     |
+| `src/db/transactions.ts`               | Add `getTransactionsBySeriesId`, `deleteTransactionsBySeriesFuture`, `updateTransactionsBySeriesFuture`, `createTransactionBatch`           |
+| `src/store/index.ts`                   | Add `recurrenceTemplates` state, `backfillRecurrences()`, series-aware `updateTransaction`/`deleteTransaction`, `addRecurringTransaction()` |
+| `src/components/transaction-modal.tsx` | Repeat toggle, frequency picker, end condition, horizon dropdown                                                                            |
+| `src/components/transaction-row.tsx`   | Repeat icon (↻) for series transactions                                                                                                     |
+| `app/(tabs)/history.tsx`               | Wire series action sheet for edit/delete of series transactions                                                                             |
+| `drizzle/migrations.js`                | Add m0011 import                                                                                                                            |
+| `drizzle/meta/_journal.json`           | Add entry for 0011                                                                                                                          |
 
 ### Generated files (via `bunx drizzle-kit generate`)
 
-| File | |
-|------|---|
-| `drizzle/0011_*.sql` | Migration SQL |
+| File                              |                 |
+| --------------------------------- | --------------- |
+| `drizzle/0011_*.sql`              | Migration SQL   |
 | `drizzle/meta/0011_snapshot.json` | Schema snapshot |
 
 ---
@@ -52,6 +52,7 @@
 ## Task 1: Schema & Types
 
 **Files:**
+
 - Modify: `src/db/drizzle-schema.ts`
 - Create: `src/types/recurrence.ts`
 - Modify: `src/types/index.ts`
@@ -204,6 +205,7 @@ export { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from './recurrence';
 Run: `bunx drizzle-kit generate`
 
 This auto-generates:
+
 - `drizzle/0011_*.sql` with CREATE TABLE and ALTER TABLE statements
 - `drizzle/meta/0011_snapshot.json`
 - Updates `drizzle/meta/_journal.json`
@@ -243,6 +245,7 @@ git commit -m "feat(recurrence): add recurrence_templates schema and migration (
 ## Task 2: Occurrence Generation Logic (TDD)
 
 **Files:**
+
 - Create: `src/utils/__tests__/recurrence.test.ts`
 - Create: `src/utils/recurrence.ts`
 
@@ -553,6 +556,7 @@ git commit -m "feat(recurrence): add occurrence generation logic with TDD (KII-6
 ## Task 3: DB Layer — Recurrence Template CRUD (TDD)
 
 **Files:**
+
 - Create: `src/db/__tests__/recurrence-templates.test.ts`
 - Create: `src/db/recurrence-templates.ts`
 - Modify: `src/db/index.ts`
@@ -694,9 +698,7 @@ export async function getAllRecurrenceTemplates(): Promise<RecurrenceTemplate[]>
 		.where(eq(recurrenceTemplates.is_deleted, false));
 }
 
-export async function getRecurrenceTemplateById(
-	id: string
-): Promise<RecurrenceTemplate | null> {
+export async function getRecurrenceTemplateById(id: string): Promise<RecurrenceTemplate | null> {
 	const db = await getDrizzleDb();
 	const result = await db
 		.select()
@@ -736,10 +738,7 @@ export async function updateRecurrenceTemplate(
 		if (value !== undefined) updateData[key] = value;
 	}
 	if (Object.keys(updateData).length > 0) {
-		await db
-			.update(recurrenceTemplates)
-			.set(updateData)
-			.where(eq(recurrenceTemplates.id, id));
+		await db.update(recurrenceTemplates).set(updateData).where(eq(recurrenceTemplates.id, id));
 	}
 }
 
@@ -765,9 +764,7 @@ export async function addExclusion(templateId: string, timestamp: number): Promi
 		.where(eq(recurrenceTemplates.id, templateId));
 }
 
-export async function getActiveTemplatesForEntity(
-	entityId: string
-): Promise<RecurrenceTemplate[]> {
+export async function getActiveTemplatesForEntity(entityId: string): Promise<RecurrenceTemplate[]> {
 	const db = await getDrizzleDb();
 	return await db
 		.select()
@@ -810,6 +807,7 @@ git commit -m "feat(recurrence): add recurrence template CRUD with TDD (KII-66)"
 ## Task 4: Series-Aware Transaction Queries (TDD)
 
 **Files:**
+
 - Modify: `src/db/__tests__/transactions.test.ts`
 - Modify: `src/db/transactions.ts`
 
@@ -1017,6 +1015,7 @@ git commit -m "feat(recurrence): add series-aware transaction queries with TDD (
 ## Task 5: Zustand Store — Recurrence State & Backfill
 
 **Files:**
+
 - Modify: `src/store/index.ts`
 - Modify: `src/store/__tests__/store.test.ts`
 
@@ -1110,9 +1109,7 @@ async function backfillRecurrences(
 
 		// Find which timestamps already have transactions
 		const existingTimestamps = new Set(
-			existingTransactions
-				.filter((t) => t.series_id === template.id)
-				.map((t) => t.timestamp)
+			existingTransactions.filter((t) => t.series_id === template.id).map((t) => t.timestamp)
 		);
 
 		for (const ts of expectedTimestamps) {
@@ -1387,6 +1384,7 @@ git commit -m "feat(recurrence): add recurrence state, backfill, and series acti
 ## Task 6: Transaction Modal — Repeat UI
 
 **Files:**
+
 - Modify: `src/components/transaction-modal.tsx`
 
 - [ ] **Step 1: Add repeat state variables**
@@ -1431,142 +1429,148 @@ setRepeatHorizon(DEFAULT_HORIZON_DAYS);
 Insert between the Date section and Note section in the JSX. Place it after the `{/* Date */}` block's closing `</View>`:
 
 ```tsx
-{/* Repeat — create mode only */}
-{!isEditing && (
-	<View className="mb-6">
-		<Pressable
-			onPress={() => setIsRepeat((v) => !v)}
-			className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
-			style={{
-				borderWidth: 1,
-				borderColor: isRepeat ? colors.accent.DEFAULT : colors.border.dashed,
-				borderStyle: isRepeat ? 'solid' : 'dashed',
-			}}
-			testID="repeat-toggle"
-		>
-			<Repeat size={14} color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted} />
-			<Text
-				className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+{
+	/* Repeat — create mode only */
+}
+{
+	!isEditing && (
+		<View className="mb-6">
+			<Pressable
+				onPress={() => setIsRepeat((v) => !v)}
+				className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+				style={{
+					borderWidth: 1,
+					borderColor: isRepeat ? colors.accent.DEFAULT : colors.border.dashed,
+					borderStyle: isRepeat ? 'solid' : 'dashed',
+				}}
+				testID="repeat-toggle"
 			>
-				Repeat
-			</Text>
-		</Pressable>
-
-		{isRepeat && (
-			<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
-				{/* Frequency */}
-				<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-					Frequency
+				<Repeat size={14} color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted} />
+				<Text
+					className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+				>
+					Repeat
 				</Text>
-				<View className="mb-4 flex-row gap-2">
-					{(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => (
-						<Pressable
-							key={freq}
-							onPress={() => setRepeatFrequency(freq)}
-							className={`flex-1 items-center rounded-lg py-2 ${
-								repeatFrequency === freq ? 'bg-accent' : 'bg-paper-200'
-							}`}
-							testID={`repeat-freq-${freq}`}
-						>
-							<Text
-								className={`font-sans text-sm capitalize ${
-									repeatFrequency === freq ? 'text-on-color' : 'text-ink-muted'
-								}`}
-							>
-								{freq}
-							</Text>
-						</Pressable>
-					))}
-				</View>
+			</Pressable>
 
-				{/* End condition */}
-				<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-					Ends
-				</Text>
-				<View className="mb-4 flex-row gap-2">
-					{(['never', 'until', 'count'] as const).map((mode) => (
-						<Pressable
-							key={mode}
-							onPress={() => setRepeatEndMode(mode)}
-							className={`flex-1 items-center rounded-lg py-2 ${
-								repeatEndMode === mode ? 'bg-accent' : 'bg-paper-200'
-							}`}
-							testID={`repeat-end-${mode}`}
-						>
-							<Text
-								className={`font-sans text-sm ${
-									repeatEndMode === mode ? 'text-on-color' : 'text-ink-muted'
+			{isRepeat && (
+				<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
+					{/* Frequency */}
+					<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+						Frequency
+					</Text>
+					<View className="mb-4 flex-row gap-2">
+						{(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => (
+							<Pressable
+								key={freq}
+								onPress={() => setRepeatFrequency(freq)}
+								className={`flex-1 items-center rounded-lg py-2 ${
+									repeatFrequency === freq ? 'bg-accent' : 'bg-paper-200'
 								}`}
+								testID={`repeat-freq-${freq}`}
 							>
-								{mode === 'never'
-									? 'Never'
-									: mode === 'until'
-										? 'Until date'
-										: 'After N'}
-							</Text>
-						</Pressable>
-					))}
-				</View>
-
-				{repeatEndMode === 'until' && (
-					<View className="mb-4">
-						<DateTimePicker
-							value={repeatEndDate ?? new Date()}
-							mode="date"
-							display={Platform.OS === 'ios' ? 'compact' : 'default'}
-							onChange={(_, date) => date && setRepeatEndDate(date)}
-							minimumDate={selectedDate}
-							accentColor={colors.accent.deeper}
-						/>
+								<Text
+									className={`font-sans text-sm capitalize ${
+										repeatFrequency === freq
+											? 'text-on-color'
+											: 'text-ink-muted'
+									}`}
+								>
+									{freq}
+								</Text>
+							</Pressable>
+						))}
 					</View>
-				)}
 
-				{repeatEndMode === 'count' && (
-					<View className="mb-4">
-						<TextInput
-							{...sharedNumericTextInputProps}
-							value={repeatEndCount}
-							onChangeText={setRepeatEndCount}
-							placeholder="Number of times"
-							keyboardType="number-pad"
-							className={textInputClassNames.input}
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-							testID="repeat-end-count-input"
-						/>
-					</View>
-				)}
-
-				{/* Horizon */}
-				<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-					Generate ahead
-				</Text>
-				<View className="flex-row gap-2">
-					{HORIZON_OPTIONS.map((opt) => (
-						<Pressable
-							key={opt.days}
-							onPress={() => setRepeatHorizon(opt.days)}
-							className={`flex-1 items-center rounded-lg py-2 ${
-								repeatHorizon === opt.days ? 'bg-accent' : 'bg-paper-200'
-							}`}
-							testID={`repeat-horizon-${opt.days}`}
-						>
-							<Text
-								className={`font-sans text-xs ${
-									repeatHorizon === opt.days
-										? 'text-on-color'
-										: 'text-ink-muted'
+					{/* End condition */}
+					<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+						Ends
+					</Text>
+					<View className="mb-4 flex-row gap-2">
+						{(['never', 'until', 'count'] as const).map((mode) => (
+							<Pressable
+								key={mode}
+								onPress={() => setRepeatEndMode(mode)}
+								className={`flex-1 items-center rounded-lg py-2 ${
+									repeatEndMode === mode ? 'bg-accent' : 'bg-paper-200'
 								}`}
+								testID={`repeat-end-${mode}`}
 							>
-								{opt.label}
-							</Text>
-						</Pressable>
-					))}
+								<Text
+									className={`font-sans text-sm ${
+										repeatEndMode === mode ? 'text-on-color' : 'text-ink-muted'
+									}`}
+								>
+									{mode === 'never'
+										? 'Never'
+										: mode === 'until'
+											? 'Until date'
+											: 'After N'}
+								</Text>
+							</Pressable>
+						))}
+					</View>
+
+					{repeatEndMode === 'until' && (
+						<View className="mb-4">
+							<DateTimePicker
+								value={repeatEndDate ?? new Date()}
+								mode="date"
+								display={Platform.OS === 'ios' ? 'compact' : 'default'}
+								onChange={(_, date) => date && setRepeatEndDate(date)}
+								minimumDate={selectedDate}
+								accentColor={colors.accent.deeper}
+							/>
+						</View>
+					)}
+
+					{repeatEndMode === 'count' && (
+						<View className="mb-4">
+							<TextInput
+								{...sharedNumericTextInputProps}
+								value={repeatEndCount}
+								onChangeText={setRepeatEndCount}
+								placeholder="Number of times"
+								keyboardType="number-pad"
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="repeat-end-count-input"
+							/>
+						</View>
+					)}
+
+					{/* Horizon */}
+					<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+						Generate ahead
+					</Text>
+					<View className="flex-row gap-2">
+						{HORIZON_OPTIONS.map((opt) => (
+							<Pressable
+								key={opt.days}
+								onPress={() => setRepeatHorizon(opt.days)}
+								className={`flex-1 items-center rounded-lg py-2 ${
+									repeatHorizon === opt.days ? 'bg-accent' : 'bg-paper-200'
+								}`}
+								testID={`repeat-horizon-${opt.days}`}
+							>
+								<Text
+									className={`font-sans text-xs ${
+										repeatHorizon === opt.days
+											? 'text-on-color'
+											: 'text-ink-muted'
+									}`}
+								>
+									{opt.label}
+								</Text>
+							</Pressable>
+						))}
+					</View>
 				</View>
-			</View>
-		)}
-	</View>
-)}
+			)}
+		</View>
+	);
+}
 ```
 
 - [ ] **Step 4: Update `handleSubmit` to handle repeat mode**
@@ -1630,6 +1634,7 @@ git commit -m "feat(recurrence): add repeat UI to transaction modal (KII-66)"
 ## Task 7: Transaction Row — Repeat Icon
 
 **Files:**
+
 - Modify: `src/components/transaction-row.tsx`
 
 - [ ] **Step 1: Add repeat icon import**
@@ -1647,16 +1652,10 @@ In the `TransactionRow` component, find the amount display area (the `<View clas
 ```tsx
 <View className="ml-3 items-end">
 	<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
-		{transaction.series_id && (
-			<Repeat size={12} color={colors.info.DEFAULT} />
-		)}
-		{isUpcoming && (
-			<Clock size={12} color={colors.info.DEFAULT} />
-		)}
+		{transaction.series_id && <Repeat size={12} color={colors.info.DEFAULT} />}
+		{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
 	</View>
-	<Text
-		className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
-	>
+	<Text className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}>
 		{formatAmount(transaction.amount, transaction.currency)}{' '}
 		<Text className="font-sans text-sm text-ink-muted">
 			{getCurrencySymbol(transaction.currency)}
@@ -1685,6 +1684,7 @@ git commit -m "feat(recurrence): show repeat icon on series transactions (KII-66
 ## Task 8: Series Action Sheet for Edit/Delete
 
 **Files:**
+
 - Create: `src/components/series-action-sheet.tsx`
 - Modify: `app/(tabs)/history.tsx`
 - Modify: `src/components/transaction-row.tsx`
@@ -1706,8 +1706,7 @@ export function showSeriesScopeAlert(
 	action: 'edit' | 'delete',
 	onSelect: (scope: SeriesScope) => void
 ): void {
-	const title =
-		action === 'edit' ? 'Edit Recurring Transaction' : 'Delete Recurring Transaction';
+	const title = action === 'edit' ? 'Edit Recurring Transaction' : 'Delete Recurring Transaction';
 	const message =
 		action === 'edit'
 			? 'Apply changes to this transaction only, or this and all future occurrences?'
@@ -1807,16 +1806,18 @@ const handleEdit = useCallback((transaction: Transaction) => {
 Then pass `editScope` down to the modal. Update the `TransactionModal` call to include a new prop:
 
 ```tsx
-{editingTransaction && (
-	<TransactionModal
-		visible={true}
-		fromEntity={getEntityWithBalance(editingTransaction.from_entity_id)}
-		toEntity={getEntityWithBalance(editingTransaction.to_entity_id)}
-		onClose={handleCloseEdit}
-		existingTransaction={editingTransaction}
-		seriesScope={editingTransaction.series_id ? editScope : undefined}
-	/>
-)}
+{
+	editingTransaction && (
+		<TransactionModal
+			visible={true}
+			fromEntity={getEntityWithBalance(editingTransaction.from_entity_id)}
+			toEntity={getEntityWithBalance(editingTransaction.to_entity_id)}
+			onClose={handleCloseEdit}
+			existingTransaction={editingTransaction}
+			seriesScope={editingTransaction.series_id ? editScope : undefined}
+		/>
+	);
+}
 ```
 
 - [ ] **Step 4: Update `TransactionModal` to accept and use `seriesScope`**
@@ -1872,15 +1873,19 @@ if (isEditing && existingTransaction) {
 Also add a visual indicator when editing a series transaction:
 
 ```tsx
-{/* Series indicator */}
-{isEditing && existingTransaction?.series_id && (
-	<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
-		<Text className="font-sans text-sm text-info">
-			Part of a recurring series
-			{seriesScope === 'future' ? ' — editing all future' : ' — editing this one'}
-		</Text>
-	</View>
-)}
+{
+	/* Series indicator */
+}
+{
+	isEditing && existingTransaction?.series_id && (
+		<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
+			<Text className="font-sans text-sm text-info">
+				Part of a recurring series
+				{seriesScope === 'future' ? ' — editing all future' : ' — editing this one'}
+			</Text>
+		</View>
+	);
+}
 ```
 
 Place this after the `{/* From → To */}` block.
@@ -1903,6 +1908,7 @@ git commit -m "feat(recurrence): add series action sheets for edit/delete (KII-6
 ## Task 9: Entity Deletion — Template Prompt
 
 **Files:**
+
 - Modify: `src/store/index.ts`
 
 - [ ] **Step 1: Update `deleteEntity` to check for active templates**
@@ -1960,9 +1966,7 @@ const deactivateTemplatesForEntity = useStore((state) => state.deactivateTemplat
 
 // Before calling deleteEntity:
 const activeTemplates = recurrenceTemplates.filter(
-	(t) =>
-		!t.is_deleted &&
-		(t.from_entity_id === entityId || t.to_entity_id === entityId)
+	(t) => !t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
 );
 
 if (activeTemplates.length > 0) {
@@ -2011,6 +2015,7 @@ git commit -m "feat(recurrence): add entity deletion prompt for active templates
 ## Task 10: Final Integration & Cleanup
 
 **Files:**
+
 - All modified files
 
 - [ ] **Step 1: Run full test suite**

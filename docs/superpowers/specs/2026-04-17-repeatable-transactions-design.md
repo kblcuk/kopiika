@@ -11,22 +11,22 @@ Repeatable transactions let users schedule recurring financial entries (daily, w
 
 ### New table: `recurrence_templates`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | text PK | UUID |
-| `from_entity_id` | text FK → entities.id | Source entity |
-| `to_entity_id` | text FK → entities.id | Target entity |
-| `amount` | real | Transaction amount |
-| `currency` | text | Currency code |
-| `note` | text, nullable | Optional note |
-| `rule` | text | JSON recurrence rule (see below) |
-| `start_date` | integer | Timestamp of first occurrence |
-| `end_date` | integer, nullable | Stop generating after this date. Null = indefinite |
-| `end_count` | integer, nullable | Stop after N occurrences. Null = indefinite. Both `end_date` and `end_count` can coexist; whichever is reached first wins |
-| `horizon` | integer | How far ahead to generate, in days (30, 90, 180, 365) |
-| `exclusions` | text, nullable | JSON array of timestamps to skip (from "delete this one") |
-| `is_deleted` | boolean, default false | Soft delete, consistent with entity pattern |
-| `created_at` | integer | Creation timestamp |
+| Column           | Type                   | Description                                                                                                               |
+| ---------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | text PK                | UUID                                                                                                                      |
+| `from_entity_id` | text FK → entities.id  | Source entity                                                                                                             |
+| `to_entity_id`   | text FK → entities.id  | Target entity                                                                                                             |
+| `amount`         | real                   | Transaction amount                                                                                                        |
+| `currency`       | text                   | Currency code                                                                                                             |
+| `note`           | text, nullable         | Optional note                                                                                                             |
+| `rule`           | text                   | JSON recurrence rule (see below)                                                                                          |
+| `start_date`     | integer                | Timestamp of first occurrence                                                                                             |
+| `end_date`       | integer, nullable      | Stop generating after this date. Null = indefinite                                                                        |
+| `end_count`      | integer, nullable      | Stop after N occurrences. Null = indefinite. Both `end_date` and `end_count` can coexist; whichever is reached first wins |
+| `horizon`        | integer                | How far ahead to generate, in days (30, 90, 180, 365)                                                                     |
+| `exclusions`     | text, nullable         | JSON array of timestamps to skip (from "delete this one")                                                                 |
+| `is_deleted`     | boolean, default false | Soft delete, consistent with entity pattern                                                                               |
+| `created_at`     | integer                | Creation timestamp                                                                                                        |
 
 Indices: `idx_recurrence_templates_deleted` on `is_deleted`.
 
@@ -45,11 +45,11 @@ Future extensibility (no schema migration needed):
 
 ```json
 {
-  "type": "custom",
-  "patterns": [
-    { "nth": 2, "day": "wednesday" },
-    { "nth": 3, "day": "friday" }
-  ]
+	"type": "custom",
+	"patterns": [
+		{ "nth": 2, "day": "wednesday" },
+		{ "nth": 3, "day": "friday" }
+	]
 }
 ```
 
@@ -59,8 +59,8 @@ Generation logic dispatches on `rule.type`. Simple types use built-in date math;
 
 Add column:
 
-| Column | Type | Description |
-|--------|------|-------------|
+| Column      | Type           | Description                                                       |
+| ----------- | -------------- | ----------------------------------------------------------------- |
 | `series_id` | text, nullable | FK → recurrence_templates.id. Null for non-recurring transactions |
 
 Index: `idx_transactions_series` on `series_id`.
@@ -105,17 +105,17 @@ Backfill checks for existing rows by `(series_id, timestamp)` before inserting. 
 
 User is presented with two options via action sheet:
 
-| Action | Behavior |
-|--------|----------|
-| **This one only** | Update the transaction row in place. Keep `series_id`. Backfill skips it (row exists). |
-| **All future** | Update the template's fields (amount, entities, note, rule). If the rule/frequency changed, delete all future occurrences and regenerate from the selected transaction's date using the new rule. If only amount/entities/note changed, update all transactions where `series_id = X AND timestamp >= selected.timestamp` in place. Future backfill uses updated template either way. |
+| Action            | Behavior                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **This one only** | Update the transaction row in place. Keep `series_id`. Backfill skips it (row exists).                                                                                                                                                                                                                                                                                                |
+| **All future**    | Update the template's fields (amount, entities, note, rule). If the rule/frequency changed, delete all future occurrences and regenerate from the selected transaction's date using the new rule. If only amount/entities/note changed, update all transactions where `series_id = X AND timestamp >= selected.timestamp` in place. Future backfill uses updated template either way. |
 
 ### Deleting a recurring transaction
 
-| Action | Behavior |
-|--------|----------|
-| **This one only** | Delete the transaction row. Add its timestamp to template's `exclusions` array. Backfill won't regenerate. |
-| **All future** | Delete all transactions where `series_id = X AND timestamp >= selected.timestamp`. Set template's `end_date` to the previous occurrence's timestamp, or set `is_deleted = true` if no past occurrences remain. |
+| Action            | Behavior                                                                                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **This one only** | Delete the transaction row. Add its timestamp to template's `exclusions` array. Backfill won't regenerate.                                                                                                     |
+| **All future**    | Delete all transactions where `series_id = X AND timestamp >= selected.timestamp`. Set template's `end_date` to the previous occurrence's timestamp, or set `is_deleted = true` if no past occurrences remain. |
 
 ### Entity deletion
 
@@ -135,9 +135,9 @@ New controls below the date picker:
 
 1. **"Repeat" toggle** — off by default
 2. When on:
-   - **Frequency picker** — segmented control or dropdown: Daily / Weekly / Monthly / Yearly
-   - **End condition** — "Never" (default) / "Until date" (date picker) / "After N times" (number input)
-   - **Generate ahead** — dropdown: 1 month / 3 months / 6 months / 1 year
+    - **Frequency picker** — segmented control or dropdown: Daily / Weekly / Monthly / Yearly
+    - **End condition** — "Never" (default) / "Until date" (date picker) / "After N times" (number input)
+    - **Generate ahead** — dropdown: 1 month / 3 months / 6 months / 1 year
 
 Past dates are allowed as `start_date` — enables backlogging transactions in bulk.
 

@@ -17,6 +17,7 @@ auto-scroll on the **UI thread** via Reanimated `useFrameCallback`.
 ### Threading model
 
 All scroll-during-drag logic runs on the UI thread:
+
 - `useFrameCallback` for the tick loop
 - `SharedValue` for touch position, scroll offsets, section bounds
 - Reanimated `scrollTo` worklet for programmatic scrolling
@@ -58,6 +59,7 @@ the library's auto-scroll handles it.
 
 Dynamic array indexing of SharedValues/AnimatedRefs doesn't work in Reanimated worklets.
 All per-section access uses explicit `switch`-based helpers:
+
 - `getSectionOffset(i)` — reads `sectionOffset0..3.value`
 - `getSectionBounds(i)` — reads `sectionTop0..3.value` / `sectionBot0..3.value`
 - `getSectionMaxOffset(i)` — reads `sectionMaxH0..3.value`
@@ -66,17 +68,20 @@ All per-section access uses explicit `switch`-based helpers:
 ### Constants
 
 ```ts
-const V_EDGE_ZONE = 80;     // px — vertical edge zone
-const V_MAX_SPEED = 14;     // px/frame
-const H_EDGE_ZONE = 60;     // px — horizontal edge zone (smaller)
-const H_MAX_SPEED = 10;     // px/frame (gentler)
+const V_EDGE_ZONE = 80; // px — vertical edge zone
+const V_MAX_SPEED = 14; // px/frame
+const H_EDGE_ZONE = 60; // px — horizontal edge zone (smaller)
+const H_MAX_SPEED = 10; // px/frame (gentler)
 ```
 
 ### `SECTION_INDEX`
 
 ```ts
 export const SECTION_INDEX: Record<EntityType, number> = {
-  income: 0, account: 1, category: 2, saving: 3,
+	income: 0,
+	account: 1,
+	category: 2,
+	saving: 3,
 };
 export const SECTION_COUNT = Object.keys(SECTION_INDEX).length;
 ```

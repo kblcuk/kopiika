@@ -16,19 +16,20 @@
 
 ## File structure
 
-| File | Responsibility |
-|---|---|
-| `src/hooks/use-drag-auto-scroll.ts` | Modify — add section refs, horizontal tick, new return values |
-| `src/utils/drag-auto-scroll.ts` | Modify — add `SECTION_INDEX` mapping constant |
-| `src/utils/__tests__/drag-auto-scroll.test.ts` | Modify — add `SECTION_INDEX` tests |
-| `src/components/sortable-entity-grid.tsx` | Modify — accept section ref, report max offset, report drag source |
-| `app/(tabs)/index.tsx` | Modify — pass new props to grids |
+| File                                           | Responsibility                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| `src/hooks/use-drag-auto-scroll.ts`            | Modify — add section refs, horizontal tick, new return values      |
+| `src/utils/drag-auto-scroll.ts`                | Modify — add `SECTION_INDEX` mapping constant                      |
+| `src/utils/__tests__/drag-auto-scroll.test.ts` | Modify — add `SECTION_INDEX` tests                                 |
+| `src/components/sortable-entity-grid.tsx`      | Modify — accept section ref, report max offset, report drag source |
+| `app/(tabs)/index.tsx`                         | Modify — pass new props to grids                                   |
 
 ---
 
 ### Task 1: Add `SECTION_INDEX` constant + test
 
 **Files:**
+
 - Modify: `src/utils/drag-auto-scroll.ts`
 - Modify: `src/utils/__tests__/drag-auto-scroll.test.ts`
 
@@ -93,9 +94,11 @@ git commit -m "feat(dnd): add SECTION_INDEX constant for section type mapping (K
 ### Task 2: Extend hook with section refs, horizontal scroll state, and tick logic
 
 **Files:**
+
 - Modify: `src/hooks/use-drag-auto-scroll.ts`
 
 This is the core task. The hook gains:
+
 - 4 animated refs for section ScrollViews
 - `useScrollOffset` per section for real-time horizontal offset tracking
 - `touchX` shared value
@@ -303,9 +306,11 @@ git commit -m "feat(dnd): extend useDragAutoScroll with horizontal target-scroll
 ### Task 3: Update grid to accept section ref and report scroll metrics
 
 **Files:**
+
 - Modify: `src/components/sortable-entity-grid.tsx`
 
 The grid gains:
+
 - `sectionScrollRef` prop — animated ref from the hook, used for `<Animated.ScrollView>`
   and passed to `Sortable.Grid` as `scrollableRef`
 - `sectionIndex` prop — the grid's position in the section array
@@ -317,7 +322,12 @@ The grid gains:
 Add `type AnimatedRef` to the reanimated import:
 
 ```ts
-import Animated, { useAnimatedRef, makeMutable, type SharedValue, type AnimatedRef } from 'react-native-reanimated';
+import Animated, {
+	useAnimatedRef,
+	makeMutable,
+	type SharedValue,
+	type AnimatedRef,
+} from 'react-native-reanimated';
 ```
 
 - [ ] **Step 2: Add new props to interface**
@@ -366,14 +376,14 @@ export function SortableEntityGrid({
 Replace:
 
 ```ts
-	const scrollViewRef = useAnimatedRef<Animated.ScrollView>();
+const scrollViewRef = useAnimatedRef<Animated.ScrollView>();
 ```
 
 with:
 
 ```ts
-	const ownScrollViewRef = useAnimatedRef<Animated.ScrollView>();
-	const scrollViewRef = sectionScrollRef ?? ownScrollViewRef;
+const ownScrollViewRef = useAnimatedRef<Animated.ScrollView>();
+const scrollViewRef = sectionScrollRef ?? ownScrollViewRef;
 ```
 
 - [ ] **Step 5: Add scroll metric reporting**
@@ -381,28 +391,32 @@ with:
 Add these handlers after the existing `handleScrollEnd` callback (around line 190):
 
 ```ts
-	const handleScrollViewLayout = useCallback(
-		(e: { nativeEvent: { layout: { width: number } } }) => {
-			if (sectionIndex != null && onSectionMaxOffset && scrollViewContentWidth.current > 0) {
-				onSectionMaxOffset(sectionIndex, scrollViewContentWidth.current, e.nativeEvent.layout.width);
-			}
-			scrollViewVisibleWidth.current = e.nativeEvent.layout.width;
-		},
-		[sectionIndex, onSectionMaxOffset]
-	);
+const handleScrollViewLayout = useCallback(
+	(e: { nativeEvent: { layout: { width: number } } }) => {
+		if (sectionIndex != null && onSectionMaxOffset && scrollViewContentWidth.current > 0) {
+			onSectionMaxOffset(
+				sectionIndex,
+				scrollViewContentWidth.current,
+				e.nativeEvent.layout.width
+			);
+		}
+		scrollViewVisibleWidth.current = e.nativeEvent.layout.width;
+	},
+	[sectionIndex, onSectionMaxOffset]
+);
 
-	const scrollViewContentWidth = useRef(0);
-	const scrollViewVisibleWidth = useRef(0);
+const scrollViewContentWidth = useRef(0);
+const scrollViewVisibleWidth = useRef(0);
 
-	const handleContentSizeChange = useCallback(
-		(w: number, _h: number) => {
-			scrollViewContentWidth.current = w;
-			if (sectionIndex != null && onSectionMaxOffset && scrollViewVisibleWidth.current > 0) {
-				onSectionMaxOffset(sectionIndex, w, scrollViewVisibleWidth.current);
-			}
-		},
-		[sectionIndex, onSectionMaxOffset]
-	);
+const handleContentSizeChange = useCallback(
+	(w: number, _h: number) => {
+		scrollViewContentWidth.current = w;
+		if (sectionIndex != null && onSectionMaxOffset && scrollViewVisibleWidth.current > 0) {
+			onSectionMaxOffset(sectionIndex, w, scrollViewVisibleWidth.current);
+		}
+	},
+	[sectionIndex, onSectionMaxOffset]
+);
 ```
 
 Add `useRef` to the react import if not already there (it is — line 1).
@@ -413,9 +427,9 @@ In `handleSortableDragStart`, add after the existing `requestAnimationFrame` blo
 (inside the RAF callback, after `onDragStart?.(entity)`):
 
 ```ts
-					if (sectionIndex != null) {
-						onDragSourceChange?.(sectionIndex);
-					}
+if (sectionIndex != null) {
+	onDragSourceChange?.(sectionIndex);
+}
 ```
 
 - [ ] **Step 7: Wire ScrollView props**
@@ -440,13 +454,15 @@ Update the `<Animated.ScrollView>` (around line 368) to add the new handlers:
 Add `onDragSourceChange` and `sectionIndex` to `handleSortableDragStart`'s dep array:
 
 Current:
+
 ```ts
-		[entities, onDragStart, setIsFixed, isTransactionMode]
+[entities, onDragStart, setIsFixed, isTransactionMode];
 ```
 
 New:
+
 ```ts
-		[entities, onDragStart, setIsFixed, isTransactionMode, onDragSourceChange, sectionIndex]
+[entities, onDragStart, setIsFixed, isTransactionMode, onDragSourceChange, sectionIndex];
 ```
 
 - [ ] **Step 9: Commit**
@@ -461,6 +477,7 @@ git commit -m "feat(dnd): grid accepts section ref and reports scroll metrics (K
 ### Task 4: Wire new props from home screen to grids
 
 **Files:**
+
 - Modify: `app/(tabs)/index.tsx`
 
 - [ ] **Step 1: Destructure new hook values**
@@ -468,16 +485,16 @@ git commit -m "feat(dnd): grid accepts section ref and reports scroll metrics (K
 Update the hook destructuring:
 
 ```ts
-	const {
-		outerScrollRef,
-		scrollHandler,
-		startAutoScroll,
-		stopAutoScroll,
-		updateDragTouch,
-		sectionRefs,
-		setDragSourceIndex,
-		updateSectionMaxOffset,
-	} = useDragAutoScroll();
+const {
+	outerScrollRef,
+	scrollHandler,
+	startAutoScroll,
+	stopAutoScroll,
+	updateDragTouch,
+	sectionRefs,
+	setDragSourceIndex,
+	updateSectionMaxOffset,
+} = useDragAutoScroll();
 ```
 
 - [ ] **Step 2: Import SECTION_INDEX**
@@ -491,14 +508,14 @@ import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 - [ ] **Step 3: Update handleDragStart to set drag source**
 
 ```ts
-	const handleDragStart = useCallback(
-		(entity: EntityWithBalance) => {
-			setDraggedEntity(entity);
-			setDragSourceIndex(SECTION_INDEX[entity.type]);
-			startAutoScroll();
-		},
-		[setDraggedEntity, setDragSourceIndex, startAutoScroll]
-	);
+const handleDragStart = useCallback(
+	(entity: EntityWithBalance) => {
+		setDraggedEntity(entity);
+		setDragSourceIndex(SECTION_INDEX[entity.type]);
+		startAutoScroll();
+	},
+	[setDraggedEntity, setDragSourceIndex, startAutoScroll]
+);
 ```
 
 - [ ] **Step 4: Pass new props to each grid**
@@ -526,6 +543,7 @@ Update all 4 `<SortableEntityGrid>` instances. Example for Income:
 ```
 
 For Accounts (`sectionIndex={1}`):
+
 ```tsx
 	sectionScrollRef={sectionRefs[1]}
 	sectionIndex={1}
@@ -533,6 +551,7 @@ For Accounts (`sectionIndex={1}`):
 ```
 
 For Categories (`sectionIndex={2}`):
+
 ```tsx
 	sectionScrollRef={sectionRefs[2]}
 	sectionIndex={2}
@@ -540,6 +559,7 @@ For Categories (`sectionIndex={2}`):
 ```
 
 For Savings (`sectionIndex={3}`):
+
 ```tsx
 	sectionScrollRef={sectionRefs[3]}
 	sectionIndex={3}
@@ -563,6 +583,7 @@ git commit -m "feat(dnd): wire section refs and scroll metrics to grids (KII-12)
 ### Task 5: Update grid drag test
 
 **Files:**
+
 - Modify: `src/components/__tests__/sortable-entity-grid-drag.test.tsx`
 
 - [ ] **Step 1: Add new props to rendered grids**

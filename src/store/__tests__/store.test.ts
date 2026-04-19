@@ -2399,9 +2399,7 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().initialize();
 
 			const state = useStore.getState();
-			const systemEntity = state.entities.find(
-				(e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID
-			);
+			const systemEntity = state.entities.find((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID);
 			expect(systemEntity).toBeDefined();
 
 			// And balance adjustments should work
