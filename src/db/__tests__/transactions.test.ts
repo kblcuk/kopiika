@@ -79,7 +79,7 @@ describe('transactions.ts', () => {
 
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-1');
-			expect(result).toEqual(transaction);
+			expect(result).toMatchObject(transaction);
 		});
 
 		test('should create transaction without note', async () => {
@@ -426,7 +426,7 @@ describe('transactions.ts', () => {
 
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-update');
-			expect(result).toEqual(originalTx);
+			expect(result).toMatchObject(originalTx);
 		});
 	});
 

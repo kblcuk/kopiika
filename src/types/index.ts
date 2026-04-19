@@ -21,8 +21,9 @@ export type Entity = Omit<
 
 export type Plan = DrizzlePlan;
 
-export type Transaction = Omit<DrizzleTransaction, 'note'> & {
+export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id'> & {
 	note?: string | null;
+	series_id?: string | null;
 };
 
 // Extract EntityType from Drizzle schema
@@ -57,3 +58,11 @@ export function getPeriodRange(period: string): { start: number; end: number } {
 	const end = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 	return { start, end };
 }
+
+export type {
+	RecurrenceFrequency,
+	RecurrenceRule,
+	RecurrenceRuleSimple,
+	RecurrenceTemplate,
+} from './recurrence';
+export { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from './recurrence';

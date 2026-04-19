@@ -78,6 +78,13 @@
 			"when": 1775929980907,
 			"tag": "0010_add-default-account",
 			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "6",
+			"when": 1776582903284,
+			"tag": "0011_steady_red_ghost",
+			"breakpoints": true
 		}
 	]
 }
