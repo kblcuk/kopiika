@@ -80,6 +80,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		updateEntity,
 		addTransaction,
 		setDefaultAccount,
+		recurrenceTemplates,
+		deactivateTemplatesForEntity,
 	} = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
@@ -92,6 +94,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			updateEntity: state.updateEntity,
 			addTransaction: state.addTransaction,
 			setDefaultAccount: state.setDefaultAccount,
+			recurrenceTemplates: state.recurrenceTemplates,
+			deactivateTemplatesForEntity: state.deactivateTemplatesForEntity,
 		}))
 	);
 
@@ -250,6 +254,41 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	};
 
 	const handleDelete = () => {
+		const activeTemplates = recurrenceTemplates.filter(
+			(t) =>
+				!t.is_deleted &&
+				(t.from_entity_id === entity.id || t.to_entity_id === entity.id)
+		);
+
+		if (activeTemplates.length > 0) {
+			Alert.alert(
+				'Entity Used in Recurring Transactions',
+				`"${entity.name}" is used in ${activeTemplates.length} recurring transaction ${activeTemplates.length === 1 ? 'series' : 'series'}. Also delete future occurrences and stop the recurrence?`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Keep recurring',
+						onPress: async () => {
+							onClose();
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							await deleteEntity(entity.id);
+						},
+					},
+					{
+						text: 'Stop & delete future',
+						style: 'destructive',
+						onPress: async () => {
+							onClose();
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							await deactivateTemplatesForEntity(entity.id);
+							await deleteEntity(entity.id);
+						},
+					},
+				]
+			);
+			return;
+		}
+
 		const deleteConsequences = {
 			income: 'Past transactions will stay in History and this income source will be shown as removed.',
 			account:
