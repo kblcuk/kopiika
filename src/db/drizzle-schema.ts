@@ -56,6 +56,7 @@ export const transactions = sqliteTable(
 		currency: text('currency').notNull(),
 		timestamp: integer('timestamp').notNull(),
 		note: text('note'),
+		// No FK constraint: transactions can outlive a soft-deleted template
 		series_id: text('series_id'),
 	},
 	(table) => [
@@ -100,6 +101,12 @@ export const entitiesRelations = relations(entities, ({ many }) => ({
 	}),
 	transactionsTo: many(transactions, {
 		relationName: 'to_entity',
+	}),
+	recurrenceTemplatesFrom: many(recurrenceTemplates, {
+		relationName: 'recurrence_from_entity',
+	}),
+	recurrenceTemplatesTo: many(recurrenceTemplates, {
+		relationName: 'recurrence_to_entity',
 	}),
 }));
 
