@@ -1,6 +1,7 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 .claude
+.superpowers
 
 # git worktrees are great
 .worktrees
@@ -59,3 +60,4 @@ fastlane/*.dSYM.zip
 *.ipa
 *.zip
 *.cer
+
