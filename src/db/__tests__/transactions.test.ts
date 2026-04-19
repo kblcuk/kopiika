@@ -9,6 +9,10 @@ import {
 	updateTransaction,
 	getEntityActual,
 	getBatchEntityActuals,
+	getTransactionsBySeriesId,
+	deleteTransactionsBySeriesFuture,
+	updateTransactionsBySeriesFuture,
+	createTransactionBatch,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -833,6 +837,86 @@ describe('transactions.ts', () => {
 			expect(results.get('category-1')).toBe(100);
 			expect(results.has('income-1')).toBe(false);
 			expect(results.has('saving-1')).toBe(false);
+		});
+	});
+
+	describe('series-aware queries', () => {
+		const seriesId = 'series-1';
+		// Fixed base time so cutoff calculations are deterministic across beforeEach + test calls
+		const seriesBaseTime = new Date('2030-01-01T00:00:00Z').getTime();
+
+		beforeEach(async () => {
+			// Create series transactions: daily starting from seriesBaseTime
+			for (let i = 0; i < 5; i++) {
+				await createTransaction({
+					id: `series-tx-${i}`,
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 50,
+					currency: 'USD',
+					timestamp: seriesBaseTime + i * 86400000,
+					series_id: seriesId,
+				});
+			}
+			// Non-series transaction
+			await createTransaction({
+				id: 'standalone-tx',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: seriesBaseTime,
+			});
+		});
+
+		test('getTransactionsBySeriesId returns only series transactions', async () => {
+			const result = await getTransactionsBySeriesId(seriesId);
+			expect(result.length).toBe(5);
+			expect(result.every((t) => t.series_id === seriesId)).toBe(true);
+		});
+
+		test('deleteTransactionsBySeriesFuture deletes from cutoff onward', async () => {
+			const cutoff = seriesBaseTime + 2 * 86400000; // tx-2 and beyond
+			await deleteTransactionsBySeriesFuture(seriesId, cutoff);
+			const remaining = await getTransactionsBySeriesId(seriesId);
+			expect(remaining.length).toBe(2); // only tx-0 and tx-1
+			expect(remaining.every((t) => t.timestamp < cutoff)).toBe(true);
+		});
+
+		test('updateTransactionsBySeriesFuture updates from cutoff onward', async () => {
+			const cutoff = seriesBaseTime + 2 * 86400000;
+			await updateTransactionsBySeriesFuture(seriesId, cutoff, { amount: 999 });
+			const all = await getTransactionsBySeriesId(seriesId);
+			const updated = all.filter((t) => t.timestamp >= cutoff);
+			const unchanged = all.filter((t) => t.timestamp < cutoff);
+			expect(updated.every((t) => t.amount === 999)).toBe(true);
+			expect(unchanged.every((t) => t.amount === 50)).toBe(true);
+		});
+
+		test('createTransactionBatch inserts multiple transactions', async () => {
+			const batch = [
+				{
+					id: 'batch-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 10,
+					currency: 'USD',
+					timestamp: Date.now(),
+					series_id: 'series-2',
+				},
+				{
+					id: 'batch-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 20,
+					currency: 'USD',
+					timestamp: Date.now() + 86400000,
+					series_id: 'series-2',
+				},
+			];
+			await createTransactionBatch(batch);
+			const result = await getTransactionsBySeriesId('series-2');
+			expect(result.length).toBe(2);
 		});
 	});
 });
