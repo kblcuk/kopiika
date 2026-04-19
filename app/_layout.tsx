@@ -21,6 +21,11 @@ import DatabaseProvider from '@/src/components/database-provider';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { getRawDb } from '@/src/db/db';
 
+import { requireOptionalNativeModule } from 'expo';
+
+const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
+DevMenuPreferences?.setPreferencesAsync({ showFloatingActionButton: false });
+
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {

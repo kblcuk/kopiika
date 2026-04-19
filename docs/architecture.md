@@ -30,7 +30,8 @@ The authoritative model is:
 
 - `entities`: labels, type, ordering, icon, optional color
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
-- `transactions`: immutable money movements between entities (including savings reservations)
+- `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` FK links to a recurrence template
+- `recurrence_templates`: rules for recurring transactions — frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
 
 Derived values belong in selectors, not persisted state:
 
@@ -97,7 +98,7 @@ Savings reservations are tracked through `account <-> saving` transactions — t
 
 The app should feel deliberate, calm, and human. Avoid generic fintech UI, excessive cards, purple-on-white gradients, and decorative motion.
 
-Use the configured theme tokens in [src/theme/colors.ts](/Users/alex/Code/kopiika/src/theme/colors.ts) and font stack in [tailwind.config.ts](/Users/alex/Code/kopiika/tailwind.config.ts). Maintain:
+Use the configured theme tokens in [src/theme/colors.ts](../src/theme/colors.ts) and font stack in [tailwind.config.ts](../tailwind.config.ts). Maintain:
 
 - WCAG AA contrast
 - large tap targets
@@ -113,11 +114,20 @@ Avoid adding these without a clear product decision:
 - budget enforcement
 - multi-period planning UI
 
+## Recurrence and Series
+
+Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair) and a generation horizon (how many days ahead to pre-generate). On app init, a backfill pass extends the horizon by creating real transaction rows linked via `series_id`.
+
+Series scope rules:
+
+- **Edit/delete single**: modifies or soft-deletes one occurrence; adds its timestamp to the template's exclusion list
+- **Edit/delete all future**: updates the template itself and regenerates from the current date forward; past occurrences are untouched
+- **Month-end handling**: monthly recurrences on the 29th–31st clamp to the last day of shorter months (Feb 28/29, Apr 30, etc.)
+
 ## Near-Term Backlog
 
 Useful follow-ups once core flows remain stable:
 
-- transaction text search in History
 - savings projected finish date
 - entity color picker
 - per-entity notes

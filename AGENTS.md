@@ -23,7 +23,7 @@ Use Bun for app and development scripts. Use `mise run ...` for deployment, sign
 - `bun run release`, `release:minor`, `release:major`: bump app versions and changelog; post-bump build-number sync is delegated to `mise`.
 - `mise run release:doctor`: run iOS and Android release preflight checks.
 - `mise run ios:setup`, `ios:beta`, `android:beta`, `release:beta`, `release:production`: signing, store-upload, and coordinated release tasks.
-- Read [docs/RELEASING.md](/Users/alex/Code/kopiika/docs/RELEASING.md) before changing release automation or running production-facing release commands.
+- Read [docs/RELEASING.md](docs/RELEASING.md) before changing release automation or running production-facing release commands.
 
 ## Coding Style & Naming Conventions
 
