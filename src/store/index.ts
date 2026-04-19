@@ -103,8 +103,7 @@ function hasActiveEntity(entities: Entity[], id: string): boolean {
 async function backfillRecurrences(
 	templates: RecurrenceTemplate[],
 	existingTransactions: Transaction[],
-	set: (fn: (state: AppState) => Partial<AppState>) => void,
-	get: () => AppState
+	set: (fn: (state: AppState) => Partial<AppState>) => void
 ): Promise<void> {
 	const now = Date.now();
 	const newTransactions: Transaction[] = [];
@@ -201,7 +200,7 @@ export const useStore = create<AppState>((set, get) => ({
 				});
 
 				// Backfill any missing occurrences within the horizon window
-				await backfillRecurrences(recurrenceTemplates, transactions, set, get);
+				await backfillRecurrences(recurrenceTemplates, transactions, set);
 			} catch (error) {
 				console.error('Failed to initialize store:', error);
 				set({ isLoading: false });
@@ -495,11 +494,11 @@ export const useStore = create<AppState>((set, get) => ({
 
 		if (txns.length > 0) {
 			await db.createTransactionBatch(txns);
-			set((state) => ({
-				recurrenceTemplates: [...state.recurrenceTemplates, template],
-				transactions: [...txns, ...state.transactions],
-			}));
 		}
+		set((state) => ({
+			recurrenceTemplates: [...state.recurrenceTemplates, template],
+			transactions: txns.length > 0 ? [...txns, ...state.transactions] : state.transactions,
+		}));
 	},
 
 	updateTransactionWithScope: async (id, updates, scope) => {
@@ -592,18 +591,18 @@ export const useStore = create<AppState>((set, get) => ({
 
 	deactivateTemplatesForEntity: async (entityId) => {
 		const state = get();
+		const now = Date.now();
 		const templates = state.recurrenceTemplates.filter(
 			(t) => !t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
 		);
 
 		for (const template of templates) {
-			await db.deleteTransactionsBySeriesFuture(template.id, Date.now());
+			await db.deleteTransactionsBySeriesFuture(template.id, now);
 			await db.softDeleteRecurrenceTemplate(template.id);
 		}
 
 		if (templates.length > 0) {
 			const templateIds = new Set(templates.map((t) => t.id));
-			const now = Date.now();
 			set((state) => ({
 				transactions: state.transactions.filter(
 					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
