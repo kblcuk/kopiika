@@ -1,5 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, TextInput, Pressable } from 'react-native';
+import { Text } from './text';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';

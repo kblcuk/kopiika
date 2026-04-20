@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
+import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
 	useAnimatedStyle,

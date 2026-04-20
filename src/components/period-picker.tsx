@@ -1,5 +1,6 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Text } from './text';
 
 import { formatPeriod } from '@/src/utils/format';
 import { colors } from '@/src/theme/colors';

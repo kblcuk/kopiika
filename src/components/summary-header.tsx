@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './text';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';

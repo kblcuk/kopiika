@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { View, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
 	KeyboardController,

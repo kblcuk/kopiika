@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Pressable, Modal, ScrollView } from 'react-native';
+import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getLatestChangelog, type ChangelogSection } from '@/src/utils/changelog';

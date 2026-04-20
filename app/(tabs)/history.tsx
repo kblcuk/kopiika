@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { showSeriesScopeAlert, type SeriesScope } from '@/src/components/series-action-sheet';
-import { View, Text, TextInput, SectionList, ActivityIndicator, Pressable } from 'react-native';
+import { View, TextInput, SectionList, ActivityIndicator, Pressable } from 'react-native';
+import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalSearchParams } from 'expo-router';

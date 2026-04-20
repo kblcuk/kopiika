@@ -1,5 +1,6 @@
 import { useCallback, memo } from 'react';
-import { View, Text, Alert, Pressable } from 'react-native';
+import { View, Alert, Pressable } from 'react-native';
+import { Text } from './text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	useAnimatedStyle,

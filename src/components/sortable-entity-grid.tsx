@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './text';
 import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
 import Animated, {

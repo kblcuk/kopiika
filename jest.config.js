@@ -8,6 +8,7 @@ module.exports = {
 		'^@/(.*)$': '<rootDir>/$1',
 		// Mock expo-sqlite for component tests
 		'^expo-sqlite$': '<rootDir>/src/db/__tests__/__mocks__/expo-sqlite.ts',
+		'^nativewind$': '<rootDir>/src/__mocks__/nativewind.ts',
 	},
 	setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 	collectCoverageFrom: ['src/components/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/__tests__/**'],

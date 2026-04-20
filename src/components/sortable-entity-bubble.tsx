@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, memo, createContext, useContext } from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './text';
 import Sortable from 'react-native-sortables';
 import Animated, {
 	useAnimatedStyle,

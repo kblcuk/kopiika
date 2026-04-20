@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './text';
 import * as Haptics from 'expo-haptics';
 
 export const OPERATORS = ['(', ')', '+', '\u2212', '\u00D7', '\u00F7'] as const;
