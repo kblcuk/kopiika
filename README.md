@@ -114,12 +114,12 @@ Full release guide: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Documentation
 
-| Document                                     | Content                                                               |
-| -------------------------------------------- | --------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md)                       | AI agent workflow, commands, coding conventions, testing guidelines   |
-| [docs/architecture.md](docs/architecture.md) | Product intent, domain model, data architecture, interaction rules   |
-| [docs/RELEASING.md](docs/RELEASING.md)       | Release flow, signing, store uploads, build cleanup, secrets         |
-| [CHANGELOG.md](CHANGELOG.md)                 | Auto-generated release notes from conventional commits               |
+| Document                                     | Content                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| [AGENTS.md](AGENTS.md)                       | AI agent workflow, commands, coding conventions, testing guidelines |
+| [docs/architecture.md](docs/architecture.md) | Product intent, domain model, data architecture, interaction rules  |
+| [docs/RELEASING.md](docs/RELEASING.md)       | Release flow, signing, store uploads, build cleanup, secrets        |
+| [CHANGELOG.md](CHANGELOG.md)                 | Auto-generated release notes from conventional commits              |
 
 ## Tech Stack
 

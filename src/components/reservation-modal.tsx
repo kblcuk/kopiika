@@ -112,9 +112,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					<Pressable onPress={handleCancel} hitSlop={20}>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">
-						Reserve
-					</Text>
+					<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
 					<View style={{ width: 48 }} />
 				</View>
 				<KeyboardAwareScrollView
