@@ -1,0 +1,25 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+    check:
+        runs-on: docker
+        container:
+            image: oven/bun:1
+        steps:
+            - uses: https://code.forgejo.org/actions/checkout@v4
+
+            - name: Install
+              run: bun install --frozen-lockfile
+
+            - name: Format
+              run: bun run format:check
+
+            - name: Lint
+              run: bun run lint
+
+            - name: Types
+              run: bun run types
+
+            - name: Unit tests
+              run: bun run test:unit
