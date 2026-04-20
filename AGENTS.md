@@ -18,7 +18,7 @@ Use Bun for app and development scripts. Use `mise run ...` for deployment, sign
 - `bun run test`: run Bun unit tests plus Jest component/screen tests.
 - `bun run test:coverage`: collect coverage from both test runners.
 - `bun run lint`: run `oxlint`.
-- `bun run format` / `bun run format:check`: apply or verify `oxfmt`.
+- `bun run fmt` / `bun run fmt:check`: apply or verify `oxfmt`.
 - `bun run types`: run TypeScript type checking.
 - `bun run release`, `release:minor`, `release:major`: bump app versions and changelog; post-bump build-number sync is delegated to `mise`.
 - `mise run release:doctor`: run iOS and Android release preflight checks.

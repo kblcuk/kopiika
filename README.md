@@ -68,8 +68,8 @@ bun run web
 | `bun run test:component` | Component/screen tests only (Jest + RNTL)            |
 | `bun run test:coverage`  | Collect coverage from both runners                   |
 | `bun run lint`           | Lint with oxlint                                     |
-| `bun run format`         | Format with oxfmt                                    |
-| `bun run format:check`   | Check formatting without writing                     |
+| `bun run fmt`            | fmt with oxfmt                                       |
+| `bun run fmt:check`      | Check fmt without writing                            |
 | `bun run types`          | TypeScript type check                                |
 
 ## Project Structure
