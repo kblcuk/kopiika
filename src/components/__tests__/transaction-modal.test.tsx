@@ -627,8 +627,8 @@ describe('TransactionModal', () => {
 			expect(queryByTestId('split-toggle-button')).toBeNull();
 		});
 
-		it('entering split mode shows two rows and hides split toggle button', () => {
-			const { getByTestId, queryByTestId } = render(
+		it('entering split mode shows two rows and keeps split toggle visible', () => {
+			const { getByTestId } = render(
 				<TransactionModal
 					visible={true}
 					fromEntity={mockFromEntity}
@@ -640,7 +640,7 @@ describe('TransactionModal', () => {
 
 			expect(getByTestId('split-row-0')).toBeTruthy();
 			expect(getByTestId('split-row-1')).toBeTruthy();
-			expect(queryByTestId('split-toggle-button')).toBeNull();
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
 		it('anchor row (row 0) is pre-seeded with the dragged toEntity', () => {
@@ -857,7 +857,7 @@ describe('TransactionModal', () => {
 			});
 		});
 
-		it('merge button exits split mode and restores original amount', () => {
+		it('toggling split off exits split mode and restores original amount', () => {
 			const { getByTestId, queryByTestId } = render(
 				<TransactionModal
 					visible={true}
@@ -871,7 +871,8 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('split-toggle-button'));
 			expect(getByTestId('split-row-0')).toBeTruthy();
 
-			fireEvent.press(getByTestId('split-merge-button'));
+			// Toggle split off (same button)
+			fireEvent.press(getByTestId('split-toggle-button'));
 
 			expect(queryByTestId('split-row-0')).toBeNull();
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
@@ -889,7 +890,8 @@ describe('TransactionModal', () => {
 			);
 			fireEvent.press(getByTestId('split-toggle-button'));
 			expect(getByText('New Transaction')).toBeTruthy();
-			expect(getByTestId('split-merge-button')).toBeTruthy();
+			// Split toggle stays visible as a toggle (no separate merge button)
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
 		it('resets split mode when modal is closed and reopened', () => {
