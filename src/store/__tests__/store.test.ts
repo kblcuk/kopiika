@@ -3359,6 +3359,29 @@ describe('Store Data Integrity', () => {
 			expect(categories[0].unconfirmed).toBe(300);
 		});
 
+		test('updateTransaction: editing future tx date to past keeps is_confirmed false', async () => {
+			// Create a future-dated transaction (auto-unconfirmed)
+			await useStore.getState().addTransaction({
+				id: 'tx-future-edit',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now() + 86400000,
+			});
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+
+			// Edit the date to the past — is_confirmed should stay false (needs manual confirm)
+			await useStore.getState().updateTransaction('tx-future-edit', {
+				timestamp: Date.now() - 86400000,
+			});
+
+			const tx = useStore.getState().transactions.find((t) => t.id === 'tx-future-edit');
+			expect(tx?.is_confirmed).toBe(false);
+			expect(tx?.timestamp).toBeLessThan(Date.now());
+		});
+
 		test('getEntitiesWithBalance: future unconfirmed stays in upcoming, not unconfirmed', () => {
 			const now = Date.now();
 			const txns: Transaction[] = [
