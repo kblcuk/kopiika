@@ -77,6 +77,7 @@ export async function createTransaction(transaction: Transaction): Promise<void>
 		timestamp: transaction.timestamp,
 		note: transaction.note ?? null,
 		series_id: transaction.series_id ?? null,
+		is_confirmed: transaction.is_confirmed ?? true,
 	});
 }
 
@@ -232,8 +233,20 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<void>
 					timestamp: txn.timestamp,
 					note: txn.note ?? null,
 					series_id: txn.series_id ?? null,
+					is_confirmed: txn.is_confirmed ?? true,
 				})
 				.run();
 		}
 	});
+}
+
+export async function confirmTransaction(id: string): Promise<void> {
+	const db = await getDrizzleDb();
+	await db.update(transactions).set({ is_confirmed: true }).where(eq(transactions.id, id));
+}
+
+export async function confirmTransactionsBatch(ids: string[]): Promise<void> {
+	if (ids.length === 0) return;
+	const db = await getDrizzleDb();
+	await db.update(transactions).set({ is_confirmed: true }).where(inArray(transactions.id, ids));
 }

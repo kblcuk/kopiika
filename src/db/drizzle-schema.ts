@@ -58,6 +58,7 @@ export const transactions = sqliteTable(
 		note: text('note'),
 		// No FK constraint: transactions can outlive a soft-deleted template
 		series_id: text('series_id'),
+		is_confirmed: integer('is_confirmed', { mode: 'boolean' }).notNull().default(true),
 	},
 	(table) => [
 		index('idx_transactions_timestamp').on(table.timestamp),

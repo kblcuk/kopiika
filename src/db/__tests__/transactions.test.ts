@@ -13,6 +13,8 @@ import {
 	deleteTransactionsBySeriesFuture,
 	updateTransactionsBySeriesFuture,
 	createTransactionBatch,
+	confirmTransaction,
+	confirmTransactionsBatch,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -917,6 +919,121 @@ describe('transactions.ts', () => {
 			await createTransactionBatch(batch);
 			const result = await getTransactionsBySeriesId('series-2');
 			expect(result.length).toBe(2);
+		});
+	});
+
+	describe('transaction confirmation', () => {
+		test('createTransaction defaults to is_confirmed true', async () => {
+			await createTransaction({
+				id: 'tx-confirm-default',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+			});
+			const all = await getAllTransactions();
+			const tx = all.find((t) => t.id === 'tx-confirm-default');
+			expect(tx?.is_confirmed).toBe(true);
+		});
+
+		test('createTransaction persists is_confirmed false', async () => {
+			await createTransaction({
+				id: 'tx-unconfirmed',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now() + 86400000,
+				is_confirmed: false,
+			});
+			const all = await getAllTransactions();
+			const tx = all.find((t) => t.id === 'tx-unconfirmed');
+			expect(tx?.is_confirmed).toBe(false);
+		});
+
+		test('confirmTransaction flips is_confirmed to true', async () => {
+			await createTransaction({
+				id: 'tx-to-confirm',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+				is_confirmed: false,
+			});
+			await confirmTransaction('tx-to-confirm');
+			const all = await getAllTransactions();
+			const tx = all.find((t) => t.id === 'tx-to-confirm');
+			expect(tx?.is_confirmed).toBe(true);
+		});
+
+		test('confirmTransactionsBatch confirms multiple transactions', async () => {
+			await createTransaction({
+				id: 'tx-batch-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 10,
+				currency: 'USD',
+				timestamp: Date.now(),
+				is_confirmed: false,
+			});
+			await createTransaction({
+				id: 'tx-batch-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 20,
+				currency: 'USD',
+				timestamp: Date.now(),
+				is_confirmed: false,
+			});
+			await createTransaction({
+				id: 'tx-batch-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 30,
+				currency: 'USD',
+				timestamp: Date.now(),
+				is_confirmed: true,
+			});
+
+			await confirmTransactionsBatch(['tx-batch-1', 'tx-batch-2']);
+
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'tx-batch-1')?.is_confirmed).toBe(true);
+			expect(all.find((t) => t.id === 'tx-batch-2')?.is_confirmed).toBe(true);
+			expect(all.find((t) => t.id === 'tx-batch-3')?.is_confirmed).toBe(true);
+		});
+
+		test('confirmTransactionsBatch handles empty array', async () => {
+			await confirmTransactionsBatch([]);
+			// Should not throw
+		});
+
+		test('createTransactionBatch persists is_confirmed', async () => {
+			await createTransactionBatch([
+				{
+					id: 'batch-c-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 10,
+					currency: 'USD',
+					timestamp: Date.now(),
+					is_confirmed: false,
+				},
+				{
+					id: 'batch-c-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 20,
+					currency: 'USD',
+					timestamp: Date.now(),
+					is_confirmed: true,
+				},
+			]);
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'batch-c-1')?.is_confirmed).toBe(false);
+			expect(all.find((t) => t.id === 'batch-c-2')?.is_confirmed).toBe(true);
 		});
 	});
 });

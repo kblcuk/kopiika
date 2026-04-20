@@ -271,6 +271,7 @@ function parseTransactions(
 			timestamp,
 			note: row.note || null,
 			series_id: row.series_id || undefined,
+			is_confirmed: row.is_confirmed === 'false' ? false : true,
 		});
 	}
 

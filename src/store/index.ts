@@ -79,6 +79,10 @@ interface AppState {
 	deleteTransactionWithScope: (id: string, scope: 'single' | 'future') => Promise<void>;
 	deactivateTemplatesForEntity: (entityId: string) => Promise<void>;
 
+	// Confirmation actions
+	confirmTransaction: (id: string) => Promise<void>;
+	confirmAllDueTransactions: () => Promise<void>;
+
 	// Default account — toggle the default flag; only one account at a time
 	setDefaultAccount: (accountId: string | null) => Promise<void>;
 
@@ -139,6 +143,7 @@ async function backfillRecurrences(
 					timestamp: ts,
 					note: template.note,
 					series_id: template.id,
+					is_confirmed: false,
 				});
 			}
 		}
@@ -258,6 +263,7 @@ export const useStore = create<AppState>((set, get) => ({
 						timestamp: txn.timestamp,
 						note: txn.note ?? null,
 						series_id: txn.series_id ?? null,
+						is_confirmed: txn.is_confirmed ?? true,
 					})
 					.run();
 			}
@@ -393,8 +399,12 @@ export const useStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		await db.createTransaction(transaction);
-		set((state) => ({ transactions: [transaction, ...state.transactions] }));
+		const txWithConfirm = {
+			...transaction,
+			is_confirmed: transaction.is_confirmed ?? transaction.timestamp <= Date.now(),
+		};
+		await db.createTransaction(txWithConfirm);
+		set((state) => ({ transactions: [txWithConfirm, ...state.transactions] }));
 	},
 
 	updateTransaction: async (id, updates) => {
@@ -491,6 +501,7 @@ export const useStore = create<AppState>((set, get) => ({
 			timestamp: ts,
 			note: transaction.note,
 			series_id: templateId,
+			is_confirmed: false,
 		}));
 
 		if (txns.length > 0) {
@@ -627,6 +638,31 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 	},
 
+	// Confirmation actions
+	confirmTransaction: async (id) => {
+		await db.confirmTransaction(id);
+		set((state) => ({
+			transactions: state.transactions.map((t) =>
+				t.id === id ? { ...t, is_confirmed: true } : t
+			),
+		}));
+	},
+
+	confirmAllDueTransactions: async () => {
+		const now = Date.now();
+		const dueIds = get()
+			.transactions.filter((t) => t.is_confirmed === false && t.timestamp <= now)
+			.map((t) => t.id);
+		if (dueIds.length === 0) return;
+		await db.confirmTransactionsBatch(dueIds);
+		const dueSet = new Set(dueIds);
+		set((state) => ({
+			transactions: state.transactions.map((t) =>
+				dueSet.has(t.id) ? { ...t, is_confirmed: true } : t
+			),
+		}));
+	},
+
 	// Default account — clear old default and optionally set a new one
 	setDefaultAccount: async (accountId) => {
 		await db.clearDefaultAccount(accountId ?? undefined);
@@ -708,8 +744,13 @@ export function getEntitiesWithBalance(
 			? transactions
 			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
 
-		// Split into past (actual) and future (upcoming) by wall-clock time
-		const pastTxns = relevantTransactions.filter((t) => t.timestamp <= now);
+		// Split into confirmed past, unconfirmed past, and future
+		const pastConfirmed = relevantTransactions.filter(
+			(t) => t.timestamp <= now && t.is_confirmed !== false
+		);
+		const pastUnconfirmed = relevantTransactions.filter(
+			(t) => t.timestamp <= now && t.is_confirmed === false
+		);
 		const futureTxns = relevantTransactions.filter((t) => t.timestamp > now);
 
 		function calcBalance(
@@ -743,8 +784,9 @@ export function getEntitiesWithBalance(
 			}
 		}
 
-		const txActual = calcBalance(pastTxns, entity.id, entity.type);
+		const txActual = calcBalance(pastConfirmed, entity.id, entity.type);
 		const upcoming = calcBalance(futureTxns, entity.id, entity.type);
+		const unconfirmed = calcBalance(pastUnconfirmed, entity.id, entity.type);
 
 		// Track how much of the account's outflows went to savings (for funding-section breakdown)
 		// Since KII-61 savings are real transactions already reflected in actual
@@ -758,6 +800,7 @@ export function getEntitiesWithBalance(
 			planned,
 			actual: txActual,
 			upcoming,
+			unconfirmed,
 			reserved,
 			remaining: planned - txActual,
 		};

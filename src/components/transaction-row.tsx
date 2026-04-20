@@ -8,7 +8,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Clock, Trash2, Repeat } from 'lucide-react-native';
+import { Clock, Trash2, Repeat, CircleAlert, CircleCheck } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
@@ -25,6 +25,7 @@ interface TransactionRowProps {
 	onEdit: (transaction: Transaction) => void;
 	index: number;
 	isUpcoming?: boolean;
+	isUnconfirmed?: boolean;
 	editable?: boolean;
 }
 
@@ -37,10 +38,12 @@ export const TransactionRow = memo(function TransactionRow({
 	onEdit,
 	index,
 	isUpcoming = false,
+	isUnconfirmed = false,
 	editable = true,
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
+	const confirmTransaction = useStore((state) => state.confirmTransaction);
 
 	const translateX = useSharedValue(0);
 	const deleteOpacity = useSharedValue(0);
@@ -103,7 +106,13 @@ export const TransactionRow = memo(function TransactionRow({
 		opacity: deleteOpacity.value,
 	}));
 
-	const rowBg = isUpcoming ? 'bg-info/5' : index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
+	const rowBg = isUnconfirmed
+		? 'bg-warning/5'
+		: isUpcoming
+			? 'bg-info/5'
+			: index % 2 === 0
+				? 'bg-paper-50'
+				: 'bg-paper-100';
 
 	const rowContent = (
 		<View>
@@ -119,17 +128,36 @@ export const TransactionRow = memo(function TransactionRow({
 				</Text>
 				<View className="ml-3 items-end">
 					<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
-						{transaction.series_id && <Repeat size={12} color={colors.info.DEFAULT} />}
+						{transaction.series_id && (
+							<Repeat
+								size={12}
+								color={isUnconfirmed ? colors.warning.DEFAULT : colors.info.DEFAULT}
+							/>
+						)}
+						{isUnconfirmed && <CircleAlert size={12} color={colors.warning.DEFAULT} />}
 						{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
 					</View>
 					<Text
-						className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
+						className={`font-sans-semibold text-base ${isUnconfirmed ? 'text-warning' : isUpcoming ? 'text-info' : 'text-ink'}`}
 					>
 						{formatAmount(transaction.amount, transaction.currency)}{' '}
 						<Text className="font-sans text-sm text-ink-muted">
 							{getCurrencySymbol(transaction.currency)}
 						</Text>
 					</Text>
+
+					{/* Confirm pill for unconfirmed transactions */}
+					{isUnconfirmed && (
+						<Pressable
+							onPress={() => confirmTransaction(transaction.id)}
+							className="mt-1 flex-row items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5"
+							hitSlop={8}
+							testID={`confirm-transaction-${transaction.id}`}
+						>
+							<CircleCheck size={11} color={colors.warning.DEFAULT} />
+							<Text className="font-sans-semibold text-xs text-warning">Confirm</Text>
+						</Pressable>
+					)}
 
 					{/* Scheduled date for upcoming transactions */}
 					{isUpcoming && (

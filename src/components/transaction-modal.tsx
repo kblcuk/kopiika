@@ -92,6 +92,7 @@ export function TransactionModal({
 	const [repeatFrequency, setRepeatFrequency] = useState<RecurrenceFrequency>('monthly');
 	const [repeatEndMode, setRepeatEndMode] = useState<'never' | 'until' | 'count'>('never');
 	const [repeatEndDate, setRepeatEndDate] = useState<Date | null>(null);
+	const [showRepeatEndDatePicker, setShowRepeatEndDatePicker] = useState(false);
 	const [repeatEndCount, setRepeatEndCount] = useState('');
 	const [repeatHorizon, setRepeatHorizon] = useState(DEFAULT_HORIZON_DAYS);
 
@@ -212,6 +213,7 @@ export function TransactionModal({
 			setRepeatFrequency('monthly');
 			setRepeatEndMode('never');
 			setRepeatEndDate(null);
+			setShowRepeatEndDatePicker(false);
 			setRepeatEndCount('');
 			setRepeatHorizon(DEFAULT_HORIZON_DAYS);
 			const ref = amountExpr.inputRef;
@@ -407,6 +409,7 @@ export function TransactionModal({
 				for (const txn of txns) await addTransaction(txn);
 
 				// Release savings reservations via saving→account transactions
+				// Always confirmed — releases are immediate regardless of main transaction date
 				const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
 				for (const f of splitFunded) {
 					await addTransaction({
@@ -416,6 +419,7 @@ export function TransactionModal({
 						amount: f.fundAmount,
 						currency: splitFrom.currency,
 						timestamp,
+						is_confirmed: true,
 					});
 				}
 
@@ -484,6 +488,7 @@ export function TransactionModal({
 			}
 
 			// Release savings reservations via saving→account transactions
+			// Always confirmed — releases are immediate regardless of main transaction date
 			const funded = fundingRef.current?.getFundedReservations() ?? [];
 			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
 			const fundCurrency = selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
@@ -496,6 +501,7 @@ export function TransactionModal({
 						amount: f.fundAmount,
 						currency: fundCurrency,
 						timestamp,
+						is_confirmed: true,
 					});
 				}
 			}
@@ -1085,18 +1091,58 @@ export function TransactionModal({
 
 									{repeatEndMode === 'until' && (
 										<View className="mb-4">
-											<DateTimePicker
-												value={repeatEndDate ?? new Date()}
-												mode="date"
-												display={
-													Platform.OS === 'ios' ? 'compact' : 'default'
-												}
-												onChange={(_, date) =>
-													date && setRepeatEndDate(date)
-												}
-												minimumDate={selectedDate}
-												accentColor={colors.accent.deeper}
-											/>
+											{Platform.OS === 'ios' ? (
+												<DateTimePicker
+													value={repeatEndDate ?? new Date()}
+													mode="date"
+													display="compact"
+													onChange={(_, date) =>
+														date && setRepeatEndDate(date)
+													}
+													minimumDate={selectedDate}
+													accentColor={colors.accent.deeper}
+												/>
+											) : (
+												<>
+													<Pressable
+														onPress={() =>
+															setShowRepeatEndDatePicker(true)
+														}
+														className="border-paper-400 flex-row items-center rounded-lg border bg-paper-200 px-3 py-2"
+													>
+														<Calendar
+															size={16}
+															color={colors.ink.muted}
+														/>
+														<Text className="ml-2 font-sans text-sm text-ink">
+															{repeatEndDate
+																? repeatEndDate.toLocaleDateString(
+																		undefined,
+																		{
+																			month: 'short',
+																			day: 'numeric',
+																			year: 'numeric',
+																		}
+																	)
+																: 'Pick end date'}
+														</Text>
+													</Pressable>
+													{showRepeatEndDatePicker && (
+														<DateTimePicker
+															value={repeatEndDate ?? new Date()}
+															mode="date"
+															display="default"
+															onChange={(event, date) => {
+																setShowRepeatEndDatePicker(false);
+																if (event.type === 'set' && date) {
+																	setRepeatEndDate(date);
+																}
+															}}
+															minimumDate={selectedDate}
+														/>
+													)}
+												</>
+											)}
 										</View>
 									)}
 

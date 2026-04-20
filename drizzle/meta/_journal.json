@@ -85,6 +85,13 @@
 			"when": 1776582903284,
 			"tag": "0011_steady_red_ghost",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "6",
+			"when": 1776663906877,
+			"tag": "0012_slim_hex",
+			"breakpoints": true
 		}
 	]
 }

@@ -364,7 +364,8 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0]).toEqual(transaction);
+			expect(state.transactions[0]).toMatchObject(transaction);
+			expect(state.transactions[0].is_confirmed).toBe(true);
 
 			// Verify it was written to database
 			const dbTransactions = await db.getAllTransactions();
@@ -3173,6 +3174,216 @@ describe('Store Data Integrity', () => {
 
 			expect(accountEntities[0].reserved).toBe(500); // account-1
 			expect(accountEntities[1].reserved).toBe(200); // account-2
+		});
+	});
+
+	describe('Transaction confirmation (KII-65)', () => {
+		const incomeEntity: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const accountEntity: Entity = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const categoryEntity: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+
+		beforeEach(async () => {
+			const entities = [incomeEntity, accountEntity, categoryEntity];
+			useStore.setState({ entities });
+			for (const entity of entities) {
+				await db.createEntity(entity);
+			}
+		});
+
+		test('addTransaction: past-dated transaction is confirmed', async () => {
+			await useStore.getState().addTransaction({
+				id: 'tx-past',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now() - 86400000,
+			});
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+		});
+
+		test('addTransaction: future-dated transaction is unconfirmed', async () => {
+			await useStore.getState().addTransaction({
+				id: 'tx-future',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now() + 86400000,
+			});
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+		});
+
+		test('addTransaction: explicit is_confirmed is preserved', async () => {
+			await useStore.getState().addTransaction({
+				id: 'tx-explicit',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now() + 86400000,
+				is_confirmed: true,
+			});
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+		});
+
+		test('confirmTransaction: flips is_confirmed in store and DB', async () => {
+			await useStore.getState().addTransaction({
+				id: 'tx-unconfirmed',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now() + 86400000,
+			});
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+
+			await useStore.getState().confirmTransaction('tx-unconfirmed');
+
+			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+
+			const dbTxns = await db.getAllTransactions();
+			expect(dbTxns.find((t) => t.id === 'tx-unconfirmed')?.is_confirmed).toBe(true);
+		});
+
+		test('confirmAllDueTransactions: confirms only past-due unconfirmed', async () => {
+			const now = Date.now();
+
+			// Past unconfirmed (should be confirmed)
+			await db.createTransaction({
+				id: 'tx-past-unconfirmed',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: now - 86400000,
+				is_confirmed: false,
+			});
+
+			// Future unconfirmed (should NOT be confirmed)
+			await db.createTransaction({
+				id: 'tx-future-unconfirmed',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 75,
+				currency: 'USD',
+				timestamp: now + 86400000,
+				is_confirmed: false,
+			});
+
+			// Past confirmed (should stay confirmed)
+			await db.createTransaction({
+				id: 'tx-past-confirmed',
+				from_entity_id: 'income-1',
+				to_entity_id: 'account-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: now - 86400000,
+				is_confirmed: true,
+			});
+
+			useStore.setState({
+				transactions: await db.getAllTransactions(),
+			});
+
+			await useStore.getState().confirmAllDueTransactions();
+
+			const txns = useStore.getState().transactions;
+			expect(txns.find((t) => t.id === 'tx-past-unconfirmed')?.is_confirmed).toBe(true);
+			expect(txns.find((t) => t.id === 'tx-future-unconfirmed')?.is_confirmed).toBe(false);
+			expect(txns.find((t) => t.id === 'tx-past-confirmed')?.is_confirmed).toBe(true);
+		});
+
+		test('getEntitiesWithBalance: unconfirmed past-due excluded from actual', () => {
+			const now = Date.now();
+			const txns: Transaction[] = [
+				{
+					id: 'tx-confirmed',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 200,
+					currency: 'USD',
+					timestamp: now - 86400000,
+					is_confirmed: true,
+				},
+				{
+					id: 'tx-unconfirmed',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 300,
+					currency: 'USD',
+					timestamp: now - 86400000,
+					is_confirmed: false,
+				},
+			];
+
+			const categories = getEntitiesWithBalance(
+				[accountEntity, categoryEntity],
+				[],
+				txns,
+				'2026-04',
+				'category'
+			);
+
+			// Only the confirmed 200 should be in actual
+			expect(categories[0].actual).toBe(200);
+			// The unconfirmed 300 should be in unconfirmed
+			expect(categories[0].unconfirmed).toBe(300);
+		});
+
+		test('getEntitiesWithBalance: future unconfirmed stays in upcoming, not unconfirmed', () => {
+			const now = Date.now();
+			const txns: Transaction[] = [
+				{
+					id: 'tx-future',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 150,
+					currency: 'USD',
+					timestamp: now + 86400000 * 7,
+					is_confirmed: false,
+				},
+			];
+
+			const categories = getEntitiesWithBalance(
+				[accountEntity, categoryEntity],
+				[],
+				txns,
+				'2026-04',
+				'category'
+			);
+
+			expect(categories[0].actual).toBe(0);
+			expect(categories[0].upcoming).toBe(150);
+			expect(categories[0].unconfirmed).toBe(0);
 		});
 	});
 });

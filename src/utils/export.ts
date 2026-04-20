@@ -55,6 +55,7 @@ export function transactionsToCsv(transactions: Transaction[]): string {
 		'timestamp',
 		'note',
 		'series_id',
+		'is_confirmed',
 	];
 	const rows = transactions.map((t) =>
 		[
@@ -66,6 +67,7 @@ export function transactionsToCsv(transactions: Transaction[]): string {
 			t.timestamp,
 			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
 			t.series_id ?? '',
+			t.is_confirmed !== false,
 		].join(',')
 	);
 	return [headers.join(','), ...rows].join('\n');

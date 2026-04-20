@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Search, X } from 'lucide-react-native';
+import { Search, X, CheckCheck } from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
@@ -22,6 +22,7 @@ interface TransactionSection {
 	title: string;
 	data: Transaction[];
 	isUpcoming?: boolean;
+	isUnconfirmed?: boolean;
 }
 
 function formatDayLabel(timestamp: number): string {
@@ -113,13 +114,14 @@ export default function HistoryScreen() {
 	// Single memo for both past and upcoming — one Date.now() call ensures a
 	// transaction at the boundary can never fall between two different "now"
 	// snapshots and disappear from both lists (KII-73).
-	const { filteredTransactions, upcomingTransactions } = useMemo(() => {
+	const { filteredTransactions, upcomingTransactions, unconfirmedTransactions } = useMemo(() => {
 		const { start, end } = getPeriodRange(deferredPeriod);
 		const now = Date.now();
 		const query = deferredSearch.trim().toLowerCase();
 
 		const filtered: Transaction[] = [];
 		const upcoming: Transaction[] = [];
+		const unconfirmed: Transaction[] = [];
 
 		for (const tx of transactions) {
 			// Entity filter
@@ -143,17 +145,24 @@ export default function HistoryScreen() {
 				continue;
 			}
 
-			// Past/present vs upcoming split
-			if (tx.timestamp <= now) {
-				filtered.push(tx);
-			} else {
+			// Three-way split: upcoming / unconfirmed past-due / confirmed past
+			if (tx.timestamp > now) {
 				upcoming.push(tx);
+			} else if (tx.is_confirmed === false) {
+				unconfirmed.push(tx);
+			} else {
+				filtered.push(tx);
 			}
 		}
 
 		upcoming.sort((a, b) => a.timestamp - b.timestamp);
+		unconfirmed.sort((a, b) => a.timestamp - b.timestamp);
 
-		return { filteredTransactions: filtered, upcomingTransactions: upcoming };
+		return {
+			filteredTransactions: filtered,
+			upcomingTransactions: upcoming,
+			unconfirmedTransactions: unconfirmed,
+		};
 	}, [transactions, deferredPeriod, selectedEntityId, deferredSearch]);
 
 	const sections = useMemo(() => {
@@ -162,8 +171,18 @@ export default function HistoryScreen() {
 			upcomingTransactions.length > 0
 				? [{ title: 'Upcoming', data: upcomingTransactions, isUpcoming: true }]
 				: [];
-		return [...upcomingSection, ...pastSections];
-	}, [filteredTransactions, upcomingTransactions]);
+		const unconfirmedSection: TransactionSection[] =
+			unconfirmedTransactions.length > 0
+				? [
+						{
+							title: 'Needs Confirmation',
+							data: unconfirmedTransactions,
+							isUnconfirmed: true,
+						},
+					]
+				: [];
+		return [...upcomingSection, ...unconfirmedSection, ...pastSections];
+	}, [filteredTransactions, upcomingTransactions, unconfirmedTransactions]);
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
@@ -178,6 +197,12 @@ export default function HistoryScreen() {
 		}
 		return { count, inflow, outflow };
 	}, [filteredTransactions, selectedEntityId]);
+
+	const confirmAllDueTransactions = useStore((state) => state.confirmAllDueTransactions);
+
+	const handleConfirmAll = useCallback(() => {
+		confirmAllDueTransactions();
+	}, [confirmAllDueTransactions]);
 
 	const handleEdit = useCallback((transaction: Transaction) => {
 		if (transaction.series_id) {
@@ -222,6 +247,7 @@ export default function HistoryScreen() {
 					onEdit={handleEdit}
 					index={index}
 					isUpcoming={section.isUpcoming}
+					isUnconfirmed={section.isUnconfirmed}
 					editable={editable}
 				/>
 			);
@@ -231,7 +257,20 @@ export default function HistoryScreen() {
 
 	const renderSectionHeader = useCallback(
 		({ section }: { section: TransactionSection }) =>
-			section.isUpcoming ? (
+			section.isUnconfirmed ? (
+				<View className="flex-row items-center justify-between border-paper-300 bg-warning/10 px-5 py-2">
+					<Text className="font-sans text-xs uppercase tracking-wider text-warning">
+						{section.title}
+					</Text>
+					<Pressable
+						onPress={handleConfirmAll}
+						className="flex-row items-center gap-1 rounded-full bg-warning/15 px-2.5 py-1"
+					>
+						<CheckCheck size={12} color={colors.warning.DEFAULT} />
+						<Text className="font-sans-semibold text-xs text-warning">Confirm All</Text>
+					</Pressable>
+				</View>
+			) : section.isUpcoming ? (
 				<View className="border-paper-300 bg-info/10 px-5 py-2">
 					<Text className="font-sans text-xs uppercase tracking-wider text-info">
 						{section.title}
@@ -244,7 +283,7 @@ export default function HistoryScreen() {
 					</Text>
 				</View>
 			),
-		[]
+		[handleConfirmAll]
 	);
 
 	const keyExtractor = useCallback((tx: Transaction) => tx.id, []);

@@ -21,9 +21,10 @@ export type Entity = Omit<
 
 export type Plan = DrizzlePlan;
 
-export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id'> & {
+export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id' | 'is_confirmed'> & {
 	note?: string | null;
 	series_id?: string | null;
+	is_confirmed?: boolean;
 };
 
 // Extract EntityType from Drizzle schema
@@ -42,6 +43,7 @@ export interface EntityWithBalance extends Entity {
 	actual: number;
 	remaining: number;
 	upcoming: number; // sum of future-dated transactions (timestamp > now)
+	unconfirmed?: number; // sum of past-due unconfirmed transactions
 	reserved?: number; // accounts only: total reserved across savings goals
 }
 

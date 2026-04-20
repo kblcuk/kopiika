@@ -30,7 +30,7 @@ The authoritative model is:
 
 - `entities`: labels, type, ordering, icon, optional color, currency, `is_default` flag (pre-selects in transaction flows)
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
-- `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` FK links to a recurrence template
+- `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` FK links to a recurrence template; `is_confirmed` boolean gates whether future-dated transactions are applied to balances
 - `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
 
 Derived values belong in selectors, not persisted state:
@@ -123,6 +123,18 @@ Series scope rules:
 - **Edit/delete single**: modifies or soft-deletes one occurrence; adds its timestamp to the template's exclusion list
 - **Edit/delete all future**: updates the template itself and regenerates from the current date forward; past occurrences are untouched
 - **Month-end handling**: monthly recurrences on the 29th–31st clamp to the last day of shorter months (Feb 28/29, Apr 30, etc.)
+
+## Transaction Confirmation
+
+Future-dated and recurring transactions use an `is_confirmed` boolean column (default `true`). Transactions created with a future timestamp are set to `is_confirmed = false`. They remain excluded from actual balances until the user confirms them.
+
+Three transaction states:
+
+- **Upcoming**: `timestamp > now` — counted in `upcoming` balance only
+- **Needs confirmation**: `timestamp <= now` AND `is_confirmed = false` — excluded from `actual`, shown in a dedicated "Needs Confirmation" section in History
+- **Confirmed**: `timestamp <= now` AND `is_confirmed = true` — counted in `actual` balance
+
+Recurring transactions generated via backfill always start as `is_confirmed = false`. The History tab provides per-transaction "Confirm" buttons and a bulk "Confirm All" action.
 
 ## Near-Term Backlog
 
