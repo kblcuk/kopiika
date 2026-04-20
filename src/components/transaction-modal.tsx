@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { View, TextInput, Pressable, Modal, Platform, Alert } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
@@ -40,6 +40,7 @@ import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { showSeriesScopeAlert } from './series-action-sheet';
 
 interface SplitRow {
 	id: string;
@@ -100,6 +101,8 @@ export function TransactionModal({
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
 	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
+	const deleteTransaction = useStore((state) => state.deleteTransaction);
+	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 	const entities = useStore((state) => state.entities);
 
@@ -313,6 +316,32 @@ export function TransactionModal({
 		if (index === 0 || splits.length <= 2) return;
 		setSplits((prev) => prev.filter((_, i) => i !== index));
 	};
+
+	// ── Delete ────────────────────────────────────────────────────────────────
+
+	const handleDelete = useCallback(() => {
+		if (!existingTransaction) return;
+		if (existingTransaction.series_id) {
+			showSeriesScopeAlert('delete', (scope) => {
+				deleteTransactionWithScope(existingTransaction.id, scope);
+				KeyboardController.dismiss();
+				onClose();
+			});
+		} else {
+			Alert.alert('Delete Transaction', 'Are you sure you want to delete this transaction?', [
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Delete',
+					style: 'destructive',
+					onPress: () => {
+						deleteTransaction(existingTransaction.id);
+						KeyboardController.dismiss();
+						onClose();
+					},
+				},
+			]);
+		}
+	}, [existingTransaction, deleteTransaction, deleteTransactionWithScope, onClose]);
 
 	// ── Cancel ────────────────────────────────────────────────────────────────
 
@@ -1194,6 +1223,19 @@ export function TransactionModal({
 								</View>
 							)}
 						</View>
+					)}
+
+					{/* Delete — edit mode only */}
+					{isEditing && (
+						<Pressable
+							onPress={handleDelete}
+							className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
+							testID="transaction-delete-button"
+						>
+							<Text className="font-sans-semibold text-base text-negative">
+								Delete Transaction
+							</Text>
+						</Pressable>
 					)}
 				</KeyboardAwareScrollView>
 			</View>
