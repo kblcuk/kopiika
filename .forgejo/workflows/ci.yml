@@ -1,35 +1,48 @@
 name: CI
 on:
-  push:
-    branches: [main]
-  pull_request:
+    push:
+        branches: [main]
+    pull_request:
 
 jobs:
-  check:
-    runs-on: docker
-    container:
-      image: oven/bun:1
-    steps:
-      - uses: https://code.forgejo.org/actions/checkout@v4
+    check:
+        runs-on: docker
+        container:
+            image: node:lts-bookworm-slim
+        steps:
+            - name: Checkout
+              uses: https://code.forgejo.org/actions/checkout@v4
 
-      - uses: https://code.forgejo.org/actions/cache@v4
-        id: cache
-        with:
-          path: node_modules
-          key: modules-${{ hashFiles('bun.lock') }}
+            - name: Install OS dependencies (curl et al)
+              run: apt-get update -qq && apt-get install -y -qq curl git unzip > /dev/null
 
-      - name: Install
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: bun install --frozen-lockfile
+            - name: Install bun
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
+                  echo "$HOME/.bun/bin" >> $GITHUB_PATH
 
-      - name: Format
-        run: bun run format:check
+            - name: Setup cache
+              uses: https://code.forgejo.org/actions/cache@v4
 
-      - name: Lint
-        run: bun run lint
+              id: cache
+              with:
+                  path: node_modules
+                  key: modules-${{ hashFiles('bun.lock') }}
 
-      - name: Types
-        run: bun run types
+            - name: Install dependencies
+              if: steps.cache.outputs.cache-hit != 'true'
+              env:
+                  BUN_CONFIG_DNS_PREFER: ipv4
+              run: bun install --frozen-lockfile
 
-      - name: Unit tests
-        run: bun run test:unit
+            - name: Format
+              run: bun run format:check
+
+            - name: Lint
+              run: bun run lint
+
+            - name: Types
+              run: bun run types
+
+            - name: Unit and component tests
+              run: bun run test
