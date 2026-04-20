@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.3](https://codeberg.org/kblcuk/kopiika/compare/v0.3.2...v0.3.3) (2026-04-20)
+
+
+### Features
+
+* add transaction confirmation for future-dated and recurring transactions (KII-65) ([52dd98f](https://codeberg.org/kblcuk/kopiika/commit/52dd98f70d130d018355fcda4a3f48219ed6c447))
+
+
+### Bug Fixes
+
+* **android:** add Text wrapper to disable includeFontPadding globally (KII-89) ([5400955](https://codeberg.org/kblcuk/kopiika/commit/540095549269403571537b1ed4cc4a1419fc12c5))
+* scope account upcoming indicator to current month (KII-89) ([b033be5](https://codeberg.org/kblcuk/kopiika/commit/b033be5095cdb2e620ff70f667dcb46919e3c2d6))
+
 ## [0.3.2](https://codeberg.org/kblcuk/kopiika/compare/v0.3.1...v0.3.2) (2026-04-19)
 
 ## [0.3.1](https://codeberg.org/kblcuk/kopiika/compare/v0.3.0...v0.3.1) (2026-04-19)
