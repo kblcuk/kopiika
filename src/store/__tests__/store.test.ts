@@ -2935,8 +2935,8 @@ describe('Store Data Integrity', () => {
 			expect(category.actual).toBe(0);
 		});
 
-		test('account upcoming includes future txns from any period (all-time scope)', () => {
-			// Accounts use all-time scope, so future txns in any month count
+		test('account upcoming excludes future txns outside current period', () => {
+			// Accounts show upcoming only for the current month (KII-89)
 			const { account } = setup([
 				{
 					id: 'tx-acc-future',
@@ -2944,10 +2944,38 @@ describe('Store Data Integrity', () => {
 					to_entity_id: 'acc-1',
 					amount: 800,
 					currency: 'EUR',
-					timestamp: new Date('2026-04-01').getTime(), // April — future
+					timestamp: new Date('2026-04-01').getTime(), // April — outside Jan period
 				},
 			]);
-			expect(account.upcoming).toBe(800);
+			expect(account.upcoming).toBe(0);
+		});
+
+		test('account upcoming includes future txns within current period', () => {
+			const { account } = setup([
+				{
+					id: 'tx-acc-future-same-month',
+					from_entity_id: 'income-1',
+					to_entity_id: 'acc-1',
+					amount: 500,
+					currency: 'EUR',
+					timestamp: new Date('2026-01-20T12:00:00Z').getTime(), // Jan 20 — within Jan period, after NOW (Jan 15)
+				},
+			]);
+			expect(account.upcoming).toBe(500);
+		});
+
+		test('saving upcoming excludes future txns outside current period', () => {
+			const { saving } = setup([
+				{
+					id: 'tx-sav-future-far',
+					from_entity_id: 'acc-1',
+					to_entity_id: 'sav-1',
+					amount: 300,
+					currency: 'EUR',
+					timestamp: new Date('2026-06-01').getTime(), // June — outside Jan period
+				},
+			]);
+			expect(saving.upcoming).toBe(0);
 		});
 	});
 

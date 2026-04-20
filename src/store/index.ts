@@ -751,7 +751,9 @@ export function getEntitiesWithBalance(
 		const pastUnconfirmed = relevantTransactions.filter(
 			(t) => t.timestamp <= now && t.is_confirmed === false
 		);
-		const futureTxns = relevantTransactions.filter((t) => t.timestamp > now);
+		const futureTxns = relevantTransactions.filter(
+			(t) => t.timestamp > now && t.timestamp <= end
+		);
 
 		function calcBalance(
 			txns: typeof relevantTransactions,
