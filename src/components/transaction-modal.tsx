@@ -721,19 +721,6 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Fund from savings — show when source is an account with reservations */}
-					{!isEditing && displayFromEntity?.type === 'account' && (
-						<SavingsFundingSection
-							ref={fundingRef}
-							accountEntityId={displayFromEntity.id}
-							currency={currency}
-							enteredAmount={
-								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
-							}
-							onFundingChange={setTotalFunded}
-						/>
-					)}
-
 					{/* Note */}
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
@@ -802,6 +789,19 @@ export function TransactionModal({
 							</>
 						)}
 					</View>
+
+					{/* Fund from savings — show when source is an account with reservations */}
+					{!isEditing && displayFromEntity?.type === 'account' && (
+						<SavingsFundingSection
+							ref={fundingRef}
+							accountEntityId={displayFromEntity.id}
+							currency={currency}
+							enteredAmount={
+								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+							}
+							onFundingChange={setTotalFunded}
+						/>
+					)}
 
 					{/* Split — only for account → category */}
 					{!isEditing &&
