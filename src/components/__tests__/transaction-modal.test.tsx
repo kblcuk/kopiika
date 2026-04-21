@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
@@ -225,6 +226,26 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			expect(addTransactionSpy).not.toHaveBeenCalled();
+		});
+
+		it('shows validation hint when amount is zero or negative', () => {
+			const { getByTestId, getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '0');
+			expect(getByText('Amount must be greater than 0')).toBeTruthy();
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '-5');
+			expect(getByText('Amount must be greater than 0')).toBeTruthy();
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '10');
+			expect(queryByText('Amount must be greater than 0')).toBeNull();
 		});
 
 		it('creates transaction with valid amount', async () => {
@@ -926,6 +947,113 @@ describe('TransactionModal', () => {
 
 			expect(queryByTestId('split-row-0')).toBeNull();
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
+		});
+	});
+
+	describe('Delete Button', () => {
+		it('shows delete button in edit mode', () => {
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			expect(getByTestId('transaction-delete-button')).toBeTruthy();
+		});
+
+		it('does not show delete button in create mode', () => {
+			const { queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('transaction-delete-button')).toBeNull();
+		});
+
+		it('shows confirmation alert on delete press', () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			fireEvent.press(getByTestId('transaction-delete-button'));
+
+			expect(alertSpy).toHaveBeenCalledWith(
+				'Delete Transaction',
+				'Are you sure you want to delete this transaction?',
+				expect.arrayContaining([
+					expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+					expect.objectContaining({ text: 'Delete', style: 'destructive' }),
+				])
+			);
+		});
+
+		it('deletes transaction and closes modal on confirm', () => {
+			const deleteTransactionSpy = jest.fn();
+			useStore.setState({ deleteTransaction: deleteTransactionSpy });
+			const alertSpy = jest.spyOn(Alert, 'alert');
+
+			const existingTransaction = {
+				id: 'txn-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			fireEvent.press(getByTestId('transaction-delete-button'));
+
+			// Simulate pressing "Delete" in the alert
+			const destructiveButton = alertSpy.mock.calls[0][2]?.find(
+				(btn: any) => btn.style === 'destructive'
+			);
+			destructiveButton?.onPress?.();
+
+			expect(deleteTransactionSpy).toHaveBeenCalledWith('txn-1');
+			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
 
