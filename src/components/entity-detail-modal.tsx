@@ -1,6 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { Text } from './text';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -29,6 +34,10 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import {
+	getReservationsForSaving,
+	getReservationsForAccount,
+} from '@/src/utils/savings-transactions';
 import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityDetailModalProps {
@@ -48,8 +57,10 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
-	// Reservation modal state (for saving entities)
+	const [isDefault, setIsDefault] = useState(false);
+	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
+	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
 	const insets = useSafeAreaInsets();
 	const actualExpr = useExpressionInput(actualAmount, (v) => {
 		setActualAmount(v);
@@ -62,42 +73,65 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const {
 		plans,
 		currentPeriod,
-		reservations,
+		transactions,
+		entities,
 		setPlan,
 		deletePlan,
 		deleteEntity,
 		updateEntity,
 		addTransaction,
+		setDefaultAccount,
+		recurrenceTemplates,
+		deactivateTemplatesForEntity,
 	} = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
 			currentPeriod: state.currentPeriod,
-			reservations: state.reservations,
+			transactions: state.transactions,
+			entities: state.entities,
 			setPlan: state.setPlan,
 			deletePlan: state.deletePlan,
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
 			addTransaction: state.addTransaction,
+			setDefaultAccount: state.setDefaultAccount,
+			recurrenceTemplates: state.recurrenceTemplates,
+			deactivateTemplatesForEntity: state.deactivateTemplatesForEntity,
 		}))
 	);
 
 	const accounts = useEntitiesWithBalance('account');
+	const savings = useEntitiesWithBalance('saving');
 
-	// For saving entities: find all reservations pointing to this saving, resolved to account entities
+	// For saving entities: derive per-account reservation amounts from transactions
 	const savingReservations = useMemo(() => {
 		if (!entity || entity.type !== 'saving') return [];
 
-		return reservations
-			.filter((r) => r.saving_entity_id === entity.id)
-			.map((r) => {
-				const account = accounts.find((a) => a.id === r.account_entity_id);
-				return account ? { reservation: r, account } : null;
+		return getReservationsForSaving(transactions, entities, entity.id)
+			.map(({ accountEntityId, amount }) => {
+				const account = accounts.find((a) => a.id === accountEntityId);
+				return account ? { amount, account } : null;
 			})
 			.filter(Boolean) as {
-			reservation: { id: string; amount: number };
+			amount: number;
 			account: EntityWithBalance;
 		}[];
-	}, [entity, reservations, accounts]);
+	}, [entity, transactions, entities, accounts]);
+
+	// For account entities: derive per-saving reservation amounts from transactions
+	const accountReservations = useMemo(() => {
+		if (!entity || entity.type !== 'account') return [];
+
+		return getReservationsForAccount(transactions, entities, entity.id)
+			.map(({ savingEntityId, amount }) => {
+				const saving = savings.find((s) => s.id === savingEntityId);
+				return saving ? { amount, saving } : null;
+			})
+			.filter(Boolean) as {
+			amount: number;
+			saving: EntityWithBalance;
+		}[];
+	}, [entity, transactions, entities, savings]);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
@@ -117,6 +151,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setActualAmount(roundMoney(entity.actual).toString());
 			setIsEditingActual(false);
 			setIncludeInTotal(entity.include_in_total !== false);
+			setIsDefault(entity.is_default === true);
 			setNameError(null);
 			setShowIconPicker(false);
 		}
@@ -139,6 +174,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	// Validation state
 	const isNameValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH;
 	const canSave = isNameValid;
+
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
 
 	if (!entity) return null;
 
@@ -182,6 +222,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			}
 		}
 
+		// Handle default account toggle
+		if (entity.type === 'account' && isDefault !== (entity.is_default === true)) {
+			await setDefaultAccount(isDefault ? entity.id : null);
+		}
+
 		// Handle balance adjustment for accounts
 		if (entity.type === 'account' && isEditingActual) {
 			const currentBalance = entity.actual;
@@ -205,10 +250,44 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			}
 		}
 
+		KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleDelete = () => {
+		const activeTemplates = recurrenceTemplates.filter(
+			(t) => !t.is_deleted && (t.from_entity_id === entity.id || t.to_entity_id === entity.id)
+		);
+
+		if (activeTemplates.length > 0) {
+			Alert.alert(
+				'Entity Used in Recurring Transactions',
+				`"${entity.name}" is used in ${activeTemplates.length} recurring transaction series. Also delete future occurrences and stop the recurrence?`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Keep recurring',
+						onPress: async () => {
+							onClose();
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							await deleteEntity(entity.id);
+						},
+					},
+					{
+						text: 'Stop & delete future',
+						style: 'destructive',
+						onPress: async () => {
+							onClose();
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							await deactivateTemplatesForEntity(entity.id);
+							await deleteEntity(entity.id);
+						},
+					},
+				]
+			);
+			return;
+		}
+
 		const deleteConsequences = {
 			income: 'Past transactions will stay in History and this income source will be shown as removed.',
 			account:
@@ -253,7 +332,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
@@ -261,7 +340,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="entity-detail-cancel-button">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="entity-detail-cancel-button"
+					>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
@@ -380,15 +463,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								created.
 							</Text>
 
-							{/* Available = current minus reservations */}
-							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
-								<Text className="font-sans text-xs text-ink-muted">Available</Text>
-								<Text
-									className={`font-sans-semibold text-lg ${entity.actual - (entity.reserved ?? 0) < 0 ? 'text-negative' : 'text-ink'}`}
-								>
-									{formatAmount(entity.actual - (entity.reserved ?? 0))}
-								</Text>
-							</View>
+							{!!entity.reserved && entity.reserved > 0 && (
+								<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
+									<Text className="font-sans text-xs text-ink-muted">
+										Total (incl. savings)
+									</Text>
+									<Text
+										className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
+									>
+										{formatAmount(entity.actual + entity.reserved)}
+									</Text>
+								</View>
+							)}
 
 							{/* Include in total toggle */}
 							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
@@ -410,6 +496,75 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									thumbColor={colors.paper.warm}
 									testID="entity-detail-include-in-total-switch"
 								/>
+							</View>
+
+							{/* Default account toggle */}
+							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+								<View className="flex-1 pr-4">
+									<Text className="font-sans text-base text-ink">
+										Default account
+									</Text>
+									<Text className="font-sans text-xs text-ink-muted">
+										Pre-selected when adding transactions
+									</Text>
+								</View>
+								<Switch
+									value={isDefault}
+									onValueChange={setIsDefault}
+									trackColor={{
+										false: colors.border.DEFAULT,
+										true: colors.accent.DEFAULT,
+									}}
+									thumbColor={colors.paper.warm}
+									testID="entity-detail-is-default-switch"
+								/>
+							</View>
+
+							{/* Reserved for — per-saving breakdown */}
+							<View className="mt-4" testID="account-reservations-section">
+								<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+									Reserved for
+								</Text>
+								{accountReservations.length > 0 ? (
+									<View className="rounded-lg bg-paper-100">
+										{accountReservations.map(({ amount, saving }, index) => {
+											const SavingIcon = getIcon(saving.icon || 'circle');
+											const savingColors = getEntityTypeColors('saving');
+											return (
+												<Pressable
+													key={saving.id}
+													onPress={() => setReservationSaving(saving)}
+													className={`flex-row items-center px-4 py-3 ${
+														index > 0 ? 'border-t border-paper-300' : ''
+													}`}
+													testID={`account-reservation-row-${saving.id}`}
+												>
+													<View
+														className={`mr-3 h-8 w-8 items-center justify-center rounded-full ${savingColors.bg}`}
+													>
+														<SavingIcon
+															size={16}
+															color={savingColors.iconColor}
+														/>
+													</View>
+													<Text className="flex-1 font-sans text-base text-ink">
+														{saving.name}
+													</Text>
+													<Text
+														className="font-sans-semibold text-base text-ink"
+														style={{ fontVariant: ['tabular-nums'] }}
+													>
+														{formatAmount(amount, entity.currency)}
+													</Text>
+												</Pressable>
+											);
+										})}
+									</View>
+								) : (
+									<Text className="text-ink-faint font-sans text-sm">
+										Drag a savings goal onto this account to reserve funds
+									</Text>
+								)}
 							</View>
 						</View>
 					) : (
@@ -467,12 +622,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							</Text>
 							{savingReservations.length > 0 ? (
 								<View className="rounded-lg bg-paper-100">
-									{savingReservations.map(({ reservation, account }, index) => {
+									{savingReservations.map(({ amount, account }, index) => {
 										const AccountIcon = getIcon(account.icon || 'circle');
 										const accountColors = getEntityTypeColors('account');
 										return (
 											<Pressable
-												key={reservation.id}
+												key={account.id}
 												onPress={() => setReservationAccount(account)}
 												className={`flex-row items-center px-4 py-3 ${
 													index > 0 ? 'border-t border-paper-300' : ''
@@ -494,10 +649,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 													className="font-sans-semibold text-base text-ink"
 													style={{ fontVariant: ['tabular-nums'] }}
 												>
-													{formatAmount(
-														reservation.amount,
-														entity.currency
-													)}
+													{formatAmount(amount, entity.currency)}
 												</Text>
 											</Pressable>
 										);
@@ -531,6 +683,15 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					account={reservationAccount}
 					saving={entity}
 					onClose={() => setReservationAccount(null)}
+				/>
+			)}
+			{/* Reservation edit modal — opens from account detail when tapping a reservation row */}
+			{entity.type === 'account' && (
+				<ReservationModal
+					visible={reservationSaving !== null}
+					account={entity}
+					saving={reservationSaving}
+					onClose={() => setReservationSaving(null)}
 				/>
 			)}
 			<KeyboardExtender enabled={showExprToolbar}>

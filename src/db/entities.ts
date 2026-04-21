@@ -1,7 +1,7 @@
-import { eq, max, and } from 'drizzle-orm';
+import { eq, max, and, ne } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { entities, plans, reservations } from './drizzle-schema';
+import { entities, plans } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
@@ -37,6 +37,7 @@ export async function createEntity(entity: Entity): Promise<void> {
 		order: entity.order ?? 0,
 		include_in_total: entity.include_in_total ?? true,
 		is_deleted: entity.is_deleted ?? false,
+		is_default: entity.is_default ?? false,
 	});
 }
 
@@ -55,6 +56,7 @@ export async function updateEntity(entity: Entity): Promise<void> {
 			order: entity.order ?? 0,
 			include_in_total: entity.include_in_total ?? true,
 			is_deleted: entity.is_deleted ?? false,
+			is_default: entity.is_default ?? false,
 		})
 		.where(eq(entities.id, entity.id));
 }
@@ -74,14 +76,6 @@ export async function softDeleteEntity(id: string): Promise<void> {
 		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
 
 		tx.delete(plans).where(eq(plans.entity_id, id)).run();
-
-		if (entity.type === 'account') {
-			tx.delete(reservations).where(eq(reservations.account_entity_id, id)).run();
-		}
-
-		if (entity.type === 'saving') {
-			tx.delete(reservations).where(eq(reservations.saving_entity_id, id)).run();
-		}
 	});
 }
 
@@ -184,6 +178,17 @@ export async function moveEntity(
 	}
 
 	await updateEntityPositions(updates);
+}
+
+/** Clear is_default on all accounts except the given one (or all if excludeId is omitted). */
+export async function clearDefaultAccount(excludeId?: string): Promise<void> {
+	const db = await getDrizzleDb();
+	const conditions = [eq(entities.type, 'account'), eq(entities.is_default, true)];
+	if (excludeId) conditions.push(ne(entities.id, excludeId));
+	await db
+		.update(entities)
+		.set({ is_default: false })
+		.where(and(...conditions));
 }
 
 export async function deleteEntityAndReindex(entityId: string): Promise<void> {

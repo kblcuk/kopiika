@@ -96,7 +96,9 @@ async function createTransaction(fromName: string, toName: string, amount: strin
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
-	await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
+	await waitFor(element(by.id(TestIDs.homeScreen)))
+		.toBeVisible()
+		.withTimeout(5000);
 }
 
 async function createTransactionViaDnD(fromName: string, toName: string, amount: string) {
@@ -114,7 +116,7 @@ async function createTransactionViaDnD(fromName: string, toName: string, amount:
 		0.5, // target X center
 		0.5, // target Y center
 		'slow',
-		300, // holdDuration after reaching target
+		300 // holdDuration after reaching target
 	);
 
 	await waitFor(element(by.id(TestIDs.transaction.amountInput)))
@@ -123,7 +125,9 @@ async function createTransactionViaDnD(fromName: string, toName: string, amount:
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
-	await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
+	await waitFor(element(by.id(TestIDs.homeScreen)))
+		.toBeVisible()
+		.withTimeout(5000);
 }
 
 // Performs a DnD gesture without completing a transaction (for blocked/special flows).
@@ -141,7 +145,7 @@ async function dnd(fromName: string, toName: string) {
 		0.5,
 		0.5,
 		'slow',
-		300,
+		300
 	);
 }
 
@@ -159,18 +163,24 @@ describe('Transactions', () => {
 	beforeAll(async () => {
 		await device.launchApp({ delete: true });
 		await device.disableSynchronization();
-		await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(15000);
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(15000);
 		await dismissWhatsNewIfPresent();
 	});
 
 	beforeEach(async () => {
 		try {
-			await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(200);
+			await waitFor(element(by.id(TestIDs.homeScreen)))
+				.toBeVisible()
+				.withTimeout(200);
 		} catch {
 			// Not on home screen (e.g. modal left open) — relaunch to reset
 			await device.launchApp({ newInstance: true });
 			await device.disableSynchronization();
-			await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(10000);
+			await waitFor(element(by.id(TestIDs.homeScreen)))
+				.toBeVisible()
+				.withTimeout(10000);
 		}
 	});
 
@@ -198,7 +208,9 @@ describe('Transactions', () => {
 		await new Promise((r) => setTimeout(r, 500));
 		await element(by.id(TestIDs.transaction.cancelButton)).tap();
 
-		await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(5000);
 		jestExpect(await getAmount('Groceries')).toBeCloseTo(before, 2);
 	});
 
@@ -233,9 +245,9 @@ describe('Transactions', () => {
 		await createTransactionViaDnD('Salary', 'Main Card', '84.50');
 
 		// Income actual increases when distributed; if this passes, the transaction was saved
-		jestExpect(await getAmount('Salary')).toBeCloseTo(beforeSalary + 84.50, 2);
+		jestExpect(await getAmount('Salary')).toBeCloseTo(beforeSalary + 84.5, 2);
 		// Account balance increases when income flows in
-		jestExpect(await getAmount('Main Card')).toBeCloseTo(beforeCard + 84.50, 2);
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(beforeCard + 84.5, 2);
 	});
 
 	it('DnD Account → Account: money moves between accounts', async () => {
@@ -246,14 +258,14 @@ describe('Transactions', () => {
 
 		await createTransactionViaDnD('Main Card', 'Cash', '31.20');
 
-		jestExpect(await getAmount('Main Card')).toBeCloseTo(before.from - 31.20, 2);
-		jestExpect(await getAmount('Cash')).toBeCloseTo(before.to + 31.20, 2);
+		jestExpect(await getAmount('Main Card')).toBeCloseTo(before.from - 31.2, 2);
+		jestExpect(await getAmount('Cash')).toBeCloseTo(before.to + 31.2, 2);
 	});
 
 	// ── Refund & special flows ───────────────────────────────────────────────
 
 	it('DnD Category → Account: opens refund picker (reversed account→category)', async () => {
-		await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55.00 }]);
+		await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55.0 }]);
 		// openIncomeSection triggers the income animation, which calls remeasureAllDropZones()
 		// on animation end. Without this, drop zones may not be re-measured after seedFixture
 		// remounts the home screen, causing the DnD gesture to miss the drop target.
@@ -268,7 +280,7 @@ describe('Transactions', () => {
 	});
 
 	it('DnD Account → Income: opens refund picker (reversed income→account)', async () => {
-		await seedFixture([{ from: 'Salary', to: 'Main Card', amount: 200.00 }]);
+		await seedFixture([{ from: 'Salary', to: 'Main Card', amount: 200.0 }]);
 		await openIncomeSection();
 
 		await dnd('Main Card', 'Salary');
@@ -285,13 +297,13 @@ describe('Transactions', () => {
 		await waitFor(element(by.id(TestIDs.reservation.modal)))
 			.toBeVisible()
 			.withTimeout(5000);
-		// On iOS keyboard is auto-focused; first tap dismisses keyboard, second closes modal
-		await element(by.id(TestIDs.reservation.backdrop)).tap();
-		if (device.getPlatform() === 'ios') {
-			await new Promise((r) => setTimeout(r, 500));
-			await element(by.id(TestIDs.reservation.backdrop)).tap();
-		}
-		await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.reservation.cancelButton)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await element(by.id(TestIDs.reservation.cancelButton)).tap();
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(5000);
 	});
 
 	// ── Blocked via DnD ─────────────────────────────────────────────────────
@@ -316,11 +328,15 @@ describe('Transactions', () => {
 
 	it('[+] Income as from: categories not available as to-destination', async () => {
 		await element(by.id(TestIDs.addTransactionButton)).tap();
-		await waitFor(element(by.id(TestIDs.transaction.fromButton))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.transaction.fromButton)))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 
 		await element(by.id(TestIDs.transaction.fromButton)).tap();
-		await waitFor(element(by.id(TestIDs.fromOption('Salary')))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.fromOption('Salary'))))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 		await element(by.id(TestIDs.fromOption('Salary'))).tap();
 
@@ -331,20 +347,30 @@ describe('Transactions', () => {
 		await new Promise((r) => setTimeout(r, 500));
 
 		// Wait for the to-picker to open automatically after selecting income as from
-		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet)))
+			.toBeVisible()
+			.withTimeout(5000);
 
 		// Accounts must appear; categories must not
-		await waitFor(element(by.id(TestIDs.toOption('Main Card')))).toBeVisible().withTimeout(5000);
-		await waitFor(element(by.id(TestIDs.toOption('Groceries')))).not.toBeVisible().withTimeout(3000);
+		await waitFor(element(by.id(TestIDs.toOption('Main Card'))))
+			.toBeVisible()
+			.withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.toOption('Groceries'))))
+			.not.toBeVisible()
+			.withTimeout(3000);
 	});
 
 	it('[+] Account as from: savings not available as to-destination', async () => {
 		await element(by.id(TestIDs.addTransactionButton)).tap();
-		await waitFor(element(by.id(TestIDs.transaction.fromButton))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.transaction.fromButton)))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 
 		await element(by.id(TestIDs.transaction.fromButton)).tap();
-		await waitFor(element(by.id(TestIDs.fromOption('Main Card')))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.fromOption('Main Card'))))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 		await element(by.id(TestIDs.fromOption('Main Card'))).tap();
 
@@ -355,20 +381,30 @@ describe('Transactions', () => {
 		await new Promise((r) => setTimeout(r, 500));
 
 		// Wait for the to-picker to open automatically
-		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet)))
+			.toBeVisible()
+			.withTimeout(5000);
 
 		// Categories must appear; savings must not
-		await waitFor(element(by.id(TestIDs.toOption('Groceries')))).toBeVisible().withTimeout(5000);
-		await waitFor(element(by.id(TestIDs.toOption('Vacation')))).not.toBeVisible().withTimeout(3000);
+		await waitFor(element(by.id(TestIDs.toOption('Groceries'))))
+			.toBeVisible()
+			.withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.toOption('Vacation'))))
+			.not.toBeVisible()
+			.withTimeout(3000);
 	});
 
 	it('[+] Category as from: other categories not available as to-destination', async () => {
 		await element(by.id(TestIDs.addTransactionButton)).tap();
-		await waitFor(element(by.id(TestIDs.transaction.fromButton))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.transaction.fromButton)))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 
 		await element(by.id(TestIDs.transaction.fromButton)).tap();
-		await waitFor(element(by.id(TestIDs.fromOption('Groceries')))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.fromOption('Groceries'))))
+			.toBeVisible()
+			.withTimeout(5000);
 		await new Promise((r) => setTimeout(r, 500));
 		await element(by.id(TestIDs.fromOption('Groceries'))).tap();
 
@@ -379,10 +415,16 @@ describe('Transactions', () => {
 		await new Promise((r) => setTimeout(r, 500));
 
 		// Wait for the to-picker to open automatically
-		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet))).toBeVisible().withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.entitySelectionSheet.toSheet)))
+			.toBeVisible()
+			.withTimeout(5000);
 
 		// Accounts must appear; other categories must not
-		await waitFor(element(by.id(TestIDs.toOption('Main Card')))).toBeVisible().withTimeout(5000);
-		await waitFor(element(by.id(TestIDs.toOption('Transport')))).not.toBeVisible().withTimeout(3000);
+		await waitFor(element(by.id(TestIDs.toOption('Main Card'))))
+			.toBeVisible()
+			.withTimeout(5000);
+		await waitFor(element(by.id(TestIDs.toOption('Transport'))))
+			.not.toBeVisible()
+			.withTimeout(3000);
 	});
 });

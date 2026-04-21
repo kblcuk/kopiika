@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { Text } from './text';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ArrowRight, Calendar, Pencil, Split, Plus, X, Undo } from 'lucide-react-native';
+import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
+import type { RecurrenceFrequency } from '@/src/types/recurrence';
+import { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from '@/src/types/recurrence';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
@@ -49,6 +56,7 @@ interface TransactionModalProps {
 	existingTransaction?: Transaction;
 	/** Opens in quick-add mode: entity pickers shown upfront, no drag required */
 	quickAdd?: boolean;
+	seriesScope?: 'single' | 'future';
 }
 
 export function TransactionModal({
@@ -58,6 +66,7 @@ export function TransactionModal({
 	onClose,
 	existingTransaction,
 	quickAdd,
+	seriesScope,
 }: TransactionModalProps) {
 	const [amount, setAmount] = useState('');
 	const [note, setNote] = useState('');
@@ -80,9 +89,18 @@ export function TransactionModal({
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
+	const [isRepeat, setIsRepeat] = useState(false);
+	const [repeatFrequency, setRepeatFrequency] = useState<RecurrenceFrequency>('monthly');
+	const [repeatEndMode, setRepeatEndMode] = useState<'never' | 'until' | 'count'>('never');
+	const [repeatEndDate, setRepeatEndDate] = useState<Date | null>(null);
+	const [showRepeatEndDatePicker, setShowRepeatEndDatePicker] = useState(false);
+	const [repeatEndCount, setRepeatEndCount] = useState('');
+	const [repeatHorizon, setRepeatHorizon] = useState(DEFAULT_HORIZON_DAYS);
+
 	const addTransaction = useStore((state) => state.addTransaction);
 	const updateTransaction = useStore((state) => state.updateTransaction);
-	const upsertReservation = useStore((state) => state.upsertReservation);
+	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
+	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 	const entities = useStore((state) => state.entities);
 
 	const amountExpr = useExpressionInput(
@@ -115,14 +133,14 @@ export function TransactionModal({
 	// In quickAdd mode, currency follows the selected from-entity
 	const currency =
 		existingTransaction?.currency ??
-		fromEntity?.currency ??
 		selectedFromEntity?.currency ??
+		fromEntity?.currency ??
 		DEFAULT_CURRENCY;
 
 	const validFromEntities = useMemo(() => {
-		if (!isEditing || !selectedToEntity) return [];
+		if (!selectedToEntity) return [];
 		return getValidFromEntities(entities, selectedToEntity, currency);
-	}, [isEditing, selectedToEntity, entities, currency]);
+	}, [selectedToEntity, entities, currency]);
 
 	// In quickAdd mode, valid from-sources are income + account entities (things that can send money)
 	const quickAddFromEntities = useMemo(() => {
@@ -136,7 +154,6 @@ export function TransactionModal({
 	}, [quickAdd, entities]);
 
 	const validToEntities = useMemo(() => {
-		if (!isEditing && !quickAdd) return [];
 		if (!selectedFromEntity) return [];
 		return getValidToEntities(
 			entities,
@@ -144,13 +161,14 @@ export function TransactionModal({
 			currency,
 			selectedFromId ?? undefined
 		);
-	}, [isEditing, quickAdd, selectedFromEntity, entities, currency, selectedFromId]);
+	}, [selectedFromEntity, entities, currency, selectedFromId]);
 
 	// Valid targets for split entity picker
 	const validSplitTargets = useMemo(() => {
-		if (!fromEntity) return [];
-		return getValidToEntities(entities, fromEntity, currency);
-	}, [fromEntity, entities, currency]);
+		const source = selectedFromEntity ?? fromEntity;
+		if (!source) return [];
+		return getValidToEntities(entities, source, currency);
+	}, [selectedFromEntity, fromEntity, entities, currency]);
 
 	// Anchor = typed total - sum of all non-anchor splits
 	// Row 0 is always the anchor; its amount field in state is ignored
@@ -174,8 +192,15 @@ export function TransactionModal({
 				setAmount('');
 				setNote('');
 				setSelectedDate(new Date());
-				setSelectedFromId(null);
-				setSelectedToId(null);
+				// Pre-fill with default account in quickAdd mode
+				const currentEntities = useStore.getState().entities;
+				const defaultAccount = quickAdd
+					? currentEntities.find(
+							(e) => e.type === 'account' && e.is_default && !e.is_deleted
+						)
+					: null;
+				setSelectedFromId(fromEntity?.id ?? defaultAccount?.id ?? null);
+				setSelectedToId(toEntity?.id ?? null);
 			}
 			setShowDatePicker(false);
 			setShowFromSheet(false);
@@ -185,27 +210,38 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
+			setIsRepeat(false);
+			setRepeatFrequency('monthly');
+			setRepeatEndMode('never');
+			setRepeatEndDate(null);
+			setShowRepeatEndDatePicker(false);
+			setRepeatEndCount('');
+			setRepeatHorizon(DEFAULT_HORIZON_DAYS);
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, existingTransaction, quickAdd, amountExpr.inputRef]);
+	}, [visible, existingTransaction, quickAdd, amountExpr.inputRef, fromEntity?.id, toEntity?.id]);
 
 	const handleFromSelect = (entity: Entity) => {
 		setSelectedFromId(entity.id);
+		let toInvalidated = false;
 		if (selectedToId) {
 			const validTos = getValidToEntities(entities, entity, currency, entity.id);
-			if (!validTos.some((e) => e.id === selectedToId)) setSelectedToId(null);
+			if (!validTos.some((e) => e.id === selectedToId)) {
+				setSelectedToId(null);
+				toInvalidated = true;
+			}
 		}
-		// In quickAdd: automatically advance to the to-entity picker
-		if (quickAdd && !selectedToId) {
+		// Automatically advance to the to-entity picker when needed
+		if (toInvalidated || (!isEditing && !selectedToId)) {
 			setTimeout(() => setShowToSheet(true), 350);
 		}
 	};
 
 	const handleToSelect = (entity: Entity) => {
 		setSelectedToId(entity.id);
-		// In quickAdd: focus amount field after picking destination
-		if (quickAdd) {
+		// Focus amount field after picking destination
+		if (!isEditing) {
 			setTimeout(() => amountExpr.inputRef.current?.focus(), 350);
 		}
 	};
@@ -278,6 +314,13 @@ export function TransactionModal({
 		setSplits((prev) => prev.filter((_, i) => i !== index));
 	};
 
+	// ── Cancel ────────────────────────────────────────────────────────────────
+
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	// ── Guard: require entities ───────────────────────────────────────────────
 
 	if (isEditing) {
@@ -286,12 +329,15 @@ export function TransactionModal({
 		if (!fromEntity || !toEntity) return null;
 	}
 
-	// quickAdd uses selectedFrom/To (picked via sheets); drag-mode uses prop entities
-	const displayFromEntity = isEditing || quickAdd ? selectedFromEntity : fromEntity;
-	const displayToEntity = isEditing || quickAdd ? selectedToEntity : toEntity;
+	// All modes track selection via state; prop entities are fallback for first render
+	const displayFromEntity = selectedFromEntity ?? fromEntity;
+	const displayToEntity = selectedToEntity ?? toEntity;
 
 	const getSuggestedAmount = (): number | null => {
 		if (isEditing || !fromEntity || !toEntity || isSplitMode) return null;
+		// Hide if user changed entities from the DnD originals
+		if (displayFromEntity?.id !== fromEntity.id || displayToEntity?.id !== toEntity.id)
+			return null;
 		if (fromEntity.type === 'income')
 			return fromEntity.remaining > 0 ? fromEntity.remaining : null;
 		if (fromEntity.type === 'account' && toEntity.type === 'saving')
@@ -300,7 +346,7 @@ export function TransactionModal({
 	};
 	const suggestedAmount = getSuggestedAmount();
 
-	const entitiesSelected = quickAdd ? !!(selectedFromId && selectedToId) : true;
+	const entitiesSelected = !!(selectedFromId && selectedToId);
 
 	const canSave = isSplitMode
 		? // At least one saveable transaction: anchor with entity & positive amount, or any non-anchor with entity & positive amount
@@ -329,17 +375,18 @@ export function TransactionModal({
 						return result.getTime();
 					})();
 
-			if (isSplitMode && fromEntity) {
+			const splitFrom = displayFromEntity;
+			if (isSplitMode && splitFrom) {
 				const txns: Parameters<typeof addTransaction>[0][] = [];
 
 				// Anchor transaction (row 0)
 				if (splits[0]?.toEntityId && anchorAmount > 0) {
 					txns.push({
 						id: generateId(),
-						from_entity_id: fromEntity.id,
+						from_entity_id: splitFrom.id,
 						to_entity_id: splits[0].toEntityId,
 						amount: anchorAmount,
-						currency: fromEntity.currency,
+						currency: splitFrom.currency,
 						timestamp,
 						note: note.trim() || undefined,
 					});
@@ -350,10 +397,10 @@ export function TransactionModal({
 					if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
 					txns.push({
 						id: generateId(),
-						from_entity_id: fromEntity.id,
+						from_entity_id: splitFrom.id,
 						to_entity_id: split.toEntityId,
 						amount: amt,
-						currency: fromEntity.currency,
+						currency: splitFrom.currency,
 						timestamp,
 						note: note.trim() || undefined,
 					});
@@ -362,16 +409,22 @@ export function TransactionModal({
 				if (txns.length === 0) return;
 				for (const txn of txns) await addTransaction(txn);
 
-				// Reduce reservations for any savings the user chose to fund from
+				// Release savings reservations via saving→account transactions
+				// Always confirmed — releases are immediate regardless of main transaction date
 				const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
 				for (const f of splitFunded) {
-					await upsertReservation(
-						fromEntity.id,
-						f.savingEntityId,
-						f.currentReservation - f.fundAmount
-					);
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: f.savingEntityId,
+						to_entity_id: splitFrom.id,
+						amount: f.fundAmount,
+						currency: splitFrom.currency,
+						timestamp,
+						is_confirmed: true,
+					});
 				}
 
+				await KeyboardController.dismiss();
 				onClose();
 				return;
 			}
@@ -393,46 +446,73 @@ export function TransactionModal({
 					updates.from_entity_id = selectedFromId;
 				if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
 					updates.to_entity_id = selectedToId;
-				await updateTransaction(existingTransaction.id, updates);
-			} else if (quickAdd && selectedFromEntity && selectedToEntity) {
-				await addTransaction({
-					id: generateId(),
-					from_entity_id: selectedFromEntity.id,
-					to_entity_id: selectedToEntity.id,
-					amount: numAmount,
-					currency: selectedFromEntity.currency,
-					timestamp,
-					note: note.trim() || undefined,
-				});
-			} else if (fromEntity && toEntity) {
-				await addTransaction({
-					id: generateId(),
-					from_entity_id: fromEntity.id,
-					to_entity_id: toEntity.id,
-					amount: numAmount,
-					currency: fromEntity.currency,
-					timestamp,
-					note: note.trim() || undefined,
-				});
-			}
-
-			// Reduce reservations for any savings the user chose to fund from
-			const funded = fundingRef.current?.getFundedReservations() ?? [];
-			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
-			if (accountId) {
-				for (const f of funded) {
-					await upsertReservation(
-						accountId,
-						f.savingEntityId,
-						f.currentReservation - f.fundAmount
+				if (seriesScope) {
+					await updateTransactionWithScope(existingTransaction.id, updates, seriesScope);
+				} else {
+					await updateTransaction(existingTransaction.id, updates);
+				}
+			} else if (selectedFromEntity && selectedToEntity) {
+				if (isRepeat) {
+					await addRecurringTransaction(
+						{
+							from_entity_id: selectedFromEntity.id,
+							to_entity_id: selectedToEntity.id,
+							amount: numAmount,
+							currency: selectedFromEntity.currency,
+							timestamp,
+							note: note.trim() || undefined,
+						},
+						{
+							rule: { type: repeatFrequency },
+							endDate:
+								repeatEndMode === 'until' && repeatEndDate
+									? repeatEndDate.getTime()
+									: null,
+							endCount:
+								repeatEndMode === 'count' && repeatEndCount
+									? parseInt(repeatEndCount, 10)
+									: null,
+							horizon: repeatHorizon,
+						}
 					);
+				} else {
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: selectedFromEntity.id,
+						to_entity_id: selectedToEntity.id,
+						amount: numAmount,
+						currency: selectedFromEntity.currency,
+						timestamp,
+						note: note.trim() || undefined,
+					});
 				}
 			}
 
+			// Release savings reservations via saving→account transactions
+			// Always confirmed — releases are immediate regardless of main transaction date
+			const funded = fundingRef.current?.getFundedReservations() ?? [];
+			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
+			const fundCurrency = selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
+			if (accountId) {
+				for (const f of funded) {
+					await addTransaction({
+						id: generateId(),
+						from_entity_id: f.savingEntityId,
+						to_entity_id: accountId,
+						amount: f.fundAmount,
+						currency: fundCurrency,
+						timestamp,
+						is_confirmed: true,
+					});
+				}
+			}
+
+			KeyboardController.dismiss();
 			onClose();
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
 			// Still close so the user isn't stuck on a dead modal
+			KeyboardController.dismiss();
 			onClose();
 		}
 	};
@@ -469,7 +549,12 @@ export function TransactionModal({
 		const typeColors = getEntityTypeColors(entity.type);
 		const isTappable = !!onPress;
 		return (
-			<Pressable onPress={onPress} disabled={!isTappable} testID={testID} className="flex-1 items-center">
+			<Pressable
+				onPress={onPress}
+				disabled={!isTappable}
+				testID={testID}
+				className="flex-1 items-center"
+			>
 				<View className="relative">
 					<View
 						className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
@@ -499,7 +584,7 @@ export function TransactionModal({
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
@@ -507,7 +592,11 @@ export function TransactionModal({
 			>
 				{/* Header */}
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="transaction-cancel-button">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="transaction-cancel-button"
+					>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">
@@ -542,7 +631,7 @@ export function TransactionModal({
 					<View className="mb-8 flex-row items-start">
 						{renderEntityBubble(
 							displayFromEntity,
-							isEditing || quickAdd ? () => setShowFromSheet(true) : undefined,
+							() => setShowFromSheet(true),
 							quickAdd ? 'From' : undefined,
 							'transaction-from-button'
 						)}
@@ -551,11 +640,23 @@ export function TransactionModal({
 						</View>
 						{renderEntityBubble(
 							displayToEntity,
-							isEditing || quickAdd ? () => setShowToSheet(true) : undefined,
+							() => setShowToSheet(true),
 							quickAdd ? 'To' : undefined,
 							'transaction-to-button'
 						)}
 					</View>
+
+					{/* Series indicator */}
+					{isEditing && existingTransaction?.series_id && (
+						<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
+							<Text className="font-sans text-sm text-info">
+								Part of a recurring series
+								{seriesScope === 'future'
+									? ' — editing all future'
+									: ' — editing this one'}
+							</Text>
+						</View>
+					)}
 
 					{/* Amount / Total Paid */}
 					<View className="mb-6">
@@ -600,251 +701,38 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Split — only for account → category */}
-					{!isEditing &&
-						!quickAdd &&
-						fromEntity?.type === 'account' &&
-						toEntity?.type === 'category' && (
-							<View className="mb-6">
-								{isSplitMode ? (
-									<>
-										<View className="mb-2 flex-row items-center justify-between">
-											<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
-												Split
-											</Text>
-											<Pressable
-												onPress={handleMerge}
-												hitSlop={12}
-												className="flex-row items-center"
-												testID="split-merge-button"
-											>
-												<Undo size={14} color={colors.ink.muted} />
-												<Text className="ml-1 font-sans text-sm text-ink-muted">
-													Merge
-												</Text>
-											</Pressable>
-										</View>
-										<View className="overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
-											{splits.map((split, index) => {
-												const splitEntity = split.toEntityId
-													? entities.find(
-															(e) => e.id === split.toEntityId
-														)
-													: null;
-												const typeColors = splitEntity
-													? getEntityTypeColors(splitEntity.type)
-													: null;
-												const IconComponent = splitEntity
-													? getIcon(splitEntity.icon || 'circle')
-													: null;
-												const isAnchor = index === 0;
+					{/* Fund from savings — show when source is an account with reservations */}
+					{!isEditing && displayFromEntity?.type === 'account' && (
+						<SavingsFundingSection
+							ref={fundingRef}
+							accountEntityId={displayFromEntity.id}
+							currency={currency}
+							enteredAmount={
+								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+							}
+							onFundingChange={setTotalFunded}
+						/>
+					)}
 
-												return (
-													<View
-														key={split.id}
-														className="flex-row items-center px-3 py-2.5"
-														style={
-															index > 0
-																? {
-																		borderTopWidth: 1,
-																		borderTopColor:
-																			colors.border.light,
-																	}
-																: undefined
-														}
-														testID={`split-row-${index}`}
-													>
-														{/* Entity chip */}
-														<Pressable
-															onPress={() =>
-																setActiveSplitIndex(index)
-															}
-															className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
-															style={{ maxWidth: 140 }}
-															testID={`split-entity-${index}`}
-														>
-															{splitEntity &&
-															typeColors &&
-															IconComponent ? (
-																<>
-																	<View
-																		className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
-																	>
-																		<IconComponent
-																			size={11}
-																			color={
-																				typeColors.iconColor
-																			}
-																		/>
-																	</View>
-																	<Text
-																		className="font-sans text-sm text-ink"
-																		numberOfLines={1}
-																		style={{ flexShrink: 1 }}
-																	>
-																		{splitEntity.name}
-																	</Text>
-																</>
-															) : (
-																<Text className="font-sans text-sm text-ink-muted">
-																	Pick category
-																</Text>
-															)}
-															<Pencil
-																size={9}
-																color={colors.ink.placeholder}
-																style={{
-																	marginLeft: 4,
-																	flexShrink: 0,
-																}}
-															/>
-														</Pressable>
-
-														{/* Amount area */}
-														{isAnchor ? (
-															// Anchor: auto-computed, read-only
-															<View
-																className="flex-1 flex-row items-center justify-end"
-																testID="split-anchor-amount"
-															>
-																<Text
-																	className="font-sans-semibold text-lg"
-																	style={{
-																		color:
-																			anchorAmount >= 0
-																				? colors.ink.light
-																				: colors.negative
-																						.DEFAULT,
-																	}}
-																>
-																	{anchorAmount < 0 ? '-' : ''}
-																	{roundMoney(
-																		Math.abs(anchorAmount)
-																	)}
-																</Text>
-																<Text className="ml-1 font-sans text-xs text-ink-muted">
-																	auto
-																</Text>
-															</View>
-														) : (
-															// Non-anchor: editable + "use remaining" chip
-															<View className="flex-1 flex-row items-center justify-end">
-																{!split.amount &&
-																	anchorAmount > 0 && (
-																		<Pressable
-																			onPress={() =>
-																				handleSplitAmountChange(
-																					index,
-																					roundMoney(
-																						anchorAmount
-																					).toString()
-																				)
-																			}
-																			className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
-																			testID={`split-remaining-chip-${index}`}
-																		>
-																			<Text className="font-sans text-xs text-positive">
-																				→{' '}
-																				{formatAmount(
-																					anchorAmount
-																				)}
-																			</Text>
-																		</Pressable>
-																	)}
-																<TextInput
-																	{...sharedNumericTextInputProps}
-																	value={split.amount}
-																	onChangeText={(v) =>
-																		handleSplitAmountChange(
-																			index,
-																			v
-																		)
-																	}
-																	placeholder="0"
-																	keyboardType="numeric"
-																	className={
-																		textInputClassNames.inlineAmountInput
-																	}
-																	style={[
-																		styles.input,
-																		{
-																			textAlign: 'right',
-																			minWidth: 48,
-																		},
-																	]}
-																	placeholderTextColor={
-																		colors.ink.placeholder
-																	}
-																	testID={`split-amount-${index}`}
-																/>
-															</View>
-														)}
-
-														<Text className="ml-1 font-sans text-sm text-ink-muted">
-															{getCurrencySymbol(currency)}
-														</Text>
-
-														{/* Remove (non-anchor only, disabled at minimum) */}
-														{!isAnchor && (
-															<Pressable
-																onPress={() =>
-																	handleRemoveSplit(index)
-																}
-																disabled={splits.length <= 2}
-																hitSlop={12}
-																className="ml-2"
-																testID={`split-remove-${index}`}
-															>
-																<X
-																	size={16}
-																	color={
-																		splits.length <= 2
-																			? colors.border.DEFAULT
-																			: colors.ink.placeholder
-																	}
-																/>
-															</Pressable>
-														)}
-													</View>
-												);
-											})}
-
-											{/* Add split */}
-											<Pressable
-												onPress={handleAddSplit}
-												className="flex-row items-center px-3 py-2.5"
-												style={{
-													borderTopWidth: 1,
-													borderTopColor: colors.border.light,
-												}}
-												testID="split-add-button"
-											>
-												<Plus size={14} color={colors.ink.muted} />
-												<Text className="ml-2 font-sans text-sm text-ink-muted">
-													Add split
-												</Text>
-											</Pressable>
-										</View>
-									</>
-								) : (
-									<Pressable
-										onPress={handleEnterSplitMode}
-										className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
-										style={{
-											borderWidth: 1,
-											borderColor: colors.border.dashed,
-											borderStyle: 'dashed',
-										}}
-										testID="split-toggle-button"
-									>
-										<Split size={14} color={colors.ink.muted} />
-										<Text className="ml-2 font-sans text-sm text-ink-muted">
-											Split between categories
-										</Text>
-									</Pressable>
-								)}
-							</View>
-						)}
+					{/* Note */}
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Note (optional)
+						</Text>
+						<View className={textInputClassNames.container}>
+							<TextInput
+								{...sharedTextInputProps}
+								ref={inputRef}
+								value={note}
+								onChangeText={setNote}
+								placeholder="Add a note..."
+								className={textInputClassNames.input}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="transaction-note-input"
+							/>
+						</View>
+					</View>
 
 					{/* Date */}
 					<View className="mb-6">
@@ -895,37 +783,426 @@ export function TransactionModal({
 						)}
 					</View>
 
-					{/* Note */}
-					<View className="pb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Note (optional)
-						</Text>
-						<View className={textInputClassNames.container}>
-							<TextInput
-								{...sharedTextInputProps}
-								ref={inputRef}
-								value={note}
-								onChangeText={setNote}
-								placeholder="Add a note..."
-								className={textInputClassNames.input}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="transaction-note-input"
-							/>
-						</View>
-					</View>
+					{/* Split — only for account → category */}
+					{!isEditing &&
+						!quickAdd &&
+						fromEntity?.type === 'account' &&
+						toEntity?.type === 'category' && (
+							<View className="mb-6">
+								<Pressable
+									onPress={isSplitMode ? handleMerge : handleEnterSplitMode}
+									className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+									style={{
+										borderWidth: 1,
+										borderColor: isSplitMode
+											? colors.accent.DEFAULT
+											: colors.border.dashed,
+										borderStyle: isSplitMode ? 'solid' : 'dashed',
+									}}
+									testID="split-toggle-button"
+								>
+									<Split
+										size={14}
+										color={
+											isSplitMode ? colors.accent.DEFAULT : colors.ink.muted
+										}
+									/>
+									<Text
+										className={`ml-2 font-sans text-sm ${isSplitMode ? 'text-accent' : 'text-ink-muted'}`}
+									>
+										Split
+									</Text>
+								</Pressable>
 
-					{/* Fund from savings — show when source is an account with reservations */}
-					{!isEditing && displayFromEntity?.type === 'account' && (
-						<SavingsFundingSection
-							ref={fundingRef}
-							accountEntityId={displayFromEntity.id}
-							currency={currency}
-							enteredAmount={
-								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
-							}
-							onFundingChange={setTotalFunded}
-						/>
+								{isSplitMode && (
+									<View className="mt-3 overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
+										{splits.map((split, index) => {
+											const splitEntity = split.toEntityId
+												? entities.find((e) => e.id === split.toEntityId)
+												: null;
+											const typeColors = splitEntity
+												? getEntityTypeColors(splitEntity.type)
+												: null;
+											const IconComponent = splitEntity
+												? getIcon(splitEntity.icon || 'circle')
+												: null;
+											const isAnchor = index === 0;
+
+											return (
+												<View
+													key={split.id}
+													className="flex-row items-center px-3 py-2.5"
+													style={
+														index > 0
+															? {
+																	borderTopWidth: 1,
+																	borderTopColor:
+																		colors.border.light,
+																}
+															: undefined
+													}
+													testID={`split-row-${index}`}
+												>
+													{/* Entity chip */}
+													<Pressable
+														onPress={() => setActiveSplitIndex(index)}
+														className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
+														style={{ maxWidth: 140 }}
+														testID={`split-entity-${index}`}
+													>
+														{splitEntity &&
+														typeColors &&
+														IconComponent ? (
+															<>
+																<View
+																	className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
+																>
+																	<IconComponent
+																		size={11}
+																		color={typeColors.iconColor}
+																	/>
+																</View>
+																<Text
+																	className="font-sans text-sm text-ink"
+																	numberOfLines={1}
+																	style={{ flexShrink: 1 }}
+																>
+																	{splitEntity.name}
+																</Text>
+															</>
+														) : (
+															<Text className="font-sans text-sm text-ink-muted">
+																Pick category
+															</Text>
+														)}
+														<Pencil
+															size={9}
+															color={colors.ink.placeholder}
+															style={{
+																marginLeft: 4,
+																flexShrink: 0,
+															}}
+														/>
+													</Pressable>
+
+													{/* Amount area */}
+													{isAnchor ? (
+														// Anchor: auto-computed, read-only
+														<View
+															className="flex-1 flex-row items-center justify-end"
+															testID="split-anchor-amount"
+														>
+															<Text
+																className="font-sans-semibold text-lg"
+																style={{
+																	color:
+																		anchorAmount >= 0
+																			? colors.ink.light
+																			: colors.negative
+																					.DEFAULT,
+																}}
+															>
+																{anchorAmount < 0 ? '-' : ''}
+																{roundMoney(Math.abs(anchorAmount))}
+															</Text>
+															<Text className="ml-1 font-sans text-xs text-ink-muted">
+																auto
+															</Text>
+														</View>
+													) : (
+														// Non-anchor: editable + "use remaining" chip
+														<View className="flex-1 flex-row items-center justify-end">
+															{!split.amount && anchorAmount > 0 && (
+																<Pressable
+																	onPress={() =>
+																		handleSplitAmountChange(
+																			index,
+																			roundMoney(
+																				anchorAmount
+																			).toString()
+																		)
+																	}
+																	className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
+																	testID={`split-remaining-chip-${index}`}
+																>
+																	<Text className="font-sans text-xs text-positive">
+																		→{' '}
+																		{formatAmount(anchorAmount)}
+																	</Text>
+																</Pressable>
+															)}
+															<TextInput
+																{...sharedNumericTextInputProps}
+																value={split.amount}
+																onChangeText={(v) =>
+																	handleSplitAmountChange(
+																		index,
+																		v
+																	)
+																}
+																placeholder="0"
+																keyboardType="numeric"
+																className={
+																	textInputClassNames.inlineAmountInput
+																}
+																style={[
+																	styles.input,
+																	{
+																		textAlign: 'right',
+																		minWidth: 48,
+																	},
+																]}
+																placeholderTextColor={
+																	colors.ink.placeholder
+																}
+																testID={`split-amount-${index}`}
+															/>
+														</View>
+													)}
+
+													<Text className="ml-1 font-sans text-sm text-ink-muted">
+														{getCurrencySymbol(currency)}
+													</Text>
+
+													{/* Remove (non-anchor only, disabled at minimum) */}
+													{!isAnchor && (
+														<Pressable
+															onPress={() => handleRemoveSplit(index)}
+															disabled={splits.length <= 2}
+															hitSlop={12}
+															className="ml-2"
+															testID={`split-remove-${index}`}
+														>
+															<X
+																size={16}
+																color={
+																	splits.length <= 2
+																		? colors.border.DEFAULT
+																		: colors.ink.placeholder
+																}
+															/>
+														</Pressable>
+													)}
+												</View>
+											);
+										})}
+
+										{/* Add split */}
+										<Pressable
+											onPress={handleAddSplit}
+											className="flex-row items-center px-3 py-2.5"
+											style={{
+												borderTopWidth: 1,
+												borderTopColor: colors.border.light,
+											}}
+											testID="split-add-button"
+										>
+											<Plus size={14} color={colors.ink.muted} />
+											<Text className="ml-2 font-sans text-sm text-ink-muted">
+												Add split
+											</Text>
+										</Pressable>
+									</View>
+								)}
+							</View>
+						)}
+
+					{/* Repeat — create mode only */}
+					{!isEditing && (
+						<View className="mb-6">
+							<Pressable
+								onPress={() => setIsRepeat((v) => !v)}
+								className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+								style={{
+									borderWidth: 1,
+									borderColor: isRepeat
+										? colors.accent.DEFAULT
+										: colors.border.dashed,
+									borderStyle: isRepeat ? 'solid' : 'dashed',
+								}}
+								testID="repeat-toggle"
+							>
+								<Repeat
+									size={14}
+									color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted}
+								/>
+								<Text
+									className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+								>
+									Repeat
+								</Text>
+							</Pressable>
+
+							{isRepeat && (
+								<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
+									{/* Frequency */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Frequency
+									</Text>
+									<View className="mb-4 flex-row gap-2">
+										{(['daily', 'weekly', 'monthly', 'yearly'] as const).map(
+											(freq) => (
+												<Pressable
+													key={freq}
+													onPress={() => setRepeatFrequency(freq)}
+													className={`flex-1 items-center rounded-lg py-2 ${
+														repeatFrequency === freq
+															? 'bg-accent'
+															: 'bg-paper-200'
+													}`}
+													testID={`repeat-freq-${freq}`}
+												>
+													<Text
+														className={`font-sans text-sm capitalize ${
+															repeatFrequency === freq
+																? 'text-on-color'
+																: 'text-ink-muted'
+														}`}
+													>
+														{freq}
+													</Text>
+												</Pressable>
+											)
+										)}
+									</View>
+
+									{/* End condition */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Ends
+									</Text>
+									<View className="mb-4 flex-row gap-2">
+										{(['never', 'until', 'count'] as const).map((mode) => (
+											<Pressable
+												key={mode}
+												onPress={() => setRepeatEndMode(mode)}
+												className={`flex-1 items-center rounded-lg py-2 ${
+													repeatEndMode === mode
+														? 'bg-accent'
+														: 'bg-paper-200'
+												}`}
+												testID={`repeat-end-${mode}`}
+											>
+												<Text
+													className={`font-sans text-sm ${
+														repeatEndMode === mode
+															? 'text-on-color'
+															: 'text-ink-muted'
+													}`}
+												>
+													{mode === 'never'
+														? 'Never'
+														: mode === 'until'
+															? 'Until date'
+															: 'After N'}
+												</Text>
+											</Pressable>
+										))}
+									</View>
+
+									{repeatEndMode === 'until' && (
+										<View className="mb-4">
+											{Platform.OS === 'ios' ? (
+												<DateTimePicker
+													value={repeatEndDate ?? new Date()}
+													mode="date"
+													display="compact"
+													onChange={(_, date) =>
+														date && setRepeatEndDate(date)
+													}
+													minimumDate={selectedDate}
+													accentColor={colors.accent.deeper}
+												/>
+											) : (
+												<>
+													<Pressable
+														onPress={() =>
+															setShowRepeatEndDatePicker(true)
+														}
+														className="border-paper-400 flex-row items-center rounded-lg border bg-paper-200 px-3 py-2"
+													>
+														<Calendar
+															size={16}
+															color={colors.ink.muted}
+														/>
+														<Text className="ml-2 font-sans text-sm text-ink">
+															{repeatEndDate
+																? repeatEndDate.toLocaleDateString(
+																		undefined,
+																		{
+																			month: 'short',
+																			day: 'numeric',
+																			year: 'numeric',
+																		}
+																	)
+																: 'Pick end date'}
+														</Text>
+													</Pressable>
+													{showRepeatEndDatePicker && (
+														<DateTimePicker
+															value={repeatEndDate ?? new Date()}
+															mode="date"
+															display="default"
+															onChange={(event, date) => {
+																setShowRepeatEndDatePicker(false);
+																if (event.type === 'set' && date) {
+																	setRepeatEndDate(date);
+																}
+															}}
+															minimumDate={selectedDate}
+														/>
+													)}
+												</>
+											)}
+										</View>
+									)}
+
+									{repeatEndMode === 'count' && (
+										<View className="mb-4">
+											<TextInput
+												{...sharedNumericTextInputProps}
+												value={repeatEndCount}
+												onChangeText={setRepeatEndCount}
+												placeholder="Number of times"
+												keyboardType="number-pad"
+												className={textInputClassNames.input}
+												style={styles.input}
+												placeholderTextColor={colors.ink.placeholder}
+												testID="repeat-end-count-input"
+											/>
+										</View>
+									)}
+
+									{/* Horizon */}
+									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+										Generate ahead
+									</Text>
+									<View className="flex-row gap-2">
+										{HORIZON_OPTIONS.map((opt) => (
+											<Pressable
+												key={opt.days}
+												onPress={() => setRepeatHorizon(opt.days)}
+												className={`flex-1 items-center rounded-lg py-2 ${
+													repeatHorizon === opt.days
+														? 'bg-accent'
+														: 'bg-paper-200'
+												}`}
+												testID={`repeat-horizon-${opt.days}`}
+											>
+												<Text
+													className={`font-sans text-xs ${
+														repeatHorizon === opt.days
+															? 'text-on-color'
+															: 'text-ink-muted'
+													}`}
+												>
+													{opt.label}
+												</Text>
+											</Pressable>
+										))}
+									</View>
+								</View>
+							)}
+						</View>
 					)}
 				</KeyboardAwareScrollView>
 			</View>
@@ -937,7 +1214,7 @@ export function TransactionModal({
 				/>
 			</KeyboardExtender>
 
-			{/* Entity pickers (edit-mode and quickAdd) */}
+			{/* Entity pickers */}
 			<EntitySelectionSheet
 				visible={showFromSheet}
 				title="Select Source"

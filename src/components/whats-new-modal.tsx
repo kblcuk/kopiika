@@ -1,7 +1,9 @@
-import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Pressable, Modal, ScrollView } from 'react-native';
+import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getLatestChangelog, type ChangelogSection } from '@/src/utils/changelog';
+import { SheetHeader } from './sheet-header';
 
 interface WhatsNewModalProps {
 	visible: boolean;
@@ -47,12 +49,17 @@ export function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
 
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-			<Pressable testID="whats-new-backdrop" className="flex-1" onPress={onClose} />
+			<Pressable
+				testID="whats-new-backdrop"
+				className="flex-1 bg-black/25"
+				onPress={onClose}
+			/>
 
 			<View
-				className="rounded-t-3xl bg-paper-50 px-6 pb-4 pt-6"
+				className="rounded-t-3xl border-t border-paper-300 bg-paper-50 px-6 pb-4 pt-2"
 				style={{ paddingBottom: Math.max(insets.bottom, 16) }}
 			>
+				<SheetHeader onClose={onClose} />
 				{/* Header */}
 				<Text className="mb-1 font-sans-bold text-xl text-ink">What&apos;s New</Text>
 				<Text className="mb-5 font-sans text-sm text-ink-muted">

@@ -2,6 +2,10 @@
 
 .claude
 CLAUDE.local.md
+.superpowers
+CLAUDE.md
+docs/superpowers/
+docs/test-cleanup-plan-2026-03-15.md
 
 # git worktrees are great
 .worktrees
@@ -60,3 +64,4 @@ fastlane/*.dSYM.zip
 *.ipa
 *.zip
 *.cer
+

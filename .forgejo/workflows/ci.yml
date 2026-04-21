@@ -1,0 +1,48 @@
+name: CI
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    check:
+        runs-on: docker
+        container:
+            image: node:lts-bookworm-slim
+        steps:
+            - name: Checkout
+              uses: https://code.forgejo.org/actions/checkout@v4
+
+            - name: Install OS dependencies (curl et al)
+              run: apt-get update -qq && apt-get install -y -qq curl git unzip > /dev/null
+
+            - name: Install bun
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
+                  echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+            - name: Setup cache
+              uses: https://code.forgejo.org/actions/cache@v4
+
+              id: cache
+              with:
+                  path: node_modules
+                  key: modules-${{ hashFiles('bun.lock') }}
+
+            - name: Install dependencies
+              if: steps.cache.outputs.cache-hit != 'true'
+              env:
+                  BUN_CONFIG_DNS_PREFER: ipv4
+              run: bun install --frozen-lockfile
+
+            - name: Format
+              run: bun run fmt:check
+
+            - name: Lint
+              run: bun run lint
+
+            - name: Types
+              run: bun run types
+
+            - name: Unit and component tests
+              run: bun run test

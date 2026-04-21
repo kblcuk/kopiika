@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Alert, Linking } from 'react-native';
+import { View, Pressable, Alert, Linking } from 'react-native';
+import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';

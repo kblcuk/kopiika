@@ -28,6 +28,7 @@ export function roundMoney(amount: number): number {
 
 // Format currency amounts
 export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY): string {
+	amount = roundMoney(amount) || 0; // Normalize tiny negatives and -0 to 0
 	const absAmount = Math.abs(amount);
 	const formatted = new Intl.NumberFormat(void 0, {
 		minimumFractionDigits: 2,

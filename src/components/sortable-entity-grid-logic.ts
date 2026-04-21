@@ -1,4 +1,5 @@
 import type { EntityType } from '@/src/types';
+import { isAllowedPair } from '@/src/utils/transaction-validation';
 
 interface ResolveGridDragEndArgs {
 	dragBehavior: 'transaction' | 'reorder';
@@ -29,10 +30,10 @@ export function resolveGridDragEnd({
 	orderedIds,
 }: ResolveGridDragEndArgs): GridDragEndResult {
 	if (dragBehavior === 'transaction' && targetId && targetType) {
-		const isCrossType = targetType !== sourceType;
-		const isSameTypeTransfer = sourceType === 'account' && targetType === 'account';
-
-		if ((isCrossType || isSameTypeTransfer) && sourceType !== 'saving') {
+		// Allow if either direction is a valid transaction pair.
+		// Forward (source→target) opens a transaction/reservation modal;
+		// reverse (target→source) opens the refund picker.
+		if (isAllowedPair(sourceType, targetType) || isAllowedPair(targetType, sourceType)) {
 			return { kind: 'transaction', targetId };
 		}
 	}

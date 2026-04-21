@@ -72,5 +72,6 @@ export const colors = {
 		healthy: '#E8F5EC', // Green tint
 		warning: '#FFF4E6', // Amber tint
 		overspent: '#FDEAEA', // Red tint
+		goal: '#E5EFF8', // Blue tint (savings goals in progress)
 	},
 };

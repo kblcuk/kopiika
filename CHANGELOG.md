@@ -2,6 +2,126 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.3](https://codeberg.org/kblcuk/kopiika/compare/v0.3.2...v0.3.3) (2026-04-20)
+
+
+### Features
+
+* add transaction confirmation for future-dated and recurring transactions (KII-65) ([52dd98f](https://codeberg.org/kblcuk/kopiika/commit/52dd98f70d130d018355fcda4a3f48219ed6c447))
+
+
+### Bug Fixes
+
+* **android:** add Text wrapper to disable includeFontPadding globally (KII-89) ([5400955](https://codeberg.org/kblcuk/kopiika/commit/540095549269403571537b1ed4cc4a1419fc12c5))
+* scope account upcoming indicator to current month (KII-89) ([b033be5](https://codeberg.org/kblcuk/kopiika/commit/b033be5095cdb2e620ff70f667dcb46919e3c2d6))
+
+## [0.3.2](https://codeberg.org/kblcuk/kopiika/compare/v0.3.1...v0.3.2) (2026-04-19)
+
+## [0.3.1](https://codeberg.org/kblcuk/kopiika/compare/v0.3.0...v0.3.1) (2026-04-19)
+
+
+### Features
+
+* **dnd:** add computeEdgeSpeed worklet utility and SECTION_INDEX (KII-12) ([258b068](https://codeberg.org/kblcuk/kopiika/commit/258b0685e82258bf705748e39d22692798dda364))
+* **dnd:** useDragAutoScroll hook — UI-thread vertical + horizontal auto-scroll (KII-12) ([c6a057f](https://codeberg.org/kblcuk/kopiika/commit/c6a057f0004c908ea1ce47e44baaaca2ee70821f))
+* **dnd:** wire drag auto-scroll into grid and home screen (KII-12) ([38806db](https://codeberg.org/kblcuk/kopiika/commit/38806dbd24354d5f423ecc0daa016a5bace7c52a))
+* **history:** show scheduled date on upcoming transactions ([819c602](https://codeberg.org/kblcuk/kopiika/commit/819c60261e4a4a4a836bf2bb856f35486fd1a705))
+* **recurrence:** Add entity deletion prompt for active templates ([d35a7a3](https://codeberg.org/kblcuk/kopiika/commit/d35a7a32d99afbb0403ae9de77af2caec63d3782))
+* **recurrence:** Add occurrence generation logic with TDD (KII-66) ([f699af6](https://codeberg.org/kblcuk/kopiika/commit/f699af6403db7a9cc805aec039423f17637104f5))
+* **recurrence:** Add recurrence state, backfill, and series actions to store ([34e15c7](https://codeberg.org/kblcuk/kopiika/commit/34e15c78ca967c0d877caf974dc893d20cccd745))
+* **recurrence:** add recurrence template CRUD with TDD (KII-66) ([b9863b7](https://codeberg.org/kblcuk/kopiika/commit/b9863b7badcd6d410507e63a276fb17dd18b0ba4))
+* **recurrence:** add recurrence_templates schema and migration (KII-66) ([7f3adf3](https://codeberg.org/kblcuk/kopiika/commit/7f3adf33547d110b901294fd1bee9b1eee6580df))
+* **recurrence:** Add repeat UI to transaction modal (KII-66) ([0a5e7f4](https://codeberg.org/kblcuk/kopiika/commit/0a5e7f47742c469f80a41376c261bee658f61450))
+* **recurrence:** Add series action sheets for edit/delete (KII-66) ([6d457ba](https://codeberg.org/kblcuk/kopiika/commit/6d457ba390e4c98f208d0a8fc1d335c6be65c5cc))
+* **recurrence:** add series-aware transaction queries with TDD (KII-66) ([720e72a](https://codeberg.org/kblcuk/kopiika/commit/720e72a092e298c9843d567a5e0ad6d67a992b49))
+* **recurrence:** final integration and export/import support (KII-66) ([08a6f71](https://codeberg.org/kblcuk/kopiika/commit/08a6f71914e0f165deabbbe24ecfeb33eaba0c1b))
+* **recurrence:** show repeat icon on series transactions (KII-66) ([396eea5](https://codeberg.org/kblcuk/kopiika/commit/396eea5843f8cd84819230c5b7069823209dd753))
+* **savings:** Open reservation amount field empty instead of pre-filled ([fcc8a3e](https://codeberg.org/kblcuk/kopiika/commit/fcc8a3e4c069a620ff9329bdb19c07bc75adf02e))
+* **sheet:** add SheetHeader and backdrop dimming to whats-new modal ([66db069](https://codeberg.org/kblcuk/kopiika/commit/66db06936ba05fa385f327ea48f32f2cbc8c7c73))
+* **sheet:** add SheetHeader component with grabber pill and close button ([d5490ea](https://codeberg.org/kblcuk/kopiika/commit/d5490ea6d15744b5c4b3652e4c4bbe7cfab7f567))
+* **sheet:** convert reservation modal to pageSheet with header bar ([cf40cd0](https://codeberg.org/kblcuk/kopiika/commit/cf40cd02ffb8d6bebcb4c3a8e8ee8d5b1c62d4b1))
+
+
+### Bug Fixes
+
+* **recurrence:** add entity relation backrefs and series_id comment ([5b6897f](https://codeberg.org/kblcuk/kopiika/commit/5b6897f2f40d00faf0404f99c8a9db614d745a05))
+* **recurrence:** address review — monthly drift, batch atomicity, import series_id, store consistency ([3e6e0c2](https://codeberg.org/kblcuk/kopiika/commit/3e6e0c21a04824df7ec4dd4c0884071fc24c734e))
+* **recurrence:** review fixes — template store sync, Date.now race, unused param ([ef53508](https://codeberg.org/kblcuk/kopiika/commit/ef53508fcb72eeeefdee3e5e72d7fe4178253d88))
+* **test:** Align react-test-renderer with React 19.2 and fix test setup ([fbaf7b4](https://codeberg.org/kblcuk/kopiika/commit/fbaf7b43885542bee6615742c55fa4110bdce490))
+
+## [0.3.0](https://codeberg.org/kblcuk/kopiika/compare/v0.2.20...v0.3.0) (2026-04-18)
+
+
+### Bug Fixes
+
+* **accounts:** Recreate system entity on initialize if missing ([2e0369d](https://codeberg.org/kblcuk/kopiika/commit/2e0369d1b9fb9c3056d80a2e8df4322eb69052ec))
+* **format:** prevent "-0,00" display for near-zero balances ([010ac9a](https://codeberg.org/kblcuk/kopiika/commit/010ac9a575bd3782a72d9e2deab685bc39421511))
+
+## [0.2.20](https://codeberg.org/kblcuk/kopiika/compare/v0.2.19...v0.2.20) (2026-04-17)
+
+
+### Bug Fixes
+
+* **modals:** Dismiss keyboard on cancel/dismiss paths (iOS) ([8da2bec](https://codeberg.org/kblcuk/kopiika/commit/8da2bec5dfb35a5ce88a756e1608297480a04778))
+* **transactions:** Add missing useEffect deps for entity pre-fill ([39dab6b](https://codeberg.org/kblcuk/kopiika/commit/39dab6b054e09e061248b0c3132c4206b0327a3a))
+
+## [0.2.19](https://codeberg.org/kblcuk/kopiika/compare/v0.2.18...v0.2.19) (2026-04-13)
+
+
+### Features
+
+* **transactions:** Allow changing From and To entities in DnD flow ([d3c68ce](https://codeberg.org/kblcuk/kopiika/commit/d3c68ce7af3362fa0882c480f82af041b796b2f4))
+
+
+### Bug Fixes
+
+* **modals:** Dismiss keyboard before closing modals ([81ad076](https://codeberg.org/kblcuk/kopiika/commit/81ad076e8c4335b623a5de6ffcd05cb400308c1f))
+* **transactions:** Exclude balance adjustment from entity pickers ([c903782](https://codeberg.org/kblcuk/kopiika/commit/c9037823e55ce289420042f02cb4f9299648cc6f))
+
+## [0.2.18](https://codeberg.org/kblcuk/kopiika/compare/v0.2.17...v0.2.18) (2026-04-11)
+
+
+### Features
+
+* **accounts:** Add default account setting for transactions ([7fa3b41](https://codeberg.org/kblcuk/kopiika/commit/7fa3b41649b8d0bdaf7d3c82e8fd3e5cb2ef14ad))
+* **history:** Redesign transaction row to stacked layout ([72bf663](https://codeberg.org/kblcuk/kopiika/commit/72bf663f45a18bb97a6f835fdb75b8e23546e009))
+
+## [0.2.17](https://codeberg.org/kblcuk/kopiika/compare/v0.2.16...v0.2.17) (2026-04-11)
+
+
+### Bug Fixes
+
+* **accounts:** Stop double-counting savings transfers in account available balance ([b81af7c](https://codeberg.org/kblcuk/kopiika/commit/b81af7c33ee2de4a60533cfefdc85a4391a7dae4))
+
+## [0.2.16](https://codeberg.org/kblcuk/kopiika/compare/v0.2.15...v0.2.16) (2026-04-11)
+
+
+### Features
+
+* **accounts:** Show per-saving reservation breakdown in account edit mode (KII-70) ([fa8564b](https://codeberg.org/kblcuk/kopiika/commit/fa8564bc0c5d9194d4c5382fa2069393da349586))
+* **history:** Add transaction search by note and amount (KII-78) ([218139c](https://codeberg.org/kblcuk/kopiika/commit/218139ce56706e54798d7d09301e6998733eabf1))
+
+## [0.2.15](https://codeberg.org/kblcuk/kopiika/compare/v0.2.14...v0.2.15) (2026-04-11)
+
+
+### Features
+
+* **savings:** Promote reservations to transactions for History visibility (KII-61) ([c30e180](https://codeberg.org/kblcuk/kopiika/commit/c30e18027539f7136d0d56c6554e200e13d00428))
+
+## [0.2.14](https://codeberg.org/kblcuk/kopiika/compare/v0.2.13...v0.2.14) (2026-04-06)
+
+
+### Features
+
+* **accounts:** Remove planned amount from creation and show entity name in removed labels (KII-52) ([97edcc6](https://codeberg.org/kblcuk/kopiika/commit/97edcc6997b60176d371d76571da97e25d3916d8))
+* **savings:** Use light blue progress for in-progress goals (KII-54) ([34657a0](https://codeberg.org/kblcuk/kopiika/commit/34657a0c48662b8dcaea1fe866a97b1d05ef5589))
+
+
+### Bug Fixes
+
+* **categories:** Lower healthy progress threshold from 70% to 60% (KII-53) ([c877653](https://codeberg.org/kblcuk/kopiika/commit/c877653520006949be7874772df87b334310c93a))
+* **keyboard:** Update react-native-keyboard-controller ([1767bdd](https://codeberg.org/kblcuk/kopiika/commit/1767bdd1c50e447c4ef421784277ae89b19439d0))
+
 ## [0.2.13](https://codeberg.org/kblcuk/kopiika/compare/v0.2.12...v0.2.13) (2026-04-06)
 
 
@@ -72,21 +192,6 @@ All notable changes to this project will be documented in this file. See [commit
 - **dnd:** eliminate activation race and improve drag/scroll separation ([4d6122c](https://codeberg.org/kblcuk/kopiika/commit/4d6122c7a305774d71e93a33bbb087f3b643a45b))
 - **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
 - **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
-
-=======
-
-## [0.2.6](https://codeberg.org/kblcuk/kopiika/compare/v0.2.5...v0.2.6) (2026-03-15)
-
-### Bug Fixes
-
-- **entity:** Hide remaining for unplanned entities ([afe4828](https://codeberg.org/kblcuk/kopiika/commit/afe4828283a4b8c6d050acc86a28e582e20715fb))
-- **modals:** unify numeric input keyboard behavior ([0c2d728](https://codeberg.org/kblcuk/kopiika/commit/0c2d728d1b2b64d00380780f4fd28eb27ca5c0c2))
-
-## [0.2.5](https://codeberg.org/kblcuk/kopiika/compare/v0.2.4...v0.2.5) (2026-03-14)
-
-### Bug Fixes
-
-- **icon-picker:** Improve show all and collapse behavior ([7e9e62c](https://codeberg.org/kblcuk/kopiika/commit/7e9e62c44e37c36d1f17fc010f2672ee68ea490b))
 
 ## [0.2.4](https://codeberg.org/kblcuk/kopiika/compare/v0.2.3...v0.2.4) (2026-03-14)
 
@@ -171,30 +276,6 @@ All notable changes to this project will be documented in this file. See [commit
 
 - **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
 
-## [0.0.22](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.22) (2026-03-08)
-
-### Features
-
-- **icons:** Add searchable entity icon picker ([4907cdc](https://codeberg.org/kblcuk/kopiika/commit/4907cdc0ef29ae35642b691a26608159baa1614f))
-- privacy policy link ([644aae6](https://codeberg.org/kblcuk/kopiika/commit/644aae68327ec40f94340c9ec5ef064a2c39ddb5))
-- **release:** Add Android Play Fastlane pipeline ([9138bf4](https://codeberg.org/kblcuk/kopiika/commit/9138bf47de210862b6880e3f93c66eae7f97a3e2))
-- **release:** Add Play doctor and build-number sync lanes ([76fbc0b](https://codeberg.org/kblcuk/kopiika/commit/76fbc0b0990641081694016433fd4c4a04296ca7))
-
-### Bug Fixes
-
-- **interactions:** unify entity editing behind section edit mode ([3ea47fa](https://codeberg.org/kblcuk/kopiika/commit/3ea47fae2967fe37ac09658c59ce11488567c04f))
-
-## [0.0.21](https://codeberg.org/kblcuk/kopiika/compare/v0.0.20...v0.0.21) (2026-03-07)
-
-### Features
-
-- privacy policy link ([262bacf](https://codeberg.org/kblcuk/kopiika/commit/262bacfbfc8b63275783a2f05b3cd7d61881440f))
-- **release:** Add Android Play Fastlane pipeline ([8ceb3d6](https://codeberg.org/kblcuk/kopiika/commit/8ceb3d6c5782ceb219c13759c415b41f6e289022))
-
-### Bug Fixes
-
-- **interactions:** unify entity editing behind section edit mode ([1bf9db0](https://codeberg.org/kblcuk/kopiika/commit/1bf9db0b653281016145ec34a729eed2f899ec21))
-
 ## [0.0.20](https://codeberg.org/kblcuk/kopiika/compare/v0.0.19...v0.0.20) (2026-03-05)
 
 ### Features
@@ -221,39 +302,6 @@ All notable changes to this project will be documented in this file. See [commit
 - move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
 - summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
 - use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
-
-## [0.0.18](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.18) (2026-03-01)
-
-### Features
-
-- add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
-- add scheduled transaction support ([5bdc4b1](https://codeberg.org/kblcuk/kopiika/commit/5bdc4b1f4cc54cc198ac0278fd470eaea548f378))
-- history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
-- make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
-
-### Bug Fixes
-
-- move quick add modal into routed screen ([ad40677](https://codeberg.org/kblcuk/kopiika/commit/ad40677b10e2b39ddcb2efc3b12dcda8663c1845))
-- summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
-- use import instead of require for nativewind preset ([e3ebf7c](https://codeberg.org/kblcuk/kopiika/commit/e3ebf7caf1eb92c6cf16b60796dbb29da0ee03e1)), closes [/github.com/nativewind/nativewind/issues/1330#issuecomment-2737061344](https://codeberg.org/kblcuk//github.com/nativewind/nativewind/issues/1330/issues/issuecomment-2737061344)
-
-## [0.0.17](https://codeberg.org/kblcuk/kopiika/compare/v0.0.16...v0.0.17) (2026-02-21)
-
-### Features
-
-- add quick-add FAB to tab bar ([7e2beaa](https://codeberg.org/kblcuk/kopiika/commit/7e2beaa96d738a2b32eaf47c78224d3ba0ff90f6))
-- history totals, summary sparklines + section totals ([651fe95](https://codeberg.org/kblcuk/kopiika/commit/651fe9500fbfabe047b31b9902cdf2b99cec4e47))
-- make sure modals don't go out of safe zone ([e8b0232](https://codeberg.org/kblcuk/kopiika/commit/e8b0232639ffae696b3ae1f77a411c03993885c2))
-
-### Bug Fixes
-
-- summary actuals showing wrong month's data ([928661f](https://codeberg.org/kblcuk/kopiika/commit/928661f85c961fda12f99f1cc8901aae2254a92a))
-
-## [0.0.16](https://codeberg.org/kblcuk/kopiika/compare/v0.0.15...v0.0.16) (2026-02-19)
-
-### Features
-
-- split transaction support in transaction modal ([7f934f1](https://codeberg.org/kblcuk/kopiika/commit/7f934f1abc1cf89a406e8fc2f392959997815078))
 
 ## [0.0.16](https://codeberg.org/kblcuk/kopiika/compare/v0.0.15...v0.0.16) (2026-02-19)
 

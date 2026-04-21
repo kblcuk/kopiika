@@ -11,7 +11,6 @@ import {
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
 import { createTransaction, getAllTransactions } from '../transactions';
-import { upsertReservation, getAllReservations } from '../reservations';
 import { resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -38,7 +37,12 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			const result = await getEntityById('entity-1');
-			expect(result).toEqual({ ...entity, include_in_total: true, is_deleted: false });
+			expect(result).toEqual({
+				...entity,
+				include_in_total: true,
+				is_deleted: false,
+				is_default: false,
+			});
 		});
 
 		test('should create entity with optional fields as null', async () => {
@@ -61,6 +65,7 @@ describe('entities.ts', () => {
 				color: null,
 				include_in_total: true,
 				is_deleted: false,
+				is_default: false,
 			});
 		});
 
@@ -290,7 +295,12 @@ describe('entities.ts', () => {
 			await updateEntity(updated);
 
 			const result = await getEntityById('update-test');
-			expect(result).toEqual({ ...updated, include_in_total: true, is_deleted: false });
+			expect(result).toEqual({
+				...updated,
+				include_in_total: true,
+				is_deleted: false,
+				is_default: false,
+			});
 		});
 
 		test('should be able to set optional fields to null', async () => {
@@ -474,7 +484,7 @@ describe('entities.ts', () => {
 			);
 		});
 
-		test('should remove reservations for deleted account and preserve transactions', async () => {
+		test('should preserve transactions for deleted account', async () => {
 			const income: Entity = {
 				id: 'inc-res',
 				type: 'income',
@@ -506,7 +516,6 @@ describe('entities.ts', () => {
 			await createEntity(account);
 			await createEntity(saving);
 
-			await upsertReservation('res-1', account.id, saving.id, 300);
 			await createTransaction({
 				id: 'tx-res',
 				from_entity_id: income.id,
@@ -519,13 +528,12 @@ describe('entities.ts', () => {
 			await deleteEntity(account.id);
 
 			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
-			expect(await getAllReservations()).toEqual([]);
 			expect(await getAllTransactions()).toContainEqual(
 				expect.objectContaining({ id: 'tx-res' })
 			);
 		});
 
-		test('should remove reservations for deleted saving and preserve transactions', async () => {
+		test('should preserve transactions for deleted saving', async () => {
 			const account: Entity = {
 				id: 'acc-sav',
 				type: 'account',
@@ -547,7 +555,6 @@ describe('entities.ts', () => {
 			await createEntity(account);
 			await createEntity(saving);
 
-			await upsertReservation('res-sav', account.id, saving.id, 500);
 			await createTransaction({
 				id: 'tx-sav',
 				from_entity_id: account.id,
@@ -560,7 +567,6 @@ describe('entities.ts', () => {
 			await deleteEntity(saving.id);
 
 			expect(await getEntityById(saving.id)).toMatchObject({ is_deleted: true });
-			expect(await getAllReservations()).toEqual([]);
 			expect(await getAllTransactions()).toContainEqual(
 				expect.objectContaining({ id: 'tx-sav' })
 			);

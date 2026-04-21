@@ -23,6 +23,8 @@ export function ProgressBar({ progress, inverse = false, planned }: ProgressBarP
 				return 'bg-negative';
 			case 'neutral':
 				return 'bg-ink-muted';
+			case 'goal':
+				return 'bg-info';
 		}
 	};
 

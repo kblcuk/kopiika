@@ -51,7 +51,9 @@ describe('TransactionModal', () => {
 		jest.clearAllMocks();
 		jest.useFakeTimers();
 		jest.setSystemTime(fixedNow);
-		setupStoreForTest();
+		setupStoreForTest({
+			entities: [mockFromEntity, mockToEntity],
+		});
 	});
 
 	afterEach(() => {
@@ -625,8 +627,8 @@ describe('TransactionModal', () => {
 			expect(queryByTestId('split-toggle-button')).toBeNull();
 		});
 
-		it('entering split mode shows two rows and hides split toggle button', () => {
-			const { getByTestId, queryByTestId } = render(
+		it('entering split mode shows two rows and keeps split toggle visible', () => {
+			const { getByTestId } = render(
 				<TransactionModal
 					visible={true}
 					fromEntity={mockFromEntity}
@@ -638,7 +640,7 @@ describe('TransactionModal', () => {
 
 			expect(getByTestId('split-row-0')).toBeTruthy();
 			expect(getByTestId('split-row-1')).toBeTruthy();
-			expect(queryByTestId('split-toggle-button')).toBeNull();
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
 		it('anchor row (row 0) is pre-seeded with the dragged toEntity', () => {
@@ -855,7 +857,7 @@ describe('TransactionModal', () => {
 			});
 		});
 
-		it('merge button exits split mode and restores original amount', () => {
+		it('toggling split off exits split mode and restores original amount', () => {
 			const { getByTestId, queryByTestId } = render(
 				<TransactionModal
 					visible={true}
@@ -869,7 +871,8 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('split-toggle-button'));
 			expect(getByTestId('split-row-0')).toBeTruthy();
 
-			fireEvent.press(getByTestId('split-merge-button'));
+			// Toggle split off (same button)
+			fireEvent.press(getByTestId('split-toggle-button'));
 
 			expect(queryByTestId('split-row-0')).toBeNull();
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
@@ -887,7 +890,8 @@ describe('TransactionModal', () => {
 			);
 			fireEvent.press(getByTestId('split-toggle-button'));
 			expect(getByText('New Transaction')).toBeTruthy();
-			expect(getByTestId('split-merge-button')).toBeTruthy();
+			// Split toggle stays visible as a toggle (no separate merge button)
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
 		it('resets split mode when modal is closed and reopened', () => {
@@ -1194,8 +1198,12 @@ describe('TransactionModal', () => {
 			expect(callArgs.to_entity_id).toBeUndefined();
 		});
 
-		it('entity bubbles are not tappable in new transaction mode', () => {
-			const { getByText, queryByText } = render(
+		it('entity bubbles are tappable in new transaction mode (KII-80)', () => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText } = render(
 				<TransactionModal
 					visible={true}
 					fromEntity={mockFromEntity}
@@ -1204,11 +1212,79 @@ describe('TransactionModal', () => {
 				/>
 			);
 
-			// Try to tap on the from entity bubble
+			// Tap on the from entity bubble
 			fireEvent.press(getByText('Checking'));
 
-			// Selection sheet should NOT open
-			expect(queryByText('Select Source')).toBeNull();
+			// Selection sheet should open
+			expect(getByText('Select Source')).toBeTruthy();
+		});
+
+		it('saves DnD transaction with changed From entity (KII-80)', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change From from Checking to Savings
+			fireEvent.press(getByText('Checking'));
+			fireEvent.press(getByText('Savings'));
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-2',
+						to_entity_id: 'category-1',
+						amount: 50,
+					})
+				);
+			});
+		});
+
+		it('saves DnD transaction with changed To entity (KII-80)', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
+			});
+
+			const { getByText, getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change To from Groceries to Transport
+			fireEvent.press(getByText('Groceries'));
+			fireEvent.press(getByText('Transport'));
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '75');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-2',
+						amount: 75,
+					})
+				);
+			});
 		});
 
 		it('shows only valid entity options in from selection sheet', () => {
@@ -1456,6 +1532,144 @@ describe('TransactionModal', () => {
 		});
 	});
 
+	describe('Default Account Pre-fill (KII-35)', () => {
+		const incomeEntity: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+		const defaultAccount: Entity = {
+			id: 'account-default',
+			type: 'account',
+			name: 'Main Card',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+			is_default: true,
+		};
+		const otherAccount: Entity = {
+			id: 'account-other',
+			type: 'account',
+			name: 'Savings',
+			currency: 'USD',
+			order: 1,
+			row: 0,
+			position: 1,
+		};
+		const categoryEntity: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			order: 0,
+			row: 0,
+			position: 0,
+		};
+
+		it('pre-selects the default account as From in quickAdd mode', () => {
+			useStore.setState({
+				entities: [incomeEntity, defaultAccount, otherAccount, categoryEntity],
+			});
+
+			const { getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Default account name should be visible as the From entity
+			expect(getByText('Main Card')).toBeTruthy();
+			// "From" placeholder should NOT be visible (entity is pre-selected)
+			expect(queryByText('From')).toBeNull();
+		});
+
+		it('does not pre-select a deleted default account', () => {
+			useStore.setState({
+				entities: [{ ...defaultAccount, is_deleted: true }, otherAccount, categoryEntity],
+			});
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Should show empty "From" placeholder
+			expect(getByText('From')).toBeTruthy();
+		});
+
+		it('shows empty From when no default account exists', () => {
+			useStore.setState({
+				entities: [incomeEntity, otherAccount, categoryEntity],
+			});
+
+			const { getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			expect(getByText('From')).toBeTruthy();
+		});
+
+		it('allows overriding the pre-selected default account', async () => {
+			const addTransactionSpy = jest.fn();
+			useStore.setState({
+				entities: [incomeEntity, defaultAccount, otherAccount, categoryEntity],
+				addTransaction: addTransactionSpy,
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			// Pre-selected, user taps to change
+			fireEvent.press(getByText('Main Card'));
+			fireEvent.press(getByText('Savings'));
+
+			// Pick destination
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.press(getByText('Groceries'));
+
+			await act(async () => jest.advanceTimersByTime(400));
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '25');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'account-other',
+						to_entity_id: 'category-1',
+						amount: 25,
+					})
+				);
+			});
+		});
+	});
+
 	describe('Savings Funding (KII-71)', () => {
 		const savingEntity: Entity = {
 			id: 'saving-1',
@@ -1471,13 +1685,16 @@ describe('TransactionModal', () => {
 			setupStoreForTest({
 				entities: [mockFromEntity, mockToEntity, savingEntity],
 			});
+			// Simulate existing reservation via account→saving transaction
 			useStore.setState({
-				reservations: [
+				transactions: [
 					{
-						id: 'res-1',
-						account_entity_id: 'account-1',
-						saving_entity_id: 'saving-1',
+						id: 'tx-res-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
 						amount: 300,
+						currency: 'USD',
+						timestamp: Date.now(),
 					},
 				],
 			});
@@ -1485,11 +1702,7 @@ describe('TransactionModal', () => {
 
 		it('transaction amount equals entered amount, not entered + funded', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1505,19 +1718,16 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
+				// Main transaction should be exactly what was typed
 				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ amount: 10 })
+					expect.objectContaining({ amount: 10, from_entity_id: 'account-1' })
 				);
 			});
 		});
 
-		it('reduces reservation by funded amount (defaults to entered amount)', async () => {
+		it('creates saving→account release transaction for funded amount', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1533,18 +1743,20 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				// Reservation was 300, funded 10 → new reservation = 290
-				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 290);
+				// Should create a saving→account release transaction for funded amount (10, clamped to max 300)
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'saving-1',
+						to_entity_id: 'account-1',
+						amount: 10,
+					})
+				);
 			});
 		});
 
 		it('caps funded amount at reservation max when entered exceeds it', async () => {
 			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			const upsertReservationSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({
-				addTransaction: addTransactionSpy,
-				upsertReservation: upsertReservationSpy,
-			});
+			useStore.setState({ addTransaction: addTransactionSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -1565,8 +1777,14 @@ describe('TransactionModal', () => {
 				expect(addTransactionSpy).toHaveBeenCalledWith(
 					expect.objectContaining({ amount: 400 })
 				);
-				// Funded capped at 300 → reservation fully consumed
-				expect(upsertReservationSpy).toHaveBeenCalledWith('account-1', 'saving-1', 0);
+				// Release capped at 300 (max reservation)
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: 'saving-1',
+						to_entity_id: 'account-1',
+						amount: 300,
+					})
+				);
 			});
 		});
 

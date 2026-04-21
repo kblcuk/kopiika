@@ -65,7 +65,7 @@ export const TestIDs = {
 
 	reservation: {
 		modal: 'reservation-modal',
-		backdrop: 'reservation-backdrop',
+		cancelButton: 'reservation-cancel-button',
 		submitButton: 'reservation-submit-button',
 		clearButton: 'reservation-clear-button',
 	},

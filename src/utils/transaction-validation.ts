@@ -6,13 +6,22 @@ import { isEntityDeleted } from './entity-display';
  * Defines which entity types can send money to which other types.
  * Core money flow: Income -> Account -> Category/Saving
  * Account can also transfer to other accounts.
+ * Savings can release funds back to accounts.
  */
 const ALLOWED_COMBINATIONS: Record<EntityType, EntityType[]> = {
 	income: ['account'],
-	account: ['category', 'account'],
+	account: ['category', 'account', 'saving'],
 	category: ['account'],
-	saving: [],
+	saving: ['account'],
 };
+
+/**
+ * Returns whether a direct from→to transaction is allowed by type rules.
+ * Does not check currency, deletion, or entity identity — just the type graph.
+ */
+export function isAllowedPair(fromType: EntityType, toType: EntityType): boolean {
+	return ALLOWED_COMBINATIONS[fromType]?.includes(toType) ?? false;
+}
 
 /**
  * Returns which entity types can send money TO the given type.
@@ -37,7 +46,7 @@ function getValidToTypes(fromType: EntityType): EntityType[] {
 /**
  * Filters entities that can be valid "from" sources for a given "to" entity.
  * Considers: type combination rules, currency matching, excludes same entity.
- * Includes BALANCE_ADJUSTMENT as a valid source when editing.
+ * Balance adjustment is always excluded — it only applies at the account level.
  */
 export function getValidFromEntities(
 	entities: Entity[],
@@ -49,18 +58,10 @@ export function getValidFromEntities(
 	const validFromTypes = getValidFromTypes(toEntity.type);
 
 	return entities.filter((entity) => {
-		// Skip the same entity
 		if (entity.id === toEntity.id) return false;
-
-		// Allow balance adjustment entity (special case for editing)
-		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return true;
-
+		if (entity.id === BALANCE_ADJUSTMENT_ENTITY_ID) return false;
 		if (isEntityDeleted(entity)) return false;
-
-		// Must have matching currency
 		if (entity.currency !== currency) return false;
-
-		// Must be a valid type combination
 		return validFromTypes.includes(entity.type);
 	});
 }

@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import { useState, useEffect, useCallback } from 'react';
+import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { Text } from './text';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, Trash2 } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 
 import type { EntityWithBalance } from '@/src/types';
 import {
@@ -18,6 +23,7 @@ import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
+import { getReservationForPair } from '@/src/utils/savings-transactions';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -31,25 +37,26 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const insets = useSafeAreaInsets();
 	const amountExpr = useExpressionInput(amount, setAmount);
 
-	const upsertReservation = useStore((s) => s.upsertReservation);
-	const reservations = useStore((s) => s.reservations);
+	const reserveToSaving = useStore((s) => s.reserveToSaving);
+	const transactions = useStore((s) => s.transactions);
 
-	// Find existing reservation for this pair
-	const existing =
-		account && saving
-			? reservations.find(
-					(r) => r.account_entity_id === account.id && r.saving_entity_id === saving.id
-				)
-			: null;
-	const existingAmount = existing?.amount;
+	// Derive current reservation for this pair from transactions
+	const currentNet =
+		account && saving ? getReservationForPair(transactions, account.id, saving.id) : 0;
+	const hasExisting = currentNet > 0;
 
 	useEffect(() => {
 		if (visible && account && saving) {
-			setAmount(existingAmount !== undefined ? String(existingAmount) : '');
+			setAmount('');
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, account, saving, existingAmount, amountExpr.inputRef]);
+	}, [visible, account, saving, amountExpr.inputRef]);
+
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
 
 	if (!account || !saving) return null;
 
@@ -62,12 +69,14 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const resolved = amountExpr.resolve();
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
-		await upsertReservation(account.id, saving.id, finalAmount);
+		await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
+		KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleClear = async () => {
-		await upsertReservation(account.id, saving.id, 0);
+		await reserveToSaving(account.id, saving.id, 0);
+		KeyboardController.dismiss();
 		onClose();
 	};
 
@@ -89,23 +98,40 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	};
 
 	return (
-		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-			<View className="flex-1 justify-end">
-				<Pressable className="flex-1" onPress={onClose} testID="reservation-backdrop" />
-
-				<View testID="reservation-modal" className="overflow-hidden rounded-t-3xl bg-paper-50">
+		<Modal
+			visible={visible}
+			animationType="slide"
+			presentationStyle="pageSheet"
+			onRequestClose={handleCancel}
+		>
+			<View
+				testID="reservation-modal"
+				className="flex-1 bg-paper-50"
+				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+			>
+				{/* Header */}
+				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="reservation-cancel-button"
+					>
+						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+					</Pressable>
+					<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
+					<View style={{ width: 48 }} />
+				</View>
 				<KeyboardAwareScrollView
 					bottomOffset={50}
 					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
 					keyboardShouldPersistTaps="handled"
+					className="flex-1 px-6"
 					contentContainerStyle={{
 						paddingBottom: Math.max(insets.bottom, 16),
-						paddingHorizontal: 24,
-						paddingTop: 24,
 					}}
 				>
 					{/* Header: account → saving */}
-					<View className="mb-6 flex-row items-center justify-center">
+					<View className="mb-6 mt-4 flex-row items-center justify-center">
 						{renderBubble(account)}
 						<ArrowRight
 							size={20}
@@ -144,9 +170,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 								{amountExpr.preview}
 							</Text>
 						)}
-						{existing && (
+						{hasExisting && (
 							<Text className="text-ink-faint mt-1 font-sans text-xs">
-								Currently reserved: {formatAmount(existing.amount, currency)}
+								Currently reserved: {formatAmount(currentNet, currency)}
 							</Text>
 						)}
 					</View>
@@ -171,13 +197,15 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 					{/* Actions */}
 					<View className="flex-row gap-3">
-						{existing && (
+						{hasExisting && (
 							<Pressable
 								onPress={handleClear}
 								testID="reservation-clear-button"
-								className="h-12 w-12 items-center justify-center rounded-2xl bg-paper-200"
+								className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
 							>
-								<Trash2 size={18} color={colors.ink.muted} />
+								<Text className="font-sans-semibold text-base text-negative">
+									Clear
+								</Text>
 							</Pressable>
 						)}
 						<Pressable
@@ -189,20 +217,19 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							<Text
 								className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
 							>
-								{existing ? 'Update' : 'Reserve'}
+								Reserve
 							</Text>
 						</Pressable>
 					</View>
 				</KeyboardAwareScrollView>
-			</View>
-			</View>
 
-			<KeyboardExtender enabled={amountExpr.focused}>
-				<OperatorToolbar
-					onOperator={amountExpr.insertOperator}
-					onEquals={amountExpr.resolve}
-				/>
-			</KeyboardExtender>
+				<KeyboardExtender enabled={amountExpr.focused}>
+					<OperatorToolbar
+						onOperator={amountExpr.insertOperator}
+						onEquals={amountExpr.resolve}
+					/>
+				</KeyboardExtender>
+			</View>
 		</Modal>
 	);
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, TextInput, Pressable } from 'react-native';
+import { Text } from './text';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
@@ -9,9 +10,9 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
 interface FundingRow {
-	reservationId: string;
 	savingEntityId: string;
 	enabled: boolean;
 	amount: string;
@@ -46,20 +47,20 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		const [rows, setRows] = useState<FundingRow[]>([]);
 		const [showAll, setShowAll] = useState(false);
 
-		const reservations = useStore((s) => s.reservations);
+		const transactions = useStore((s) => s.transactions);
 		const entities = useStore((s) => s.entities);
 
+		// Derive per-saving reservation amounts from transactions
 		const accountReservations = useMemo(
-			() => reservations.filter((r) => r.account_entity_id === accountEntityId),
-			[reservations, accountEntityId]
+			() => getReservationsForAccount(transactions, entities, accountEntityId),
+			[transactions, entities, accountEntityId]
 		);
 
 		// Rebuild rows when the account or its available reservations change.
 		useEffect(() => {
 			setRows(
 				accountReservations.map((r) => ({
-					reservationId: r.id,
-					savingEntityId: r.saving_entity_id,
+					savingEntityId: r.savingEntityId,
 					enabled: false,
 					amount: '',
 					maxAmount: r.amount,
@@ -143,7 +144,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 
 						return (
 							<Pressable
-								key={row.reservationId}
+								key={row.savingEntityId}
 								onPress={() => handleToggle(index)}
 								className="flex-row items-center px-3 py-2.5"
 								style={

@@ -6,7 +6,7 @@
 
 ## Architecture & Product Rules
 
-Read `docs/architecture.md` before changing data flow, transaction behavior, plans, reservations, or major UI patterns. The short version: `entities`, `plans`, `transactions`, and `reservations` are the core model; balances are derived, overspending stays visible, and drag-and-drop remains the primary interaction. Savings are virtual reservations of account money — they have no transactions.
+Read `docs/architecture.md` before changing data flow, transaction behavior, plans, reservations, or major UI patterns. The short version: `entities`, `plans`, `transactions`, and `reservations` are the core model; balances are derived, overspending stays visible, and drag-and-drop remains the primary interaction. Savings use real `account <-> saving` transactions — balances are derived from net transaction flow, same as accounts.
 
 ## Build, Test, and Development Commands
 
@@ -22,12 +22,12 @@ Use Bun for app and development scripts. Use `mise run ...` for deployment, sign
 - `bunx detox test --configuration ios.sim.debug e2e/foo.test.ts`: run a single E2E test file.
 - `bunx detox test --configuration ios.sim.debug -t "test name"`: run a single E2E test by name substring. Replace `ios.sim.debug` with `android.emu.debug` for Android.
 - `bun run lint`: run `oxlint`.
-- `bun run format` / `bun run format:check`: apply or verify `oxfmt`.
+- `bun run fmt` / `bun run fmt:check`: apply or verify `oxfmt`.
 - `bun run types`: run TypeScript type checking.
 - `bun run release`, `release:minor`, `release:major`: bump app versions and changelog; post-bump build-number sync is delegated to `mise`.
 - `mise run release:doctor`: run iOS and Android release preflight checks.
 - `mise run ios:setup`, `ios:beta`, `android:beta`, `release:beta`, `release:production`: signing, store-upload, and coordinated release tasks.
-- Read [docs/RELEASING.md](/Users/alex/Code/kopiika/docs/RELEASING.md) before changing release automation or running production-facing release commands.
+- Read [docs/RELEASING.md](docs/RELEASING.md) before changing release automation or running production-facing release commands.
 
 ## Coding Style & Naming Conventions
 

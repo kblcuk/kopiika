@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, act } from '@testing-library/react-native';
+import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import HistoryScreen from '../history';
 import { useStore } from '@/src/store';
 import type { Entity, Transaction } from '@/src/types';
@@ -389,6 +389,180 @@ describe('HistoryScreen search params', () => {
 
 		await waitFor(() => {
 			expect(getByTestId('row-tx-1').props.children.join('')).toBe('tx-1:past:readonly');
+		});
+	});
+
+	it('filters transactions by note text (case-insensitive)', async () => {
+		const txWithNote: Transaction = {
+			id: 'tx-ikea',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 44.31,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+			note: 'IKEA shelf',
+		};
+
+		const txWithoutNote: Transaction = {
+			id: 'tx-plain',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 20,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [txWithNote, txWithoutNote],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), 'ikea');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-ikea')).toBeTruthy();
+			expect(queryByTestId('row-tx-plain')).toBeNull();
+		});
+	});
+
+	it('filters transactions by amount (partial match)', async () => {
+		const tx1: Transaction = {
+			id: 'tx-a',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 44.31,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+		};
+
+		const tx2: Transaction = {
+			id: 'tx-b',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 20,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [tx1, tx2],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), '44.3');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-a')).toBeTruthy();
+			expect(queryByTestId('row-tx-b')).toBeNull();
+		});
+	});
+
+	it('shows all transactions when search is cleared', async () => {
+		const tx1: Transaction = {
+			id: 'tx-a',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 50,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+			note: 'rent',
+		};
+
+		const tx2: Transaction = {
+			id: 'tx-b',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 20,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [tx1, tx2],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01' };
+
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		const searchInput = getByPlaceholderText('Search by note or amount');
+
+		// Filter down
+		fireEvent.changeText(searchInput, 'rent');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-a')).toBeTruthy();
+			expect(queryByTestId('row-tx-b')).toBeNull();
+		});
+
+		// Clear search
+		fireEvent.changeText(searchInput, '');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-a')).toBeTruthy();
+			expect(getByTestId('row-tx-b')).toBeTruthy();
+		});
+	});
+
+	it('combines search with entity filter', async () => {
+		const txMatch: Transaction = {
+			id: 'tx-match',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 50,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+			note: 'groceries at Lidl',
+		};
+
+		const txWrongEntity: Transaction = {
+			id: 'tx-wrong-entity',
+			from_entity_id: 'category-1',
+			to_entity_id: 'account-1',
+			amount: 50,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+			note: 'groceries refund',
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [txMatch, txWrongEntity],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		// Filter by category-1 as destination only (txMatch has to=category-1)
+		// Both transactions involve category-1, so entity filter alone won't
+		// separate them — but search for "Lidl" will.
+		mockParams = { period: '2026-01', entityId: 'category-1' };
+
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), 'Lidl');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-match')).toBeTruthy();
+			expect(queryByTestId('row-tx-wrong-entity')).toBeNull();
 		});
 	});
 });

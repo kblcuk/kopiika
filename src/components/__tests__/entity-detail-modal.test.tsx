@@ -2,7 +2,11 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { EntityDetailModal } from '../entity-detail-modal';
-import { setupStoreForTest } from '@/src/test-utils-component';
+import {
+	setupStoreForTest,
+	createMockEntity,
+	createMockTransaction,
+} from '@/src/test-utils-component';
 import type { EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -583,7 +587,7 @@ describe('EntityDetailModal', () => {
 			expect(queryByTestId('entity-detail-amount-input')).toBeNull();
 		});
 
-		it('shows available amount (balance minus reservations)', () => {
+		it('shows total including savings when reserved > 0', () => {
 			const entityWithReservation = {
 				...mockAccountEntity,
 				actual: 1000,
@@ -597,8 +601,8 @@ describe('EntityDetailModal', () => {
 				/>
 			);
 
-			expect(getByText('Available')).toBeTruthy();
-			expect(getByText(formatAmount(700))).toBeTruthy();
+			expect(getByText('Total (incl. savings)')).toBeTruthy();
+			expect(getByText(formatAmount(1300))).toBeTruthy();
 		});
 
 		it('creates positive adjustment transaction when increasing balance', async () => {
@@ -909,6 +913,431 @@ describe('EntityDetailModal', () => {
 			fireEvent.changeText(actualInput, '05');
 
 			expect(getByTestId('entity-detail-actual-input').props.value).toBe('5');
+		});
+
+		it('creates adjustment from zero starting balance', async () => {
+			const addTransactionSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...mockAccountEntity,
+				actual: 0,
+				remaining: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+						note: expect.stringContaining('Balance correction'),
+					})
+				);
+			});
+		});
+
+		it('creates adjustment when updateEntity triggers a store re-render', async () => {
+			// Use updateEntity that actually triggers re-render via Zustand set()
+			// to verify the async closure isn't broken by the re-render cycle.
+			const addTransactionSpy = jest.fn();
+			const balanceAdjEntity = {
+				id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				type: 'account' as const,
+				name: 'Balance Adjustments',
+				currency: 'USD',
+				icon: 'refresh-cw',
+				order: 0,
+				row: 0,
+				position: -1,
+			};
+			const accountEntity = {
+				id: 'account-1',
+				type: 'account' as const,
+				name: 'Checking',
+				currency: 'USD',
+				icon: 'wallet',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+
+			setupStoreForTest({
+				entities: [balanceAdjEntity, accountEntity],
+				currentPeriod: '2026-01',
+			});
+
+			useStore.setState({
+				updateEntity: async (entity) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+					}));
+				},
+				addTransaction: addTransactionSpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...accountEntity,
+				actual: 0,
+				planned: 0,
+				remaining: 0,
+				upcoming: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+					})
+				);
+			});
+		});
+
+		it('creates adjustment when updateEntity + setDefaultAccount both re-render', async () => {
+			// Simulate full save path: updateEntity re-renders, then
+			// setDefaultAccount re-renders again, then addTransaction runs.
+			const addTransactionSpy = jest.fn();
+			const balanceAdjEntity = {
+				id: BALANCE_ADJUSTMENT_ENTITY_ID,
+				type: 'account' as const,
+				name: 'Balance Adjustments',
+				currency: 'USD',
+				icon: 'refresh-cw',
+				order: 0,
+				row: 0,
+				position: -1,
+			};
+			const accountEntity = {
+				id: 'account-1',
+				type: 'account' as const,
+				name: 'Checking',
+				currency: 'USD',
+				icon: 'wallet',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+
+			setupStoreForTest({
+				entities: [balanceAdjEntity, accountEntity],
+				currentPeriod: '2026-01',
+			});
+
+			useStore.setState({
+				updateEntity: async (entity) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+					}));
+				},
+				setDefaultAccount: async (accountId) => {
+					useStore.setState((state) => ({
+						entities: state.entities.map((e) =>
+							e.type === 'account' ? { ...e, is_default: e.id === accountId } : e
+						),
+					}));
+				},
+				addTransaction: addTransactionSpy,
+			});
+
+			const zeroBalanceAccount: EntityWithBalance = {
+				...accountEntity,
+				actual: 0,
+				planned: 0,
+				remaining: 0,
+				upcoming: 0,
+			};
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={zeroBalanceAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Change balance AND toggle default account (to trigger both re-renders)
+			fireEvent.changeText(getByTestId('entity-detail-actual-input'), '500');
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addTransactionSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+						to_entity_id: 'account-1',
+						amount: 500,
+					})
+				);
+			});
+		});
+	});
+
+	describe('Default Account Toggle', () => {
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+			upcoming: 0,
+		};
+
+		it('shows default account toggle for account entities', () => {
+			const { getByTestId, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('entity-detail-is-default-switch')).toBeTruthy();
+			expect(getByText('Default account')).toBeTruthy();
+			expect(getByText('Pre-selected when adding transactions')).toBeTruthy();
+		});
+
+		it('does not show default account toggle for non-account entities', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal visible={true} entity={mockEntity} onClose={mockOnClose} />
+			);
+
+			expect(queryByTestId('entity-detail-is-default-switch')).toBeNull();
+		});
+
+		it('initializes toggle to off when entity is not default', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const toggle = getByTestId('entity-detail-is-default-switch');
+			expect(toggle.props.value).toBe(false);
+		});
+
+		it('initializes toggle to on when entity is default', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_default: true }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const toggle = getByTestId('entity-detail-is-default-switch');
+			expect(toggle.props.value).toBe(true);
+		});
+
+		it('calls setDefaultAccount when toggling on', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(setDefaultAccountSpy).toHaveBeenCalledWith('account-1');
+			});
+		});
+
+		it('calls setDefaultAccount(null) when toggling off', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_default: true }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-is-default-switch'), 'valueChange', false);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(setDefaultAccountSpy).toHaveBeenCalledWith(null);
+			});
+		});
+
+		it('does not call setDefaultAccount when toggle unchanged', async () => {
+			const setDefaultAccountSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				setDefaultAccount: setDefaultAccountSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalled();
+			});
+			expect(setDefaultAccountSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('Account Reservations (Reserved For)', () => {
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Main Card',
+			currency: 'EUR',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+			upcoming: 0,
+			reserved: 250,
+		};
+
+		it('shows "Reserved for" section with per-saving breakdown', () => {
+			const savingEntity = createMockEntity({
+				id: 'saving-1',
+				type: 'saving',
+				name: 'Emergency Fund',
+				icon: 'shield',
+			});
+			const savingEntity2 = createMockEntity({
+				id: 'saving-2',
+				type: 'saving',
+				name: 'Vacation',
+				icon: 'palmtree',
+			});
+
+			setupStoreForTest({
+				entities: [
+					createMockEntity({ id: 'account-1', type: 'account', name: 'Main Card' }),
+					savingEntity,
+					savingEntity2,
+				],
+				transactions: [
+					createMockTransaction({
+						id: 'tx-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-1',
+						amount: 100,
+					}),
+					createMockTransaction({
+						id: 'tx-2',
+						from_entity_id: 'account-1',
+						to_entity_id: 'saving-2',
+						amount: 150,
+					}),
+				],
+			});
+
+			const { getByTestId, getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockAccountEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('account-reservations-section')).toBeTruthy();
+			expect(getByText('Reserved for')).toBeTruthy();
+			expect(getByTestId('account-reservation-row-saving-1')).toBeTruthy();
+			expect(getByTestId('account-reservation-row-saving-2')).toBeTruthy();
+			expect(getByText('Emergency Fund')).toBeTruthy();
+			expect(getByText('Vacation')).toBeTruthy();
+		});
+
+		it('shows empty state when no reservations exist', () => {
+			setupStoreForTest({
+				entities: [
+					createMockEntity({ id: 'account-1', type: 'account', name: 'Main Card' }),
+				],
+				transactions: [],
+			});
+
+			const { getByText } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, reserved: 0 }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(
+				getByText('Drag a savings goal onto this account to reserve funds')
+			).toBeTruthy();
+		});
+
+		it('does not show "Reserved for" section for non-account entities', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, type: 'category', id: 'cat-1' }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('account-reservations-section')).toBeNull();
 		});
 	});
 });

@@ -12,6 +12,7 @@ jest.mock('react-native-keyboard-controller', () => {
 		KeyboardAwareScrollView: ScrollView,
 		KeyboardExtender: 'KeyboardExtender',
 		KeyboardProvider: ({ children }) => children,
+		KeyboardController: { dismiss: jest.fn() },
 	};
 });
 

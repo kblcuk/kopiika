@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Modal, ScrollView, Platform } from 'react-native';
+import { View, Pressable, Modal, ScrollView, Platform } from 'react-native';
+import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';

@@ -1,8 +1,14 @@
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './text';
 import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
-import Animated, { useAnimatedRef, makeMutable, type SharedValue } from 'react-native-reanimated';
+import Animated, {
+	useAnimatedRef,
+	makeMutable,
+	type SharedValue,
+	type AnimatedRef,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Check, Pencil } from 'lucide-react-native';
 
@@ -16,7 +22,6 @@ import {
 	unregisterRemeasureCallback,
 } from '@/src/utils/drop-zone';
 import { shouldUseFixedOrderMode } from '@/src/utils/drag-bounds';
-import { updateDragTouch } from '@/src/utils/vertical-auto-scroll';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
 import {
@@ -26,6 +31,7 @@ import {
 	type FixedOrderContextType,
 } from './sortable-entity-bubble';
 import { resolveGridDragEnd } from './sortable-entity-grid-logic';
+import { isAllowedPair } from '@/src/utils/transaction-validation';
 
 // Grid layout constants
 const BUBBLE_WIDTH = 96;
@@ -60,6 +66,16 @@ interface SortableEntityGridProps {
 	editMode?: boolean;
 	/** Callback to toggle edit mode in the section header. */
 	onToggleEditMode?: () => void;
+	/** Report drag touch position for auto-scroll. */
+	updateDragTouch?: (x: number, y: number) => void;
+	/** Animated ref for this section's horizontal ScrollView (from useDragAutoScroll). */
+	sectionScrollRef?: AnimatedRef<Animated.ScrollView>;
+	/** Section index for auto-scroll registration. */
+	sectionIndex?: number;
+	/** Report horizontal scroll capacity for auto-scroll. Args: (index, contentWidth, visibleWidth). */
+	onSectionMaxOffset?: (index: number, contentWidth: number, visibleWidth: number) => void;
+	/** Report section Y bounds for hover detection. Args: (index, screenY, height). */
+	onSectionBounds?: (index: number, screenY: number, height: number) => void;
 }
 
 export function SortableEntityGrid({
@@ -75,6 +91,11 @@ export function SortableEntityGrid({
 	dragBehavior = 'transaction',
 	editMode = false,
 	onToggleEditMode,
+	updateDragTouch,
+	sectionScrollRef,
+	sectionIndex,
+	onSectionMaxOffset,
+	onSectionBounds,
 }: SortableEntityGridProps) {
 	const reorderEntitiesByIds = useStore((state) => state.reorderEntitiesByIds);
 	const isTransactionMode = dragBehavior === 'transaction';
@@ -112,7 +133,8 @@ export function SortableEntityGrid({
 	);
 
 	// Ref for horizontal ScrollView to enable auto-scroll during drag
-	const scrollViewRef = useAnimatedRef<Animated.ScrollView>();
+	const ownScrollViewRef = useAnimatedRef<Animated.ScrollView>();
+	const scrollViewRef = sectionScrollRef ?? ownScrollViewRef;
 
 	// Track current touch position for cross-type drop detection
 	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
@@ -170,9 +192,11 @@ export function SortableEntityGrid({
 
 		registerRemeasureCallback(gridCallbackId, registerGridDropZones);
 
-		const timeout = setTimeout(registerGridDropZones, 100);
+		// Measure immediately — no-op if native view isn't laid out yet (width/height 0).
+		// onLayout on the grid View will fire once the real layout is ready.
+		registerGridDropZones();
+
 		return () => {
-			clearTimeout(timeout);
 			sortedEntities.forEach((e) => unregisterDropZone(e.id));
 			unregisterRemeasureCallback(gridCallbackId);
 		};
@@ -180,9 +204,45 @@ export function SortableEntityGrid({
 
 	const handleScrollEnd = useCallback(() => {
 		if (!dropZonesDisabled) {
-			setTimeout(registerGridDropZones, 50);
+			registerGridDropZones();
 		}
 	}, [dropZonesDisabled, registerGridDropZones]);
+
+	const sectionViewRef = useRef<View>(null);
+
+	const measureSectionBounds = useCallback(() => {
+		if (sectionIndex == null || !onSectionBounds) return;
+		sectionViewRef.current?.measureInWindow((_x, y, _w, h) => {
+			if (h > 0) onSectionBounds(sectionIndex, y, h);
+		});
+	}, [sectionIndex, onSectionBounds]);
+
+	const scrollViewContentWidth = useRef(0);
+	const scrollViewVisibleWidth = useRef(0);
+
+	const handleScrollViewLayout = useCallback(
+		(e: { nativeEvent: { layout: { width: number } } }) => {
+			scrollViewVisibleWidth.current = e.nativeEvent.layout.width;
+			if (sectionIndex != null && onSectionMaxOffset && scrollViewContentWidth.current > 0) {
+				onSectionMaxOffset(
+					sectionIndex,
+					scrollViewContentWidth.current,
+					e.nativeEvent.layout.width
+				);
+			}
+		},
+		[sectionIndex, onSectionMaxOffset]
+	);
+
+	const handleContentSizeChange = useCallback(
+		(w: number, _h: number) => {
+			scrollViewContentWidth.current = w;
+			if (sectionIndex != null && onSectionMaxOffset && scrollViewVisibleWidth.current > 0) {
+				onSectionMaxOffset(sectionIndex, w, scrollViewVisibleWidth.current);
+			}
+		},
+		[sectionIndex, onSectionMaxOffset]
+	);
 
 	const handleSortableDragStart = useCallback(
 		({ key }: { key: string }) => {
@@ -211,7 +271,7 @@ export function SortableEntityGrid({
 	const handleSortableDragMove = useCallback(
 		({ touchData }: { touchData: TouchData }) => {
 			lastTouchRef.current = { x: touchData.absoluteX, y: touchData.absoluteY };
-			updateDragTouch(touchData.absoluteX, touchData.absoluteY);
+			updateDragTouch?.(touchData.absoluteX, touchData.absoluteY);
 
 			const draggedEntity = draggedEntityRef.current;
 			if (!draggedEntity) return;
@@ -254,11 +314,10 @@ export function SortableEntityGrid({
 					return;
 				}
 
-				const isCrossType = targetEntity.type !== type;
-				const isSameTypeTransfer = type === 'account' && targetEntity.type === 'account';
-
-				// Savings are virtual reservations — no outgoing transactions
-				if ((isCrossType || isSameTypeTransfer) && type !== 'saving') {
+				if (
+					isAllowedPair(type, targetEntity.type) ||
+					isAllowedPair(targetEntity.type, type)
+				) {
 					hoveredIdShared.value = targetId;
 				} else {
 					hoveredIdShared.value = '';
@@ -267,7 +326,7 @@ export function SortableEntityGrid({
 				hoveredIdShared.value = '';
 			}
 		},
-		[type, hoveredIdShared, setIsFixed, isTransactionMode]
+		[type, hoveredIdShared, setIsFixed, isTransactionMode, updateDragTouch]
 	);
 
 	const handleSortableDragEnd = useCallback(
@@ -332,7 +391,7 @@ export function SortableEntityGrid({
 		: sortedEntities;
 
 	return (
-		<View className="overflow-visible">
+		<View ref={sectionViewRef} className="overflow-visible" onLayout={measureSectionBounds}>
 			{/* Inset divider with section title */}
 			<View className="flex-row items-center px-4">
 				<View className="h-px flex-1 bg-paper-300" />
@@ -368,8 +427,14 @@ export function SortableEntityGrid({
 							contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}
 							onScrollEndDrag={handleScrollEnd}
 							onMomentumScrollEnd={handleScrollEnd}
+							onLayout={handleScrollViewLayout}
+							onContentSizeChange={handleContentSizeChange}
 						>
-							<View ref={gridRef} className="relative flex-row">
+							<View
+								ref={gridRef}
+								className="relative flex-row"
+								onLayout={registerGridDropZones}
+							>
 								<Sortable.Grid
 									data={displayedEntities}
 									rows={maxRows}
@@ -391,6 +456,7 @@ export function SortableEntityGrid({
 									onDragMove={handleSortableDragMove}
 									onDragEnd={handleSortableDragEnd}
 									scrollableRef={scrollViewRef}
+									autoScrollEnabled={!isTransactionMode}
 									autoScrollDirection="horizontal"
 									activeItemScale={1.1}
 									activeItemOpacity={0.9}

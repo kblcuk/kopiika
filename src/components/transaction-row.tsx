@@ -1,5 +1,6 @@
 import { useCallback, memo } from 'react';
-import { View, Text, Alert, Pressable } from 'react-native';
+import { View, Alert, Pressable } from 'react-native';
+import { Text } from './text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	useAnimatedStyle,
@@ -8,11 +9,12 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Clock, Trash2 } from 'lucide-react-native';
+import { Clock, Trash2, Repeat, CircleAlert, CircleCheck } from 'lucide-react-native';
 
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
+import { showSeriesScopeAlert } from './series-action-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
@@ -24,6 +26,7 @@ interface TransactionRowProps {
 	onEdit: (transaction: Transaction) => void;
 	index: number;
 	isUpcoming?: boolean;
+	isUnconfirmed?: boolean;
 	editable?: boolean;
 }
 
@@ -36,9 +39,12 @@ export const TransactionRow = memo(function TransactionRow({
 	onEdit,
 	index,
 	isUpcoming = false,
+	isUnconfirmed = false,
 	editable = true,
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
+	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
+	const confirmTransaction = useStore((state) => state.confirmTransaction);
 
 	const translateX = useSharedValue(0);
 	const deleteOpacity = useSharedValue(0);
@@ -55,19 +61,25 @@ export const TransactionRow = memo(function TransactionRow({
 	const toColors = toEntity ? getEntityTypeColors(toEntity.type) : null;
 
 	const confirmDelete = useCallback(() => {
-		Alert.alert(
-			'Delete Transaction',
-			`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
-			[
-				{ text: 'Cancel', style: 'cancel' },
-				{
-					text: 'Delete',
-					style: 'destructive',
-					onPress: () => deleteTransaction(transaction.id),
-				},
-			]
-		);
-	}, [transaction, fromLabel, toLabel, deleteTransaction]);
+		if (transaction.series_id) {
+			showSeriesScopeAlert('delete', (scope) => {
+				deleteTransactionWithScope(transaction.id, scope);
+			});
+		} else {
+			Alert.alert(
+				'Delete Transaction',
+				`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Delete',
+						style: 'destructive',
+						onPress: () => deleteTransaction(transaction.id),
+					},
+				]
+			);
+		}
+	}, [transaction, fromLabel, toLabel, deleteTransaction, deleteTransactionWithScope]);
 
 	const handlePress = useCallback(() => {
 		onEdit(transaction);
@@ -95,55 +107,93 @@ export const TransactionRow = memo(function TransactionRow({
 		opacity: deleteOpacity.value,
 	}));
 
-	const rowBg = isUpcoming ? 'bg-info/5' : index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
+	const rowBg = isUnconfirmed
+		? 'bg-warning/5'
+		: isUpcoming
+			? 'bg-info/5'
+			: index % 2 === 0
+				? 'bg-paper-50'
+				: 'bg-paper-100';
 
 	const rowContent = (
-		<View className="flex-row items-center">
-			{/* Left side: entity flow + optional note */}
-			<View className="flex-1">
-				{/* Entity flow row */}
-				<View className="flex-row items-center">
-					<View
-						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
-					>
-						<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-					</View>
-					<Text className="font-sans-medium text-base text-ink" numberOfLines={1}>
-						{fromLabel}
-					</Text>
-					<Text className="mx-1.5 font-sans text-sm text-ink-muted">→</Text>
-					<View
-						className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
-					>
-						<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-					</View>
-					<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
-						{toLabel}
-					</Text>
+		<View>
+			{/* From row: icon + name + amount */}
+			<View className="flex-row items-center">
+				<View
+					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+				>
+					<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
 				</View>
-
-				{/* Note */}
-				{transaction.note && (
-					<Text className="mt-4 font-sans text-lg" numberOfLines={5}>
-						{transaction.note}
+				<Text className="flex-1 font-sans-medium text-base text-ink" numberOfLines={1}>
+					{fromLabel}
+				</Text>
+				<View className="ml-3 items-end">
+					<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
+						{transaction.series_id && (
+							<Repeat
+								size={12}
+								color={isUnconfirmed ? colors.warning.DEFAULT : colors.info.DEFAULT}
+							/>
+						)}
+						{isUnconfirmed && <CircleAlert size={12} color={colors.warning.DEFAULT} />}
+						{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
+					</View>
+					<Text
+						className={`font-sans-semibold text-base ${isUnconfirmed ? 'text-warning' : isUpcoming ? 'text-info' : 'text-ink'}`}
+					>
+						{formatAmount(transaction.amount, transaction.currency)}{' '}
+						<Text className="font-sans text-sm text-ink-muted">
+							{getCurrencySymbol(transaction.currency)}
+						</Text>
 					</Text>
-				)}
+
+					{/* Confirm pill for unconfirmed transactions */}
+					{isUnconfirmed && (
+						<Pressable
+							onPress={() => confirmTransaction(transaction.id)}
+							className="mt-1 flex-row items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5"
+							hitSlop={8}
+							testID={`confirm-transaction-${transaction.id}`}
+						>
+							<CircleCheck size={11} color={colors.warning.DEFAULT} />
+							<Text className="font-sans-semibold text-xs text-warning">Confirm</Text>
+						</Pressable>
+					)}
+
+					{/* Scheduled date for upcoming transactions */}
+					{isUpcoming && (
+						<Text className="mt-1 pl-10 font-sans text-xs text-info">
+							{new Date(transaction.timestamp).toLocaleDateString(undefined, {
+								weekday: 'short',
+								month: 'short',
+								day: 'numeric',
+							})}
+						</Text>
+					)}
+				</View>
 			</View>
 
-			{/* Amount and currency */}
-			<View className="items-end">
-				{isUpcoming && (
-					<Clock size={12} color={colors.info.DEFAULT} style={{ marginBottom: 2 }} />
-				)}
-				<Text
-					className={`font-sans-semibold text-base ${isUpcoming ? 'text-info' : 'text-ink'}`}
+			{/* Vertical connector line, centered under From icon */}
+			<View className="ml-4 h-2 w-0.5 bg-paper-300" />
+
+			{/* To row: icon + name */}
+			<View className="flex-row items-center">
+				<View
+					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
 				>
-					{formatAmount(transaction.amount, transaction.currency)}{' '}
-					<Text className="font-sans text-sm text-ink-muted">
-						{getCurrencySymbol(transaction.currency)}
-					</Text>
+					<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+				</View>
+				<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
+					{toLabel}
 				</Text>
 			</View>
+
+			{/* Note on its own row */}
+			{transaction.note && (
+				<Text className="mt-1 pl-10 font-sans text-sm text-ink-muted" numberOfLines={3}>
+					{transaction.note}
+				</Text>
+			)}
 		</View>
 	);
 

@@ -1,4 +1,4 @@
-import { eq, and, between, or, desc, sum, inArray } from 'drizzle-orm';
+import { eq, and, between, or, desc, sum, inArray, gte } from 'drizzle-orm';
 import type { Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { transactions } from './drizzle-schema';
@@ -76,6 +76,8 @@ export async function createTransaction(transaction: Transaction): Promise<void>
 		currency: transaction.currency,
 		timestamp: transaction.timestamp,
 		note: transaction.note ?? null,
+		series_id: transaction.series_id ?? null,
+		is_confirmed: transaction.is_confirmed ?? true,
 	});
 }
 
@@ -170,4 +172,81 @@ export async function getEntityActual(
 ): Promise<number> {
 	const results = await getBatchEntityActuals([entityId], startTimestamp, endTimestamp);
 	return results.get(entityId) ?? 0;
+}
+
+export async function getTransactionsBySeriesId(seriesId: string): Promise<Transaction[]> {
+	const db = await getDrizzleDb();
+	return await db
+		.select()
+		.from(transactions)
+		.where(eq(transactions.series_id, seriesId))
+		.orderBy(transactions.timestamp);
+}
+
+export async function deleteTransactionsBySeriesFuture(
+	seriesId: string,
+	fromTimestamp: number
+): Promise<void> {
+	const db = await getDrizzleDb();
+	await db
+		.delete(transactions)
+		.where(
+			and(eq(transactions.series_id, seriesId), gte(transactions.timestamp, fromTimestamp))
+		);
+}
+
+export async function updateTransactionsBySeriesFuture(
+	seriesId: string,
+	fromTimestamp: number,
+	updates: Omit<Partial<Transaction>, 'id'>
+): Promise<void> {
+	const db = await getDrizzleDb();
+	const updateData: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(updates)) {
+		if (value !== undefined) updateData[key] = value;
+	}
+	if (Object.keys(updateData).length > 0) {
+		await db
+			.update(transactions)
+			.set(updateData)
+			.where(
+				and(
+					eq(transactions.series_id, seriesId),
+					gte(transactions.timestamp, fromTimestamp)
+				)
+			);
+	}
+}
+
+export async function createTransactionBatch(txns: Transaction[]): Promise<void> {
+	if (txns.length === 0) return;
+	const db = await getDrizzleDb();
+	db.transaction((tx) => {
+		for (const txn of txns) {
+			tx.insert(transactions)
+				.values({
+					id: txn.id,
+					from_entity_id: txn.from_entity_id,
+					to_entity_id: txn.to_entity_id,
+					amount: txn.amount,
+					currency: txn.currency,
+					timestamp: txn.timestamp,
+					note: txn.note ?? null,
+					series_id: txn.series_id ?? null,
+					is_confirmed: txn.is_confirmed ?? true,
+				})
+				.run();
+		}
+	});
+}
+
+export async function confirmTransaction(id: string): Promise<void> {
+	const db = await getDrizzleDb();
+	await db.update(transactions).set({ is_confirmed: true }).where(eq(transactions.id, id));
+}
+
+export async function confirmTransactionsBatch(ids: string[]): Promise<void> {
+	if (ids.length === 0) return;
+	const db = await getDrizzleDb();
+	await db.update(transactions).set({ is_confirmed: true }).where(inArray(transactions.id, ids));
 }

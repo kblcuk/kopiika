@@ -8,20 +8,24 @@ type DrizzlePlan = InferSelectModel<typeof schema.plans>;
 type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 
 // Convert Drizzle's null types to optional (undefined) for better TypeScript ergonomics
-export type Entity = Omit<DrizzleEntity, 'icon' | 'color' | 'include_in_total' | 'is_deleted'> & {
+export type Entity = Omit<
+	DrizzleEntity,
+	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default'
+> & {
 	icon?: string | null;
 	color?: string | null;
 	include_in_total?: boolean;
 	is_deleted?: boolean;
+	is_default?: boolean;
 };
 
 export type Plan = DrizzlePlan;
 
-export type Transaction = Omit<DrizzleTransaction, 'note'> & {
+export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id' | 'is_confirmed'> & {
 	note?: string | null;
+	series_id?: string | null;
+	is_confirmed?: boolean;
 };
-
-export type { Reservation } from '@/src/db/reservations';
 
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
@@ -39,6 +43,7 @@ export interface EntityWithBalance extends Entity {
 	actual: number;
 	remaining: number;
 	upcoming: number; // sum of future-dated transactions (timestamp > now)
+	unconfirmed?: number; // sum of past-due unconfirmed transactions
 	reserved?: number; // accounts only: total reserved across savings goals
 }
 
@@ -55,3 +60,11 @@ export function getPeriodRange(period: string): { start: number; end: number } {
 	const end = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 	return { start, end };
 }
+
+export type {
+	RecurrenceFrequency,
+	RecurrenceRule,
+	RecurrenceRuleSimple,
+	RecurrenceTemplate,
+} from './recurrence';
+export { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from './recurrence';

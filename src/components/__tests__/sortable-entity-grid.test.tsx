@@ -61,7 +61,7 @@ describe('SortableEntityGrid', () => {
 		).toEqual({ kind: 'transaction', targetId: 'cat-1' });
 	});
 
-	it('prevents savings from creating outgoing transaction targets', () => {
+	it('allows saving → account for explicit release', () => {
 		expect(
 			resolveGridDragEnd({
 				dragBehavior: 'transaction',
@@ -70,6 +70,6 @@ describe('SortableEntityGrid', () => {
 				targetId: 'acc-1',
 				orderedIds: ['saving-1'],
 			})
-		).toEqual({ kind: 'none' });
+		).toEqual({ kind: 'transaction', targetId: 'acc-1' });
 	});
 });

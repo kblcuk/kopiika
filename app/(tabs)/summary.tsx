@@ -1,20 +1,18 @@
-import { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, ScrollView, Pressable } from 'react-native';
+import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useRouter } from 'expo-router';
 
-import { useStore } from '@/src/store';
-import { getCurrentPeriod, getPeriodRange } from '@/src/types';
-import type { EntityWithBalance, EntityType } from '@/src/types';
+import { useStore, getEntitiesWithBalance } from '@/src/store';
+import { getCurrentPeriod } from '@/src/types';
+import type { EntityWithBalance } from '@/src/types';
 import { PeriodPicker } from '@/src/components/period-picker';
 import { ProgressBar } from '@/src/components/progress-bar';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
-import { getBatchEntityActuals } from '@/src/db/transactions';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityTypeColors } from '@/src/utils/entity-colors';
-import { isEntityActive } from '@/src/utils/entity-display';
-import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
@@ -184,16 +182,12 @@ function Section({ title, entities, trendActuals, onEntityPress }: SectionProps)
 export default function SummaryScreen() {
 	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
-	const [actuals, setActuals] = useState<Map<string, number>>(new Map());
-	// 4 monthly actuals maps oldest→newest (3 prior months + selected period)
-	const [trendActuals, setTrendActuals] = useState<Map<string, number>[]>([]);
 
-	const { entities, plans, transactions, reservations } = useStore(
+	const { entities, plans, transactions } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
-			reservations: state.reservations,
 		}))
 	);
 
@@ -201,87 +195,40 @@ export default function SummaryScreen() {
 		router.push(`/history?period=${selectedPeriod}&entityId=${entity.id}`);
 	};
 
-	// Fetch current-period actuals + 3-month trend in parallel
-	useEffect(() => {
-		async function fetchActuals() {
-			const entityIds = entities
-				.filter((e) => isEntityActive(e) && e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)
-				.map((e) => e.id);
-			const priorPeriods = getPriorPeriods(selectedPeriod, 3);
-			const allPeriods = [...priorPeriods, selectedPeriod]; // oldest → current
+	// Canonical derivation — single authoritative path shared with the dashboard
+	const categories = useMemo(
+		() =>
+			[
+				...getEntitiesWithBalance(
+					entities,
+					plans,
+					transactions,
+					selectedPeriod,
+					'category'
+				),
+			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
+		[entities, plans, transactions, selectedPeriod]
+	);
 
-			const results = await Promise.all(
-				allPeriods.map((p) => {
-					const { start, end } = getPeriodRange(p);
-					return getBatchEntityActuals(entityIds, start, end);
-				})
-			);
+	const savings = useMemo(
+		() =>
+			[
+				...getEntitiesWithBalance(entities, plans, transactions, selectedPeriod, 'saving'),
+			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
+		[entities, plans, transactions, selectedPeriod]
+	);
 
-			// allPeriods is oldest→current, so current is the last element
-			setActuals(results[results.length - 1]);
-			setTrendActuals(results); // already oldest first
-		}
-		fetchActuals();
-	}, [selectedPeriod, entities, transactions]);
-
-	// Combine entities with their actuals and plans
-	const reservationTotals = useMemo(() => {
-		return reservations.reduce((totals, reservation) => {
-			totals.set(
-				reservation.saving_entity_id,
-				(totals.get(reservation.saving_entity_id) ?? 0) + reservation.amount
-			);
-			return totals;
-		}, new Map<string, number>());
-	}, [reservations]);
-
-	const entitiesWithBalance = useMemo(() => {
-		return entities
-			.filter(
-				(entity) => isEntityActive(entity) && entity.id !== BALANCE_ADJUSTMENT_ENTITY_ID
-			)
-			.map((entity) => {
-				// All plans use 'all-time' period - same planned amount for all months
-				const plan = plans.find(
-					(p) => p.entity_id === entity.id && p.period === 'all-time'
-				);
-				const planned = plan?.planned_amount ?? 0;
-				const actual =
-					entity.type === 'saving'
-						? (reservationTotals.get(entity.id) ?? 0)
-						: (actuals.get(entity.id) ?? 0);
-
-				return {
-					...entity,
-					planned,
-					actual,
-					remaining: planned - actual,
-				} as EntityWithBalance;
-			});
-	}, [entities, plans, actuals, reservationTotals]);
-
-	// Group entities by type
-	const groupedEntities = useMemo(() => {
-		const groups: Record<EntityType, EntityWithBalance[]> = {
-			income: [],
-			account: [],
-			category: [],
-			saving: [],
-		};
-
-		for (const entity of entitiesWithBalance) {
-			groups[entity.type].push(entity);
-		}
-
-		// Sort by row then position within each group
-		for (const type in groups) {
-			groups[type as EntityType].sort(
-				(a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position
-			);
-		}
-
-		return groups;
-	}, [entitiesWithBalance]);
+	// Sparkline trend: 3 prior months + selected period (categories only)
+	const trendActuals = useMemo(() => {
+		const priorPeriods = getPriorPeriods(selectedPeriod, 3);
+		const allPeriods = [...priorPeriods, selectedPeriod];
+		return allPeriods.map((period) => {
+			const cats = getEntitiesWithBalance(entities, plans, transactions, period, 'category');
+			const map = new Map<string, number>();
+			for (const e of cats) map.set(e.id, e.actual);
+			return map;
+		});
+	}, [entities, plans, transactions, selectedPeriod]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
@@ -295,7 +242,7 @@ export default function SummaryScreen() {
 
 			{/* Content */}
 			<ScrollView className="flex-1">
-				{entitiesWithBalance.length === 0 ? (
+				{categories.length === 0 && savings.length === 0 ? (
 					<View className="flex-1 items-center justify-center px-5 py-16">
 						<Text className="font-sans text-base text-ink-muted">
 							No data this period
@@ -305,14 +252,13 @@ export default function SummaryScreen() {
 					<>
 						<Section
 							title="Categories"
-							entities={groupedEntities.category}
+							entities={categories}
 							trendActuals={trendActuals}
 							onEntityPress={handleEntityPress}
 						/>
 						<Section
 							title="Savings"
-							entities={groupedEntities.saving}
-							trendActuals={trendActuals}
+							entities={savings}
 							onEntityPress={handleEntityPress}
 						/>
 					</>

@@ -268,12 +268,13 @@ describe('EntityCreateModal', () => {
 			});
 		});
 
-		it('uses all-time period for all entity types', async () => {
+		it('uses all-time period for all entity types with plans', async () => {
 			const addEntitySpy = jest.fn();
 			const setPlanSpy = jest.fn();
 			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
 
-			const types: ('income' | 'account' | 'category')[] = ['income', 'account', 'category'];
+			// Accounts don't have planned amounts, so they're excluded
+			const types: ('income' | 'category')[] = ['income', 'category'];
 
 			for (const type of types) {
 				jest.clearAllMocks();
@@ -294,6 +295,25 @@ describe('EntityCreateModal', () => {
 					);
 				});
 			}
+		});
+	});
+
+	describe('Account-specific behavior', () => {
+		it('does not show planned amount field for accounts', () => {
+			const { queryByTestId } = render(
+				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
+			);
+
+			expect(queryByTestId('entity-create-amount-input')).toBeNull();
+			expect(queryByTestId('entity-create-amount-input-container')).toBeNull();
+		});
+
+		it('shows planned amount field for non-account types', () => {
+			const { getByTestId } = render(
+				<EntityCreateModal visible={true} entityType="category" onClose={mockOnClose} />
+			);
+
+			expect(getByTestId('entity-create-amount-input')).toBeTruthy();
 		});
 	});
 

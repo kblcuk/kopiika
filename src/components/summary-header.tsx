@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './text';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
@@ -16,12 +17,11 @@ interface SummaryData {
 
 // Hook to compute summary values
 export function useSummary(): SummaryData {
-	const { entities, plans, transactions, reservations, currentPeriod } = useStore(
+	const { entities, plans, transactions, currentPeriod } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
-			reservations: state.reservations,
 			currentPeriod: state.currentPeriod,
 		}))
 	);
@@ -33,8 +33,7 @@ export function useSummary(): SummaryData {
 			plans,
 			transactions,
 			currentPeriod,
-			'account',
-			reservations
+			'account'
 		);
 		const categoriesWithBalance = getEntitiesWithBalance(
 			entities,
@@ -59,7 +58,7 @@ export function useSummary(): SummaryData {
 			.reduce((sum, c) => sum + Math.max(0, c.planned - c.actual), 0);
 
 		return { balance, expenses, remaining };
-	}, [entities, plans, transactions, currentPeriod, reservations]);
+	}, [entities, plans, transactions, currentPeriod]);
 }
 
 interface SummaryHeaderProps {

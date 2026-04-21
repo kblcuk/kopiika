@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, Modal, Platform } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardExtender } from 'react-native-keyboard-controller';
+import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { Text } from './text';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -99,17 +104,20 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			position: nextPosition,
 		});
 
-		const amount = reverseFormatCurrency(plannedExpr.resolve());
-		if (!isNaN(amount) && amount > 0) {
-			await setPlan({
-				id: generateId(),
-				entity_id: entityId,
-				period: 'all-time',
-				period_start: currentPeriod,
-				planned_amount: amount,
-			});
+		if (entityType !== 'account') {
+			const amount = reverseFormatCurrency(plannedExpr.resolve());
+			if (!isNaN(amount) && amount > 0) {
+				await setPlan({
+					id: generateId(),
+					entity_id: entityId,
+					period: 'all-time',
+					period_start: currentPeriod,
+					planned_amount: amount,
+				});
+			}
 		}
 
+		KeyboardController.dismiss();
 		onClose();
 	}, [
 		entityType,
@@ -142,6 +150,11 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		}
 	}, [handleCreate]);
 
+	const handleCancel = useCallback(() => {
+		KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
 	if (!entityType) return null;
 
 	const iconOptions = ICON_OPTIONS[entityType];
@@ -160,14 +173,18 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			visible={visible}
 			animationType="slide"
 			presentationStyle="pageSheet"
-			onRequestClose={onClose}
+			onRequestClose={handleCancel}
 		>
 			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
 			>
 				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable onPress={onClose} hitSlop={20} testID="entity-create-cancel-button">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="entity-create-cancel-button"
+					>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
@@ -227,42 +244,46 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 						/>
 					</View>
 
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Planned Amount (optional)
-						</Text>
-						<View
-							className={textInputClassNames.inlineContainer}
-							testID="entity-create-amount-input-container"
-						>
-							<TextInput
-								{...sharedNumericTextInputProps}
-								{...plannedExpr.inputProps}
-								placeholder="0"
-								className={`flex-1 ${textInputClassNames.input}`}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="entity-create-amount-input"
-							/>
-							<Text className={textInputClassNames.suffix}>
-								{getCurrencySymbol(DEFAULT_CURRENCY)}
+					{entityType !== 'account' && (
+						<View className="mb-6">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Planned Amount (optional)
 							</Text>
+							<View
+								className={textInputClassNames.inlineContainer}
+								testID="entity-create-amount-input-container"
+							>
+								<TextInput
+									{...sharedNumericTextInputProps}
+									{...plannedExpr.inputProps}
+									placeholder="0"
+									className={`flex-1 ${textInputClassNames.input}`}
+									style={styles.input}
+									placeholderTextColor={colors.ink.placeholder}
+									testID="entity-create-amount-input"
+								/>
+								<Text className={textInputClassNames.suffix}>
+									{getCurrencySymbol(DEFAULT_CURRENCY)}
+								</Text>
+							</View>
+							{plannedExpr.preview && (
+								<Text className="mt-1 font-sans text-sm text-ink-muted">
+									{plannedExpr.preview}
+								</Text>
+							)}
 						</View>
-						{plannedExpr.preview && (
-							<Text className="mt-1 font-sans text-sm text-ink-muted">
-								{plannedExpr.preview}
-							</Text>
-						)}
-					</View>
+					)}
 				</KeyboardAwareScrollView>
 			</View>
 
-			<KeyboardExtender enabled={plannedExpr.focused}>
-				<OperatorToolbar
-					onOperator={plannedExpr.insertOperator}
-					onEquals={plannedExpr.resolve}
-				/>
-			</KeyboardExtender>
+			{entityType !== 'account' && (
+				<KeyboardExtender enabled={plannedExpr.focused}>
+					<OperatorToolbar
+						onOperator={plannedExpr.insertOperator}
+						onEquals={plannedExpr.resolve}
+					/>
+				</KeyboardExtender>
+			)}
 		</Modal>
 	);
 }
