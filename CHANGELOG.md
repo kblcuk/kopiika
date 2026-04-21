@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.4](https://codeberg.org/kblcuk/kopiika/compare/v0.3.3...v0.3.4) (2026-04-21)
+
+
+### Features
+
+* **transactions:** Add explicit delete button in edit modal (KII-84) ([0423cb7](https://codeberg.org/kblcuk/kopiika/commit/0423cb78e747fe9c83deb92b174c57f598763e2f))
+* **transactions:** Auto-confirm today's occurrence in recurring series (KII-92) ([be9fee5](https://codeberg.org/kblcuk/kopiika/commit/be9fee56bbb8e9262b0feab09261a5901abaf961))
+* **transactions:** Show validation hint for invalid amount ([0bbd289](https://codeberg.org/kblcuk/kopiika/commit/0bbd2896ab7d8b6004f8eeb854815b6946ba0e74))
+
+
+### Bug Fixes
+
+* move "fund from savings" below date & note ([41e57be](https://codeberg.org/kblcuk/kopiika/commit/41e57be175970907a430c320313d60cd3da33bf2))
+
 ## [0.3.3](https://codeberg.org/kblcuk/kopiika/compare/v0.3.2...v0.3.3) (2026-04-20)
 
 
