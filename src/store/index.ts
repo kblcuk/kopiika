@@ -492,6 +492,7 @@ export const useStore = create<AppState>((set, get) => ({
 			endCount: recurrence.endCount,
 		});
 
+		const now = Date.now();
 		const txns: Transaction[] = occurrences.map((ts) => ({
 			id: generateId(),
 			from_entity_id: transaction.from_entity_id,
@@ -501,7 +502,7 @@ export const useStore = create<AppState>((set, get) => ({
 			timestamp: ts,
 			note: transaction.note,
 			series_id: templateId,
-			is_confirmed: false,
+			is_confirmed: ts <= now,
 		}));
 
 		if (txns.length > 0) {

@@ -3437,4 +3437,67 @@ describe('Store Data Integrity', () => {
 			expect(categories[0].unconfirmed).toBe(0);
 		});
 	});
+
+	describe('addRecurringTransaction', () => {
+		test('auto-confirms first occurrence if it is for today', async () => {
+			const entities = [
+				{
+					id: 'entity-1',
+					type: 'account' as const,
+					name: 'Checking',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'entity-2',
+					type: 'category' as const,
+					name: 'Groceries',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+			];
+
+			for (const entity of entities) {
+				await db.createEntity(entity);
+			}
+
+			useStore.setState({ entities });
+
+			const now = Date.now();
+
+			await useStore.getState().addRecurringTransaction(
+				{
+					from_entity_id: 'entity-1',
+					to_entity_id: 'entity-2',
+					amount: 100,
+					currency: 'USD',
+					timestamp: now,
+				},
+				{
+					rule: { type: 'monthly' },
+					endDate: null,
+					endCount: null,
+					horizon: 90,
+				}
+			);
+
+			const state = useStore.getState();
+			const seriesTxns = state.transactions.filter((t) => t.series_id);
+
+			// First occurrence (today) should be confirmed
+			const todayTxn = seriesTxns.find((t) => t.timestamp === now);
+			expect(todayTxn?.is_confirmed).toBe(true);
+
+			// Future occurrences should not be confirmed
+			const futureTxns = seriesTxns.filter((t) => t.timestamp > now);
+			expect(futureTxns.length).toBeGreaterThan(0);
+			for (const txn of futureTxns) {
+				expect(txn.is_confirmed).toBe(false);
+			}
+		});
+	});
 });
