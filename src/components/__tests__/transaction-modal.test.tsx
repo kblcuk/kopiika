@@ -228,6 +228,26 @@ describe('TransactionModal', () => {
 			expect(addTransactionSpy).not.toHaveBeenCalled();
 		});
 
+		it('shows validation hint when amount is zero or negative', () => {
+			const { getByTestId, getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '0');
+			expect(getByText('Amount must be greater than 0')).toBeTruthy();
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '-5');
+			expect(getByText('Amount must be greater than 0')).toBeTruthy();
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '10');
+			expect(queryByText('Amount must be greater than 0')).toBeNull();
+		});
+
 		it('creates transaction with valid amount', async () => {
 			const addTransactionSpy = jest.fn();
 			useStore.setState({ addTransaction: addTransactionSpy });

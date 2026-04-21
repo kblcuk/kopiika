@@ -702,6 +702,11 @@ export function TransactionModal({
 								{amountExpr.preview}
 							</Text>
 						)}
+						{!canSave && amount !== '' && reverseFormatCurrency(amount) <= 0 && (
+							<Text className="mt-1 font-sans text-xs text-ink-muted">
+								Amount must be greater than 0
+							</Text>
+						)}
 						{!isEditing && suggestedAmount && (
 							<Pressable
 								onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
