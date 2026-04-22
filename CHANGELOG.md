@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.5](https://codeberg.org/kblcuk/kopiika/compare/v0.3.4...v0.3.5) (2026-04-22)
+
+
+### Features
+
+* **db:** Track notification ids on transactions ([b27074e](https://codeberg.org/kblcuk/kopiika/commit/b27074ed2c8468e630e7061054c4b95174036aa1))
+* **e2e:** add detox e2e tests for transaction flows ([a7adfeb](https://codeberg.org/kblcuk/kopiika/commit/a7adfeb861a42875784adfcb3b357ca2aaaaca16))
+* **e2e:** expand detox tests with fixture seeding, DnD, and refund flows ([395dab9](https://codeberg.org/kblcuk/kopiika/commit/395dab9ebf8e0fac5a74051e2235a3c19fd55d2f))
+* **entities:** Add EntityColorKey type and color palette constant (KII-81) ([ebdd3dd](https://codeberg.org/kblcuk/kopiika/commit/ebdd3dd8afbf6b4342599f979db4013d7779de40))
+* **entities:** Add EntityColorPicker component (KII-81) ([e438863](https://codeberg.org/kblcuk/kopiika/commit/e4388635d6d6701509e67d9d55672be1e3afcc2b))
+* **entities:** integrate color picker into create modal (KII-81) ([e48a0a8](https://codeberg.org/kblcuk/kopiika/commit/e48a0a841e0684d979a3d479a7f7811f9c003307))
+* **entities:** integrate color picker into edit modal (KII-81) ([5278445](https://codeberg.org/kblcuk/kopiika/commit/52784457c0ab6d1ac40a86d73e5b80612fc18924))
+* **history:** Add unconfirmed transaction badge on History tab (KII-90) ([249524f](https://codeberg.org/kblcuk/kopiika/commit/249524f3f495994a4b1f3f4e6c7b90346c322869))
+* **notifications:** Schedule and manage local reminders ([df5ffd7](https://codeberg.org/kblcuk/kopiika/commit/df5ffd7bca54914aa04c7f78b196e6840d2677df))
+* **settings:** Add reminder controls and catch-up task ([ea0f732](https://codeberg.org/kblcuk/kopiika/commit/ea0f7322cdc5ace869ca1a962e79ea8b51274d8f))
+
+
+### Bug Fixes
+
+* **entities:** deduplicate ColorPair type and fix dot layout shift (KII-81) ([e668afb](https://codeberg.org/kblcuk/kopiika/commit/e668afbef556a1c332255de4f14d128a9e82dbf4))
+* **notifications:** Reset reminder state across toggle flows ([5dfc019](https://codeberg.org/kblcuk/kopiika/commit/5dfc019118ecde04fa0a5c375b318a41f509a8cc))
+
 ## [0.3.4](https://codeberg.org/kblcuk/kopiika/compare/v0.3.3...v0.3.4) (2026-04-21)
 
 
