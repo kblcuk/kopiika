@@ -33,7 +33,7 @@ export function EntityColorPicker({ entityType, selectedColor, onSelect }: Entit
 						width: DOT_SIZE,
 						height: DOT_SIZE,
 						backgroundColor: typeDefault.bgColor,
-						borderWidth: isDefaultSelected ? 2 : 0,
+						borderWidth: 2,
 						borderColor: isDefaultSelected ? colors.ink.DEFAULT : 'transparent',
 					}}
 				>
@@ -66,7 +66,7 @@ export function EntityColorPicker({ entityType, selectedColor, onSelect }: Entit
 								width: DOT_SIZE,
 								height: DOT_SIZE,
 								backgroundColor: swatch.bgColor,
-								borderWidth: isSelected ? 2 : 0,
+								borderWidth: 2,
 								borderColor: isSelected ? colors.ink.DEFAULT : 'transparent',
 							}}
 						>

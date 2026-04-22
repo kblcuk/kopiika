@@ -1,6 +1,6 @@
 import type { EntityColorKey } from '@/src/types';
 
-type ColorPair = { bgColor: string; iconColor: string };
+export type ColorPair = { bgColor: string; iconColor: string };
 
 export const ENTITY_COLOR_PALETTE: Record<EntityColorKey, ColorPair> = {
 	amethyst: { bgColor: '#D8CEE0', iconColor: '#5C4A70' },

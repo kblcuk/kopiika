@@ -1,8 +1,6 @@
 import type { EntityType, EntityColorKey } from '@/src/types';
 import { colors } from '@/src/theme/colors';
-import { ENTITY_COLOR_PALETTE } from '@/src/constants/entity-colors';
-
-type ColorPair = { bgColor: string; iconColor: string };
+import { ENTITY_COLOR_PALETTE, type ColorPair } from '@/src/constants/entity-colors';
 
 const entityTypeDefaults: Record<EntityType, ColorPair> = {
 	income: {
