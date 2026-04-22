@@ -9,7 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import type { EntityType } from '@/src/types';
+import type { EntityType, EntityColorKey } from '@/src/types';
+import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
@@ -35,6 +36,7 @@ interface EntityCreateModalProps {
 export function EntityCreateModal({ visible, entityType, onClose }: EntityCreateModalProps) {
 	const [name, setName] = useState('');
 	const [selectedIcon, setSelectedIcon] = useState('');
+	const [selectedColor, setSelectedColor] = useState<EntityColorKey | null>(null);
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
@@ -54,6 +56,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		if (visible && entityType) {
 			setName('');
 			setSelectedIcon(DEFAULT_ICONS[entityType]);
+			setSelectedColor(null);
 			setPlannedAmount('');
 			setTimeout(() => nameInputRef.current?.focus(), 100);
 		}
@@ -99,6 +102,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			name: name.trim(),
 			currency: DEFAULT_CURRENCY,
 			icon: selectedIcon,
+			color: selectedColor,
 			order: nextPosition,
 			row: targetRow,
 			position: nextPosition,
@@ -123,6 +127,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		entityType,
 		name,
 		selectedIcon,
+		selectedColor,
 		plannedExpr,
 		entities,
 		addEntity,
@@ -233,7 +238,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Icon
+							Icon & Color
 						</Text>
 						<EntityIconPicker
 							key={`${entityType}-${visible ? 'open' : 'closed'}`}
@@ -241,6 +246,11 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							selectedIcon={selectedIcon}
 							onSelect={setSelectedIcon}
 							optionTestIDPrefix="entity-create-icon-option"
+						/>
+						<EntityColorPicker
+							entityType={entityType}
+							selectedColor={selectedColor}
+							onSelect={setSelectedColor}
 						/>
 					</View>
 
