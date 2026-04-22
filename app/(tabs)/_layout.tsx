@@ -6,9 +6,11 @@ import * as Haptics from 'expo-haptics';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { colors } from '@/src/theme/colors';
+import { useUnconfirmedCount } from '@/src/store';
 
 export default function TabLayout() {
 	const router = useRouter();
+	const unconfirmedCount = useUnconfirmedCount();
 
 	const handleOpenAdd = () => {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -89,6 +91,13 @@ export default function TabLayout() {
 						tabBarIcon: ({ color }) => (
 							<IconSymbol size={28} name="clock.fill" color={color} />
 						),
+						tabBarBadge: unconfirmedCount > 0 ? unconfirmedCount : undefined,
+						tabBarBadgeStyle: {
+							backgroundColor: colors.warning.DEFAULT,
+							color: '#fff',
+							fontSize: 11,
+							fontWeight: '600',
+						},
 					}}
 				/>
 				<Tabs.Screen

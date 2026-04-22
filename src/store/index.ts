@@ -810,6 +810,16 @@ export function getEntitiesWithBalance(
 	});
 }
 
+export function getUnconfirmedCount(transactions: Transaction[]): number {
+	const now = Date.now();
+	return transactions.filter((t) => t.is_confirmed === false && t.timestamp <= now).length;
+}
+
+export function useUnconfirmedCount(): number {
+	const transactions = useStore((state) => state.transactions);
+	return useMemo(() => getUnconfirmedCount(transactions), [transactions]);
+}
+
 // React hook that wraps the pure function
 export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 	const { entities, plans, transactions, currentPeriod } = useStore(
