@@ -38,7 +38,11 @@ export function EntityColorPicker({ entityType, selectedColor, onSelect }: Entit
 					}}
 				>
 					{isDefaultSelected && (
-						<Check size={14} color={typeDefault.iconColor} testID="color-check-default" />
+						<Check
+							size={14}
+							color={typeDefault.iconColor}
+							testID="color-check-default"
+						/>
 					)}
 				</View>
 			</Pressable>

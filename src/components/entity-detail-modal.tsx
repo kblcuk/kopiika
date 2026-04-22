@@ -545,7 +545,10 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									<View className="rounded-lg bg-paper-100">
 										{accountReservations.map(({ amount, saving }, index) => {
 											const SavingIcon = getIcon(saving.icon || 'circle');
-											const savingColors = getEntityColors('saving', saving.color);
+											const savingColors = getEntityColors(
+												'saving',
+												saving.color
+											);
 											return (
 												<Pressable
 													key={saving.id}
@@ -557,7 +560,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 												>
 													<View
 														className="mr-3 h-8 w-8 items-center justify-center rounded-full"
-														style={{ backgroundColor: savingColors.bgColor }}
+														style={{
+															backgroundColor: savingColors.bgColor,
+														}}
 													>
 														<SavingIcon
 															size={16}
@@ -641,7 +646,10 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<View className="rounded-lg bg-paper-100">
 									{savingReservations.map(({ amount, account }, index) => {
 										const AccountIcon = getIcon(account.icon || 'circle');
-										const accountColors = getEntityColors('account', account.color);
+										const accountColors = getEntityColors(
+											'account',
+											account.color
+										);
 										return (
 											<Pressable
 												key={account.id}
@@ -653,7 +661,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 											>
 												<View
 													className="mr-3 h-8 w-8 items-center justify-center rounded-full"
-													style={{ backgroundColor: accountColors.bgColor }}
+													style={{
+														backgroundColor: accountColors.bgColor,
+													}}
 												>
 													<AccountIcon
 														size={16}

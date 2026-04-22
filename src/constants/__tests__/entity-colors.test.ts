@@ -5,8 +5,14 @@ import type { EntityColorKey } from '@/src/types';
 describe('ENTITY_COLOR_PALETTE', () => {
 	test('contains all 8 palette keys', () => {
 		const keys: EntityColorKey[] = [
-			'amethyst', 'emerald', 'sapphire', 'ruby',
-			'jade', 'amber', 'lilac', 'teal',
+			'amethyst',
+			'emerald',
+			'sapphire',
+			'ruby',
+			'jade',
+			'amber',
+			'lilac',
+			'teal',
 		];
 		for (const key of keys) {
 			expect(ENTITY_COLOR_PALETTE[key]).toBeDefined();

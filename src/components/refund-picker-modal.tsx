@@ -143,7 +143,10 @@ export function RefundPickerModal({
 											<View className="flex-row items-center">
 												<View
 													className="mr-2 h-8 w-8 items-center justify-center rounded-full"
-													style={{ backgroundColor: fromColors?.bgColor ?? '#EBE3D5' }}
+													style={{
+														backgroundColor:
+															fromColors?.bgColor ?? '#EBE3D5',
+													}}
 												>
 													<FromIcon
 														size={16}
@@ -164,7 +167,10 @@ export function RefundPickerModal({
 												</Text>
 												<View
 													className="mr-2 h-8 w-8 items-center justify-center rounded-full"
-													style={{ backgroundColor: toColors?.bgColor ?? '#EBE3D5' }}
+													style={{
+														backgroundColor:
+															toColors?.bgColor ?? '#EBE3D5',
+													}}
 												>
 													<ToIcon
 														size={16}

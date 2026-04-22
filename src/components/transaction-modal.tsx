@@ -856,7 +856,10 @@ export function TransactionModal({
 												? entities.find((e) => e.id === split.toEntityId)
 												: null;
 											const typeColors = splitEntity
-												? getEntityColors(splitEntity.type, splitEntity.color)
+												? getEntityColors(
+														splitEntity.type,
+														splitEntity.color
+													)
 												: null;
 											const IconComponent = splitEntity
 												? getIcon(splitEntity.icon || 'circle')
@@ -891,7 +894,10 @@ export function TransactionModal({
 															<>
 																<View
 																	className="mr-1.5 h-5 w-5 items-center justify-center rounded-full"
-																	style={{ backgroundColor: typeColors.bgColor }}
+																	style={{
+																		backgroundColor:
+																			typeColors.bgColor,
+																	}}
 																>
 																	<IconComponent
 																		size={11}
