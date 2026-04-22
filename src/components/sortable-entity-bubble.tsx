@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import type { EntityWithBalance } from '@/src/types';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
 import { CircularProgress } from './circular-progress';
@@ -53,7 +53,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
 	const IconComponent = getIcon(entity.icon || 'circle');
-	const typeColors = getEntityTypeColors(entity.type);
+	const typeColors = getEntityColors(entity.type, entity.color);
 	const isIncome = entity.type === 'income';
 	const isAccount = entity.type === 'account';
 	const mainAmount = formatAmount(isIncome ? Math.max(0, entity.actual) : entity.actual);
@@ -169,7 +169,8 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 							</View>
 						)}
 						<View
-							className={`h-14 w-14 items-center justify-center rounded-full ${typeColors.bg}`}
+							className="h-14 w-14 items-center justify-center rounded-full"
+							style={{ backgroundColor: typeColors.bgColor }}
 						>
 							<IconComponent size={24} color={typeColors.iconColor} />
 						</View>

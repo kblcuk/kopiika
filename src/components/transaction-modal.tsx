@@ -34,7 +34,7 @@ import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
 import { OperatorToolbar } from './operator-toolbar';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
@@ -575,7 +575,7 @@ export function TransactionModal({
 			);
 		}
 		const IconComponent = getIcon(entity.icon || 'circle');
-		const typeColors = getEntityTypeColors(entity.type);
+		const typeColors = getEntityColors(entity.type, entity.color);
 		const isTappable = !!onPress;
 		return (
 			<Pressable
@@ -586,7 +586,8 @@ export function TransactionModal({
 			>
 				<View className="relative">
 					<View
-						className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+						className="mb-2 h-12 w-12 items-center justify-center rounded-full"
+						style={{ backgroundColor: typeColors.bgColor }}
 					>
 						<IconComponent size={20} color={typeColors.iconColor} />
 					</View>
@@ -855,7 +856,7 @@ export function TransactionModal({
 												? entities.find((e) => e.id === split.toEntityId)
 												: null;
 											const typeColors = splitEntity
-												? getEntityTypeColors(splitEntity.type)
+												? getEntityColors(splitEntity.type, splitEntity.color)
 												: null;
 											const IconComponent = splitEntity
 												? getIcon(splitEntity.icon || 'circle')
@@ -889,7 +890,8 @@ export function TransactionModal({
 														IconComponent ? (
 															<>
 																<View
-																	className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
+																	className="mr-1.5 h-5 w-5 items-center justify-center rounded-full"
+																	style={{ backgroundColor: typeColors.bgColor }}
 																>
 																	<IconComponent
 																		size={11}

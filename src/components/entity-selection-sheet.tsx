@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import type { Entity } from '@/src/types';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 
 interface EntitySelectionSheetProps {
@@ -63,7 +63,7 @@ export function EntitySelectionSheet({
 					<View className="flex-row flex-wrap justify-start">
 						{entities.map((entity) => {
 							const IconComponent = getIcon(entity.icon || 'circle');
-							const typeColors = getEntityTypeColors(entity.type);
+							const typeColors = getEntityColors(entity.type, entity.color);
 							const isSelected = entity.id === selectedId;
 
 							return (
@@ -74,9 +74,10 @@ export function EntitySelectionSheet({
 									className="mb-4 w-1/3 items-center"
 								>
 									<View
-										className={`mb-2 h-14 w-14 items-center justify-center rounded-full ${typeColors.bg} ${
+										className={`mb-2 h-14 w-14 items-center justify-center rounded-full ${
 											isSelected ? 'border-2 border-accent' : ''
 										}`}
+										style={{ backgroundColor: typeColors.bgColor }}
 									>
 										<IconComponent size={24} color={typeColors.iconColor} />
 									</View>

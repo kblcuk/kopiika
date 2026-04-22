@@ -16,7 +16,7 @@ import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { showSeriesScopeAlert } from './series-action-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName } from '@/src/utils/entity-display';
 
@@ -57,8 +57,8 @@ export const TransactionRow = memo(function TransactionRow({
 	const FromIcon = getIcon(fromEntity?.icon || 'circle');
 	const ToIcon = getIcon(toEntity?.icon || 'circle');
 
-	const fromColors = fromEntity ? getEntityTypeColors(fromEntity.type) : null;
-	const toColors = toEntity ? getEntityTypeColors(toEntity.type) : null;
+	const fromColors = fromEntity ? getEntityColors(fromEntity.type, fromEntity.color) : null;
+	const toColors = toEntity ? getEntityColors(toEntity.type, toEntity.color) : null;
 
 	const confirmDelete = useCallback(() => {
 		if (transaction.series_id) {
@@ -120,7 +120,8 @@ export const TransactionRow = memo(function TransactionRow({
 			{/* From row: icon + name + amount */}
 			<View className="flex-row items-center">
 				<View
-					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+					className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+					style={{ backgroundColor: fromColors?.bgColor ?? '#EBE3D5' }}
 				>
 					<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
 				</View>
@@ -179,7 +180,8 @@ export const TransactionRow = memo(function TransactionRow({
 			{/* To row: icon + name */}
 			<View className="flex-row items-center">
 				<View
-					className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
+					className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+					style={{ backgroundColor: toColors?.bgColor ?? '#EBE3D5' }}
 				>
 					<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
 				</View>

@@ -7,7 +7,7 @@ import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/for
 import { useStore } from '@/src/store';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
@@ -139,7 +139,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 						const savingEntity = entities.find((e) => e.id === row.savingEntityId);
 						if (!savingEntity) return null;
 
-						const typeColors = getEntityTypeColors(savingEntity.type);
+						const typeColors = getEntityColors(savingEntity.type, savingEntity.color);
 						const IconComponent = getIcon(savingEntity.icon || 'circle');
 
 						return (
@@ -175,7 +175,8 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 									style={{ maxWidth: 120, flexShrink: 1 }}
 								>
 									<View
-										className={`mr-1.5 h-5 w-5 items-center justify-center rounded-full ${typeColors.bg}`}
+										className="mr-1.5 h-5 w-5 items-center justify-center rounded-full"
+										style={{ backgroundColor: typeColors.bgColor }}
 									>
 										<IconComponent size={11} color={typeColors.iconColor} />
 									</View>

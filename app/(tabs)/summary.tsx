@@ -12,7 +12,7 @@ import { PeriodPicker } from '@/src/components/period-picker';
 import { ProgressBar } from '@/src/components/progress-bar';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
@@ -75,7 +75,7 @@ function SummaryRow({ entity, trendValues, onPress }: SummaryRowProps) {
 
 	const overspent = isOverspent(entity.actual, entity.planned);
 	const progress = getProgressPercent(entity.actual, entity.planned);
-	const typeColors = getEntityTypeColors(entity.type);
+	const typeColors = getEntityColors(entity.type, entity.color);
 	const showSparkline =
 		trendValues !== undefined && (entity.type === 'income' || entity.type === 'category');
 
@@ -84,7 +84,8 @@ function SummaryRow({ entity, trendValues, onPress }: SummaryRowProps) {
 			<View className="flex-row items-center">
 				{/* Icon */}
 				<View
-					className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+					className="mr-3 h-12 w-12 items-center justify-center rounded-full"
+					style={{ backgroundColor: typeColors.bgColor }}
 				>
 					<IconComponent size={20} color={typeColors.iconColor} />
 				</View>

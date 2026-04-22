@@ -19,7 +19,7 @@ import {
 import { useStore } from '@/src/store';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
@@ -82,11 +82,12 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 
 	const renderBubble = (entity: EntityWithBalance) => {
 		const IconComponent = getIcon(entity.icon || 'circle');
-		const typeColors = getEntityTypeColors(entity.type);
+		const typeColors = getEntityColors(entity.type, entity.color);
 		return (
 			<View className="flex-1 items-center">
 				<View
-					className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${typeColors.bg}`}
+					className="mb-2 h-12 w-12 items-center justify-center rounded-full"
+					style={{ backgroundColor: typeColors.bgColor }}
 				>
 					<IconComponent size={20} color={typeColors.iconColor} />
 				</View>

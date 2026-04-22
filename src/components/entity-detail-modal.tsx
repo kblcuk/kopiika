@@ -21,7 +21,7 @@ import { useStore, useEntitiesWithBalance } from '@/src/store';
 
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import {
 	sharedNumericTextInputProps,
 	sharedTextInputProps,
@@ -529,7 +529,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									<View className="rounded-lg bg-paper-100">
 										{accountReservations.map(({ amount, saving }, index) => {
 											const SavingIcon = getIcon(saving.icon || 'circle');
-											const savingColors = getEntityTypeColors('saving');
+											const savingColors = getEntityColors('saving', saving.color);
 											return (
 												<Pressable
 													key={saving.id}
@@ -540,7 +540,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 													testID={`account-reservation-row-${saving.id}`}
 												>
 													<View
-														className={`mr-3 h-8 w-8 items-center justify-center rounded-full ${savingColors.bg}`}
+														className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+														style={{ backgroundColor: savingColors.bgColor }}
 													>
 														<SavingIcon
 															size={16}
@@ -624,7 +625,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<View className="rounded-lg bg-paper-100">
 									{savingReservations.map(({ amount, account }, index) => {
 										const AccountIcon = getIcon(account.icon || 'circle');
-										const accountColors = getEntityTypeColors('account');
+										const accountColors = getEntityColors('account', account.color);
 										return (
 											<Pressable
 												key={account.id}
@@ -635,7 +636,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 												testID={`saving-reservation-row-${account.id}`}
 											>
 												<View
-													className={`mr-3 h-8 w-8 items-center justify-center rounded-full ${accountColors.bg}`}
+													className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+													style={{ backgroundColor: accountColors.bgColor }}
 												>
 													<AccountIcon
 														size={16}

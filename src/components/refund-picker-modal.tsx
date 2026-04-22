@@ -16,7 +16,7 @@ import type { Transaction, EntityWithBalance } from '@/src/types';
 import { getTransactionsBetweenEntities } from '@/src/db/transactions';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityTypeColors } from '@/src/utils/entity-colors';
+import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { useStore } from '@/src/store';
 import { getEntityDisplayName } from '@/src/utils/entity-display';
@@ -123,9 +123,11 @@ export function RefundPickerModal({
 							const FromIcon = getIcon(fromEntity?.icon || 'circle');
 							const ToIcon = getIcon(toEntity?.icon || 'circle');
 							const fromColors = fromEntity
-								? getEntityTypeColors(fromEntity.type)
+								? getEntityColors(fromEntity.type, fromEntity.color)
 								: null;
-							const toColors = toEntity ? getEntityTypeColors(toEntity.type) : null;
+							const toColors = toEntity
+								? getEntityColors(toEntity.type, toEntity.color)
+								: null;
 							const rowBg = index % 2 === 0 ? 'bg-paper-50' : 'bg-paper-100';
 
 							return (
@@ -140,7 +142,8 @@ export function RefundPickerModal({
 											{/* Entity flow */}
 											<View className="flex-row items-center">
 												<View
-													className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${fromColors?.bg ?? 'bg-paper-200'}`}
+													className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+													style={{ backgroundColor: fromColors?.bgColor ?? '#EBE3D5' }}
 												>
 													<FromIcon
 														size={16}
@@ -160,7 +163,8 @@ export function RefundPickerModal({
 													→
 												</Text>
 												<View
-													className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${toColors?.bg ?? 'bg-paper-200'}`}
+													className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+													style={{ backgroundColor: toColors?.bgColor ?? '#EBE3D5' }}
 												>
 													<ToIcon
 														size={16}
