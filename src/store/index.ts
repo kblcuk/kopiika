@@ -29,6 +29,7 @@ import {
 import {
 	getRemindersEnabled,
 	getHasRequestedPermission,
+	setRemindersEnabled,
 	setHasRequestedPermission,
 } from '@/src/utils/app-prefs';
 
@@ -600,10 +601,14 @@ export const useStore = create<AppState>((set, get) => ({
 		}));
 
 		// Request permission on first recurring transaction (contextual ask)
+		const remindersEnabled = await getRemindersEnabled();
 		const hasAsked = await getHasRequestedPermission();
-		if (!hasAsked) {
-			await requestPermission();
+		if (remindersEnabled && !hasAsked) {
+			const granted = await requestPermission();
 			await setHasRequestedPermission(true);
+			if (!granted) {
+				await setRemindersEnabled(false);
+			}
 		}
 
 		// Schedule notifications for future occurrences

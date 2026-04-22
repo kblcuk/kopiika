@@ -270,7 +270,7 @@ export async function updateTransactionNotificationId(
 }
 
 export async function updateTransactionNotificationIdsBatch(
-	updates: { id: string; notificationId: string }[]
+	updates: { id: string; notificationId: string | null }[]
 ): Promise<void> {
 	if (updates.length === 0) return;
 	const db = await getDrizzleDb();

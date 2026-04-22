@@ -6,6 +6,7 @@ interface AppPrefs {
 	lastSeenVersion?: string;
 	remindersEnabled?: boolean;
 	hasRequestedNotificationPermission?: boolean;
+	lastBackgroundNotificationKey?: string | null;
 }
 
 async function read(): Promise<AppPrefs> {
@@ -55,5 +56,16 @@ export async function getHasRequestedPermission(): Promise<boolean> {
 export async function setHasRequestedPermission(value: boolean): Promise<void> {
 	const prefs = await read();
 	prefs.hasRequestedNotificationPermission = value;
+	write(prefs);
+}
+
+export async function getLastBackgroundNotificationKey(): Promise<string | null> {
+	const prefs = await read();
+	return prefs.lastBackgroundNotificationKey ?? null;
+}
+
+export async function setLastBackgroundNotificationKey(value: string | null): Promise<void> {
+	const prefs = await read();
+	prefs.lastBackgroundNotificationKey = value;
 	write(prefs);
 }

@@ -10,7 +10,12 @@ import { exportAllData } from '@/src/utils/export';
 import { parseImportCsv, formatImportErrors } from '@/src/utils/import';
 import { resetDrizzleDb, updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
-import { getRemindersEnabled, setRemindersEnabled } from '@/src/utils/app-prefs';
+import {
+	getRemindersEnabled,
+	setHasRequestedPermission,
+	setLastBackgroundNotificationKey,
+	setRemindersEnabled,
+} from '@/src/utils/app-prefs';
 import {
 	cancelAllNotifications,
 	updateBadgeCount,
@@ -38,18 +43,33 @@ export default function SettingsScreen() {
 			await cancelAllNotifications();
 			await updateBadgeCount(0);
 			await unregisterBackgroundTask();
+			await setLastBackgroundNotificationKey(null);
+
+			const existingNotificationIds = transactions
+				.filter((tx) => tx.notification_id)
+				.map((tx) => ({ id: tx.id, notificationId: null }));
+			if (existingNotificationIds.length > 0) {
+				await updateTransactionNotificationIdsBatch(existingNotificationIds);
+				useStore.setState((state) => ({
+					transactions: state.transactions.map((tx) =>
+						tx.notification_id ? { ...tx, notification_id: undefined } : tx
+					),
+				}));
+			}
 		} else {
 			const granted = await requestPermission();
+			await setHasRequestedPermission(true);
 			if (!granted) {
 				setRemindersToggle(false);
 				await setRemindersEnabled(false);
 				return;
 			}
+			await setLastBackgroundNotificationKey(null);
 			await setupNotificationChannel();
 			const now = Date.now();
 			const toSchedule = getNotifiableTransactions(transactions, now);
 			const entityMap = new Map(entities.map((e) => [e.id, e.name]));
-			const updates: { id: string; notificationId: string }[] = [];
+			const updates: { id: string; notificationId: string | null }[] = [];
 			for (const tx of toSchedule) {
 				try {
 					const notificationId = await scheduleTransactionNotification({
@@ -66,6 +86,14 @@ export default function SettingsScreen() {
 			}
 			if (updates.length > 0) {
 				await updateTransactionNotificationIdsBatch(updates);
+				const updateMap = new Map(updates.map((update) => [update.id, update.notificationId]));
+				useStore.setState((state) => ({
+					transactions: state.transactions.map((tx) =>
+						updateMap.has(tx.id)
+							? { ...tx, notification_id: updateMap.get(tx.id) ?? undefined }
+							: tx
+					),
+				}));
 			}
 			await registerBackgroundTask();
 		}

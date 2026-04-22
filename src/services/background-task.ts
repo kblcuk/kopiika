@@ -2,10 +2,19 @@ import * as TaskManager from 'expo-task-manager';
 import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { getRemindersEnabled } from '@/src/utils/app-prefs';
+import {
+	getLastBackgroundNotificationKey,
+	getRemindersEnabled,
+	setLastBackgroundNotificationKey,
+} from '@/src/utils/app-prefs';
 import { CHANNEL_ID } from '@/src/services/notifications';
 
 const TASK_NAME = 'CHECK_UNCONFIRMED';
+
+export function buildBackgroundNotificationKey(transactionIds: string[]): string | null {
+	if (transactionIds.length === 0) return null;
+	return [...transactionIds].sort().join(',');
+}
 
 TaskManager.defineTask(TASK_NAME, async () => {
 	try {
@@ -28,7 +37,14 @@ TaskManager.defineTask(TASK_NAME, async () => {
 
 		const count = unconfirmed.length;
 		if (count > 0) {
+			const notificationKey = buildBackgroundNotificationKey(unconfirmed.map((row) => row.id));
+			const lastNotificationKey = await getLastBackgroundNotificationKey();
+
 			await Notifications.setBadgeCountAsync(count);
+			if (notificationKey && notificationKey === lastNotificationKey) {
+				return BackgroundTask.BackgroundTaskResult.Success;
+			}
+
 			await Notifications.scheduleNotificationAsync({
 				content: {
 					title: `${count} transaction${count > 1 ? 's' : ''} need${count > 1 ? '' : 's'} confirmation`,
@@ -37,10 +53,12 @@ TaskManager.defineTask(TASK_NAME, async () => {
 				},
 				trigger: null, // fire immediately
 			});
+			await setLastBackgroundNotificationKey(notificationKey);
 			return BackgroundTask.BackgroundTaskResult.Success;
 		}
 
 		await Notifications.setBadgeCountAsync(0);
+		await setLastBackgroundNotificationKey(null);
 		return BackgroundTask.BackgroundTaskResult.Success;
 	} catch (e) {
 		console.warn('Background task failed:', e);
