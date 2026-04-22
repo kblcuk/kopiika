@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` ADD `notification_id` text;

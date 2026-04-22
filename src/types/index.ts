@@ -21,10 +21,14 @@ export type Entity = Omit<
 
 export type Plan = DrizzlePlan;
 
-export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id' | 'is_confirmed'> & {
+export type Transaction = Omit<
+	DrizzleTransaction,
+	'note' | 'series_id' | 'is_confirmed' | 'notification_id'
+> & {
 	note?: string | null;
 	series_id?: string | null;
 	is_confirmed?: boolean;
+	notification_id?: string | null;
 };
 
 // Extract EntityType from Drizzle schema

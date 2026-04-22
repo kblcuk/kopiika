@@ -234,6 +234,7 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<void>
 					note: txn.note ?? null,
 					series_id: txn.series_id ?? null,
 					is_confirmed: txn.is_confirmed ?? true,
+					notification_id: txn.notification_id ?? null,
 				})
 				.run();
 		}
@@ -242,11 +243,41 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<void>
 
 export async function confirmTransaction(id: string): Promise<void> {
 	const db = await getDrizzleDb();
-	await db.update(transactions).set({ is_confirmed: true }).where(eq(transactions.id, id));
+	await db
+		.update(transactions)
+		.set({ is_confirmed: true, notification_id: null })
+		.where(eq(transactions.id, id));
 }
 
 export async function confirmTransactionsBatch(ids: string[]): Promise<void> {
 	if (ids.length === 0) return;
 	const db = await getDrizzleDb();
-	await db.update(transactions).set({ is_confirmed: true }).where(inArray(transactions.id, ids));
+	await db
+		.update(transactions)
+		.set({ is_confirmed: true, notification_id: null })
+		.where(inArray(transactions.id, ids));
+}
+
+export async function updateTransactionNotificationId(
+	id: string,
+	notificationId: string | null
+): Promise<void> {
+	const db = await getDrizzleDb();
+	await db
+		.update(transactions)
+		.set({ notification_id: notificationId })
+		.where(eq(transactions.id, id));
+}
+
+export async function updateTransactionNotificationIdsBatch(
+	updates: { id: string; notificationId: string }[]
+): Promise<void> {
+	if (updates.length === 0) return;
+	const db = await getDrizzleDb();
+	for (const { id, notificationId } of updates) {
+		await db
+			.update(transactions)
+			.set({ notification_id: notificationId })
+			.where(eq(transactions.id, id));
+	}
 }
