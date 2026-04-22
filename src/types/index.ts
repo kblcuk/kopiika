@@ -29,6 +29,16 @@ export type Transaction = Omit<DrizzleTransaction, 'note' | 'series_id' | 'is_co
 
 // Extract EntityType from Drizzle schema
 export type EntityType = Entity['type'];
+
+export type EntityColorKey =
+	| 'amethyst'
+	| 'emerald'
+	| 'sapphire'
+	| 'ruby'
+	| 'jade'
+	| 'amber'
+	| 'lilac'
+	| 'teal';
 // Period type kept for backwards compatibility - all plans now use 'all-time'
 export type PlanPeriod = 'month' | 'all-time';
 
