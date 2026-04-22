@@ -4,11 +4,20 @@ import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import {
+	getHasRequestedPermission,
+	setHasRequestedPermission,
+	setLastBackgroundNotificationKey,
+	setRemindersEnabled,
+} from '@/src/utils/app-prefs';
 
 describe('Store Data Integrity', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		// Reset database and store state before each test
 		resetDrizzleDb();
+		await setRemindersEnabled(false);
+		await setHasRequestedPermission(false);
+		await setLastBackgroundNotificationKey(null);
 
 		useStore.setState({
 			entities: [],
@@ -3439,6 +3448,55 @@ describe('Store Data Integrity', () => {
 	});
 
 	describe('addRecurringTransaction', () => {
+		test('does not mark notification permission as requested when reminders are disabled', async () => {
+			const entities = [
+				{
+					id: 'entity-1',
+					type: 'account' as const,
+					name: 'Checking',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'entity-2',
+					type: 'category' as const,
+					name: 'Groceries',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+			];
+
+			for (const entity of entities) {
+				await db.createEntity(entity);
+			}
+
+			useStore.setState({ entities });
+			await setRemindersEnabled(false);
+			await setHasRequestedPermission(false);
+
+			await useStore.getState().addRecurringTransaction(
+				{
+					from_entity_id: 'entity-1',
+					to_entity_id: 'entity-2',
+					amount: 100,
+					currency: 'USD',
+					timestamp: Date.now(),
+				},
+				{
+					rule: { type: 'monthly' },
+					endDate: null,
+					endCount: null,
+					horizon: 90,
+				}
+			);
+
+			await expect(getHasRequestedPermission()).resolves.toBe(false);
+		});
+
 		test('auto-confirms first occurrence if it is for today', async () => {
 			const entities = [
 				{

@@ -37,12 +37,26 @@ mock.module('expo-background-task', () => ({
 
 // expo-file-system is used by app-prefs — provide no-op FS stubs.
 mock.module('expo-file-system', () => {
+	const fileContents = new Map<string, string>();
+
 	class MockFile {
-		exists = false;
-		async text() {
-			return '{}';
+		path: string;
+
+		constructor(...parts: string[]) {
+			this.path = parts.join('/');
 		}
-		write() {}
+
+		get exists() {
+			return fileContents.has(this.path);
+		}
+
+		async text() {
+			return fileContents.get(this.path) ?? '{}';
+		}
+
+		write(content: string) {
+			fileContents.set(this.path, content);
+		}
 	}
 	return { File: MockFile, Paths: { document: '/tmp' } };
 });

@@ -86,7 +86,9 @@ export default function SettingsScreen() {
 			}
 			if (updates.length > 0) {
 				await updateTransactionNotificationIdsBatch(updates);
-				const updateMap = new Map(updates.map((update) => [update.id, update.notificationId]));
+				const updateMap = new Map(
+					updates.map((update) => [update.id, update.notificationId])
+				);
 				useStore.setState((state) => ({
 					transactions: state.transactions.map((tx) =>
 						updateMap.has(tx.id)

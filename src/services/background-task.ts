@@ -37,7 +37,9 @@ TaskManager.defineTask(TASK_NAME, async () => {
 
 		const count = unconfirmed.length;
 		if (count > 0) {
-			const notificationKey = buildBackgroundNotificationKey(unconfirmed.map((row) => row.id));
+			const notificationKey = buildBackgroundNotificationKey(
+				unconfirmed.map((row) => row.id)
+			);
 			const lastNotificationKey = await getLastBackgroundNotificationKey();
 
 			await Notifications.setBadgeCountAsync(count);
