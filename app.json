@@ -59,7 +59,9 @@
 			"@react-native-community/datetimepicker",
 			"expo-font",
 			"expo-sharing",
-			"expo-sqlite"
+			"expo-sqlite",
+			"expo-notifications",
+			"expo-task-manager"
 		],
 		"experiments": {
 			"typedRoutes": true,
