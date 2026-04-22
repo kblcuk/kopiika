@@ -1,24 +1,33 @@
-import type { EntityType } from '@/src/types';
+import type { EntityType, EntityColorKey } from '@/src/types';
 import { colors } from '@/src/theme/colors';
+import { ENTITY_COLOR_PALETTE } from '@/src/constants/entity-colors';
 
-const entityTypeColors: Record<EntityType, { bg: string; iconColor: string }> = {
+type ColorPair = { bgColor: string; iconColor: string };
+
+const entityTypeDefaults: Record<EntityType, ColorPair> = {
 	income: {
-		bg: 'bg-accent/10',
+		bgColor: 'rgba(212, 101, 47, 0.1)',
 		iconColor: colors.accent.DEFAULT,
 	},
 	account: {
-		bg: 'bg-paper-300',
+		bgColor: '#D4C8B3',
 		iconColor: colors.ink.muted,
 	},
 	category: {
-		bg: 'bg-positive/10',
+		bgColor: 'rgba(47, 125, 74, 0.1)',
 		iconColor: colors.positive.DEFAULT,
 	},
 	saving: {
-		bg: 'bg-info/10',
+		bgColor: 'rgba(43, 95, 138, 0.1)',
 		iconColor: colors.info.DEFAULT,
 	},
 };
 
-// Get background and icon colors based on entity type
-export const getEntityTypeColors = (type: EntityType) => entityTypeColors[type];
+export const getEntityTypeDefaults = (type: EntityType): ColorPair => entityTypeDefaults[type];
+
+export const getEntityColors = (type: EntityType, color?: string | null): ColorPair => {
+	if (color && color in ENTITY_COLOR_PALETTE) {
+		return ENTITY_COLOR_PALETTE[color as EntityColorKey];
+	}
+	return entityTypeDefaults[type];
+};
