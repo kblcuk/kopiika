@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import type { EntityWithBalance, Transaction } from '@/src/types';
+import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import {
 	formatAmount,
@@ -32,6 +32,7 @@ import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
+import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import {
@@ -53,6 +54,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [nameError, setNameError] = useState<string | null>(null);
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [showIconPicker, setShowIconPicker] = useState(false);
+	const [selectedColor, setSelectedColor] = useState<EntityColorKey | null>(null);
 	const [plannedAmount, setPlannedAmount] = useState('');
 	const [actualAmount, setActualAmount] = useState('');
 	const [isEditingActual, setIsEditingActual] = useState(false);
@@ -154,6 +156,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setIsDefault(entity.is_default === true);
 			setNameError(null);
 			setShowIconPicker(false);
+			setSelectedColor((entity.color as EntityColorKey) ?? null);
 		}
 	}, [visible, entity, existingPlan?.planned_amount]);
 
@@ -202,6 +205,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			...entity,
 			name: trimmedName,
 			icon: validIcon,
+			color: selectedColor,
 			include_in_total: includeInTotal,
 		});
 
@@ -405,6 +409,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							/>
 						</View>
 					)}
+
+					{/* Color picker */}
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Color
+						</Text>
+						<EntityColorPicker
+							entityType={entity.type}
+							selectedColor={selectedColor}
+							onSelect={setSelectedColor}
+						/>
+					</View>
 
 					{/* Name input */}
 					<View className="mb-6">
