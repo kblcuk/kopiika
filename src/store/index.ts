@@ -17,6 +17,20 @@ import {
 	getReservationForPair,
 	getTotalReservedForAccount,
 } from '@/src/utils/savings-transactions';
+import {
+	getNotifiableTransactions,
+	scheduleTransactionNotification,
+	setupNotificationChannel,
+	requestPermission,
+	cancelNotification,
+	cancelAllNotifications,
+	updateBadgeCount,
+} from '@/src/services/notifications';
+import {
+	getRemindersEnabled,
+	getHasRequestedPermission,
+	setHasRequestedPermission,
+} from '@/src/utils/app-prefs';
 
 interface AppState {
 	// Data
@@ -104,6 +118,59 @@ function hasActiveEntity(entities: Entity[], id: string): boolean {
 	return getActiveEntities(entities).some((entity) => entity.id === id);
 }
 
+async function scheduleNotificationsForTransactions(
+	transactions: Transaction[],
+	entities: Entity[],
+	set: (fn: (state: AppState) => Partial<AppState>) => void
+): Promise<void> {
+	const enabled = await getRemindersEnabled();
+	if (!enabled) return;
+
+	const now = Date.now();
+	const toSchedule = getNotifiableTransactions(transactions, now);
+	if (toSchedule.length === 0) return;
+
+	await setupNotificationChannel();
+	const entityMap = new Map(entities.map((e) => [e.id, e.name]));
+	const updates: { id: string; notificationId: string }[] = [];
+
+	for (const tx of toSchedule) {
+		try {
+			const notificationId = await scheduleTransactionNotification({
+				transactionId: tx.id,
+				fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
+				toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
+				amount: `${tx.amount} ${tx.currency}`,
+				timestamp: tx.timestamp,
+			});
+			updates.push({ id: tx.id, notificationId });
+		} catch (e) {
+			console.warn('Failed to schedule notification for', tx.id, e);
+		}
+	}
+
+	if (updates.length > 0) {
+		await db.updateTransactionNotificationIdsBatch(updates);
+		const updateMap = new Map(updates.map((u) => [u.id, u.notificationId]));
+		set((state) => ({
+			transactions: state.transactions.map((t) =>
+				updateMap.has(t.id) ? { ...t, notification_id: updateMap.get(t.id) } : t
+			),
+		}));
+	}
+}
+
+async function syncBadgeCount(get: () => AppState): Promise<void> {
+	try {
+		const enabled = await getRemindersEnabled();
+		if (!enabled) return;
+		const count = getUnconfirmedCount(get().transactions);
+		await updateBadgeCount(count);
+	} catch (e) {
+		console.warn('Failed to sync badge count', e);
+	}
+}
+
 async function backfillRecurrences(
 	templates: RecurrenceTemplate[],
 	existingTransactions: Transaction[],
@@ -154,6 +221,9 @@ async function backfillRecurrences(
 		set((state) => ({
 			transactions: [...newTransactions, ...state.transactions],
 		}));
+		// Schedule notifications for future unconfirmed transactions
+		const entities = await db.getAllEntities();
+		await scheduleNotificationsForTransactions(newTransactions, entities, set);
 	}
 }
 
@@ -220,6 +290,14 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Replace all data atomically — used by CSV import.
 	replaceAllData: async (newEntities, newPlans, newTransactions) => {
+		// Cancel all scheduled notifications before replacing data
+		try {
+			await cancelAllNotifications();
+			await updateBadgeCount(0);
+		} catch (e) {
+			console.warn('Failed to cancel notifications on data replace', e);
+		}
+
 		const drizzleDb = await db.getDrizzleDb();
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
@@ -452,6 +530,14 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	deleteTransaction: async (id) => {
+		const transaction = get().transactions.find((t) => t.id === id);
+		if (transaction?.notification_id) {
+			try {
+				await cancelNotification(transaction.notification_id);
+			} catch (e) {
+				console.warn('Failed to cancel notification', e);
+			}
+		}
 		await db.deleteTransaction(id);
 		set((state) => ({
 			transactions: state.transactions.filter((t) => t.id !== id),
@@ -512,6 +598,18 @@ export const useStore = create<AppState>((set, get) => ({
 			recurrenceTemplates: [...state.recurrenceTemplates, template],
 			transactions: txns.length > 0 ? [...txns, ...state.transactions] : state.transactions,
 		}));
+
+		// Request permission on first recurring transaction (contextual ask)
+		const hasAsked = await getHasRequestedPermission();
+		if (!hasAsked) {
+			await requestPermission();
+			await setHasRequestedPermission(true);
+		}
+
+		// Schedule notifications for future occurrences
+		if (txns.length > 0) {
+			await scheduleNotificationsForTransactions(txns, get().entities, set);
+		}
 	},
 
 	updateTransactionWithScope: async (id, updates, scope) => {
@@ -560,6 +658,13 @@ export const useStore = create<AppState>((set, get) => ({
 		if (!transaction) return;
 
 		if (scope === 'single' || !transaction.series_id) {
+			if (transaction.notification_id) {
+				try {
+					await cancelNotification(transaction.notification_id);
+				} catch (e) {
+					console.warn('Failed to cancel notification', e);
+				}
+			}
 			await db.deleteTransaction(id);
 			if (transaction.series_id) {
 				await db.addExclusion(transaction.series_id, transaction.timestamp);
@@ -584,6 +689,22 @@ export const useStore = create<AppState>((set, get) => ({
 
 		// scope === 'future'
 		const seriesId = transaction.series_id;
+
+		// Cancel notifications for all future transactions in this series
+		const futureTxs = state.transactions.filter(
+			(t) =>
+				t.series_id === seriesId &&
+				t.timestamp >= transaction.timestamp &&
+				t.notification_id
+		);
+		for (const tx of futureTxs) {
+			try {
+				await cancelNotification(tx.notification_id!);
+			} catch (e) {
+				console.warn('Failed to cancel notification', e);
+			}
+		}
+
 		await db.deleteTransactionsBySeriesFuture(seriesId, transaction.timestamp);
 
 		const remaining = state.transactions.filter(
@@ -621,6 +742,25 @@ export const useStore = create<AppState>((set, get) => ({
 			(t) => !t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
 		);
 
+		// Cancel notifications for future transactions being deleted
+		if (templates.length > 0) {
+			const templateIds = new Set(templates.map((t) => t.id));
+			const futureTxs = state.transactions.filter(
+				(t) =>
+					t.series_id &&
+					templateIds.has(t.series_id) &&
+					t.timestamp >= now &&
+					t.notification_id
+			);
+			for (const tx of futureTxs) {
+				try {
+					await cancelNotification(tx.notification_id!);
+				} catch (e) {
+					console.warn('Failed to cancel notification', e);
+				}
+			}
+		}
+
 		for (const template of templates) {
 			await db.deleteTransactionsBySeriesFuture(template.id, now);
 			await db.softDeleteRecurrenceTemplate(template.id);
@@ -641,27 +781,50 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Confirmation actions
 	confirmTransaction: async (id) => {
+		const transaction = get().transactions.find((t) => t.id === id);
+		if (transaction?.notification_id) {
+			try {
+				await cancelNotification(transaction.notification_id);
+			} catch (e) {
+				console.warn('Failed to cancel notification', e);
+			}
+		}
 		await db.confirmTransaction(id);
 		set((state) => ({
 			transactions: state.transactions.map((t) =>
-				t.id === id ? { ...t, is_confirmed: true } : t
+				t.id === id ? { ...t, is_confirmed: true, notification_id: undefined } : t
 			),
 		}));
+		await syncBadgeCount(get);
 	},
 
 	confirmAllDueTransactions: async () => {
 		const now = Date.now();
-		const dueIds = get()
-			.transactions.filter((t) => t.is_confirmed === false && t.timestamp <= now)
-			.map((t) => t.id);
-		if (dueIds.length === 0) return;
+		const dueTxs = get().transactions.filter(
+			(t) => t.is_confirmed === false && t.timestamp <= now
+		);
+		if (dueTxs.length === 0) return;
+
+		// Cancel notifications for transactions being confirmed
+		for (const tx of dueTxs) {
+			if (tx.notification_id) {
+				try {
+					await cancelNotification(tx.notification_id);
+				} catch (e) {
+					console.warn('Failed to cancel notification', e);
+				}
+			}
+		}
+
+		const dueIds = dueTxs.map((t) => t.id);
 		await db.confirmTransactionsBatch(dueIds);
 		const dueSet = new Set(dueIds);
 		set((state) => ({
 			transactions: state.transactions.map((t) =>
-				dueSet.has(t.id) ? { ...t, is_confirmed: true } : t
+				dueSet.has(t.id) ? { ...t, is_confirmed: true, notification_id: undefined } : t
 			),
 		}));
+		await syncBadgeCount(get);
 	},
 
 	// Default account — clear old default and optionally set a new one
