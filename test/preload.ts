@@ -23,16 +23,16 @@ mock.module('expo-notifications', () => ({
 	SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
-// expo-task-manager and expo-background-fetch are used by background-task.ts.
+// expo-task-manager and expo-background-task are used by background-task.ts.
 mock.module('expo-task-manager', () => ({
 	defineTask: () => {},
 	isTaskRegisteredAsync: async () => false,
 }));
 
-mock.module('expo-background-fetch', () => ({
+mock.module('expo-background-task', () => ({
 	registerTaskAsync: async () => {},
 	unregisterTaskAsync: async () => {},
-	BackgroundFetchResult: { NewData: 1, NoData: 2, Failed: 3 },
+	BackgroundTaskResult: { Success: 1, Failed: 2 },
 }));
 
 // expo-file-system is used by app-prefs — provide no-op FS stubs.

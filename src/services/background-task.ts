@@ -1,5 +1,5 @@
 import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getRemindersEnabled } from '@/src/utils/app-prefs';
@@ -11,7 +11,7 @@ TaskManager.defineTask(TASK_NAME, async () => {
 	try {
 		const enabled = await getRemindersEnabled();
 		if (!enabled) {
-			return BackgroundFetch.BackgroundFetchResult.NoData;
+			return BackgroundTask.BackgroundTaskResult.Success;
 		}
 
 		// Dynamically import DB to avoid circular deps at module load
@@ -37,14 +37,14 @@ TaskManager.defineTask(TASK_NAME, async () => {
 				},
 				trigger: null, // fire immediately
 			});
-			return BackgroundFetch.BackgroundFetchResult.NewData;
+			return BackgroundTask.BackgroundTaskResult.Success;
 		}
 
 		await Notifications.setBadgeCountAsync(0);
-		return BackgroundFetch.BackgroundFetchResult.NoData;
+		return BackgroundTask.BackgroundTaskResult.Success;
 	} catch (e) {
 		console.warn('Background task failed:', e);
-		return BackgroundFetch.BackgroundFetchResult.Failed;
+		return BackgroundTask.BackgroundTaskResult.Failed;
 	}
 });
 
@@ -53,10 +53,8 @@ export async function registerBackgroundTask(): Promise<void> {
 		const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
 		if (isRegistered) return;
 
-		await BackgroundFetch.registerTaskAsync(TASK_NAME, {
-			minimumInterval: 60 * 60, // 1 hour (iOS controls actual interval)
-			stopOnTerminate: false,
-			startOnBoot: true,
+		await BackgroundTask.registerTaskAsync(TASK_NAME, {
+			minimumInterval: 60, // 1 hour; expo-background-task expects minutes
 		});
 		console.info('Background task registered:', TASK_NAME);
 	} catch (e) {
@@ -69,7 +67,7 @@ export async function unregisterBackgroundTask(): Promise<void> {
 		const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
 		if (!isRegistered) return;
 
-		await BackgroundFetch.unregisterTaskAsync(TASK_NAME);
+		await BackgroundTask.unregisterTaskAsync(TASK_NAME);
 		console.info('Background task unregistered:', TASK_NAME);
 	} catch (e) {
 		console.warn('Failed to unregister background task:', e);
