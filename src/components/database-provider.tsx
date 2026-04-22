@@ -2,7 +2,10 @@ import { View, ActivityIndicator } from 'react-native';
 import { Text } from './text';
 import { useEffect, useState } from 'react';
 import { getDrizzleDb } from '../db';
-import { useStore } from '@/src/store';
+import { useStore, getUnconfirmedCount } from '@/src/store';
+import { registerBackgroundTask } from '@/src/services/background-task';
+import { setupNotificationChannel, updateBadgeCount } from '@/src/services/notifications';
+import { getRemindersEnabled } from '@/src/utils/app-prefs';
 
 export default function DatabaseProvider({ children }: { children: React.ReactNode }) {
 	const initialize = useStore((state) => state.initialize);
@@ -16,6 +19,16 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 			try {
 				await getDrizzleDb();
 				await initialize();
+
+				// Set up notifications if enabled
+				const remindersEnabled = await getRemindersEnabled();
+				if (remindersEnabled) {
+					await setupNotificationChannel();
+					await registerBackgroundTask();
+					// Sync app icon badge with current unconfirmed count
+					const count = getUnconfirmedCount(useStore.getState().transactions);
+					await updateBadgeCount(count);
+				}
 			} catch (err) {
 				console.error('App startup error:', err);
 				if (isMounted) {

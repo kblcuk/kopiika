@@ -1,4 +1,5 @@
-import { View, Pressable, Alert, Linking } from 'react-native';
+import { View, Pressable, Alert, Linking, Switch } from 'react-native';
+import { useEffect, useState } from 'react';
 import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
@@ -7,11 +8,68 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
 import { parseImportCsv, formatImportErrors } from '@/src/utils/import';
-import { resetDrizzleDb } from '@/src/db';
+import { resetDrizzleDb, updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
+import { getRemindersEnabled, setRemindersEnabled } from '@/src/utils/app-prefs';
+import {
+	cancelAllNotifications,
+	updateBadgeCount,
+	scheduleTransactionNotification,
+	getNotifiableTransactions,
+	setupNotificationChannel,
+	requestPermission,
+} from '@/src/services/notifications';
+import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 export default function SettingsScreen() {
 	const { entities, plans, transactions, initialize, replaceAllData } = useStore();
+
+	const [remindersEnabled, setRemindersToggle] = useState(true);
+
+	useEffect(() => {
+		getRemindersEnabled().then(setRemindersToggle);
+	}, []);
+
+	const handleToggleReminders = async (enabled: boolean) => {
+		setRemindersToggle(enabled);
+		await setRemindersEnabled(enabled);
+
+		if (!enabled) {
+			await cancelAllNotifications();
+			await updateBadgeCount(0);
+			await unregisterBackgroundTask();
+		} else {
+			const granted = await requestPermission();
+			if (!granted) {
+				setRemindersToggle(false);
+				await setRemindersEnabled(false);
+				return;
+			}
+			await setupNotificationChannel();
+			const now = Date.now();
+			const toSchedule = getNotifiableTransactions(transactions, now);
+			const entityMap = new Map(entities.map((e) => [e.id, e.name]));
+			const updates: { id: string; notificationId: string }[] = [];
+			for (const tx of toSchedule) {
+				try {
+					const notificationId = await scheduleTransactionNotification({
+						transactionId: tx.id,
+						fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
+						toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
+						amount: `${tx.amount} ${tx.currency}`,
+						timestamp: tx.timestamp,
+					});
+					updates.push({ id: tx.id, notificationId });
+				} catch (e) {
+					console.warn('Failed to reschedule notification', e);
+				}
+			}
+			if (updates.length > 0) {
+				await updateTransactionNotificationIdsBatch(updates);
+			}
+			await registerBackgroundTask();
+		}
+	};
 
 	const version = Constants.expoConfig?.version || 'unknown';
 	const privacyPolicyUrl = 'https://kblcuk.codeberg.page/kopiika/privacy-policy.html';
@@ -101,6 +159,8 @@ export default function SettingsScreen() {
 					style: 'destructive',
 					onPress: async () => {
 						try {
+							await cancelAllNotifications();
+							await updateBadgeCount(0);
 							resetDrizzleDb();
 							await initialize();
 						} catch (error) {
@@ -154,6 +214,23 @@ export default function SettingsScreen() {
 					>
 						<Text className="font-sans text-base text-negative">Reset All Data</Text>
 					</Pressable>
+				</View>
+
+				{/* Notifications Section */}
+				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					Notifications
+				</Text>
+
+				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
+					<View className="flex-row items-center justify-between px-4 py-3.5">
+						<Text className="font-sans text-base text-ink">Transaction Reminders</Text>
+						<Switch
+							value={remindersEnabled}
+							onValueChange={handleToggleReminders}
+							trackColor={{ false: '#D1CBC0', true: '#D4652F' }}
+							thumbColor="#FFFBF5"
+						/>
+					</View>
 				</View>
 
 				{/* About Section */}
