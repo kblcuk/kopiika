@@ -61,6 +61,7 @@
 			"expo-sharing",
 			"expo-sqlite",
 			"expo-notifications",
+			"expo-background-task",
 			"expo-task-manager"
 		],
 		"experiments": {
