@@ -1,4 +1,4 @@
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, InteractionManager } from 'react-native';
 import { Text } from './text';
 import { useEffect, useState } from 'react';
 import { getDrizzleDb } from '../db';
@@ -19,16 +19,6 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 			try {
 				await getDrizzleDb();
 				await initialize();
-
-				// Set up notifications if enabled
-				const remindersEnabled = await getRemindersEnabled();
-				if (remindersEnabled) {
-					await setupNotificationChannel();
-					await registerBackgroundTask();
-					// Sync app icon badge with current unconfirmed count
-					const count = getUnconfirmedCount(useStore.getState().transactions);
-					await updateBadgeCount(count);
-				}
 			} catch (err) {
 				console.error('App startup error:', err);
 				if (isMounted) {
@@ -45,6 +35,47 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 			isMounted = false;
 		};
 	}, [initialize]);
+
+	useEffect(() => {
+		if (!isReady) {
+			return;
+		}
+
+		let cancelled = false;
+		let registrationTimeout: ReturnType<typeof setTimeout> | null = null;
+		const interactionHandle = InteractionManager.runAfterInteractions(() => {
+			registrationTimeout = setTimeout(() => {
+				void (async () => {
+					try {
+						const remindersEnabled = await getRemindersEnabled();
+						if (!remindersEnabled || cancelled) {
+							return;
+						}
+
+						await setupNotificationChannel();
+						const count = getUnconfirmedCount(useStore.getState().transactions);
+						await updateBadgeCount(count);
+
+						if (cancelled) {
+							return;
+						}
+
+						await registerBackgroundTask();
+					} catch (err) {
+						console.warn('Reminder startup error:', err);
+					}
+				})();
+			}, 1000);
+		});
+
+		return () => {
+			cancelled = true;
+			interactionHandle.cancel();
+			if (registrationTimeout) {
+				clearTimeout(registrationTimeout);
+			}
+		};
+	}, [isReady]);
 
 	if (!isReady) {
 		return (
