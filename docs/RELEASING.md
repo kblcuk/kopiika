@@ -58,6 +58,10 @@ mise run release:beta
 mise run release:production
 ```
 
+If the current marketing version is already on TestFlight or Play, the beta lanes now auto-advance the
+store build number (`ios.buildNumber` / `android.versionCode`) in `app.json` before building so you can
+ship quick fixes without bumping `expo.version`.
+
 4. Promote existing uploaded builds when needed:
 
 ```sh
@@ -108,6 +112,7 @@ Notes:
 - Set `TESTFLIGHT_APP_VERSION` and/or `TESTFLIGHT_BUILD_NUMBER` if you need to promote a specific build.
 - External distribution waits for App Store Connect processing and submits the build for beta review.
 - If no external groups are provided, the lane fails fast with a clear error.
+- `mise run ios:beta` now bumps `expo.ios.buildNumber` automatically when TestFlight already has the current build for the same app version.
 
 ## Android Google Play
 
@@ -177,6 +182,7 @@ Notes:
 - `android:doctor` prints the service-account identity, confirms the target package, and probes readable Play tracks before upload.
 - Android build lanes do not run `gradle clean` by default because clean can fail on some React Native/CMake setups. Pass `clean:true` directly to the Fastlane lane if you explicitly need a clean build.
 - Android release lanes do not mutate build numbers themselves; they use the values already written to `app.json`.
+- `mise run android:beta` is the exception: if Play already has the current `versionCode`, it writes the next available code to `app.json` before building so you can publish another build for the same `expo.version`.
 
 ## Build Cleanup
 
@@ -239,6 +245,7 @@ This uses store APIs to write:
 - patch releases scope the iOS build lookup to the newly bumped patch version
 - minor and major releases start iOS back at `1` when no TestFlight build exists for that new version yet
 - Android still uses the next global `versionCode`, regardless of `versionName`
+- `mise run release:beta` and `mise run release:production` also run this sync first so their parallel platform tasks do not race while updating `app.json`
 
 Optional overrides:
 
