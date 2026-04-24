@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import type { Entity, Plan, Transaction } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
@@ -2624,14 +2624,13 @@ describe('Store Data Integrity', () => {
 		const NOW = new Date('2026-01-15T12:00:00Z').getTime();
 		const PAST = new Date('2026-01-10T12:00:00Z').getTime();
 		const FUTURE = new Date('2026-01-20T12:00:00Z').getTime();
-		const originalDateNow = Date.now;
 
 		beforeEach(() => {
-			Date.now = () => NOW;
+			spyOn(Date, 'now').mockReturnValue(NOW);
 		});
 
 		afterEach(() => {
-			Date.now = originalDateNow;
+			mock.restore();
 		});
 
 		const baseEntities: Entity[] = [
@@ -3215,6 +3214,8 @@ describe('Store Data Integrity', () => {
 	});
 
 	describe('Transaction confirmation (KII-65)', () => {
+		const NOW = new Date('2026-04-15T12:00:00Z').getTime();
+
 		const incomeEntity: Entity = {
 			id: 'income-1',
 			type: 'income',
@@ -3244,11 +3245,17 @@ describe('Store Data Integrity', () => {
 		};
 
 		beforeEach(async () => {
+			spyOn(Date, 'now').mockReturnValue(NOW);
+
 			const entities = [incomeEntity, accountEntity, categoryEntity];
 			useStore.setState({ entities });
 			for (const entity of entities) {
 				await db.createEntity(entity);
 			}
+		});
+
+		afterEach(() => {
+			mock.restore();
 		});
 
 		test('addTransaction: past-dated transaction is confirmed', async () => {

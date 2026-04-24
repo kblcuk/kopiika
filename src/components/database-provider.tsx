@@ -1,4 +1,4 @@
-import { View, ActivityIndicator, InteractionManager } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Text } from './text';
 import { useEffect, useState } from 'react';
 import { getDrizzleDb } from '../db';
@@ -6,6 +6,29 @@ import { useStore, getUnconfirmedCount } from '@/src/store';
 import { registerBackgroundTask } from '@/src/services/background-task';
 import { setupNotificationChannel, updateBadgeCount } from '@/src/services/notifications';
 import { getRemindersEnabled } from '@/src/utils/app-prefs';
+
+function runWhenIdle(callback: () => void): () => void {
+	const requestIdleCallback = globalThis.requestIdleCallback;
+	const cancelIdleCallback = globalThis.cancelIdleCallback;
+
+	if (requestIdleCallback && cancelIdleCallback) {
+		const handle = requestIdleCallback(
+			() => {
+				callback();
+			},
+			{ timeout: 1500 }
+		);
+
+		return () => {
+			cancelIdleCallback(handle);
+		};
+	}
+
+	const handle = setTimeout(callback, 0);
+	return () => {
+		clearTimeout(handle);
+	};
+}
 
 export default function DatabaseProvider({ children }: { children: React.ReactNode }) {
 	const initialize = useStore((state) => state.initialize);
@@ -43,7 +66,7 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 
 		let cancelled = false;
 		let registrationTimeout: ReturnType<typeof setTimeout> | null = null;
-		const interactionHandle = InteractionManager.runAfterInteractions(() => {
+		const cancelIdleWork = runWhenIdle(() => {
 			registrationTimeout = setTimeout(() => {
 				void (async () => {
 					try {
@@ -70,7 +93,7 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 
 		return () => {
 			cancelled = true;
-			interactionHandle.cancel();
+			cancelIdleWork();
 			if (registrationTimeout) {
 				clearTimeout(registrationTimeout);
 			}
