@@ -1,7 +1,7 @@
 import { eq, max, and, ne } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { entities, plans } from './drizzle-schema';
+import { entities, marketValueSnapshots, plans } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
@@ -38,27 +38,40 @@ export async function createEntity(entity: Entity): Promise<void> {
 		include_in_total: entity.include_in_total ?? true,
 		is_deleted: entity.is_deleted ?? false,
 		is_default: entity.is_default ?? false,
+		is_investment: entity.is_investment ?? false,
 	});
 }
 
-export async function updateEntity(entity: Entity): Promise<void> {
+export async function updateEntity(
+	entity: Entity,
+	options?: { deleteMarketValueSnapshots?: boolean }
+): Promise<void> {
 	const db = await getDrizzleDb();
-	await db
-		.update(entities)
-		.set({
-			type: entity.type,
-			name: entity.name,
-			currency: entity.currency,
-			icon: entity.icon ?? null,
-			color: entity.color ?? null,
-			row: entity.row,
-			position: entity.position,
-			order: entity.order ?? 0,
-			include_in_total: entity.include_in_total ?? true,
-			is_deleted: entity.is_deleted ?? false,
-			is_default: entity.is_default ?? false,
-		})
-		.where(eq(entities.id, entity.id));
+	await db.transaction((tx) => {
+		tx.update(entities)
+			.set({
+				type: entity.type,
+				name: entity.name,
+				currency: entity.currency,
+				icon: entity.icon ?? null,
+				color: entity.color ?? null,
+				row: entity.row,
+				position: entity.position,
+				order: entity.order ?? 0,
+				include_in_total: entity.include_in_total ?? true,
+				is_deleted: entity.is_deleted ?? false,
+				is_default: entity.is_default ?? false,
+				is_investment: entity.is_investment ?? false,
+			})
+			.where(eq(entities.id, entity.id))
+			.run();
+
+		if (options?.deleteMarketValueSnapshots) {
+			tx.delete(marketValueSnapshots)
+				.where(eq(marketValueSnapshots.entity_id, entity.id))
+				.run();
+		}
+	});
 }
 
 export async function deleteEntity(id: string): Promise<void> {
@@ -74,6 +87,8 @@ export async function softDeleteEntity(id: string): Promise<void> {
 
 	await db.transaction((tx) => {
 		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
+
+		tx.delete(marketValueSnapshots).where(eq(marketValueSnapshots.entity_id, id)).run();
 
 		tx.delete(plans).where(eq(plans.entity_id, id)).run();
 	});

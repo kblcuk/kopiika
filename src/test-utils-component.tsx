@@ -2,7 +2,7 @@ import React from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useStore } from '@/src/store';
-import type { Entity, Plan, Transaction } from '@/src/types';
+import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 
 /**
  * Setup store state for component tests
@@ -11,17 +11,20 @@ export function setupStoreForTest({
 	entities = [],
 	plans = [],
 	transactions = [],
+	marketValueSnapshots = [],
 	currentPeriod = '2026-01',
 }: {
 	entities?: Entity[];
 	plans?: Plan[];
 	transactions?: Transaction[];
+	marketValueSnapshots?: MarketValueSnapshot[];
 	currentPeriod?: string;
 } = {}) {
 	useStore.setState({
 		entities,
 		plans,
 		transactions,
+		marketValueSnapshots,
 		currentPeriod,
 		isLoading: false,
 		draggedEntity: null,

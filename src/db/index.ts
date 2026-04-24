@@ -3,3 +3,4 @@ export * from './entities';
 export * from './plans';
 export * from './transactions';
 export * from './recurrence-templates';
+export * from './market-values';

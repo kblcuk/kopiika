@@ -3428,6 +3428,9 @@ describe('Store Data Integrity', () => {
 
 		test('getEntitiesWithBalance: future unconfirmed stays in upcoming, not unconfirmed', () => {
 			const now = Date.now();
+			const futureTimestamp = now + 86400000 * 7;
+			const futureDate = new Date(futureTimestamp);
+			const period = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}`;
 			const txns: Transaction[] = [
 				{
 					id: 'tx-future',
@@ -3435,7 +3438,7 @@ describe('Store Data Integrity', () => {
 					to_entity_id: 'category-1',
 					amount: 150,
 					currency: 'USD',
-					timestamp: now + 86400000 * 7,
+					timestamp: futureTimestamp,
 					is_confirmed: false,
 				},
 			];
@@ -3444,7 +3447,7 @@ describe('Store Data Integrity', () => {
 				[accountEntity, categoryEntity],
 				[],
 				txns,
-				'2026-04',
+				period,
 				'category'
 			);
 
@@ -3563,6 +3566,126 @@ describe('Store Data Integrity', () => {
 			for (const txn of futureTxns) {
 				expect(txn.is_confirmed).toBe(false);
 			}
+		});
+	});
+
+	describe('Investment Accounts', () => {
+		const investmentAccount: Entity = {
+			id: 'inv-account',
+			type: 'account',
+			name: 'Brokerage',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+			is_investment: true,
+		};
+
+		const normalAccount: Entity = {
+			id: 'norm-account',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+			is_investment: false,
+		};
+
+		test('getEntitiesWithBalance includes latestMarketValue for investment accounts', () => {
+			const snapshots = [
+				{
+					id: 'snap-1',
+					entity_id: 'inv-account',
+					amount: 5000,
+					currency: 'USD',
+					date: new Date('2026-01-01').getTime(),
+				},
+				{
+					id: 'snap-2',
+					entity_id: 'inv-account',
+					amount: 7500,
+					currency: 'USD',
+					date: new Date('2026-02-01').getTime(),
+				},
+			];
+
+			const result = getEntitiesWithBalance(
+				[investmentAccount, normalAccount],
+				[],
+				[],
+				'2026-01',
+				'account',
+				snapshots
+			);
+
+			const inv = result.find((e) => e.id === 'inv-account');
+			const norm = result.find((e) => e.id === 'norm-account');
+
+			expect(inv?.latestMarketValue).toBe(7500);
+			expect(norm?.latestMarketValue).toBeNull();
+		});
+
+		test('getEntitiesWithBalance returns null latestMarketValue when no snapshots', () => {
+			const result = getEntitiesWithBalance(
+				[investmentAccount],
+				[],
+				[],
+				'2026-01',
+				'account',
+				[]
+			);
+
+			expect(result[0].latestMarketValue).toBeNull();
+		});
+
+		test('getEntitiesWithBalance ignores snapshots for non-investment accounts', () => {
+			const snapshots = [
+				{
+					id: 'snap-1',
+					entity_id: 'norm-account',
+					amount: 9999,
+					currency: 'USD',
+					date: new Date('2026-01-01').getTime(),
+				},
+			];
+
+			const result = getEntitiesWithBalance(
+				[normalAccount],
+				[],
+				[],
+				'2026-01',
+				'account',
+				snapshots
+			);
+
+			expect(result[0].latestMarketValue).toBeNull();
+		});
+
+		test('store actions manage market value snapshots', async () => {
+			resetDrizzleDb();
+			await db.createEntity(investmentAccount);
+
+			const snapshot = {
+				id: 'snap-1',
+				entity_id: 'inv-account',
+				amount: 3000,
+				currency: 'USD',
+				date: Date.now(),
+			};
+
+			await useStore.getState().addMarketValueSnapshot(snapshot);
+			expect(useStore.getState().marketValueSnapshots).toContainEqual(snapshot);
+
+			await useStore.getState().updateMarketValueSnapshot('snap-1', { amount: 3500 });
+			expect(
+				useStore.getState().marketValueSnapshots.find((s) => s.id === 'snap-1')?.amount
+			).toBe(3500);
+
+			await useStore.getState().deleteMarketValueSnapshot('snap-1');
+			expect(
+				useStore.getState().marketValueSnapshots.find((s) => s.id === 'snap-1')
+			).toBeUndefined();
 		});
 	});
 });

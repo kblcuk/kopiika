@@ -10,13 +10,14 @@ type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 // Convert Drizzle's null types to optional (undefined) for better TypeScript ergonomics
 export type Entity = Omit<
 	DrizzleEntity,
-	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default'
+	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default' | 'is_investment'
 > & {
 	icon?: string | null;
 	color?: string | null;
 	include_in_total?: boolean;
 	is_deleted?: boolean;
 	is_default?: boolean;
+	is_investment?: boolean;
 };
 
 export type Plan = DrizzlePlan;
@@ -29,6 +30,14 @@ export type Transaction = Omit<
 	series_id?: string | null;
 	is_confirmed?: boolean;
 	notification_id?: string | null;
+};
+
+export type MarketValueSnapshot = {
+	id: string;
+	entity_id: string;
+	amount: number;
+	currency: string;
+	date: number;
 };
 
 // Extract EntityType from Drizzle schema
@@ -59,6 +68,7 @@ export interface EntityWithBalance extends Entity {
 	upcoming: number; // sum of future-dated transactions (timestamp > now)
 	unconfirmed?: number; // sum of past-due unconfirmed transactions
 	reserved?: number; // accounts only: total reserved across savings goals
+	latestMarketValue?: number | null; // accounts only: latest market value snapshot
 }
 
 // Helper to get current period in YYYY-MM format

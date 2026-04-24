@@ -19,6 +19,7 @@ export const entities = sqliteTable(
 		include_in_total: integer('include_in_total', { mode: 'boolean' }).notNull().default(true),
 		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 		is_default: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+		is_investment: integer('is_investment', { mode: 'boolean' }).notNull().default(false),
 	},
 	(table) => [
 		index('idx_entities_type').on(table.type),
@@ -95,6 +96,21 @@ export const recurrenceTemplates = sqliteTable(
 	(table) => [index('idx_recurrence_templates_deleted').on(table.is_deleted)]
 );
 
+// Market value snapshots table (for investment accounts)
+export const marketValueSnapshots = sqliteTable(
+	'market_value_snapshots',
+	{
+		id: text('id').primaryKey(),
+		entity_id: text('entity_id')
+			.notNull()
+			.references(() => entities.id, { onDelete: 'cascade' }),
+		amount: real('amount').notNull(),
+		currency: text('currency').notNull(),
+		date: integer('date').notNull(),
+	},
+	(table) => [index('idx_market_value_snapshots_entity').on(table.entity_id)]
+);
+
 // Relations for cascade deletes and joins
 export const entitiesRelations = relations(entities, ({ many }) => ({
 	plans: many(plans),
@@ -109,6 +125,9 @@ export const entitiesRelations = relations(entities, ({ many }) => ({
 	}),
 	recurrenceTemplatesTo: many(recurrenceTemplates, {
 		relationName: 'recurrence_to_entity',
+	}),
+	marketValueSnapshots: many(marketValueSnapshots, {
+		relationName: 'entity_market_values',
 	}),
 }));
 

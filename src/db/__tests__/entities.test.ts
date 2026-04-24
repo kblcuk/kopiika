@@ -11,6 +11,7 @@ import {
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
 import { createTransaction, getAllTransactions } from '../transactions';
+import { createMarketValueSnapshot, getMarketValueSnapshots } from '../market-values';
 import { resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
@@ -42,6 +43,7 @@ describe('entities.ts', () => {
 				include_in_total: true,
 				is_deleted: false,
 				is_default: false,
+				is_investment: false,
 			});
 		});
 
@@ -66,6 +68,7 @@ describe('entities.ts', () => {
 				include_in_total: true,
 				is_deleted: false,
 				is_default: false,
+				is_investment: false,
 			});
 		});
 
@@ -300,6 +303,7 @@ describe('entities.ts', () => {
 				include_in_total: true,
 				is_deleted: false,
 				is_default: false,
+				is_investment: false,
 			});
 		});
 
@@ -531,6 +535,32 @@ describe('entities.ts', () => {
 			expect(await getAllTransactions()).toContainEqual(
 				expect.objectContaining({ id: 'tx-res' })
 			);
+		});
+
+		test('should delete market value snapshots for a deleted account', async () => {
+			const account: Entity = {
+				id: 'acc-investment',
+				type: 'account',
+				name: 'Brokerage',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+				is_investment: true,
+			};
+			await createEntity(account);
+			await createMarketValueSnapshot({
+				id: 'snapshot-1',
+				entity_id: account.id,
+				amount: 1000,
+				currency: 'USD',
+				date: Date.now(),
+			});
+
+			await deleteEntity(account.id);
+
+			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
+			expect(await getMarketValueSnapshots(account.id)).toEqual([]);
 		});
 
 		test('should preserve transactions for deleted saving', async () => {

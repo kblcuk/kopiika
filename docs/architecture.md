@@ -31,6 +31,7 @@ The authoritative model is:
 - `entities`: labels, type, ordering, icon, optional color, currency, `is_default` flag (pre-selects in transaction flows)
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
 - `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` FK links to a recurrence template; `is_confirmed` boolean gates whether future-dated transactions are applied to balances
+- `market_value_snapshots`: optional manual valuation history for investment accounts; purchased price still comes from transactions, while market value comes from the latest snapshot
 - `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
 
 Derived values belong in selectors, not persisted state:
@@ -45,6 +46,7 @@ Time scope rules:
 
 - `income` and `category` actuals are evaluated against the current month
 - `account` balances use all-time transactions; `reserved` is the net flow from account to savings
+- investment accounts still derive purchased price from all-time transaction flow; market value is derived from the latest saved snapshot and is displayed separately from purchased price
 - `saving` balances use all-time transactions (net inflow from accounts)
 
 ## Main Screen Behavior

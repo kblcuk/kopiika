@@ -15,6 +15,7 @@ import m0010 from './0010_add-default-account.sql';
 import m0011 from './0011_steady_red_ghost.sql';
 import m0012 from './0012_slim_hex.sql';
 import m0013 from './0013_add-notification-id.sql';
+import m0014 from './0014_add-investment-mode.sql';
 
 export default {
 	journal,
@@ -33,5 +34,6 @@ export default {
 		m0011,
 		m0012,
 		m0013,
+		m0014,
 	},
 };

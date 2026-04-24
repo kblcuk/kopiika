@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { useMemo } from 'react';
-import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
+import type {
+	Entity,
+	EntityType,
+	EntityWithBalance,
+	Plan,
+	Transaction,
+	MarketValueSnapshot,
+} from '@/src/types';
 import type { RecurrenceTemplate, RecurrenceRule } from '@/src/types/recurrence';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
@@ -39,6 +46,7 @@ interface AppState {
 	plans: Plan[];
 	transactions: Transaction[];
 	recurrenceTemplates: RecurrenceTemplate[];
+	marketValueSnapshots: MarketValueSnapshot[];
 
 	// UI State
 	currentPeriod: string;
@@ -51,7 +59,8 @@ interface AppState {
 	replaceAllData: (
 		entities: Entity[],
 		plans: Plan[],
-		transactions: Transaction[]
+		transactions: Transaction[],
+		marketValueSnapshots?: MarketValueSnapshot[]
 	) => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
 	setDraggedEntity: (entity: Entity | null) => void;
@@ -60,6 +69,10 @@ interface AppState {
 	// Entity actions
 	addEntity: (entity: Entity) => Promise<void>;
 	updateEntity: (entity: Entity) => Promise<void>;
+	updateEntityWithOptions: (
+		entity: Entity,
+		options?: { deleteMarketValueSnapshots?: boolean }
+	) => Promise<void>;
 	deleteEntity: (id: string) => Promise<void>;
 	reorderEntitiesByIds: (
 		type: EntityType,
@@ -107,6 +120,15 @@ interface AppState {
 		savingEntityId: string,
 		desiredTotal: number
 	) => Promise<void>;
+
+	// Market value snapshot actions
+	addMarketValueSnapshot: (snapshot: MarketValueSnapshot) => Promise<void>;
+	updateMarketValueSnapshot: (
+		id: string,
+		updates: { amount?: number; date?: number }
+	) => Promise<void>;
+	deleteMarketValueSnapshot: (id: string) => Promise<void>;
+	deleteAllMarketValueSnapshots: (entityId: string) => Promise<void>;
 }
 
 let initializePromise: Promise<void> | null = null;
@@ -234,6 +256,7 @@ export const useStore = create<AppState>((set, get) => ({
 	plans: [],
 	transactions: [],
 	recurrenceTemplates: [],
+	marketValueSnapshots: [],
 	currentPeriod: getCurrentPeriod(),
 	isLoading: true,
 	draggedEntity: null,
@@ -249,12 +272,14 @@ export const useStore = create<AppState>((set, get) => ({
 			set({ isLoading: true });
 			try {
 				console.info('Hydrating store from database');
-				const [entities, plans, transactions, recurrenceTemplates] = await Promise.all([
-					db.getAllEntities(),
-					db.getAllPlans(),
-					db.getAllTransactions(),
-					db.getAllRecurrenceTemplates(),
-				]);
+				const [entities, plans, transactions, recurrenceTemplates, marketValueSnapshots] =
+					await Promise.all([
+						db.getAllEntities(),
+						db.getAllPlans(),
+						db.getAllTransactions(),
+						db.getAllRecurrenceTemplates(),
+						db.getAllMarketValueSnapshots(),
+					]);
 
 				// Ensure balance adjustment system entity exists (may be missing after data reset)
 				if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
@@ -272,6 +297,7 @@ export const useStore = create<AppState>((set, get) => ({
 					plans: validPlans,
 					transactions,
 					recurrenceTemplates,
+					marketValueSnapshots,
 					isLoading: false,
 				});
 
@@ -290,7 +316,12 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	// Replace all data atomically — used by CSV import.
-	replaceAllData: async (newEntities, newPlans, newTransactions) => {
+	replaceAllData: async (
+		newEntities,
+		newPlans,
+		newTransactions,
+		newMarketValueSnapshots = []
+	) => {
 		// Cancel all scheduled notifications before replacing data
 		try {
 			await cancelAllNotifications();
@@ -303,13 +334,14 @@ export const useStore = create<AppState>((set, get) => ({
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		drizzleDb.transaction((tx) => {
-			// Delete in FK-safe order: transactions → recurrenceTemplates → plans → entities
+			// Delete in FK-safe order: snapshots → transactions → recurrenceTemplates → plans → entities
+			tx.delete(schema.marketValueSnapshots).run();
 			tx.delete(schema.transactions).run();
 			tx.delete(schema.recurrenceTemplates).run();
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
 
-			// Insert in FK-safe order: entities → plans → transactions
+			// Insert in FK-safe order: entities → plans → transactions → market value snapshots
 			for (const entity of newEntities) {
 				tx.insert(schema.entities)
 					.values({
@@ -325,6 +357,7 @@ export const useStore = create<AppState>((set, get) => ({
 						include_in_total: entity.include_in_total ?? true,
 						is_deleted: entity.is_deleted ?? false,
 						is_default: entity.is_default ?? false,
+						is_investment: entity.is_investment ?? false,
 					})
 					.run();
 			}
@@ -346,16 +379,21 @@ export const useStore = create<AppState>((set, get) => ({
 					})
 					.run();
 			}
+			for (const snapshot of newMarketValueSnapshots) {
+				tx.insert(schema.marketValueSnapshots).values(snapshot).run();
+			}
 		});
 
 		// Re-read all data from DB into store state
-		const [entities, plans, transactions, recurrenceTemplates] = await Promise.all([
-			db.getAllEntities(),
-			db.getAllPlans(),
-			db.getAllTransactions(),
-			db.getAllRecurrenceTemplates(),
-		]);
-		set({ entities, plans, transactions, recurrenceTemplates });
+		const [entities, plans, transactions, recurrenceTemplates, marketValueSnapshots] =
+			await Promise.all([
+				db.getAllEntities(),
+				db.getAllPlans(),
+				db.getAllTransactions(),
+				db.getAllRecurrenceTemplates(),
+				db.getAllMarketValueSnapshots(),
+			]);
+		set({ entities, plans, transactions, recurrenceTemplates, marketValueSnapshots });
 	},
 
 	setCurrentPeriod: (period) => set({ currentPeriod: period }),
@@ -372,6 +410,16 @@ export const useStore = create<AppState>((set, get) => ({
 		await db.updateEntity(entity);
 		set((state) => ({
 			entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+		}));
+	},
+
+	updateEntityWithOptions: async (entity, options) => {
+		await db.updateEntity(entity, options);
+		set((state) => ({
+			entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+			marketValueSnapshots: options?.deleteMarketValueSnapshots
+				? state.marketValueSnapshots.filter((s) => s.entity_id !== entity.id)
+				: state.marketValueSnapshots,
 		}));
 	},
 
@@ -879,6 +927,39 @@ export const useStore = create<AppState>((set, get) => ({
 		await db.createTransaction(transaction);
 		set((s) => ({ transactions: [transaction, ...s.transactions] }));
 	},
+
+	// Market value snapshot actions
+	addMarketValueSnapshot: async (snapshot) => {
+		await db.createMarketValueSnapshot(snapshot);
+		set((state) => ({
+			marketValueSnapshots: [snapshot, ...state.marketValueSnapshots],
+		}));
+	},
+
+	updateMarketValueSnapshot: async (id, updates) => {
+		await db.updateMarketValueSnapshot(id, updates);
+		set((state) => ({
+			marketValueSnapshots: state.marketValueSnapshots.map((s) =>
+				s.id === id ? { ...s, ...updates } : s
+			),
+		}));
+	},
+
+	deleteMarketValueSnapshot: async (id) => {
+		await db.deleteMarketValueSnapshot(id);
+		set((state) => ({
+			marketValueSnapshots: state.marketValueSnapshots.filter((s) => s.id !== id),
+		}));
+	},
+
+	deleteAllMarketValueSnapshots: async (entityId) => {
+		await db.deleteAllMarketValueSnapshots(entityId);
+		set((state) => ({
+			marketValueSnapshots: state.marketValueSnapshots.filter(
+				(s) => s.entity_id !== entityId
+			),
+		}));
+	},
 }));
 
 // Selectors - using useShallow and useMemo to prevent infinite loops
@@ -889,7 +970,8 @@ export function getEntitiesWithBalance(
 	plans: Plan[],
 	transactions: Transaction[],
 	currentPeriod: string,
-	type: EntityType
+	type: EntityType,
+	marketValueSnapshots?: MarketValueSnapshot[]
 ): EntityWithBalance[] {
 	const { start, end } = getPeriodRange(currentPeriod);
 	// Filter by type and exclude system entities (balance adjustments)
@@ -966,6 +1048,17 @@ export function getEntitiesWithBalance(
 				? getTotalReservedForAccount(transactions, entities, entity.id)
 				: 0;
 
+		// For investment accounts, find the latest market value snapshot
+		let latestMarketValue: number | null = null;
+		if (entity.type === 'account' && entity.is_investment && marketValueSnapshots) {
+			const latest = marketValueSnapshots
+				.filter((s) => s.entity_id === entity.id)
+				.sort((a, b) => b.date - a.date)[0];
+			if (latest) {
+				latestMarketValue = latest.amount;
+			}
+		}
+
 		return {
 			...entity,
 			planned,
@@ -973,6 +1066,7 @@ export function getEntitiesWithBalance(
 			upcoming,
 			unconfirmed,
 			reserved,
+			latestMarketValue,
 			remaining: planned - txActual,
 		};
 	});
@@ -990,17 +1084,26 @@ export function useUnconfirmedCount(): number {
 
 // React hook that wraps the pure function
 export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
-	const { entities, plans, transactions, currentPeriod } = useStore(
+	const { entities, plans, transactions, currentPeriod, marketValueSnapshots } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
 			currentPeriod: state.currentPeriod,
+			marketValueSnapshots: state.marketValueSnapshots,
 		}))
 	);
 
 	return useMemo(
-		() => getEntitiesWithBalance(entities, plans, transactions, currentPeriod, type),
-		[entities, plans, transactions, currentPeriod, type]
+		() =>
+			getEntitiesWithBalance(
+				entities,
+				plans,
+				transactions,
+				currentPeriod,
+				type,
+				marketValueSnapshots
+			),
+		[entities, plans, transactions, currentPeriod, type, marketValueSnapshots]
 	);
 }
