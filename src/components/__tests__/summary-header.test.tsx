@@ -363,6 +363,46 @@ describe('useSummary', () => {
 		expect(result.current.balance).toBe(3000);
 	});
 
+	it('should exclude investment accounts from balance', () => {
+		const investmentAccount: Entity = {
+			id: 'account-investment',
+			type: 'account',
+			name: 'Brokerage',
+			currency: 'USD',
+			row: 0,
+			position: 2,
+			order: 2,
+			is_investment: true,
+		};
+
+		const tx1: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount: 3000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		const tx2: Transaction = {
+			id: 'tx-2',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-investment',
+			amount: 2000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		useStore.setState({
+			entities: [mockIncome, mockAccount, investmentAccount],
+			transactions: [tx1, tx2],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		expect(result.current.balance).toBe(3000);
+	});
+
 	it('should not include unplanned categories in remaining', () => {
 		const mockCategory2: Entity = {
 			id: 'category-2',

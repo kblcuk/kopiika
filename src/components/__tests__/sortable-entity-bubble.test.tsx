@@ -226,4 +226,51 @@ describe('SortableEntityBubble', () => {
 			expect(amountText.props.className).toContain('text-negative');
 		});
 	});
+
+	describe('Investment account bubble display', () => {
+		const investmentEntity: EntityWithBalance = {
+			id: 'inv-1',
+			type: 'account',
+			name: 'Brokerage',
+			currency: 'USD',
+			icon: 'trending-up',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 5000,
+			planned: 0,
+			remaining: -5000,
+			upcoming: 0,
+			is_investment: true,
+			latestMarketValue: 7500,
+		};
+
+		it('shows purchased price (actual) as main amount', () => {
+			const { getByText } = render(<SortableEntityBubble entity={investmentEntity} />);
+
+			expect(getByText('5,000.00')).toBeTruthy();
+		});
+
+		it('shows latest market value as secondary line', () => {
+			const { getByText } = render(<SortableEntityBubble entity={investmentEntity} />);
+
+			expect(getByText('7,500.00')).toBeTruthy();
+		});
+
+		it('hides reserved total line for investment accounts', () => {
+			const withReserved = { ...investmentEntity, reserved: 2000 };
+			const { queryByText } = render(<SortableEntityBubble entity={withReserved} />);
+
+			expect(queryByText(/total/)).toBeNull();
+		});
+
+		it('shows nothing as secondary when no market value snapshot exists', () => {
+			const noSnapshot = { ...investmentEntity, latestMarketValue: null };
+			const { queryByText } = render(<SortableEntityBubble entity={noSnapshot} />);
+
+			// Should not show any secondary amount text
+			const secondaryTexts = queryByText(/7,500\.00/);
+			expect(secondaryTexts).toBeNull();
+		});
+	});
 });

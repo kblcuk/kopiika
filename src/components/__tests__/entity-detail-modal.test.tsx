@@ -1340,4 +1340,246 @@ describe('EntityDetailModal', () => {
 			expect(queryByTestId('account-reservations-section')).toBeNull();
 		});
 	});
+
+	describe('Investment Account', () => {
+		const mockInvestmentAccount: EntityWithBalance = {
+			id: 'inv-account',
+			type: 'account',
+			name: 'Brokerage',
+			currency: 'USD',
+			icon: 'trending-up',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 5000,
+			planned: 0,
+			remaining: -5000,
+			upcoming: 0,
+			is_investment: true,
+			latestMarketValue: 7500,
+		};
+
+		const mockAccountEntity: EntityWithBalance = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			icon: 'wallet',
+			order: 0,
+			row: 0,
+			position: 0,
+			actual: 1000,
+			planned: 0,
+			remaining: -1000,
+			upcoming: 0,
+		};
+
+		it('shows investment toggle for account entities', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('entity-detail-investment-switch')).toBeTruthy();
+		});
+
+		it('initializes investment toggle to on for investment accounts', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const toggle = getByTestId('entity-detail-investment-switch');
+			expect(toggle.props.value).toBe(true);
+		});
+
+		it('shows market value input when investment mode is enabled', () => {
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(getByTestId('entity-detail-market-value-input')).toBeTruthy();
+		});
+
+		it('hides market value input when investment mode is disabled', () => {
+			const { queryByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_investment: false }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(queryByTestId('entity-detail-market-value-input')).toBeNull();
+		});
+
+		it('saves is_investment when toggling investment mode', async () => {
+			const updateEntitySpy = jest.fn();
+			useStore.setState({ updateEntity: updateEntitySpy });
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={{ ...mockAccountEntity, is_investment: false }}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-investment-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						id: 'account-1',
+						is_investment: true,
+					})
+				);
+			});
+		});
+
+		it('does not delete snapshots immediately when disabling investment mode', async () => {
+			const updateEntityWithOptionsSpy = jest.fn();
+			useStore.setState({
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				updateEntityWithOptions: updateEntityWithOptionsSpy,
+			});
+
+			(Alert.alert as jest.Mock).mockImplementation((title, _message, buttons) => {
+				if (title === 'Turn Off Investment Account?') {
+					const confirmButton = buttons?.find((b: any) => b.text === 'Confirm');
+					confirmButton?.onPress?.();
+				}
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-investment-switch'), 'valueChange', false);
+
+			expect(updateEntityWithOptionsSpy).not.toHaveBeenCalled();
+
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntityWithOptionsSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ id: 'inv-account', is_investment: false }),
+					{ deleteMarketValueSnapshots: true }
+				);
+			});
+		});
+
+		it('does not delete snapshots if user disables investment mode then cancels modal', () => {
+			const updateEntityWithOptionsSpy = jest.fn();
+			useStore.setState({
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				updateEntityWithOptions: updateEntityWithOptionsSpy,
+			});
+
+			(Alert.alert as jest.Mock).mockImplementation((title, _message, buttons) => {
+				if (title === 'Turn Off Investment Account?') {
+					const confirmButton = buttons?.find((b: any) => b.text === 'Confirm');
+					confirmButton?.onPress?.();
+				}
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent(getByTestId('entity-detail-investment-switch'), 'valueChange', false);
+			fireEvent.press(getByTestId('entity-detail-cancel-button'));
+
+			expect(updateEntityWithOptionsSpy).not.toHaveBeenCalled();
+		});
+
+		it('creates market value snapshot when saving with market value input', async () => {
+			const addMarketValueSnapshotSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				addMarketValueSnapshot: addMarketValueSnapshotSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-detail-market-value-input'), '8000');
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(addMarketValueSnapshotSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						entity_id: 'inv-account',
+						amount: 8000,
+						currency: 'USD',
+					})
+				);
+			});
+		});
+
+		it('does not create snapshot when market value input is empty', async () => {
+			const addMarketValueSnapshotSpy = jest.fn();
+			const updateEntitySpy = jest.fn();
+			useStore.setState({
+				addMarketValueSnapshot: addMarketValueSnapshotSpy,
+				updateEntity: updateEntitySpy,
+			});
+
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('entity-detail-save-button'));
+
+			await waitFor(() => {
+				expect(updateEntitySpy).toHaveBeenCalled();
+			});
+			expect(addMarketValueSnapshotSpy).not.toHaveBeenCalled();
+		});
+	});
 });

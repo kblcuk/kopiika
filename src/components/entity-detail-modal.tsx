@@ -60,6 +60,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [isEditingActual, setIsEditingActual] = useState(false);
 	const [includeInTotal, setIncludeInTotal] = useState(true);
 	const [isDefault, setIsDefault] = useState(false);
+	const [isInvestment, setIsInvestment] = useState(false);
+	const [marketValueInput, setMarketValueInput] = useState('');
 	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
@@ -81,10 +83,13 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		deletePlan,
 		deleteEntity,
 		updateEntity,
+		updateEntityWithOptions,
 		addTransaction,
 		setDefaultAccount,
 		recurrenceTemplates,
 		deactivateTemplatesForEntity,
+		addMarketValueSnapshot,
+		marketValueSnapshots,
 	} = useStore(
 		useShallow((state) => ({
 			plans: state.plans,
@@ -95,10 +100,13 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			deletePlan: state.deletePlan,
 			deleteEntity: state.deleteEntity,
 			updateEntity: state.updateEntity,
+			updateEntityWithOptions: state.updateEntityWithOptions,
 			addTransaction: state.addTransaction,
 			setDefaultAccount: state.setDefaultAccount,
 			recurrenceTemplates: state.recurrenceTemplates,
 			deactivateTemplatesForEntity: state.deactivateTemplatesForEntity,
+			addMarketValueSnapshot: state.addMarketValueSnapshot,
+			marketValueSnapshots: state.marketValueSnapshots,
 		}))
 	);
 
@@ -154,6 +162,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setIsEditingActual(false);
 			setIncludeInTotal(entity.include_in_total !== false);
 			setIsDefault(entity.is_default === true);
+			setIsInvestment(entity.is_investment === true);
+			setMarketValueInput('');
 			setNameError(null);
 			setShowIconPicker(false);
 			setSelectedColor((entity.color as EntityColorKey) ?? null);
@@ -193,6 +203,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		if (!canSave) return;
 
 		const trimmedName = name.trim();
+		const shouldDeleteSnapshots =
+			entity.type === 'account' && entity.is_investment === true && !isInvestment;
 
 		// Validate icon is in allowed list, fallback to default if not
 		const allowedIcons = ICON_OPTIONS[entity.type];
@@ -201,13 +213,20 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			: DEFAULT_ICONS[entity.type];
 
 		// Update entity
-		await updateEntity({
+		const updatedEntity = {
 			...entity,
 			name: trimmedName,
 			icon: validIcon,
 			color: selectedColor,
 			include_in_total: includeInTotal,
-		});
+			is_investment: isInvestment,
+		};
+
+		if (shouldDeleteSnapshots) {
+			await updateEntityWithOptions(updatedEntity, { deleteMarketValueSnapshots: true });
+		} else {
+			await updateEntity(updatedEntity);
+		}
 
 		if (entity.type !== 'account') {
 			const amount = reverseFormatCurrency(plannedExpr.resolve());
@@ -251,6 +270,30 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				};
 
 				await addTransaction(adjustmentTransaction);
+			}
+		}
+
+		// Handle market value snapshot for investment accounts
+		if (entity.type === 'account' && isInvestment && marketValueInput.trim()) {
+			const amount = reverseFormatCurrency(marketValueInput);
+			if (!Number.isNaN(amount)) {
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				const date = today.getTime();
+
+				// Skip creating a duplicate snapshot if the latest one on the same day has the same amount
+				const latestToday = marketValueSnapshots
+					.filter((s) => s.entity_id === entity.id && s.date === date)
+					.sort((a, b) => b.date - a.date)[0];
+				if (!latestToday || latestToday.amount !== amount) {
+					await addMarketValueSnapshot({
+						id: generateId(),
+						entity_id: entity.id,
+						amount,
+						currency: entity.currency,
+						date,
+					});
+				}
 			}
 		}
 
@@ -535,6 +578,81 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									testID="entity-detail-is-default-switch"
 								/>
 							</View>
+
+							{/* Investment account toggle */}
+							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+								<View className="flex-1 pr-4">
+									<Text className="font-sans text-base text-ink">
+										Investment account
+									</Text>
+									<Text className="font-sans text-xs text-ink-muted">
+										Track purchase value and market value
+									</Text>
+								</View>
+								<Switch
+									value={isInvestment}
+									onValueChange={(value) => {
+										const hasSnapshots = marketValueSnapshots.some(
+											(s) => s.entity_id === entity.id
+										);
+										if (!value && hasSnapshots) {
+											Alert.alert(
+												'Turn Off Investment Account?',
+												'Turning this off will remove all saved market value snapshots when you save.',
+												[
+													{
+														text: 'Cancel',
+														style: 'cancel',
+														onPress: () => {},
+													},
+													{
+														text: 'Confirm',
+														style: 'destructive',
+														onPress: () => {
+															setIsInvestment(false);
+														},
+													},
+												]
+											);
+										} else {
+											setIsInvestment(value);
+										}
+									}}
+									trackColor={{
+										false: colors.border.DEFAULT,
+										true: colors.accent.DEFAULT,
+									}}
+									thumbColor={colors.paper.warm}
+									testID="entity-detail-investment-switch"
+								/>
+							</View>
+
+							{/* Market value input — visible only for investment accounts */}
+							{isInvestment && (
+								<View className="mt-4">
+									<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+										Market Value
+									</Text>
+									<View className={textInputClassNames.inlineContainer}>
+										<TextInput
+											{...sharedNumericTextInputProps}
+											value={marketValueInput}
+											onChangeText={setMarketValueInput}
+											placeholder="0"
+											className={textInputClassNames.primaryAmountInput}
+											style={styles.input}
+											placeholderTextColor={colors.ink.placeholder}
+											testID="entity-detail-market-value-input"
+										/>
+										<Text className={textInputClassNames.suffixLarge}>
+											{getCurrencySymbol(entity.currency)}
+										</Text>
+									</View>
+									<Text className="mt-1 font-sans text-xs text-ink-muted">
+										Enter today&apos;s market value to save a new snapshot.
+									</Text>
+								</View>
+							)}
 
 							{/* Reserved for — per-saving breakdown */}
 							<View className="mt-4" testID="account-reservations-section">

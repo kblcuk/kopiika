@@ -315,6 +315,44 @@ describe('EntityCreateModal', () => {
 
 			expect(getByTestId('entity-create-amount-input')).toBeTruthy();
 		});
+
+		it('shows investment toggle for accounts', () => {
+			const { getByTestId } = render(
+				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
+			);
+
+			expect(getByTestId('entity-create-investment-switch')).toBeTruthy();
+		});
+
+		it('does not show investment toggle for non-account types', () => {
+			const { queryByTestId } = render(
+				<EntityCreateModal visible={true} entityType="category" onClose={mockOnClose} />
+			);
+
+			expect(queryByTestId('entity-create-investment-switch')).toBeNull();
+		});
+
+		it('passes is_investment when investment toggle is enabled', async () => {
+			const addEntitySpy = jest.fn();
+			useStore.setState({ addEntity: addEntitySpy });
+
+			const { getByTestId } = render(
+				<EntityCreateModal visible={true} entityType="account" onClose={mockOnClose} />
+			);
+
+			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Brokerage');
+			fireEvent(getByTestId('entity-create-investment-switch'), 'valueChange', true);
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(addEntitySpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						name: 'Brokerage',
+						is_investment: true,
+					})
+				);
+			});
+		});
 	});
 
 	describe('Cancel Button', () => {

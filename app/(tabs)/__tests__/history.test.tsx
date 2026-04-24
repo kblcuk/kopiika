@@ -565,4 +565,199 @@ describe('HistoryScreen search params', () => {
 			expect(queryByTestId('row-tx-wrong-entity')).toBeNull();
 		});
 	});
+
+	describe('Investment account market value history', () => {
+		const mockInvestmentAccount: Entity = {
+			id: 'inv-account',
+			type: 'account',
+			name: 'Brokerage',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+			is_investment: true,
+		};
+
+		it('shows market value history when investment account is selected', async () => {
+			useStore.setState({
+				entities: [mockInvestmentAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01', entityId: 'inv-account' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('market-value-snapshots-section')).toBeTruthy();
+				expect(getByTestId('market-value-snapshot-row-snap-1')).toBeTruthy();
+			});
+		});
+
+		it('shows empty market value history state when investment account has no snapshots', async () => {
+			useStore.setState({
+				entities: [mockInvestmentAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01', entityId: 'inv-account' };
+
+			const { getByTestId, getByText } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('market-value-snapshots-section')).toBeTruthy();
+				expect(
+					getByText('No market value snapshots yet. Add one from the account editor.')
+				).toBeTruthy();
+			});
+		});
+
+		it('hides market value history for non-investment accounts', async () => {
+			useStore.setState({
+				entities: [mockAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'account-1',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01', entityId: 'account-1' };
+
+			const { queryByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(queryByTestId('market-value-snapshots-section')).toBeNull();
+			});
+		});
+
+		it('hides market value history when no entity is selected', async () => {
+			useStore.setState({
+				entities: [mockInvestmentAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01' };
+
+			const { queryByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(queryByTestId('market-value-snapshots-section')).toBeNull();
+			});
+		});
+
+		it('shows market value history below transactions when both exist', async () => {
+			const tx: Transaction = {
+				id: 'tx-1',
+				from_entity_id: 'inv-account',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: fixedNow - 60_000,
+			};
+
+			useStore.setState({
+				entities: [mockInvestmentAccount, mockCategory],
+				plans: [],
+				transactions: [tx],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01', entityId: 'inv-account' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-1')).toBeTruthy();
+				expect(getByTestId('market-value-snapshots-section')).toBeTruthy();
+			});
+		});
+
+		it('edits market value snapshot amount and date from history', async () => {
+			const updateMarketValueSnapshot = jest.fn();
+			useStore.setState({
+				entities: [mockInvestmentAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount: 7500,
+						currency: 'USD',
+						date: new Date('2026-01-15').getTime(),
+					},
+				],
+				updateMarketValueSnapshot,
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			mockParams = { period: '2026-01', entityId: 'inv-account' };
+
+			const { getByTestId, getByText } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('market-value-snapshot-row-snap-1')).toBeTruthy();
+			});
+
+			fireEvent.press(getByTestId('market-value-snapshot-row-snap-1'));
+			fireEvent.changeText(getByTestId('snapshot-edit-amount-input'), '8100');
+			fireEvent.changeText(getByTestId('snapshot-edit-date-input'), '2026-01-10');
+			fireEvent.press(getByText('Save'));
+
+			await waitFor(() => {
+				expect(updateMarketValueSnapshot).toHaveBeenCalledWith('snap-1', {
+					amount: 8100,
+					date: new Date(2026, 0, 10).setHours(0, 0, 0, 0),
+				});
+			});
+		});
+	});
 });

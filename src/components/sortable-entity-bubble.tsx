@@ -198,14 +198,25 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 							{mainAmount}
 						</Text>
 						{isAccount ? (
-							!!entity.reserved &&
-							entity.reserved > 0 && (
-								<Text
-									className="font-sans text-xs text-ink-muted"
-									numberOfLines={1}
-								>
-									{formatAmount(entity.actual + entity.reserved)} total
-								</Text>
+							entity.is_investment ? (
+								entity.latestMarketValue != null && (
+									<Text
+										className="font-sans text-xs text-ink-muted"
+										numberOfLines={1}
+									>
+										{formatAmount(entity.latestMarketValue)}
+									</Text>
+								)
+							) : (
+								!!entity.reserved &&
+								entity.reserved > 0 && (
+									<Text
+										className="font-sans text-xs text-ink-muted"
+										numberOfLines={1}
+									>
+										{formatAmount(entity.actual + entity.reserved)} total
+									</Text>
+								)
 							)
 						) : (
 							<Text className="font-sans text-xs text-ink-muted">

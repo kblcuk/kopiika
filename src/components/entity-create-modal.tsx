@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { View, TextInput, Pressable, Modal, Platform, Switch } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
@@ -38,6 +38,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [selectedColor, setSelectedColor] = useState<EntityColorKey | null>(null);
 	const [plannedAmount, setPlannedAmount] = useState('');
+	const [isInvestment, setIsInvestment] = useState(false);
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
 	const insets = useSafeAreaInsets();
@@ -58,6 +59,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			setSelectedIcon(DEFAULT_ICONS[entityType]);
 			setSelectedColor(null);
 			setPlannedAmount('');
+			setIsInvestment(false);
 			setTimeout(() => nameInputRef.current?.focus(), 100);
 		}
 	}, [visible, entityType]);
@@ -106,6 +108,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			order: nextPosition,
 			row: targetRow,
 			position: nextPosition,
+			is_investment: entityType === 'account' ? isInvestment : undefined,
 		});
 
 		if (entityType !== 'account') {
@@ -134,6 +137,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		setPlan,
 		currentPeriod,
 		onClose,
+		isInvestment,
 	]);
 
 	const handleCreatePress = useCallback(async () => {
@@ -253,6 +257,29 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 							onSelect={setSelectedColor}
 						/>
 					</View>
+
+					{entityType === 'account' && (
+						<View className="mb-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<Text className="font-sans text-base text-ink">
+									Investment account
+								</Text>
+								<Text className="font-sans text-xs text-ink-muted">
+									Track purchase value and market value
+								</Text>
+							</View>
+							<Switch
+								value={isInvestment}
+								onValueChange={setIsInvestment}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-create-investment-switch"
+							/>
+						</View>
+					)}
 
 					{entityType !== 'account' && (
 						<View className="mb-6">
