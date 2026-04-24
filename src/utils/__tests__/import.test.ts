@@ -44,6 +44,21 @@ id,entity_id,period,period_start,planned_amount
 # TRANSACTIONS
 id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 
+const INVESTMENT_EXPORT_CSV = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_investment
+__system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,-1,true,false,false
+e1,account,"Brokerage",USD,landmark,,0,0,0,true,false,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# MARKET_VALUE_SNAPSHOTS
+id,entity_id,amount,currency,date
+s1,e1,7500,USD,1736899200000`;
+
 describe('parseCsvLine', () => {
 	test('parses simple fields', () => {
 		expect(parseCsvLine('a,b,c')).toEqual(['a', 'b', 'c']);
@@ -123,6 +138,25 @@ describe('parseImportCsv', () => {
 		expect('owner_id' in account!).toBe(false);
 	});
 
+	test('parses investment entities and market value snapshots from current export format', () => {
+		const result = parseImportCsv(INVESTMENT_EXPORT_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const account = result.data.entities.find((e) => e.id === 'e1');
+		expect(account).toBeDefined();
+		expect(account!.is_investment).toBe(true);
+		expect(result.data.marketValueSnapshots).toEqual([
+			{
+				id: 's1',
+				entity_id: 'e1',
+				amount: 7500,
+				currency: 'USD',
+				date: 1736899200000,
+			},
+		]);
+	});
+
 	test('rejects missing section markers', () => {
 		const result = parseImportCsv('just some random text');
 		expect(result.ok).toBe(false);
@@ -135,6 +169,13 @@ describe('parseImportCsv', () => {
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.errors[0]).toContain('section markers');
+	});
+
+	test('accepts imports without market value snapshots section', () => {
+		const result = parseImportCsv(CURRENT_EXPORT_STYLE_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.marketValueSnapshots).toEqual([]);
 	});
 
 	test('rejects invalid entity type', () => {

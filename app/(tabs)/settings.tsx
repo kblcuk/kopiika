@@ -27,7 +27,8 @@ import {
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 export default function SettingsScreen() {
-	const { entities, plans, transactions, initialize, replaceAllData } = useStore();
+	const { entities, plans, transactions, marketValueSnapshots, initialize, replaceAllData } =
+		useStore();
 
 	const [remindersEnabled, setRemindersToggle] = useState(true);
 
@@ -123,7 +124,7 @@ export default function SettingsScreen() {
 
 	const handleExport = async () => {
 		try {
-			await exportAllData(entities, plans, transactions);
+			await exportAllData(entities, plans, transactions, marketValueSnapshots);
 		} catch (error) {
 			console.error('Failed to export data', error);
 			Alert.alert('Export Failed', 'Could not export data. Please try again.');
@@ -151,7 +152,7 @@ export default function SettingsScreen() {
 			const { data } = parsed;
 			Alert.alert(
 				'Replace All Data?',
-				`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, and ${data.transactions.length} transactions.\n\nThis cannot be undone.`,
+				`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, ${data.transactions.length} transactions, and ${data.marketValueSnapshots.length} market value snapshots.\n\nThis cannot be undone.`,
 				[
 					{ text: 'Cancel', style: 'cancel' },
 					{
@@ -159,7 +160,12 @@ export default function SettingsScreen() {
 						style: 'destructive',
 						onPress: async () => {
 							try {
-								await replaceAllData(data.entities, data.plans, data.transactions);
+								await replaceAllData(
+									data.entities,
+									data.plans,
+									data.transactions,
+									data.marketValueSnapshots
+								);
 								Alert.alert('Import Complete', 'All data has been replaced.');
 							} catch (error) {
 								console.error('Failed to import data', error);

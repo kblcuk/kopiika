@@ -1,4 +1,4 @@
-import type { Entity, Plan, Transaction } from '@/src/types';
+import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -8,6 +8,7 @@ export interface ParsedImportData {
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];
+	marketValueSnapshots: MarketValueSnapshot[];
 }
 
 type ParseResult = { ok: true; data: ParsedImportData } | { ok: false; errors: string[] };
@@ -63,10 +64,11 @@ export function parseCsvLine(line: string): string[] {
  */
 function splitSections(
 	content: string
-): { entities: string; plans: string; transactions: string } | null {
+): { entities: string; plans: string; transactions: string; marketValueSnapshots: string } | null {
 	const entitiesIdx = content.indexOf('# ENTITIES');
 	const plansIdx = content.indexOf('# PLANS');
 	const transactionsIdx = content.indexOf('# TRANSACTIONS');
+	const marketValueSnapshotsIdx = content.indexOf('# MARKET_VALUE_SNAPSHOTS');
 
 	if (entitiesIdx === -1 || plansIdx === -1 || transactionsIdx === -1) {
 		return null;
@@ -75,7 +77,16 @@ function splitSections(
 	return {
 		entities: content.slice(entitiesIdx + '# ENTITIES'.length, plansIdx).trim(),
 		plans: content.slice(plansIdx + '# PLANS'.length, transactionsIdx).trim(),
-		transactions: content.slice(transactionsIdx + '# TRANSACTIONS'.length).trim(),
+		transactions: content
+			.slice(
+				transactionsIdx + '# TRANSACTIONS'.length,
+				marketValueSnapshotsIdx === -1 ? undefined : marketValueSnapshotsIdx
+			)
+			.trim(),
+		marketValueSnapshots:
+			marketValueSnapshotsIdx === -1
+				? ''
+				: content.slice(marketValueSnapshotsIdx + '# MARKET_VALUE_SNAPSHOTS'.length).trim(),
 	};
 }
 
@@ -147,6 +158,66 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			position,
 			include_in_total: row.include_in_total !== 'false',
 			is_deleted: row.is_deleted === 'true',
+			is_investment: row.is_investment === 'true',
+		});
+	}
+
+	return result;
+}
+
+function parseMarketValueSnapshots(
+	rows: Record<string, string>[],
+	entityIds: Set<string>,
+	errors: string[]
+): MarketValueSnapshot[] {
+	const result: MarketValueSnapshot[] = [];
+
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		const lineNum = i + 1;
+
+		if (!row.id) {
+			errors.push(`Market value snapshot row ${lineNum}: missing id`);
+			continue;
+		}
+		if (!row.entity_id) {
+			errors.push(`Market value snapshot row ${lineNum}: missing entity_id`);
+			continue;
+		}
+		if (!entityIds.has(row.entity_id)) {
+			errors.push(
+				`Market value snapshot row ${lineNum}: entity_id "${row.entity_id}" not found in imported entities`
+			);
+			continue;
+		}
+
+		const amount = Number(row.amount);
+		if (isNaN(amount)) {
+			errors.push(
+				`Market value snapshot row ${lineNum}: amount "${row.amount}" is not a valid number`
+			);
+			continue;
+		}
+
+		if (!row.currency) {
+			errors.push(`Market value snapshot row ${lineNum}: missing currency`);
+			continue;
+		}
+
+		const date = Number(row.date);
+		if (isNaN(date)) {
+			errors.push(
+				`Market value snapshot row ${lineNum}: date "${row.date}" is not a valid number`
+			);
+			continue;
+		}
+
+		result.push({
+			id: row.id,
+			entity_id: row.entity_id,
+			amount,
+			currency: row.currency,
+			date,
 		});
 	}
 
@@ -279,7 +350,8 @@ function parseTransactions(
 }
 
 /**
- * Parse a combined CSV import file with # ENTITIES / # PLANS / # TRANSACTIONS sections.
+ * Parse a combined CSV import file with # ENTITIES / # PLANS / # TRANSACTIONS sections,
+ * and an optional # MARKET_VALUE_SNAPSHOTS section.
  * Returns parsed data or validation errors.
  */
 export function parseImportCsv(content: string): ParseResult {
@@ -311,11 +383,18 @@ export function parseImportCsv(content: string): ParseResult {
 	const transactionRows = parseSection(sections.transactions);
 	const transactions = parseTransactions(transactionRows, entityIds, errors);
 
+	const marketValueSnapshotRows = parseSection(sections.marketValueSnapshots);
+	const marketValueSnapshots = parseMarketValueSnapshots(
+		marketValueSnapshotRows,
+		entityIds,
+		errors
+	);
+
 	if (errors.length > 0) {
 		return { ok: false, errors };
 	}
 
-	return { ok: true, data: { entities, plans, transactions } };
+	return { ok: true, data: { entities, plans, transactions, marketValueSnapshots } };
 }
 
 export function formatImportErrors(errors: string[]): string {

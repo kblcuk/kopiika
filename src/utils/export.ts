@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import type { Entity, Plan, Transaction } from '@/src/types';
+import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 
 // Convert entities to CSV
 export function entitiesToCsv(entities: Entity[]): string {
@@ -16,6 +16,7 @@ export function entitiesToCsv(entities: Entity[]): string {
 		'position',
 		'include_in_total',
 		'is_deleted',
+		'is_investment',
 	];
 	const rows = entities.map((e) =>
 		[
@@ -30,6 +31,7 @@ export function entitiesToCsv(entities: Entity[]): string {
 			e.position,
 			e.include_in_total !== false,
 			e.is_deleted === true,
+			e.is_investment === true,
 		].join(',')
 	);
 	return [headers.join(','), ...rows].join('\n');
@@ -73,11 +75,22 @@ export function transactionsToCsv(transactions: Transaction[]): string {
 	return [headers.join(','), ...rows].join('\n');
 }
 
+export function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
+	const headers = ['id', 'entity_id', 'amount', 'currency', 'date'];
+	const rows = marketValueSnapshots.map((snapshot) =>
+		[snapshot.id, snapshot.entity_id, snapshot.amount, snapshot.currency, snapshot.date].join(
+			','
+		)
+	);
+	return [headers.join(','), ...rows].join('\n');
+}
+
 // Export all data to CSV files and share
 export async function exportAllData(
 	entities: Entity[],
 	plans: Plan[],
-	transactions: Transaction[]
+	transactions: Transaction[],
+	marketValueSnapshots: MarketValueSnapshot[]
 ): Promise<void> {
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
@@ -106,6 +119,9 @@ export async function exportAllData(
 			'',
 			'# TRANSACTIONS',
 			transactionsToCsv(transactions),
+			'',
+			'# MARKET_VALUE_SNAPSHOTS',
+			marketValueSnapshotsToCsv(marketValueSnapshots),
 		].join('\n');
 
 		const combinedFile = new File(dir.uri, `kopiika-export-${timestamp}.csv`);
