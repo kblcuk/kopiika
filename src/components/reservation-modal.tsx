@@ -54,7 +54,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	}, [visible, account, saving, amountExpr.inputRef]);
 
 	const handleCancel = useCallback(() => {
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	}, [onClose]);
 
@@ -70,13 +70,13 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
 		await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleClear = async () => {
 		await reserveToSaving(account.id, saving.id, 0);
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	};
 

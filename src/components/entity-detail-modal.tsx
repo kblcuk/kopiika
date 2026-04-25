@@ -189,7 +189,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const canSave = isNameValid;
 
 	const handleCancel = useCallback(() => {
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	}, [onClose]);
 
@@ -297,7 +297,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			}
 		}
 
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	};
 

@@ -287,7 +287,7 @@ export default function HistoryScreen() {
 	const confirmAllDueTransactions = useStore((state) => state.confirmAllDueTransactions);
 
 	const handleConfirmAll = useCallback(() => {
-		confirmAllDueTransactions();
+		void confirmAllDueTransactions();
 	}, [confirmAllDueTransactions]);
 
 	const handleEdit = useCallback((transaction: Transaction) => {

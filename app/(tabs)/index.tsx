@@ -107,7 +107,7 @@ export default function HomeScreen() {
 				}
 			}
 		}
-		seedData();
+		void seedData();
 	}, [isLoading, entities, addEntity, setPlan]);
 
 	// Reset initial layout flag when entities change (e.g., after seeding)

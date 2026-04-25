@@ -363,8 +363,8 @@ describe('entities.ts', () => {
 			expect(await getEntitiesByType('account')).toHaveLength(1); // system only
 		});
 
-		test('should not error when deleting non-existent entity', () => {
-			expect(deleteEntity('non-existent')).resolves.toBeUndefined();
+		test('should not error when deleting non-existent entity', async () => {
+			await expect(deleteEntity('non-existent')).resolves.toBeUndefined();
 		});
 
 		test('should remove plans for a deleted entity', async () => {

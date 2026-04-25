@@ -33,7 +33,9 @@ export default function SettingsScreen() {
 	const [remindersEnabled, setRemindersToggle] = useState(true);
 
 	useEffect(() => {
-		getRemindersEnabled().then(setRemindersToggle);
+		void (async () => {
+			setRemindersToggle(await getRemindersEnabled());
+		})();
 	}, []);
 
 	const handleToggleReminders = async (enabled: boolean) => {

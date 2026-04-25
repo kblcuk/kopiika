@@ -12,7 +12,7 @@ type DrizzleDb = BaseSQLiteDatabase<'sync', void, typeof schema>;
 // Cache the initialization promise to prevent race conditions.
 // All concurrent calls will await the same promise.
 let dbPromise: Promise<DrizzleDb> | null = null;
-let sqlite: Database | null = null;
+let sqlite: Database;
 
 export default function getBunSqlDb(runMigrations = true): Promise<DrizzleDb> {
 	if (!dbPromise) {
@@ -35,7 +35,10 @@ async function initializeDb(runMigrations: boolean): Promise<DrizzleDb> {
 }
 
 export function getRawDb(): SQLiteDatabase | null {
-	return sqlite as SQLiteDatabase | null;
+	// we only use this for drizzle-studio, which is never
+	// initialized in bun environment
+	// @ts-expect-error
+	return sqlite;
 }
 
 export function resetDb() {

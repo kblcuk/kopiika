@@ -47,7 +47,7 @@ export async function updateEntity(
 	options?: { deleteMarketValueSnapshots?: boolean }
 ): Promise<void> {
 	const db = await getDrizzleDb();
-	await db.transaction((tx) => {
+	db.transaction((tx) => {
 		tx.update(entities)
 			.set({
 				type: entity.type,
@@ -85,7 +85,7 @@ async function softDeleteEntity(id: string): Promise<void> {
 		return;
 	}
 
-	await db.transaction((tx) => {
+	db.transaction((tx) => {
 		tx.update(entities).set({ is_deleted: true }).where(eq(entities.id, id)).run();
 
 		tx.delete(marketValueSnapshots).where(eq(marketValueSnapshots.entity_id, id)).run();

@@ -12,12 +12,12 @@ interface OperatorToolbarProps {
 
 export function OperatorToolbar({ onOperator, onEquals }: OperatorToolbarProps) {
 	const handleOp = (op: Operator) => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onOperator(op);
 	};
 
 	const handleEquals = () => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 		onEquals();
 	};
 

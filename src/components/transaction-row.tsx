@@ -63,7 +63,7 @@ export const TransactionRow = memo(function TransactionRow({
 	const confirmDelete = useCallback(() => {
 		if (transaction.series_id) {
 			showSeriesScopeAlert('delete', (scope) => {
-				deleteTransactionWithScope(transaction.id, scope);
+				void deleteTransactionWithScope(transaction.id, scope);
 			});
 		} else {
 			Alert.alert(

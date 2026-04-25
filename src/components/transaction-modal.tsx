@@ -322,9 +322,9 @@ export function TransactionModal({
 	const handleDelete = useCallback(() => {
 		if (!existingTransaction) return;
 		if (existingTransaction.series_id) {
-			showSeriesScopeAlert('delete', (scope) => {
-				deleteTransactionWithScope(existingTransaction.id, scope);
-				KeyboardController.dismiss();
+			showSeriesScopeAlert('delete', async (scope) => {
+				void deleteTransactionWithScope(existingTransaction.id, scope);
+				void KeyboardController.dismiss();
 				onClose();
 			});
 		} else {
@@ -333,9 +333,9 @@ export function TransactionModal({
 				{
 					text: 'Delete',
 					style: 'destructive',
-					onPress: () => {
-						deleteTransaction(existingTransaction.id);
-						KeyboardController.dismiss();
+					onPress: async () => {
+						void deleteTransaction(existingTransaction.id);
+						void KeyboardController.dismiss();
 						onClose();
 					},
 				},
@@ -346,7 +346,7 @@ export function TransactionModal({
 	// ── Cancel ────────────────────────────────────────────────────────────────
 
 	const handleCancel = useCallback(() => {
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	}, [onClose]);
 
@@ -453,7 +453,7 @@ export function TransactionModal({
 					});
 				}
 
-				await KeyboardController.dismiss();
+				void KeyboardController.dismiss();
 				onClose();
 				return;
 			}
@@ -536,12 +536,12 @@ export function TransactionModal({
 				}
 			}
 
-			KeyboardController.dismiss();
+			void KeyboardController.dismiss();
 			onClose();
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
 			// Still close so the user isn't stuck on a dead modal
-			KeyboardController.dismiss();
+			void KeyboardController.dismiss();
 			onClose();
 		}
 	};

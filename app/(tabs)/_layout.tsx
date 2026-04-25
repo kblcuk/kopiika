@@ -13,7 +13,7 @@ export default function TabLayout() {
 	const unconfirmedCount = useUnconfirmedCount();
 
 	const handleOpenAdd = () => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 		router.navigate('/add');
 	};
 

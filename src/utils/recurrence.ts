@@ -30,7 +30,7 @@ export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): num
 			break;
 		}
 		default: {
-			const _exhaustive: never = rule.type;
+			const _exhaustive: string = rule.type;
 			throw new Error(`Unsupported recurrence type: ${_exhaustive}`);
 		}
 	}
@@ -72,8 +72,7 @@ function nthOccurrence(startDate: number, n: number, rule: RecurrenceRule): numb
 			break;
 		}
 		default: {
-			const _exhaustive: never = rule.type;
-			throw new Error(`Unsupported recurrence type: ${_exhaustive}`);
+			throw new Error(`Unsupported recurrence type: ${rule.type as string}`);
 		}
 	}
 

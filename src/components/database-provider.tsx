@@ -38,7 +38,7 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 	useEffect(() => {
 		let isMounted = true;
 
-		(async () => {
+		void (async () => {
 			try {
 				await getDrizzleDb();
 				await initialize();

@@ -246,7 +246,7 @@ export function SortableEntityGrid({
 
 	const handleSortableDragStart = useCallback(
 		({ key }: { key: string }) => {
-			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+			void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 			const entity = entities.find((e) => e.id === key);
 			draggedEntityRef.current = entity || null;
 			lastDropCheckTimeRef.current = 0;
@@ -366,7 +366,7 @@ export function SortableEntityGrid({
 			}
 
 			if (outcome.kind === 'reorder') {
-				reorderEntitiesByIds(type, outcome.orderedIds, maxRows);
+				void reorderEntitiesByIds(type, outcome.orderedIds, maxRows);
 			}
 
 			if (draggedEntity) {
@@ -401,7 +401,7 @@ export function SortableEntityGrid({
 				{onToggleEditMode && (
 					<Pressable
 						onPress={() => {
-							Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+							void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 							onToggleEditMode();
 						}}
 						className={`mx-1 rounded-full p-1.5 ${editMode ? 'bg-accent/20' : 'bg-transparent'}`}

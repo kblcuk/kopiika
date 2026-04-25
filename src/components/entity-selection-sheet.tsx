@@ -33,7 +33,7 @@ export function EntitySelectionSheet({
 }: EntitySelectionSheetProps) {
 	const insets = useSafeAreaInsets();
 	const handleSelect = (entity: Entity) => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onSelect(entity);
 		onClose();
 	};

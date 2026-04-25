@@ -108,6 +108,7 @@
 		"knip": "^6.6.3",
 		"oxfmt": "^0.34.0",
 		"oxlint": "^1.60.0",
+		"oxlint-tsgolint": "^0.22.0",
 		"prettier-plugin-tailwindcss": "^0.5.14",
 		"react-test-renderer": "19.2.0",
 		"ts-jest": "^29.4.9",

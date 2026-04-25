@@ -47,10 +47,11 @@ export function RefundPickerModal({
 		if (visible && originalFrom && originalTo) {
 			setLoading(true);
 			// Fetch transactions in the original direction (e.g. account→category, income→account)
-			getTransactionsBetweenEntities(originalFrom.id, originalTo.id).then((txs) => {
+			void (async () => {
+				const txs = await getTransactionsBetweenEntities(originalFrom.id, originalTo.id);
 				setPastTransactions(txs);
 				setLoading(false);
-			});
+			})();
 		} else {
 			setPastTransactions([]);
 		}
@@ -60,7 +61,7 @@ export function RefundPickerModal({
 
 	const handleSelect = useCallback(
 		(transaction: Transaction) => {
-			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+			void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 			onSelect(transaction);
 		},
 		[onSelect]

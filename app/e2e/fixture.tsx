@@ -49,7 +49,7 @@ export default function E2EFixtureScreen() {
 			router.replace('/(tabs)');
 		}
 
-		seed();
+		void seed();
 	}, [data]);
 
 	return (

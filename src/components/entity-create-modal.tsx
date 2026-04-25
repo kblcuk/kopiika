@@ -124,7 +124,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 			}
 		}
 
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	}, [
 		entityType,
@@ -160,7 +160,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 	}, [handleCreate]);
 
 	const handleCancel = useCallback(() => {
-		KeyboardController.dismiss();
+		void KeyboardController.dismiss();
 		onClose();
 	}, [onClose]);
 

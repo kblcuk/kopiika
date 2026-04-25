@@ -26,7 +26,7 @@ import { requireOptionalNativeModule } from 'expo';
 const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
 DevMenuPreferences?.setPreferencesAsync({ showFloatingActionButton: false });
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
 	anchor: '(tabs)',
@@ -45,7 +45,7 @@ function App() {
 
 	useEffect(() => {
 		if (fontsLoaded) {
-			SplashScreen.hideAsync();
+			void SplashScreen.hideAsync();
 		}
 	}, [fontsLoaded]);
 
@@ -56,13 +56,13 @@ function App() {
 		const version = Constants.expoConfig?.version;
 		if (!version) return;
 
-		getLastSeenVersion().then((lastSeen) => {
+		void (async () => {
+			const lastSeen = await getLastSeenVersion();
 			if (lastSeen === null) {
-				setLastSeenVersion(version);
-				return;
+				return setLastSeenVersion(version);
 			}
 			if (lastSeen !== version) setShowWhatsNew(true);
-		});
+		})();
 	}, [fontsLoaded]);
 
 	if (!fontsLoaded) {
@@ -72,7 +72,7 @@ function App() {
 	const handleDismissWhatsNew = () => {
 		setShowWhatsNew(false);
 		const version = Constants.expoConfig?.version;
-		if (version) setLastSeenVersion(version);
+		if (version) void setLastSeenVersion(version);
 	};
 
 	return (

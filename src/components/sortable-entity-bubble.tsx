@@ -35,7 +35,7 @@ export const FixedOrderContext = createContext<FixedOrderContextType | null>(nul
 
 // Haptics helper that can be called from worklet via runOnJS
 const triggerLightHaptic = () => {
-	Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+	void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 };
 
 interface SortableEntityBubbleProps {
@@ -131,7 +131,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	}));
 
 	const handleTap = useCallback(() => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onTap?.(entity);
 	}, [entity, onTap]);
 

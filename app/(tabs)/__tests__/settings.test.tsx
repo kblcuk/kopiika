@@ -87,8 +87,9 @@ describe('SettingsScreen reminders toggle', () => {
 			replaceAllData: jest.fn(),
 		};
 
-		const mockedUseStore = useStore as jest.MockedFunction<typeof useStore> & {
+		const mockedUseStore = useStore as typeof useStore & {
 			setState: jest.Mock;
+			mockImplementation: jest.Mock;
 		};
 		mockedUseStore.mockImplementation(() => storeState as never);
 		mockedUseStore.setState.mockImplementation((updater) => {
