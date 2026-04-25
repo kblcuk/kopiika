@@ -3,7 +3,7 @@ import * as schema from '@/src/db/drizzle-schema';
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-export interface RecurrenceRuleSimple {
+interface RecurrenceRuleSimple {
 	type: RecurrenceFrequency;
 }
 

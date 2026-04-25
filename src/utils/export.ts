@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 
 // Convert entities to CSV
-export function entitiesToCsv(entities: Entity[]): string {
+function entitiesToCsv(entities: Entity[]): string {
 	const headers = [
 		'id',
 		'type',
@@ -38,7 +38,7 @@ export function entitiesToCsv(entities: Entity[]): string {
 }
 
 // Convert plans to CSV
-export function plansToCsv(plans: Plan[]): string {
+function plansToCsv(plans: Plan[]): string {
 	const headers = ['id', 'entity_id', 'period', 'period_start', 'planned_amount'];
 	const rows = plans.map((p) =>
 		[p.id, p.entity_id, p.period, p.period_start, p.planned_amount].join(',')
@@ -47,7 +47,7 @@ export function plansToCsv(plans: Plan[]): string {
 }
 
 // Convert transactions to CSV
-export function transactionsToCsv(transactions: Transaction[]): string {
+function transactionsToCsv(transactions: Transaction[]): string {
 	const headers = [
 		'id',
 		'from_entity_id',
@@ -75,7 +75,7 @@ export function transactionsToCsv(transactions: Transaction[]): string {
 	return [headers.join(','), ...rows].join('\n');
 }
 
-export function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
+function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
 	const headers = ['id', 'entity_id', 'amount', 'currency', 'date'];
 	const rows = marketValueSnapshots.map((snapshot) =>
 		[snapshot.id, snapshot.entity_id, snapshot.amount, snapshot.currency, snapshot.date].join(
@@ -130,39 +130,5 @@ export async function exportAllData(
 			mimeType: 'text/csv',
 			dialogTitle: 'Export Kopiika Data',
 		});
-	}
-}
-
-// Export single table
-export async function exportEntities(entities: Entity[]): Promise<void> {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-	const path = Paths.cache + `entities-${timestamp}.csv`;
-
-	new File(path).write(entitiesToCsv(entities));
-
-	if (await Sharing.isAvailableAsync()) {
-		await Sharing.shareAsync(path, { mimeType: 'text/csv' });
-	}
-}
-
-export async function exportPlans(plans: Plan[]): Promise<void> {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-	const path = Paths.cache + `plans-${timestamp}.csv`;
-
-	new File(path).write(plansToCsv(plans));
-
-	if (await Sharing.isAvailableAsync()) {
-		await Sharing.shareAsync(path, { mimeType: 'text/csv' });
-	}
-}
-
-export async function exportTransactions(transactions: Transaction[]): Promise<void> {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-	const path = Paths.cache + `transactions-${timestamp}.csv`;
-
-	new File(path).write(transactionsToCsv(transactions));
-
-	if (await Sharing.isAvailableAsync()) {
-		await Sharing.shareAsync(path, { mimeType: 'text/csv' });
 	}
 }

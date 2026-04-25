@@ -1,6 +1,3 @@
-import React from 'react';
-import { render, RenderOptions } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 
@@ -33,20 +30,6 @@ export function setupStoreForTest({
 }
 
 /**
- * Custom render function that sets up the store with optional initial data
- */
-export function renderWithStore(
-	ui: React.ReactElement,
-	storeState?: Parameters<typeof setupStoreForTest>[0],
-	renderOptions?: Omit<RenderOptions, 'wrapper'>
-) {
-	if (storeState) {
-		setupStoreForTest(storeState);
-	}
-	return render(<SafeAreaProvider>{ui}</SafeAreaProvider>, renderOptions);
-}
-
-/**
  * Factory function to create mock entities
  */
 export function createMockEntity(
@@ -58,18 +41,6 @@ export function createMockEntity(
 		order: 0,
 		row: 0,
 		position: 0,
-		...overrides,
-	};
-}
-
-/**
- * Factory function to create mock plans
- */
-export function createMockPlan(overrides: Partial<Plan> & { id: string; entity_id: string }): Plan {
-	return {
-		period: 'all-time',
-		period_start: '2026-01',
-		planned_amount: 1000,
 		...overrides,
 	};
 }

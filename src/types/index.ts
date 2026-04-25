@@ -52,9 +52,6 @@ export type EntityColorKey =
 	| 'amber'
 	| 'lilac'
 	| 'teal';
-// Period type kept for backwards compatibility - all plans now use 'all-time'
-export type PlanPeriod = 'month' | 'all-time';
-
 // Period semantics:
 // All plans use period='all-time' - a static budget/goal that applies the same way every month.
 // The period_start field indicates when the plan was created (YYYY-MM format).
@@ -84,11 +81,3 @@ export function getPeriodRange(period: string): { start: number; end: number } {
 	const end = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 	return { start, end };
 }
-
-export type {
-	RecurrenceFrequency,
-	RecurrenceRule,
-	RecurrenceRuleSimple,
-	RecurrenceTemplate,
-} from './recurrence';
-export { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from './recurrence';

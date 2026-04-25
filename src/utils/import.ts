@@ -4,7 +4,7 @@ import {
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
 
-export interface ParsedImportData {
+interface ParsedImportData {
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];

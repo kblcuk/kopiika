@@ -21,19 +21,6 @@ export async function getPlanForEntity(
 	return result[0] ?? null;
 }
 
-export async function updatePlan(plan: Plan): Promise<void> {
-	const db = await getDrizzleDb();
-	await db
-		.update(plans)
-		.set({
-			entity_id: plan.entity_id,
-			period: plan.period,
-			period_start: plan.period_start,
-			planned_amount: plan.planned_amount,
-		})
-		.where(eq(plans.id, plan.id));
-}
-
 export async function upsertPlan(plan: Plan): Promise<void> {
 	const db = await getDrizzleDb();
 	await db

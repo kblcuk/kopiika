@@ -2,7 +2,7 @@
  * Shared configuration for progress indicators across the app
  */
 
-export const PROGRESS_THRESHOLDS = {
+const PROGRESS_THRESHOLDS = {
 	/** Progress below this threshold shows as healthy (green) */
 	healthy: 60,
 	/** Progress above healthy but below limit shows as warning (amber) */
@@ -10,7 +10,7 @@ export const PROGRESS_THRESHOLDS = {
 	/** Progress above limit shows as overspent (red) */
 } as const;
 
-export type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral' | 'goal';
+type ProgressState = 'healthy' | 'warning' | 'overspent' | 'neutral' | 'goal';
 
 /**
  * Determines the progress state based on percentage

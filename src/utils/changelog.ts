@@ -8,7 +8,7 @@ export interface ChangelogSection {
 	items: string[];
 }
 
-export interface VersionChangelog {
+interface VersionChangelog {
 	version: string;
 	date: string;
 	sections: ChangelogSection[];

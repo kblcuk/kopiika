@@ -17,7 +17,7 @@ function isWithinBounds(
 	);
 }
 
-export type FixedOrderModeInput = {
+type FixedOrderModeInput = {
 	x: number;
 	y: number;
 	bounds: LayoutRectangle;

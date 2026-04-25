@@ -78,7 +78,7 @@ export async function deleteEntity(id: string): Promise<void> {
 	await softDeleteEntity(id);
 }
 
-export async function softDeleteEntity(id: string): Promise<void> {
+async function softDeleteEntity(id: string): Promise<void> {
 	const db = await getDrizzleDb();
 	const entity = await getEntityById(id);
 	if (!entity || entity.is_deleted) {
@@ -132,66 +132,6 @@ async function reindexRow(type: EntityType, row: number): Promise<void> {
 		row: row,
 		position: index,
 	}));
-	await updateEntityPositions(updates);
-}
-
-export async function moveEntity(
-	entityId: string,
-	toRow: number,
-	toPosition: number
-): Promise<void> {
-	const entity = await getEntityById(entityId);
-	if (!entity || entity.is_deleted) {
-		return;
-	}
-
-	const fromRow = entity.row;
-
-	// Get all entities in both source and target rows
-	const sourceRowEntities = await getEntitiesInRow(entity.type, fromRow);
-	const targetRowEntities =
-		fromRow === toRow ? sourceRowEntities : await getEntitiesInRow(entity.type, toRow);
-
-	const updates: { id: string; row: number; position: number }[] = [];
-
-	// If moving within the same row
-	if (fromRow === toRow) {
-		const filtered = sourceRowEntities.filter((e) => e.id !== entityId);
-		const reordered = [...filtered.slice(0, toPosition), entity, ...filtered.slice(toPosition)];
-		updates.push(
-			...reordered.map((e, index) => ({
-				id: e.id,
-				row: toRow,
-				position: index,
-			}))
-		);
-	} else {
-		// Moving to different row - update both rows
-		// Source row: remove entity and close gap
-		const sourceFiltered = sourceRowEntities.filter((e) => e.id !== entityId);
-		updates.push(
-			...sourceFiltered.map((e, index) => ({
-				id: e.id,
-				row: fromRow,
-				position: index,
-			}))
-		);
-
-		// Target row: insert entity and shift others
-		const targetReordered = [
-			...targetRowEntities.slice(0, toPosition),
-			entity,
-			...targetRowEntities.slice(toPosition),
-		];
-		updates.push(
-			...targetReordered.map((e, index) => ({
-				id: e.id,
-				row: toRow,
-				position: index,
-			}))
-		);
-	}
-
 	await updateEntityPositions(updates);
 }
 

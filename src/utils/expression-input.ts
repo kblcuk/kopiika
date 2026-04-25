@@ -28,7 +28,7 @@ const CAN_FOLLOW: Record<CharClass, Set<OpClass>> = {
 	close: new Set(['op', 'close']),
 };
 
-export function classifyOp(op: string): OpClass {
+function classifyOp(op: string): OpClass {
 	if (op === '(') return 'open';
 	if (op === ')') return 'close';
 	return 'op';
