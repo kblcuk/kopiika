@@ -8,7 +8,7 @@
 		"ios": "expo run:ios",
 		"web": "expo start --web",
 		"test": "bun run test:unit && bun run test:component",
-		"test:unit": "bun test src/db src/store src/utils src/services",
+		"test:unit": "bun test src/db src/store src/utils src/services src/constants",
 		"test:component": "jest",
 		"test:e2e:ios": "detox test --configuration ios.sim.debug",
 		"test:e2e:android": "detox test --configuration android.emu.debug",
