@@ -61,16 +61,18 @@ bun run web
 
 ## Development Commands
 
-| Command                  | What it does                                         |
-| ------------------------ | ---------------------------------------------------- |
-| `bun run test`           | Run unit tests (Bun) + component/screen tests (Jest) |
-| `bun run test:unit`      | Unit tests only (`src/db`, `src/store`, `src/utils`) |
-| `bun run test:component` | Component/screen tests only (Jest + RNTL)            |
-| `bun run test:coverage`  | Collect coverage from both runners                   |
-| `bun run lint`           | Lint with oxlint                                     |
-| `bun run fmt`            | fmt with oxfmt                                       |
-| `bun run fmt:check`      | Check fmt without writing                            |
-| `bun run types`          | TypeScript type check                                |
+| Command                  | What it does                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `bun run test`           | Run unit tests (Bun) + component/screen tests (Jest)                                  |
+| `bun run test:unit`      | Unit tests only (`src/db`, `src/store`, `src/utils`, `src/services`, `src/constants`) |
+| `bun run test:component` | Component/screen tests only (Jest + RNTL)                                             |
+| `bun run test:coverage`  | Collect coverage from both runners                                                    |
+| `bun run lint`           | Lint with oxlint                                                                      |
+| `bun run fmt`            | fmt with oxfmt                                                                        |
+| `bun run fmt:check`      | Check fmt without writing                                                             |
+| `bun run types`          | TypeScript type check                                                                 |
+| `bun run unused`         | Find unused exported code with knip                                                   |
+| `bun run checks`         | Run lint, fmt check, types, and unused export checks                                  |
 
 ## Project Structure
 
