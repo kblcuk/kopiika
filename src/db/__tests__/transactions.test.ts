@@ -4,6 +4,7 @@ import {
 	getAllTransactions,
 	getTransactionsByPeriod,
 	getTransactionsForEntity,
+	getTransactionsBetweenEntities,
 	createTransaction,
 	deleteTransaction,
 	updateTransaction,
@@ -15,6 +16,8 @@ import {
 	createTransactionBatch,
 	confirmTransaction,
 	confirmTransactionsBatch,
+	updateTransactionNotificationId,
+	updateTransactionNotificationIdsBatch,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -331,6 +334,40 @@ describe('transactions.ts', () => {
 
 			const result = await getTransactionsForEntity('new-entity');
 			expect(result).toEqual([]);
+		});
+	});
+
+	describe('getTransactionsBetweenEntities', () => {
+		test('returns only transactions in the requested direction ordered newest first', async () => {
+			const now = Date.now();
+			await createTransaction({
+				id: 'pair-old',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 40,
+				currency: 'USD',
+				timestamp: now - 2000,
+			});
+			await createTransaction({
+				id: 'reverse',
+				from_entity_id: 'category-1',
+				to_entity_id: 'account-1',
+				amount: 15,
+				currency: 'USD',
+				timestamp: now - 1000,
+			});
+			await createTransaction({
+				id: 'pair-new',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 25,
+				currency: 'USD',
+				timestamp: now,
+			});
+
+			const result = await getTransactionsBetweenEntities('account-1', 'category-1');
+
+			expect(result.map((tx) => tx.id)).toEqual(['pair-new', 'pair-old']);
 		});
 	});
 
@@ -1034,6 +1071,65 @@ describe('transactions.ts', () => {
 			const all = await getAllTransactions();
 			expect(all.find((t) => t.id === 'batch-c-1')?.is_confirmed).toBe(false);
 			expect(all.find((t) => t.id === 'batch-c-2')?.is_confirmed).toBe(true);
+		});
+	});
+
+	describe('notification id updates', () => {
+		test('updateTransactionNotificationId sets and clears a single notification id', async () => {
+			await createTransaction({
+				id: 'notif-single',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+			});
+
+			await updateTransactionNotificationId('notif-single', 'notification-1');
+			let all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'notif-single')?.notification_id).toBe(
+				'notification-1'
+			);
+
+			await updateTransactionNotificationId('notif-single', null);
+			all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'notif-single')?.notification_id).toBeNull();
+		});
+
+		test('updateTransactionNotificationIdsBatch updates multiple transactions and ignores empty input', async () => {
+			await createTransactionBatch([
+				{
+					id: 'notif-batch-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 10,
+					currency: 'USD',
+					timestamp: Date.now(),
+				},
+				{
+					id: 'notif-batch-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'saving-1',
+					amount: 20,
+					currency: 'USD',
+					timestamp: Date.now() + 1,
+				},
+			]);
+
+			await updateTransactionNotificationIdsBatch([
+				{ id: 'notif-batch-1', notificationId: 'notif-a' },
+				{ id: 'notif-batch-2', notificationId: 'notif-b' },
+			]);
+
+			let all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'notif-batch-1')?.notification_id).toBe('notif-a');
+			expect(all.find((t) => t.id === 'notif-batch-2')?.notification_id).toBe('notif-b');
+
+			await updateTransactionNotificationIdsBatch([]);
+
+			all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'notif-batch-1')?.notification_id).toBe('notif-a');
+			expect(all.find((t) => t.id === 'notif-batch-2')?.notification_id).toBe('notif-b');
 		});
 	});
 });

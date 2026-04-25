@@ -1,9 +1,10 @@
 import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
-import type { Entity, Plan, Transaction } from '@/src/types';
+import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 import { useStore, getEntitiesWithBalance } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
 	getHasRequestedPermission,
 	setHasRequestedPermission,
@@ -3566,6 +3567,625 @@ describe('Store Data Integrity', () => {
 			for (const txn of futureTxns) {
 				expect(txn.is_confirmed).toBe(false);
 			}
+		});
+	});
+
+	describe('Untested store actions', () => {
+		const makeEntity = (
+			id: string,
+			type: Entity['type'],
+			overrides: Partial<Entity> = {}
+		): Entity => ({
+			id,
+			type,
+			name: id,
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+			...overrides,
+		});
+
+		test('replaceAllData swaps imported data and clears recurrence templates', async () => {
+			const oldAccount = makeEntity('old-account', 'account');
+			const oldCategory = makeEntity('old-category', 'category', { position: 1 });
+			const oldPlan: Plan = {
+				id: 'old-plan',
+				entity_id: oldCategory.id,
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount: 100,
+			};
+			const oldTransaction: Transaction = {
+				id: 'old-tx',
+				from_entity_id: oldAccount.id,
+				to_entity_id: oldCategory.id,
+				amount: 40,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			};
+			const oldTemplate: RecurrenceTemplate = {
+				id: 'old-series',
+				from_entity_id: oldAccount.id,
+				to_entity_id: oldCategory.id,
+				amount: 40,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-10').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+
+			for (const entity of [oldAccount, oldCategory]) {
+				await db.createEntity(entity);
+			}
+			await db.upsertPlan(oldPlan);
+			await db.createTransaction(oldTransaction);
+			await db.createRecurrenceTemplate(oldTemplate);
+
+			const importedAccount = makeEntity('import-account', 'account');
+			const importedCategory = makeEntity('import-category', 'category', { position: 1 });
+			const importedEntities = [importedAccount, importedCategory];
+			const importedPlans: Plan[] = [
+				{
+					id: 'import-plan',
+					entity_id: importedCategory.id,
+					period: 'all-time',
+					period_start: '2026-02',
+					planned_amount: 250,
+				},
+			];
+			const importedTransactions: Transaction[] = [
+				{
+					id: 'import-tx',
+					from_entity_id: importedAccount.id,
+					to_entity_id: importedCategory.id,
+					amount: 75,
+					currency: 'USD',
+					timestamp: new Date('2026-02-03').getTime(),
+				},
+			];
+			const importedSnapshots: MarketValueSnapshot[] = [
+				{
+					id: 'import-snapshot',
+					entity_id: importedAccount.id,
+					amount: 1500,
+					currency: 'USD',
+					date: new Date('2026-02-05').getTime(),
+				},
+			];
+
+			await useStore
+				.getState()
+				.replaceAllData(
+					importedEntities,
+					importedPlans,
+					importedTransactions,
+					importedSnapshots
+				);
+
+			const state = useStore.getState();
+			expect(state.entities.map((entity) => entity.id)).toEqual([
+				'import-account',
+				'import-category',
+			]);
+			expect(state.plans).toEqual(importedPlans);
+			expect(state.transactions).toHaveLength(1);
+			expect(state.transactions[0]).toMatchObject(importedTransactions[0]);
+			expect(state.marketValueSnapshots).toEqual(importedSnapshots);
+			expect(state.recurrenceTemplates).toEqual([]);
+
+			expect((await db.getAllEntities()).map((entity) => entity.id)).toEqual([
+				'import-account',
+				'import-category',
+			]);
+			expect(await db.getAllRecurrenceTemplates()).toEqual([]);
+		});
+
+		test('reorderEntitiesByIds persists drag-and-drop row and position changes', async () => {
+			const category1 = makeEntity('cat-1', 'category', { row: 0, position: 0, order: 0 });
+			const category2 = makeEntity('cat-2', 'category', { row: 1, position: 0, order: 1 });
+			const category3 = makeEntity('cat-3', 'category', { row: 0, position: 1, order: 2 });
+
+			for (const entity of [category1, category2, category3]) {
+				await db.createEntity(entity);
+			}
+
+			useStore.setState({
+				entities: [category1, category2, category3],
+				plans: [],
+				transactions: [],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			await useStore
+				.getState()
+				.reorderEntitiesByIds('category', ['cat-3', 'cat-1', 'cat-2'], 2);
+
+			const state = useStore.getState();
+			expect(state.entities.find((entity) => entity.id === 'cat-3')).toMatchObject({
+				row: 0,
+				position: 0,
+			});
+			expect(state.entities.find((entity) => entity.id === 'cat-1')).toMatchObject({
+				row: 1,
+				position: 0,
+			});
+			expect(state.entities.find((entity) => entity.id === 'cat-2')).toMatchObject({
+				row: 0,
+				position: 1,
+			});
+
+			const dbEntities = await db.getEntitiesByType('category');
+			expect(dbEntities.find((entity) => entity.id === 'cat-3')).toMatchObject({
+				row: 0,
+				position: 0,
+			});
+			expect(dbEntities.find((entity) => entity.id === 'cat-1')).toMatchObject({
+				row: 1,
+				position: 0,
+			});
+			expect(dbEntities.find((entity) => entity.id === 'cat-2')).toMatchObject({
+				row: 0,
+				position: 1,
+			});
+		});
+
+		test('updateEntityWithOptions deletes related market value snapshots from store and DB', async () => {
+			const investment = makeEntity('investment-1', 'account', { is_investment: true });
+			const other = makeEntity('investment-2', 'account', {
+				is_investment: true,
+				position: 1,
+			});
+			const updatedInvestment = { ...investment, name: 'Updated investment' };
+
+			for (const entity of [investment, other]) {
+				await db.createEntity(entity);
+			}
+
+			const snapshots: MarketValueSnapshot[] = [
+				{
+					id: 'snap-1',
+					entity_id: investment.id,
+					amount: 1000,
+					currency: 'USD',
+					date: new Date('2026-01-01').getTime(),
+				},
+				{
+					id: 'snap-2',
+					entity_id: other.id,
+					amount: 2000,
+					currency: 'USD',
+					date: new Date('2026-01-02').getTime(),
+				},
+			];
+
+			for (const snapshot of snapshots) {
+				await db.createMarketValueSnapshot(snapshot);
+			}
+
+			useStore.setState({
+				entities: [investment, other],
+				plans: [],
+				transactions: [],
+				recurrenceTemplates: [],
+				marketValueSnapshots: snapshots,
+			});
+
+			await useStore
+				.getState()
+				.updateEntityWithOptions(updatedInvestment, { deleteMarketValueSnapshots: true });
+
+			expect(
+				useStore.getState().entities.find((entity) => entity.id === investment.id)?.name
+			).toBe('Updated investment');
+			expect(useStore.getState().marketValueSnapshots).toEqual([snapshots[1]]);
+			expect(await db.getMarketValueSnapshots(investment.id)).toEqual([]);
+			expect(await db.getMarketValueSnapshots(other.id)).toEqual([snapshots[1]]);
+		});
+
+		test('setDefaultAccount keeps only one default account and can clear it', async () => {
+			const account1 = makeEntity('account-1', 'account', { is_default: true });
+			const account2 = makeEntity('account-2', 'account', { position: 1 });
+			const category = makeEntity('category-1', 'category');
+
+			for (const entity of [account1, account2, category]) {
+				await db.createEntity(entity);
+			}
+			await db.updateEntity(account1);
+
+			useStore.setState({
+				entities: [account1, account2, category],
+				plans: [],
+				transactions: [],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().setDefaultAccount(account2.id);
+
+			let dbAccounts = await db.getEntitiesByType('account');
+			expect(dbAccounts.find((entity) => entity.id === account1.id)?.is_default).toBe(false);
+			expect(dbAccounts.find((entity) => entity.id === account2.id)?.is_default).toBe(true);
+			expect(
+				useStore.getState().entities.find((entity) => entity.id === account1.id)?.is_default
+			).toBe(false);
+			expect(
+				useStore.getState().entities.find((entity) => entity.id === account2.id)?.is_default
+			).toBe(true);
+
+			await useStore.getState().setDefaultAccount(null);
+
+			dbAccounts = await db.getEntitiesByType('account');
+			expect(
+				dbAccounts.some(
+					(entity) => entity.id !== BALANCE_ADJUSTMENT_ENTITY_ID && entity.is_default
+				)
+			).toBe(false);
+		});
+
+		test('updateTransactionWithScope updates recurrence template and future transactions only', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const template: RecurrenceTemplate = {
+				id: 'series-1',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				note: 'Original',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'series-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'series-tx-2',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-02-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'series-tx-3',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-03-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [template],
+				marketValueSnapshots: [],
+			});
+
+			await useStore
+				.getState()
+				.updateTransactionWithScope(
+					'series-tx-2',
+					{ amount: 250, note: 'Updated future' },
+					'future'
+				);
+
+			const dbSeries = await db.getTransactionsBySeriesId(template.id);
+			expect(dbSeries.find((tx) => tx.id === 'series-tx-1')).toMatchObject({
+				amount: 100,
+				note: null,
+			});
+			expect(dbSeries.find((tx) => tx.id === 'series-tx-2')).toMatchObject({
+				amount: 250,
+				note: 'Updated future',
+			});
+			expect(dbSeries.find((tx) => tx.id === 'series-tx-3')).toMatchObject({
+				amount: 250,
+				note: 'Updated future',
+			});
+
+			const updatedTemplate = await db.getRecurrenceTemplateById(template.id);
+			expect(updatedTemplate).toMatchObject({ amount: 250, note: 'Updated future' });
+		});
+
+		test('deleteTransactionWithScope future truncates the series from the selected occurrence', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const template: RecurrenceTemplate = {
+				id: 'series-2',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'truncate-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'truncate-tx-2',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-02-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'truncate-tx-3',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-03-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [template],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deleteTransactionWithScope('truncate-tx-2', 'future');
+
+			expect((await db.getTransactionsBySeriesId(template.id)).map((tx) => tx.id)).toEqual([
+				'truncate-tx-1',
+			]);
+			expect(await db.getRecurrenceTemplateById(template.id)).toMatchObject({
+				end_date: new Date('2026-01-01').getTime(),
+				is_deleted: false,
+			});
+		});
+
+		test('deleteTransactionWithScope single removes one occurrence and appends an exclusion', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const deletedTimestamp = new Date('2026-02-01').getTime();
+			const template: RecurrenceTemplate = {
+				id: 'series-single-delete',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'single-delete-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'single-delete-tx-2',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: deletedTimestamp,
+					series_id: template.id,
+				},
+				{
+					id: 'single-delete-tx-3',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-03-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [template],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deleteTransactionWithScope('single-delete-tx-2', 'single');
+
+			expect((await db.getTransactionsBySeriesId(template.id)).map((tx) => tx.id)).toEqual([
+				'single-delete-tx-1',
+				'single-delete-tx-3',
+			]);
+			expect(useStore.getState().transactions.map((tx) => tx.id)).toEqual([
+				'single-delete-tx-1',
+				'single-delete-tx-3',
+			]);
+
+			const updatedTemplate = await db.getRecurrenceTemplateById(template.id);
+			expect(JSON.parse(updatedTemplate?.exclusions ?? '[]')).toEqual([deletedTimestamp]);
+			expect(
+				JSON.parse(
+					useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
+						?.exclusions ?? '[]'
+				)
+			).toEqual([deletedTimestamp]);
+		});
+
+		test('deleteTransactionWithScope future soft-deletes the template when no occurrences remain', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const template: RecurrenceTemplate = {
+				id: 'series-3',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'delete-all-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'delete-all-tx-2',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-02-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [template],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deleteTransactionWithScope('delete-all-tx-1', 'future');
+
+			expect(await db.getTransactionsBySeriesId(template.id)).toEqual([]);
+			expect(await db.getRecurrenceTemplateById(template.id)).toMatchObject({
+				is_deleted: true,
+			});
+		});
+
+		test('deactivateTemplatesForEntity removes future occurrences and soft-deletes affected templates', async () => {
+			const now = new Date('2026-01-15').getTime();
+			spyOn(Date, 'now').mockReturnValue(now);
+
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const template: RecurrenceTemplate = {
+				id: 'series-4',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: now,
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'deactivate-past',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'deactivate-future',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-02-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [template],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deactivateTemplatesForEntity(account.id);
+
+			expect((await db.getTransactionsBySeriesId(template.id)).map((tx) => tx.id)).toEqual([
+				'deactivate-past',
+			]);
+			expect(await db.getRecurrenceTemplateById(template.id)).toMatchObject({
+				is_deleted: true,
+			});
+			expect(useStore.getState().transactions.map((tx) => tx.id)).toEqual([
+				'deactivate-past',
+			]);
+
+			mock.restore();
 		});
 	});
 
