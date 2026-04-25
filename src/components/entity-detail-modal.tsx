@@ -423,8 +423,17 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							className="mb-3"
 							testID="entity-detail-icon-picker-toggle"
 						>
-							<View className="relative h-20 w-20 items-center justify-center rounded-full bg-paper-300">
-								<IconComponent size={36} color={colors.ink.muted} />
+							<View
+								className="relative h-20 w-20 items-center justify-center rounded-full"
+								style={{
+									backgroundColor: getEntityColors(entity.type, selectedColor)
+										.bgColor,
+								}}
+							>
+								<IconComponent
+									size={36}
+									color={getEntityColors(entity.type, selectedColor).iconColor}
+								/>
 								{/* Pencil edit indicator */}
 								<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
 									<PencilIcon size={14} color={colors.ink.muted} />
