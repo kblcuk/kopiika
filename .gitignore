@@ -65,3 +65,5 @@ fastlane/*.dSYM.zip
 *.zip
 *.cer
 
+# test artifacts
+.coverage
