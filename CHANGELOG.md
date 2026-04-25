@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.6](https://codeberg.org/kblcuk/kopiika/compare/v0.3.5...v0.3.6) (2026-04-25)
+
+
+### Features
+
+* **accounts:** Add investment account data model ([498930b](https://codeberg.org/kblcuk/kopiika/commit/498930bfc8ddced9ad1239e98486f4da7da0fbf9))
+* **accounts:** Add investment account editing UI ([8b8c854](https://codeberg.org/kblcuk/kopiika/commit/8b8c854e867c4a5ca128f592ea101ed732077539))
+* **accounts:** Export and import investment account data ([279993d](https://codeberg.org/kblcuk/kopiika/commit/279993de81c3902ee54f44d5cc06532bd71f3bf9))
+
+
+### Bug Fixes
+
+* **build:** Apply background-task config in clean prebuilds ([2b43735](https://codeberg.org/kblcuk/kopiika/commit/2b437351354967504e63aa2578b09a3ee5cf4a56))
+* **notifications:** Defer reminder startup registration ([2a3e11a](https://codeberg.org/kblcuk/kopiika/commit/2a3e11aa7225bbd4f32b748109c62508b42e9e28))
+* **release:** Allow beta hotfix builds on same version ([a2db4d6](https://codeberg.org/kblcuk/kopiika/commit/a2db4d69e8472120794b2fe03c31f648e3cc8f37))
+* **startup:** Replace InteractionManager and stabilize tests ([3fd7d75](https://codeberg.org/kblcuk/kopiika/commit/3fd7d753c5a708a657975d25013f26f8b1161f66))
+
 ## [0.3.5](https://codeberg.org/kblcuk/kopiika/compare/v0.3.4...v0.3.5) (2026-04-22)
 
 
