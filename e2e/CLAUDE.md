@@ -219,6 +219,6 @@ Add new helpers to the file they are first needed in; move to a shared `helpers.
 ## Domain Rules to Know
 
 - `income` entities: visible only when toggled via `TestIDs.incomeToggleButton`. The [+] picker reads from the store so income is *selectable* even when collapsed — but `getAmount('Salary')` will fail if the bubble is hidden.
-- `savings` entities are virtual reservations — no transactions. DnD Account → Saving opens `reservation-submit-button`, not the transaction modal.
-- **Blocked pairs**: Income→Category, Category→Category, Saving→Account — these must not open the transaction modal.
+- `savings` entities are backed by real `account <-> saving` transactions. DnD Account → Saving opens `reservation-submit-button`, while Saving → Account uses the regular transaction modal for releases.
+- **Blocked pairs**: Income→Category and Category→Category — these must not open the transaction modal.
 - Refund flows (Category→Account, Account→Income) open the refund picker (`TestIDs.refundPicker.close`).
