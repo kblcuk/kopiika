@@ -17,6 +17,12 @@
 		"fnox.toml", // managed by fnox
 		"CHANGELOG.md", // managed by release file
 		"fastlane/README.md", // managed by Fastlane
+		"coverage/**",
+		"node_modules/**",
+		"dist/**",
+		".expo/**",
+		"ios/**",
+		"android/**",
 		"!/static",
 		"/static/*",
 		"!/static/fonts",
