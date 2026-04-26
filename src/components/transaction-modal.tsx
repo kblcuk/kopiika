@@ -20,7 +20,7 @@ import {
 	DEFAULT_CURRENCY,
 	getCurrencySymbol,
 } from '@/src/utils/format';
-import { useStore } from '@/src/store';
+import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import {
 	sharedNumericTextInputProps,
@@ -41,6 +41,9 @@ import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { showSeriesScopeAlert } from './series-action-sheet';
+
+const isEntityWithBalance: (e: Entity | EntityWithBalance | null) => e is EntityWithBalance = (e) =>
+	e !== null && 'actual' in e;
 
 interface SplitRow {
 	id: string;
@@ -104,7 +107,15 @@ export function TransactionModal({
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
-	const entities = useStore((state) => state.entities);
+
+	const accounts = useEntitiesWithBalance('account');
+	const categories = useEntitiesWithBalance('category');
+	const income = useEntitiesWithBalance('income');
+	const savings = useEntitiesWithBalance('saving');
+	const entities = useMemo(
+		() => [...accounts, ...categories, ...income, ...savings],
+		[accounts, categories, income, savings]
+	);
 
 	const amountExpr = useExpressionInput(
 		isSplitMode ? splitTotal.toString() : amount,
@@ -577,6 +588,12 @@ export function TransactionModal({
 		const IconComponent = getIcon(entity.icon || 'circle');
 		const typeColors = getEntityColors(entity.type, entity.color);
 		const isTappable = !!onPress;
+		let money = null;
+		if (isEntityWithBalance(entity)) {
+			if (entity.type === 'account' || entity.type === 'saving') money = entity.actual;
+			if (entity.type === 'income' || entity.type === 'category') money = entity.remaining;
+		}
+
 		return (
 			<Pressable
 				onPress={onPress}
@@ -603,6 +620,14 @@ export function TransactionModal({
 				>
 					{getEntityDisplayName(entity)}
 				</Text>
+				{money !== null && (
+					<Text
+						className="text-center font-sans text-[10px] text-ink-muted"
+						numberOfLines={1}
+					>
+						{formatAmount(money, entity.currency)}
+					</Text>
+				)}
 			</Pressable>
 		);
 	};
