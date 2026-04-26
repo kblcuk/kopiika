@@ -86,6 +86,7 @@ export function RefundPickerModal({
 			<View
 				className="flex-1 bg-paper-50"
 				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+				testID="refund-picker-modal"
 			>
 				{/* Header */}
 				<View className="border-b border-paper-300 px-5 py-4">
