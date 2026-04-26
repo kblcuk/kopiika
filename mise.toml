@@ -6,6 +6,7 @@ _.fnox-env = { tools = true }
 
 [tools]
 age = "latest"
+bun = "latest"
 fnox = "latest"
 gradle = "9.0.0"
 java = "21"
