@@ -10,6 +10,70 @@ E2E tests cover **user journeys**, not implementation details. Each test should 
 
 If a flow cannot be tested without changing app behaviour, the test design is wrong — reconsider the approach.
 
+## Testing Levels — When to Use What
+
+A behaviour or risk should be tested at the **lowest level that can fully exercise it**. E2E is the slowest, most fragile layer; reserve it for things only an emulator can verify. Use this matrix when deciding where a new test belongs (or whether to keep an existing one):
+
+| Behaviour / Risk | Best level | Why |
+| --- | --- | --- |
+| Pure rules (transaction pair validity, allowed/blocked combos, drag target resolution) | **Unit / utils** (`src/utils/__tests__/*.test.ts`) | Pure functions, fast, deterministic, easy to cover exhaustively |
+| Picker source/destination filtering matrices | **Unit** (`transaction-validation.test.ts`) | Filtering output is a pure function of state + validation helpers |
+| Balance math, derived `actual`/`remaining`/`upcoming` values | **Store / DB / selector** (`src/store/__tests__`, `src/db/__tests__`) | Business logic & persistence semantics are easier to assert directly |
+| Modal submit/edit/delete behaviour, validation hints, split mode | **Component** (`src/components/__tests__/*.test.tsx`) | Modal state and rendering are testable headlessly without native gestures |
+| Drag mapping (source/target type → outcome) | **Unit** (`drop-zone.test.ts`) | Deterministic registry/lookup logic |
+| Screen-level filter/search/sort logic (history, summary) | **Screen** (`app/**/__tests__/*.test.tsx`) | RNTL can drive the screen with mocked navigation |
+| Real long-press drag gesture works on device | **E2E** | Requires simulator/native gesture behaviour |
+| Reverse-drag opens the right native modal/picker | **E2E** | Validates gesture + screen integration + modal presentation |
+| Native modal stacking / animation timing after picker transitions | **E2E** | Hard to reproduce faithfully in headless tests |
+| App launch, initial screen visibility, first-run overlays | **E2E** | Verifies full app shell behaviour |
+| Persistence across relaunch | **E2E** | Requires real app lifecycle and persisted SQLite state |
+| Platform-specific interaction (iOS clipping, Android notification shade, animation behaviour) | **E2E** | Only visible in emulator/device environments |
+| Deep-link / fixture seeding / share/import flows | **E2E** | Depend on app integration points outside pure React rendering |
+| End-to-end CRUD across navigation + persistence (history edit/delete) | **E2E** | Full-stack integration path |
+
+**Decision flow** when adding a new test:
+
+1. Can the behaviour be reduced to a **pure function**? Write a unit test in `src/utils/__tests__`.
+2. Does it depend on **store/db state**? Write a store or db test (`src/store/__tests__`, `src/db/__tests__`).
+3. Does it depend on **rendered React components** but not on native gestures or app lifecycle? Write a component or screen test with React Native Testing Library.
+4. Does it require a **real device/simulator** (gesture, navigation across native modals, relaunch, deep-link)? Only then write an E2E test.
+
+**Anti-patterns in E2E** (move these down):
+- Re-checking validation matrices that are already pure-function tests.
+- Re-checking picker inclusion/exclusion that's a pure derivation of state.
+- Multiple happy paths that differ only by entity-type combination — pick **one representative** per gesture (one quick-add, one DnD, one reservation).
+- Repeated assertions about modal field state, validation hints, or save/edit behaviour — that's component-level.
+
+**Keep in E2E** only the highest-signal flows:
+1. App launch smoke + first-run overlays
+2. One quick-add happy path
+3. One drag-and-drop happy path
+4. One reverse-drag special flow (refund picker)
+5. One reservation flow (`Account → Saving`)
+6. One blocked drag flow
+7. One persistence-across-relaunch flow
+8. One history edit/delete flow
+9. Platform-specific tests where the emulator actually adds signal
+
+## File Layout
+
+```
+e2e/
+├── tests/                  # Detox spec files
+│   ├── launch.test.ts      # App launch smoke, first-run overlay dismissal
+│   ├── transactions.test.ts# Quick-add [+] happy path
+│   ├── dnd.test.ts         # DnD happy path, refund picker, reservation, blocked drag
+│   ├── persistence.test.ts # State survives relaunch (no delete: true)
+│   └── history.test.ts     # History tab: edit and delete transactions
+├── support/                # Shared utilities — not specs
+│   ├── helpers.ts          # getAmount, dnd, createTransaction, launchFreshAndDismissOverlays, …
+│   ├── fixture.ts          # seedFixture — deep-link to seed SQLite
+│   ├── test-ids.ts         # All testID strings, central source of truth
+│   └── animationSetup.ts   # Re-enables Android animations after each launch
+├── jest.config.js          # Jest/Detox runner config
+└── CLAUDE.md               # This file
+```
+
 ## Before Writing Tests
 
 Before writing any test, read the relevant application source files (`src/components/`, `app/`) to understand the actual UI structure. Then:
@@ -54,10 +118,10 @@ bun run test:e2e:ios
 bun run test:e2e:android
 
 # Single test file — iOS
-bunx detox test --configuration ios.sim.debug e2e/transactions.test.ts
+bunx detox test --configuration ios.sim.debug e2e/tests/transactions.test.ts
 
 # Single test file — Android
-bunx detox test --configuration android.emu.debug e2e/transactions.test.ts
+bunx detox test --configuration android.emu.debug e2e/tests/transactions.test.ts
 
 # Single test by name (substring match) — iOS
 bunx detox test --configuration ios.sim.debug -t "Account → Category"
@@ -71,10 +135,10 @@ Devices: iOS uses **iPhone 17 Pro Max** simulator; Android uses **Pixel_9a** AVD
 ## Stack & Entry Points
 
 - Framework: **Detox** with **Jest** runner (`e2e/jest.config.js`)
-- All test files live in `e2e/` and match `*.test.ts`
-- Test IDs are centralised in `e2e/test-ids.ts` — always import from there, never hardcode strings
-- Fixture seeding: `e2e/fixture.ts` → `seedFixture([...])` — seeds SQLite via the deep-link route `kopiika://e2e/fixture`
-- Animation shim: `e2e/animationSetup.ts` re-enables Android animations after each `launchApp` so gestures are visible — registered via `setupFiles` in `jest.config.js`, runs automatically
+- All test files live in `e2e/tests/` and match `*.test.ts`
+- Test IDs are centralised in `e2e/support/test-ids.ts` — always import from there, never hardcode strings
+- Fixture seeding: `e2e/support/fixture.ts` → `seedFixture([...])` — seeds SQLite via the deep-link route `kopiika://e2e/fixture`
+- Animation shim: `e2e/support/animationSetup.ts` re-enables Android animations after each `launchApp` so gestures are visible — registered via `setupFilesAfterEnv` in `jest.config.js`, runs automatically
 
 ## TestIDs
 

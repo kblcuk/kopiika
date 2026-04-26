@@ -60,6 +60,7 @@ export const TestIDs = {
 	},
 
 	refundPicker: {
+		modal: 'refund-picker-modal',
 		close: 'refund-picker-close',
 	},
 
@@ -74,4 +75,8 @@ export const TestIDs = {
 		backdrop: 'whats-new-backdrop',
 		dismiss: 'whats-new-dismiss',
 	},
+
+	dashboardTabButton: 'dashboard-tab-button',
+	historyTabButton: 'history-tab-button',
+	historyScreen: 'history-screen',
 } as const;

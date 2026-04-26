@@ -39,6 +39,7 @@ export default function TabLayout() {
 						tabBarIcon: ({ color }) => (
 							<IconSymbol size={28} name="house.fill" color={color} />
 						),
+						tabBarButtonTestID: 'dashboard-tab-button',
 					}}
 				/>
 				<Tabs.Screen
@@ -91,6 +92,7 @@ export default function TabLayout() {
 						tabBarIcon: ({ color }) => (
 							<IconSymbol size={28} name="clock.fill" color={color} />
 						),
+						tabBarButtonTestID: 'history-tab-button',
 						tabBarBadge: unconfirmedCount > 0 ? unconfirmedCount : undefined,
 						tabBarBadgeStyle: {
 							backgroundColor: colors.warning.DEFAULT,

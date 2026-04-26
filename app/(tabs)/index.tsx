@@ -378,7 +378,6 @@ export default function HomeScreen() {
 					scrollEventThrottle={16}
 					onScrollEndDrag={handleScrollEnd}
 					onMomentumScrollEnd={handleScrollEnd}
-					scrollEnabled={process.env.EXPO_PUBLIC_E2E !== 'true'}
 					onLayout={handleOuterLayout}
 					onContentSizeChange={handleOuterContentSizeChange}
 				>
