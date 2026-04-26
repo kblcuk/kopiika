@@ -622,6 +622,7 @@ export default function HistoryScreen() {
 							<View className={textInputClassNames.inlineContainer}>
 								<TextInput
 									{...sharedNumericTextInputProps}
+									keyboardType="number-pad"
 									value={editingSnapshotAmount}
 									onChangeText={setEditingSnapshotAmount}
 									placeholder="0"
