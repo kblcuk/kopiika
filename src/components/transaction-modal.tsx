@@ -90,6 +90,7 @@ export function TransactionModal({
 
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
@@ -224,6 +225,7 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
+			setIsSubmitting(false);
 			setIsRepeat(false);
 			setRepeatFrequency('monthly');
 			setRepeatEndMode('never');
@@ -397,6 +399,9 @@ export function TransactionModal({
 	// ── Submit ────────────────────────────────────────────────────────────────
 
 	const handleSubmit = async () => {
+		if (isSubmitting) return;
+		setIsSubmitting(true);
+
 		// Resolve any pending calculator expression before submitting
 		const resolvedAmount = amountExpr.resolve();
 
@@ -446,7 +451,10 @@ export function TransactionModal({
 					});
 				}
 
-				if (txns.length === 0) return;
+				if (txns.length === 0) {
+					setIsSubmitting(false);
+					return;
+				}
 				for (const txn of txns) await addTransaction(txn);
 
 				// Release savings reservations via saving→account transactions
@@ -470,7 +478,10 @@ export function TransactionModal({
 			}
 
 			const typedAmount = reverseFormatCurrency(resolvedAmount);
-			if (isNaN(typedAmount) || typedAmount <= 0) return;
+			if (isNaN(typedAmount) || typedAmount <= 0) {
+				setIsSubmitting(false);
+				return;
+			}
 
 			const numAmount = roundMoney(typedAmount);
 
@@ -551,9 +562,8 @@ export function TransactionModal({
 			onClose();
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
-			// Still close so the user isn't stuck on a dead modal
-			void KeyboardController.dismiss();
-			onClose();
+			setIsSubmitting(false);
+			Alert.alert('Save failed', 'Could not save the transaction. Please try again.');
 		}
 	};
 
@@ -663,14 +673,14 @@ export function TransactionModal({
 					</Text>
 					<Pressable
 						onPress={handleSubmit}
-						disabled={!canSave}
+						disabled={!canSave || isSubmitting}
 						hitSlop={20}
 						testID="transaction-save-button"
 					>
 						<Text
-							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
+							className={`font-sans-semibold text-base ${canSave && !isSubmitting ? 'text-accent' : 'text-ink-muted'}`}
 						>
-							Save
+							{isSubmitting ? 'Saving…' : 'Save'}
 						</Text>
 					</Pressable>
 				</View>
