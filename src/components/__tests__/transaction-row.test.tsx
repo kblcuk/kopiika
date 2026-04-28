@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Gesture } from 'react-native-gesture-handler';
 
 import { TransactionRow } from '../transaction-row';
 import type { Entity, Transaction } from '@/src/types';
@@ -18,6 +19,32 @@ jest.mock('react-native-gesture-handler', () => {
 				},
 				onEnd() {
 					return this;
+				},
+			}),
+			Tap: () => ({
+				maxDuration() {
+					return this;
+				},
+				maxDistance() {
+					return this;
+				},
+				runOnJS() {
+					return this;
+				},
+				onEnd(callback: () => void) {
+					(this as any)._callback = callback;
+					return this;
+				},
+				// Helper to trigger the callback in tests
+				fire() {
+					(this as any)._callback();
+				},
+			}),
+			Exclusive: (...gestures: any[]) => ({
+				// Simple mock: just return the first one or a combined object
+				...gestures[0],
+				fireTap() {
+					gestures.find((g) => g.fire)?.fire();
 				},
 			}),
 		},
@@ -142,6 +169,37 @@ describe('TransactionRow', () => {
 
 		expect(getByText('Removed (Checking)')).toBeTruthy();
 		expect(getByText('Groceries')).toBeTruthy();
+	});
+
+	it('calls onEdit when the row is tapped', () => {
+		const onEdit = jest.fn();
+		let tapCallback: any;
+
+		// Re-mock specifically for this test to capture the callback
+		const originalTap = Gesture.Tap;
+		(Gesture as any).Tap = jest.fn().mockReturnValue({
+			maxDuration: jest.fn().mockReturnThis(),
+			maxDistance: jest.fn().mockReturnThis(),
+			runOnJS: jest.fn().mockReturnThis(),
+			onEnd: jest.fn().mockImplementation((cb) => {
+				tapCallback = cb;
+				return this;
+			}),
+		});
+
+		render(
+			<TransactionRow
+				transaction={transaction}
+				entityMap={entityMap}
+				onEdit={onEdit}
+				index={0}
+			/>
+		);
+
+		if (tapCallback) tapCallback();
+		expect(onEdit).toHaveBeenCalledWith(transaction);
+
+		(Gesture as any).Tap = originalTap;
 	});
 
 	it('does not call onEdit when the row is read-only', () => {
