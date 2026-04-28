@@ -237,5 +237,4 @@ export const TransactionRow = memo(function TransactionRow({
 			)}
 		</View>
 	);
-
 });

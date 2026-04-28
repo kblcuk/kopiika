@@ -1,11 +1,11 @@
 import { waitFor, element, by } from 'detox';
-import { expect as jestExpect } from '@jest/globals';
 import { TestIDs } from '../support/test-ids';
 import { seedFixture } from '../support/fixture';
 import {
 	createTransactionViaDnD,
 	dnd,
 	ensureHomeScreen,
+	expectAmount,
 	expectNoTransactionModal,
 	getAmount,
 	launchFreshAndDismissOverlays,
@@ -39,8 +39,8 @@ describe('Transactions — drag and drop', () => {
 
 		await createTransactionViaDnD('Main Card', 'Groceries', '17.33');
 
-		jestExpect(await getAmount('Groceries')).toBe(before.cat + 17.33);
-		jestExpect(await getAmount('Main Card')).toBe(before.acct - 17.33);
+		await expectAmount('Groceries', before.cat + 17.33);
+		await expectAmount('Main Card', before.acct - 17.33);
 	});
 
 	// ── Reverse-drag special flow ────────────────────────────────────────────
