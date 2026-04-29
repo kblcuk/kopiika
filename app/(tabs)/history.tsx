@@ -485,7 +485,7 @@ export default function HistoryScreen() {
 	}, [entitySnapshots, selectedEntity, handleEditSnapshot, isInvestmentSelected]);
 
 	return (
-		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
+		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']} testID="history-screen">
 			{/* Header */}
 			<View className="border-b border-paper-300 px-5 py-4">
 				<Text className="font-sans-bold text-2xl text-ink">History</Text>

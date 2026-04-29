@@ -1,7 +1,7 @@
 import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
 
-type TxFixture = { from: string; to: string; amount: number };
+export type TxFixture = { from: string; to: string; amount: number };
 
 /**
  * Seeds transaction fixtures directly into the app's SQLite database.
@@ -10,10 +10,7 @@ type TxFixture = { from: string; to: string; amount: number };
  * waits for it to finish seeding and navigate back to the home screen.
  *
  * @example
- * await seedFixture([
- *   { from: 'Main Card', to: 'Groceries', amount: 55.00 },
- *   { from: 'Salary',    to: 'Main Card', amount: 200.00 },
- * ]);
+ * await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55 }]);
  */
 export async function seedFixture(transactions: TxFixture[]) {
 	const encoded = Buffer.from(JSON.stringify(transactions)).toString('base64');

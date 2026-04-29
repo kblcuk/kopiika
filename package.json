@@ -12,7 +12,7 @@
 		"test:component": "jest",
 		"test:e2e:ios": "detox test --configuration ios.sim.debug",
 		"test:e2e:android": "detox test --configuration android.emu.debug",
-		"build:e2e:ios": "detox build --configuration ios.sim.debug | xcpretty",
+		"build:e2e:ios": "detox build --configuration ios.sim.debug",
 		"build:e2e:android": "detox build --configuration android.emu.debug",
 		"test:watch": "jest --watch",
 		"test:coverage": "bun test --coverage && jest --coverage",
