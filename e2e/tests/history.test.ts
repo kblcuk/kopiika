@@ -54,7 +54,9 @@ describe('History', () => {
 		// atIndex(0) = most recent row (just created, newest timestamp).
 		// atIndex is required in waitFor too — without it, when multiple 'Main Card'
 		// rows exist Detox cannot determine which one to check and silently times out.
-		await waitFor(element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen))).atIndex(0))
+		await waitFor(
+			element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen))).atIndex(0)
+		)
 			.toBeVisible()
 			.withTimeout(5000);
 		await element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen)))
@@ -93,7 +95,9 @@ describe('History', () => {
 		// atIndex(0) = most recent row (just created, newest timestamp).
 		// atIndex is required in waitFor too — without it, when multiple 'Main Card'
 		// rows exist Detox cannot determine which one to check and silently times out.
-		await waitFor(element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen))).atIndex(0))
+		await waitFor(
+			element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen))).atIndex(0)
+		)
 			.toBeVisible()
 			.withTimeout(5000);
 

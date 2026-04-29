@@ -1,11 +1,7 @@
 import { device, waitFor, element, by } from 'detox';
 import { expect as jestExpect } from '@jest/globals';
 import { TestIDs } from '../support/test-ids';
-import {
-	createTransaction,
-	getAmount,
-	launchFreshAndDismissOverlays,
-} from '../support/helpers';
+import { createTransaction, getAmount, launchFreshAndDismissOverlays } from '../support/helpers';
 
 // Verifies that transactions survive an app relaunch. Only an emulator with
 // real SQLite persistence can detect this class of regression — there is no
