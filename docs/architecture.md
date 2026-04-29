@@ -92,9 +92,9 @@ Behavioral expectations:
 Savings reservations are tracked through `account <-> saving` transactions — there is no separate reservations table. The net amount reserved from a specific account to a specific saving is derived by summing all transactions between that pair.
 
 - Creating/adding: drag an account onto a saving to open the reservation modal. The user enters the amount to add; the system creates a transaction for that amount.
-- Viewing from saving detail: the saving entity's edit modal shows a "Reserved from" section listing all accounts with net positive reservation amounts. Tapping a row opens the reservation modal for that account–saving pair.
+- Viewing from entity detail: saving edit shows a "Reserved from" section listing all accounts with net positive reservation amounts; account edit shows a "Reserved for" section listing all savings with net positive reservation amounts. Tapping a row opens the reservation modal for that account–saving pair.
 - Releasing: when creating a transaction from an account, the "fund from savings" section (below the note field) shows existing reservations as checkboxes. Checking a reservation creates a `saving -> account` release transaction for the funded amount. The main transaction total stays as entered.
-- History: all savings transactions appear in the History tab, filterable by entity and with editable amounts.
+- History: all savings transactions appear in the History tab, filterable by entity and with editable amounts. When History is filtered to one account or saving, the list starts with a collapsible all-time net reservation summary for that entity, independent of the visible period/search-filtered chronological rows.
 
 ## Visual and Accessibility Principles
 
