@@ -21,6 +21,7 @@ import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import type { Transaction, EntityWithBalance, MarketValueSnapshot } from '@/src/types';
 import { PeriodPicker } from '@/src/components/period-picker';
 import { EntityFilter } from '@/src/components/entity-filter';
+import { ReservationSummary } from '@/src/components/reservation-summary';
 import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import {
@@ -243,7 +244,7 @@ export default function HistoryScreen() {
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
-	const selectedEntity = selectedEntityId ? entityMap.get(selectedEntityId) : null;
+	const selectedEntity = selectedEntityId ? (entityMap.get(selectedEntityId) ?? null) : null;
 	const isInvestmentSelected =
 		selectedEntity?.type === 'account' && selectedEntity?.is_investment;
 
@@ -554,6 +555,13 @@ export default function HistoryScreen() {
 					removeClippedSubviews
 					className="flex-1"
 					style={isStale ? { opacity: 0.6 } : undefined}
+					ListHeaderComponent={
+						<ReservationSummary
+							selectedEntity={selectedEntity}
+							entities={entities}
+							transactions={transactions}
+						/>
+					}
 					ListFooterComponent={sections.length > 0 ? renderSnapshotList : null}
 					ListEmptyComponent={
 						<View className="flex-1 px-5 py-16">

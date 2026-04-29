@@ -81,6 +81,16 @@ describe('HistoryScreen search params', () => {
 		order: 0,
 	};
 
+	const mockAccount2: Entity = {
+		id: 'account-2',
+		type: 'account',
+		name: 'Cash',
+		currency: 'USD',
+		row: 0,
+		position: 1,
+		order: 1,
+	};
+
 	const mockCategory: Entity = {
 		id: 'category-1',
 		type: 'category',
@@ -89,6 +99,26 @@ describe('HistoryScreen search params', () => {
 		row: 0,
 		position: 0,
 		order: 0,
+	};
+
+	const mockSaving: Entity = {
+		id: 'saving-1',
+		type: 'saving',
+		name: 'Emergency fund',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+		order: 0,
+	};
+
+	const mockSaving2: Entity = {
+		id: 'saving-2',
+		type: 'saving',
+		name: 'Vacation',
+		currency: 'USD',
+		row: 0,
+		position: 1,
+		order: 1,
 	};
 
 	const mockTransaction: Transaction = {
@@ -368,6 +398,136 @@ describe('HistoryScreen search params', () => {
 			expect(getByTestId('row-tx-just-created').props.children.join('')).toBe(
 				'tx-just-created:past:editable'
 			);
+		});
+	});
+
+	it('shows a collapsible reservation summary when filtered to an account (KII-69)', async () => {
+		const firstReservationTx: Transaction = {
+			id: 'tx-reservation-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'saving-1',
+			amount: 300,
+			currency: 'USD',
+			timestamp: new Date('2025-12-01T12:00:00Z').getTime(),
+		};
+		const releaseTx: Transaction = {
+			id: 'tx-release',
+			from_entity_id: 'saving-1',
+			to_entity_id: 'account-1',
+			amount: 125,
+			currency: 'USD',
+			timestamp: new Date('2025-12-05T12:00:00Z').getTime(),
+		};
+		const secondReservationTx: Transaction = {
+			id: 'tx-reservation-2',
+			from_entity_id: 'account-1',
+			to_entity_id: 'saving-2',
+			amount: 75,
+			currency: 'USD',
+			timestamp: new Date('2025-12-10T12:00:00Z').getTime(),
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory, mockSaving, mockSaving2],
+			plans: [],
+			transactions: [firstReservationTx, releaseTx, secondReservationTx],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01', entityId: 'account-1' };
+
+		const { getByTestId, getByText, queryByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('reservation-summary')).toBeTruthy();
+			expect(getByText('Emergency fund')).toBeTruthy();
+			expect(getByText('Vacation')).toBeTruthy();
+			expect(getByText('175.00')).toBeTruthy();
+			expect(getByText('75.00')).toBeTruthy();
+			expect(getByTestId('reservation-summary-total').props.children).toBe('250.00');
+		});
+
+		fireEvent.press(getByTestId('reservation-summary-toggle'));
+
+		await waitFor(() => {
+			expect(queryByTestId('reservation-summary-row-saving-1')).toBeNull();
+		});
+	});
+
+	it('shows reservation sources when filtered to a saving (KII-69)', async () => {
+		const firstReservationTx: Transaction = {
+			id: 'tx-reservation-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'saving-1',
+			amount: 125,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+		};
+		const secondReservationTx: Transaction = {
+			id: 'tx-reservation-2',
+			from_entity_id: 'account-2',
+			to_entity_id: 'saving-1',
+			amount: 80,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+		};
+		const releaseTx: Transaction = {
+			id: 'tx-release',
+			from_entity_id: 'saving-1',
+			to_entity_id: 'account-2',
+			amount: 30,
+			currency: 'USD',
+			timestamp: fixedNow - 180_000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockAccount2, mockCategory, mockSaving],
+			plans: [],
+			transactions: [firstReservationTx, secondReservationTx, releaseTx],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01', entityId: 'saving-1' };
+
+		const { getByTestId, getByText } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('reservation-summary')).toBeTruthy();
+			expect(getByText('Checking')).toBeTruthy();
+			expect(getByText('Cash')).toBeTruthy();
+			expect(getByTestId('reservation-summary-row-account-1')).toBeTruthy();
+			expect(getByTestId('reservation-summary-row-account-2')).toBeTruthy();
+			expect(getByText('50.00')).toBeTruthy();
+			expect(getByTestId('reservation-summary-total').props.children).toBe('175.00');
+		});
+	});
+
+	it('hides reservation summary when the filter is not an account or saving (KII-69)', async () => {
+		useStore.setState({
+			entities: [mockAccount, mockCategory, mockSaving],
+			plans: [],
+			transactions: [
+				{
+					id: 'tx-reservation',
+					from_entity_id: 'account-1',
+					to_entity_id: 'saving-1',
+					amount: 125,
+					currency: 'USD',
+					timestamp: fixedNow - 60_000,
+				},
+			],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		mockParams = { period: '2026-01', entityId: 'category-1' };
+
+		const { queryByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(queryByTestId('reservation-summary')).toBeNull();
 		});
 	});
 
