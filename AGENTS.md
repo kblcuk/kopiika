@@ -41,6 +41,8 @@ Preserve the app’s deliberate visual style: avoid generic fintech UI, card-hea
 
 Unit tests run with Bun for `src/db`, `src/store`, and `src/utils`. Component and screen tests run with Jest and React Native Testing Library. Name tests `*.test.ts` or `*.test.tsx` and keep them in nearby `__tests__/` folders. Add regression coverage for database changes, state transitions, and UI flows touched by the change.
 
+E2E tests (Detox, in `e2e/`) are reserved for behaviors that require a real simulator or device: native gestures, app lifecycle, cross-screen navigation, and persistence across relaunch. Do not add E2E tests for validation rules, picker filtering, balance math, or modal behavior — those belong at a lower level. See `e2e/CLAUDE.md` for the full testing-level matrix and decision flow.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses Conventional Commits, for example `fix: ...`, `feat: ...`, and `chore(release): ...`. Keep commits focused and descriptive. Before opening a PR, run `bun run lint`, `bun run types`, and `bun run test`. PRs should explain the behavior change, link the relevant issue, and include screenshots or recordings for UI updates.
