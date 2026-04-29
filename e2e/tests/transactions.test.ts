@@ -1,7 +1,7 @@
-import { expect as jestExpect } from '@jest/globals';
 import {
 	createTransaction,
 	ensureHomeScreen,
+	expectAmount,
 	getAmount,
 	launchFreshAndDismissOverlays,
 } from '../support/helpers';
@@ -29,7 +29,7 @@ describe('Transactions — quick add', () => {
 
 		await createTransaction('Main Card', 'Groceries', '43.21');
 
-		jestExpect(await getAmount('Groceries')).toBe(before.cat + 43.21);
-		jestExpect(await getAmount('Main Card')).toBe(before.acct - 43.21);
+		await expectAmount('Groceries', before.cat + 43.21);
+		await expectAmount('Main Card', before.acct - 43.21);
 	});
 });

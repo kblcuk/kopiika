@@ -1,9 +1,9 @@
 import { waitFor, element, by } from 'detox';
-import { expect as jestExpect } from '@jest/globals';
 import { TestIDs } from '../support/test-ids';
 import {
 	createTransaction,
 	ensureHomeScreen,
+	expectAmount,
 	getAmount,
 	launchFreshAndDismissOverlays,
 } from '../support/helpers';
@@ -37,7 +37,14 @@ describe('History', () => {
 	}
 
 	async function returnToHome() {
-		await element(by.id(TestIDs.dashboardTabButton)).tap();
+		const dashboardTab = element(by.id(TestIDs.dashboardTabButton));
+
+		// Use 100% visibility threshold to ensure the tab bar is fully in view.
+		// Any remaining "not hittable" errors should be handled by waiting for
+		// specific dismissals in the test body.
+		await waitFor(dashboardTab).toBeVisible(100).withTimeout(5000);
+
+		await dashboardTab.tap();
 		await waitFor(element(by.id(TestIDs.homeScreen)))
 			.toBeVisible()
 			.withTimeout(5000);
@@ -68,12 +75,16 @@ describe('History', () => {
 			.withTimeout(5000);
 		await element(by.id(TestIDs.transaction.amountInput)).clearText();
 		await element(by.id(TestIDs.transaction.amountInput)).typeText('60');
-		// Let the keyboard animation settle before tapping save (save lives in the
-		// modal header, above the scroll view — not affected by scroll position).
-		await new Promise((r) => setTimeout(r, 500));
-		await element(by.id(TestIDs.transaction.saveButton)).tap();
 
-		// Verify the modal closed and we are back on the history screen
+		const saveButton = element(by.id(TestIDs.transaction.saveButton));
+		await waitFor(saveButton).toBeVisible().withTimeout(2000);
+		await saveButton.tap();
+
+		// Wait for the modal to fully disappear before navigating back.
+		// This clears the UITransitionView that would otherwise block the tab bar.
+		await waitFor(saveButton).not.toExist().withTimeout(5000);
+
+		// Verify we are back on the history screen
 		await waitFor(element(by.id(TestIDs.historyScreen)))
 			.toBeVisible()
 			.withTimeout(5000);
@@ -81,7 +92,7 @@ describe('History', () => {
 		await returnToHome();
 
 		// Created 40, edited to 60 — net delta is +20 vs balanceAfterCreate
-		jestExpect(await getAmount('Groceries')).toBe(balanceAfterCreate + 20);
+		await expectAmount('Groceries', balanceAfterCreate + 20);
 	});
 
 	// ── Swipe-delete ─────────────────────────────────────────────────────────
@@ -105,21 +116,18 @@ describe('History', () => {
 		// RNGH GestureDetector's pan recognizer on iOS.
 		await element(by.text('Main Card').withAncestor(by.id(TestIDs.historyScreen)))
 			.atIndex(0)
-			.swipe('left', 'fast', 0.7);
+			.swipe('left', 'slow', 0.8);
 
-		await waitFor(element(by.text('Delete')))
-			.toBeVisible()
-			.withTimeout(3000);
-		await element(by.text('Delete')).tap();
+		const deleteAlertButton = element(by.text('Delete'));
+		await waitFor(deleteAlertButton).toBeVisible(100).withTimeout(5000);
+		await deleteAlertButton.tap();
 
-		// Wait for the Alert to fully dismiss — UITransitionView covers the tab bar
-		// during the dismiss animation and blocks the dashboardTabButton tap.
-		await waitFor(element(by.text('Delete')))
-			.not.toBeVisible()
-			.withTimeout(3000);
+		// Wait for the Alert to fully dismiss. This ensures the native
+		// UITransitionView is removed and the tab bar becomes hittable.
+		await waitFor(deleteAlertButton).not.toExist().withTimeout(5000);
 
 		await returnToHome();
 
-		jestExpect(await getAmount('Groceries')).toBe(balanceAfterCreate - 55);
+		await expectAmount('Groceries', balanceAfterCreate - 55);
 	});
 });

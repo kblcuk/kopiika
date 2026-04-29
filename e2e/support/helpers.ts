@@ -1,5 +1,6 @@
 import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
+import { roundMoney } from '../../src/utils/format';
 
 // Tap dismiss on the What's New modal if present. Uses a short timeout and
 // swallows the error if the modal is absent.
@@ -14,13 +15,24 @@ export async function dismissWhatsNewIfPresent() {
 	}
 }
 
-// Reads the numeric amount shown on a bubble. Handles both "," and "." as
-// decimal separator depending on platform/locale.
+// Reads the numeric amount shown on a bubble. Uses the accessibilityLabel
+// which contains the raw numeric string, bypassing locale-dependent formatting.
 export async function getAmount(entityName: string): Promise<number> {
-	const attrs = (await element(by.id(TestIDs.entityAmount(entityName))).getAttributes()) as {
-		text: string;
-	};
-	return parseFloat(attrs.text.replace(',', '.'));
+	const attrs = await element(by.id(TestIDs.entityAmount(entityName))).getAttributes();
+	if ('elements' in attrs) {
+		console.warn(`Found multiple entities matching [${entityName}], using first one`);
+		return parseFloat(attrs.elements[0].label ?? '');
+	}
+	return parseFloat(attrs.label ?? '');
+}
+
+// Polls until the amount on an entity bubble matches the expected value.
+// Uses Detox's native toHaveLabel expectation for maximum performance and reliability.
+export async function expectAmount(entityName: string, expected: number, timeout = 5000) {
+	const expectedLabel = String(roundMoney(expected));
+	await waitFor(element(by.id(TestIDs.entityAmount(entityName))))
+		.toHaveLabel(expectedLabel)
+		.withTimeout(timeout);
 }
 
 // Opens the income section if it's collapsed (default on fresh install).
@@ -90,6 +102,11 @@ export async function createTransaction(fromName: string, toName: string, amount
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
+	// Wait for the modal to dismiss
+	await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+		.not.toBeVisible()
+		.withTimeout(5000);
+
 	await waitFor(element(by.id(TestIDs.homeScreen)))
 		.toBeVisible()
 		.withTimeout(5000);
@@ -104,6 +121,11 @@ export async function createTransactionViaDnD(fromName: string, toName: string, 
 		.withTimeout(5000);
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
+
+	// Wait for the modal to dismiss
+	await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+		.not.toBeVisible()
+		.withTimeout(5000);
 
 	await waitFor(element(by.id(TestIDs.homeScreen)))
 		.toBeVisible()

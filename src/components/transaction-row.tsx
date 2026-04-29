@@ -81,9 +81,17 @@ export const TransactionRow = memo(function TransactionRow({
 		}
 	}, [transaction, fromLabel, toLabel, deleteTransaction, deleteTransactionWithScope]);
 
-	const handlePress = useCallback(() => {
+	const handleEdit = useCallback(() => {
 		onEdit(transaction);
 	}, [onEdit, transaction]);
+
+	const tapGesture = Gesture.Tap()
+		.maxDuration(250)
+		.maxDistance(10)
+		.runOnJS(true)
+		.onEnd(() => {
+			handleEdit();
+		});
 
 	const panGesture = Gesture.Pan()
 		.activeOffsetX([-10, 10])
@@ -98,6 +106,8 @@ export const TransactionRow = memo(function TransactionRow({
 			translateX.value = withSpring(0);
 			deleteOpacity.value = withTiming(0);
 		});
+
+	const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
 
 	const rowStyle = useAnimatedStyle(() => ({
 		transform: [{ translateX: translateX.value }],
@@ -116,7 +126,7 @@ export const TransactionRow = memo(function TransactionRow({
 				: 'bg-paper-100';
 
 	const rowContent = (
-		<View>
+		<View className={`px-5 py-3 ${rowBg}`}>
 			{/* From row: icon + name + amount */}
 			<View className="flex-row items-center">
 				<View
@@ -211,19 +221,17 @@ export const TransactionRow = memo(function TransactionRow({
 			)}
 
 			{editable ? (
-				<GestureDetector gesture={panGesture}>
-					<Animated.View style={rowStyle}>
-						<Pressable
-							onPress={handlePress}
-							className={`px-5 py-3 ${rowBg}`}
-							testID={`transaction-row-${transaction.id}`}
-						>
-							{rowContent}
-						</Pressable>
+				<GestureDetector gesture={composedGesture}>
+					<Animated.View
+						style={rowStyle}
+						testID={`transaction-row-${transaction.id}`}
+						className="bg-paper-50"
+					>
+						{rowContent}
 					</Animated.View>
 				</GestureDetector>
 			) : (
-				<View className={`px-5 py-3 ${rowBg}`} testID={`transaction-row-${transaction.id}`}>
+				<View className="bg-paper-50" testID={`transaction-row-${transaction.id}`}>
 					{rowContent}
 				</View>
 			)}

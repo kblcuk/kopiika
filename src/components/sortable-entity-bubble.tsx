@@ -14,7 +14,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import * as Haptics from 'expo-haptics';
 
 import type { EntityWithBalance } from '@/src/types';
-import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
+import { formatAmount, getProgressPercent, isOverspent, roundMoney } from '@/src/utils/format';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { ENTITY_BUBBLE_NAME_LINES } from '@/src/constants/entities';
@@ -57,6 +57,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 	const isIncome = entity.type === 'income';
 	const isAccount = entity.type === 'account';
 	const mainAmount = formatAmount(isIncome ? Math.max(0, entity.actual) : entity.actual);
+	const rawAmountValue = roundMoney(isIncome ? Math.max(0, entity.actual) : entity.actual);
 
 	// Get hovered ID shared value from context
 	const hoveredIdShared = useContext(HoveredIdContext);
@@ -194,6 +195,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 											: 'text-ink'
 							}`}
 							testID={`entity-amount-${entity.name}`}
+							accessibilityLabel={String(rawAmountValue)}
 						>
 							{mainAmount}
 						</Text>
