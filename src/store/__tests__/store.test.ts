@@ -3505,7 +3505,7 @@ describe('Store Data Integrity', () => {
 				}
 			);
 
-			await expect(getHasRequestedPermission()).resolves.toBe(false);
+			expect(getHasRequestedPermission()).resolves.toBe(false);
 		});
 
 		test('auto-confirms first occurrence if it is for today', async () => {

@@ -4,15 +4,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-import type { Entity } from '@/src/types';
+import type { Entity, EntityWithBalance } from '@/src/types';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { formatAmount } from '@/src/utils/format';
 
 interface EntitySelectionSheetProps {
 	visible: boolean;
 	title: string;
-	entities: Entity[];
+	entities: (Entity | EntityWithBalance)[];
 	selectedId: string | null;
 	onSelect: (entity: Entity) => void;
 	onClose: () => void;
@@ -36,6 +37,13 @@ export function EntitySelectionSheet({
 		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		onSelect(entity);
 		onClose();
+	};
+
+	const getEntityMoney = (entity: Entity | EntityWithBalance): number | null => {
+		if (!('actual' in entity)) return null;
+		if (entity.type === 'account' || entity.type === 'saving') return entity.actual;
+		if (entity.type === 'income' || entity.type === 'category') return entity.remaining;
+		return null;
 	};
 
 	return (
@@ -65,6 +73,7 @@ export function EntitySelectionSheet({
 							const IconComponent = getIcon(entity.icon || 'circle');
 							const typeColors = getEntityColors(entity.type, entity.color);
 							const isSelected = entity.id === selectedId;
+							const money = getEntityMoney(entity);
 
 							return (
 								<Pressable
@@ -87,10 +96,18 @@ export function EntitySelectionSheet({
 												? 'font-sans-semibold text-accent'
 												: 'text-ink'
 										}`}
-										numberOfLines={2}
+										numberOfLines={1}
 									>
 										{entity.name}
 									</Text>
+									{money !== null && (
+										<Text
+											className="text-center font-sans text-[10px] text-ink-muted"
+											numberOfLines={1}
+										>
+											{formatAmount(money, entity.currency)}
+										</Text>
+									)}
 								</Pressable>
 							);
 						})}

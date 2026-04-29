@@ -328,6 +328,99 @@ describe('TransactionModal', () => {
 			});
 		});
 
+		it('disables Save button and shows "Saving…" label while save is in flight', async () => {
+			// Simulate a slow DB write that never resolves — button should go disabled immediately
+			useStore.setState({ addTransaction: jest.fn(() => new Promise(() => {})) });
+
+			const { getByTestId, getByText, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+
+			const saveButton = getByTestId('transaction-save-button');
+			expect(saveButton.props.accessibilityState?.disabled).toBeFalsy();
+			expect(getByText('Save')).toBeTruthy();
+
+			fireEvent.press(saveButton);
+			await act(async () => {}); // flush state → isSubmitting = true
+
+			expect(saveButton.props.accessibilityState?.disabled).toBe(true);
+			expect(getByText('Saving…')).toBeTruthy();
+			expect(queryByText('Save')).toBeNull();
+		});
+
+		it('shows Alert, keeps modal open, and re-enables Save on DB error', async () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+			useStore.setState({
+				addTransaction: jest.fn().mockRejectedValue(new Error('disk full')),
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+
+			expect(alertSpy).toHaveBeenCalledWith('Save failed', expect.any(String));
+			// Modal stays open — onClose must NOT have been called
+			expect(mockOnClose).not.toHaveBeenCalled();
+			// isSubmitting reset — button re-enabled and label restored
+			expect(getByText('Save')).toBeTruthy();
+			expect(
+				getByTestId('transaction-save-button').props.accessibilityState?.disabled
+			).toBeFalsy();
+		});
+
+		it('does not create duplicate transactions on rapid double-press of Save', async () => {
+			let resolveFirstSave: () => void;
+			const addTransactionSpy = jest
+				.fn()
+				.mockImplementationOnce(
+					() =>
+						new Promise<void>((resolve) => {
+							resolveFirstSave = resolve;
+						})
+				)
+				.mockResolvedValue(undefined);
+			useStore.setState({ addTransaction: addTransactionSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+
+			const saveButton = getByTestId('transaction-save-button');
+			fireEvent.press(saveButton); // first press → starts async save
+			await act(async () => {}); // isSubmitting = true, button disabled
+			fireEvent.press(saveButton); // second press → isSubmitting guard blocks it
+
+			resolveFirstSave!(); // resolve the first save
+			await waitFor(() => expect(mockOnClose).toHaveBeenCalledTimes(1));
+
+			// Only one transaction created despite two presses
+			expect(addTransactionSpy).toHaveBeenCalledTimes(1);
+		});
+
 		it('includes note when provided', async () => {
 			const addTransactionSpy = jest.fn();
 			useStore.setState({ addTransaction: addTransactionSpy });
@@ -876,6 +969,54 @@ describe('TransactionModal', () => {
 					expect.objectContaining({ to_entity_id: 'category-2', amount: 20 })
 				);
 			});
+		});
+
+		it('does not create duplicate split transactions on rapid double-press of Save', async () => {
+			// addTransaction resolves immediately for all but the very first call,
+			// which we hold open so the second Save press fires while save is in flight.
+			let resolveFirstSave!: () => void;
+			const addTransactionSpy = jest
+				.fn()
+				.mockImplementationOnce(
+					() =>
+						new Promise<void>((resolve) => {
+							resolveFirstSave = resolve;
+						})
+				)
+				.mockResolvedValue(undefined);
+			useStore.setState({
+				addTransaction: addTransactionSpy,
+				entities: [mockFromEntity, mockToEntity, category2],
+			});
+
+			const { getByTestId, getByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
+			fireEvent.press(getByTestId('split-toggle-button'));
+
+			// Give row 1 a real entity + amount so two addTransaction calls fire per save
+			fireEvent.press(getByTestId('split-entity-1'));
+			fireEvent.press(getByText('Pets'));
+			fireEvent.changeText(getByTestId('split-amount-1'), '20');
+			// anchor=30 (Groceries), row1=20 (Pets) → 2 addTransaction calls per save
+
+			const saveButton = getByTestId('transaction-save-button');
+			fireEvent.press(saveButton); // first press → in-flight on first addTransaction
+			await act(async () => {}); // isSubmitting = true, button disabled
+			fireEvent.press(saveButton); // second press → guard blocks it entirely
+
+			resolveFirstSave(); // let the first save complete
+			await waitFor(() => expect(mockOnClose).toHaveBeenCalledTimes(1));
+
+			// Exactly 2 transactions (anchor + row1), not 4 (which a double-save would produce)
+			expect(addTransactionSpy).toHaveBeenCalledTimes(2);
 		});
 
 		it('toggling split off exits split mode and restores original amount', () => {

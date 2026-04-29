@@ -94,6 +94,12 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 				<Text className="text-center font-sans text-sm text-ink-muted" numberOfLines={1}>
 					{entity.name}
 				</Text>
+				<Text
+					className="text-center font-sans text-[10px] text-ink-muted"
+					numberOfLines={1}
+				>
+					{formatAmount(entity.actual, entity.currency)}
+				</Text>
 			</View>
 		);
 	};

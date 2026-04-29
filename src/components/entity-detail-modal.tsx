@@ -61,7 +61,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [includeInTotal, setIncludeInTotal] = useState(true);
 	const [isDefault, setIsDefault] = useState(false);
 	const [isInvestment, setIsInvestment] = useState(false);
-	const [marketValueInput, setMarketValueInput] = useState('');
+	const [marketValueAmount, setMarketValueAmount] = useState('');
 	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
@@ -71,6 +71,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		setIsEditingActual(true);
 	});
 	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
+	const marketValueExpr = useExpressionInput(marketValueAmount, setMarketValueAmount);
 	// Show toolbar when either amount input is focused
 	const showExprToolbar = actualExpr.focused || plannedExpr.focused;
 
@@ -163,7 +164,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setIncludeInTotal(entity.include_in_total !== false);
 			setIsDefault(entity.is_default === true);
 			setIsInvestment(entity.is_investment === true);
-			setMarketValueInput('');
+			setMarketValueAmount('');
 			setNameError(null);
 			setShowIconPicker(false);
 			setSelectedColor((entity.color as EntityColorKey) ?? null);
@@ -274,8 +275,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		}
 
 		// Handle market value snapshot for investment accounts
-		if (entity.type === 'account' && isInvestment && marketValueInput.trim()) {
-			const amount = reverseFormatCurrency(marketValueInput);
+		if (entity.type === 'account' && isInvestment && marketValueAmount.trim()) {
+			const amount = reverseFormatCurrency(marketValueAmount);
 			if (!Number.isNaN(amount)) {
 				const today = new Date();
 				today.setHours(0, 0, 0, 0);
@@ -423,8 +424,17 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							className="mb-3"
 							testID="entity-detail-icon-picker-toggle"
 						>
-							<View className="relative h-20 w-20 items-center justify-center rounded-full bg-paper-300">
-								<IconComponent size={36} color={colors.ink.muted} />
+							<View
+								className="relative h-20 w-20 items-center justify-center rounded-full"
+								style={{
+									backgroundColor: getEntityColors(entity.type, selectedColor)
+										.bgColor,
+								}}
+							>
+								<IconComponent
+									size={36}
+									color={getEntityColors(entity.type, selectedColor).iconColor}
+								/>
 								{/* Pencil edit indicator */}
 								<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
 									<PencilIcon size={14} color={colors.ink.muted} />
@@ -636,8 +646,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									<View className={textInputClassNames.inlineContainer}>
 										<TextInput
 											{...sharedNumericTextInputProps}
-											value={marketValueInput}
-											onChangeText={setMarketValueInput}
+											{...marketValueExpr.inputProps}
+											value={marketValueAmount}
+											onChangeText={setMarketValueAmount}
 											placeholder="0"
 											className={textInputClassNames.primaryAmountInput}
 											style={styles.input}

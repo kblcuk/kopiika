@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.8](https://codeberg.org/kblcuk/kopiika/compare/v0.3.7...v0.3.8) (2026-04-26)
+
+
+### Features
+
+* show entities actuals during transaction ([f1b40ac](https://codeberg.org/kblcuk/kopiika/commit/f1b40acbc06ecc8074e731e5e3f34cf9fa2bc202))
+
+## [0.3.7](https://codeberg.org/kblcuk/kopiika/compare/v0.3.6...v0.3.7) (2026-04-25)
+
+
+### Features
+
+* use same background color as selected color ([55c4735](https://codeberg.org/kblcuk/kopiika/commit/55c47355b5173d12f5a2c60c9e74067fbc3d715d))
+
 ## [0.3.6](https://codeberg.org/kblcuk/kopiika/compare/v0.3.5...v0.3.6) (2026-04-25)
 
 

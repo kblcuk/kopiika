@@ -20,7 +20,7 @@ import {
 	DEFAULT_CURRENCY,
 	getCurrencySymbol,
 } from '@/src/utils/format';
-import { useStore } from '@/src/store';
+import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
 import {
 	sharedNumericTextInputProps,
@@ -41,6 +41,9 @@ import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { showSeriesScopeAlert } from './series-action-sheet';
+
+const isEntityWithBalance: (e: Entity | EntityWithBalance | null) => e is EntityWithBalance = (e) =>
+	e !== null && 'actual' in e;
 
 interface SplitRow {
 	id: string;
@@ -87,6 +90,7 @@ export function TransactionModal({
 
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
@@ -104,7 +108,15 @@ export function TransactionModal({
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
-	const entities = useStore((state) => state.entities);
+
+	const accounts = useEntitiesWithBalance('account');
+	const categories = useEntitiesWithBalance('category');
+	const income = useEntitiesWithBalance('income');
+	const savings = useEntitiesWithBalance('saving');
+	const entities = useMemo(
+		() => [...accounts, ...categories, ...income, ...savings],
+		[accounts, categories, income, savings]
+	);
 
 	const amountExpr = useExpressionInput(
 		isSplitMode ? splitTotal.toString() : amount,
@@ -213,6 +225,7 @@ export function TransactionModal({
 			setSplitTotal(0);
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
+			setIsSubmitting(false);
 			setIsRepeat(false);
 			setRepeatFrequency('monthly');
 			setRepeatEndMode('never');
@@ -386,6 +399,9 @@ export function TransactionModal({
 	// ── Submit ────────────────────────────────────────────────────────────────
 
 	const handleSubmit = async () => {
+		if (isSubmitting) return;
+		setIsSubmitting(true);
+
 		// Resolve any pending calculator expression before submitting
 		const resolvedAmount = amountExpr.resolve();
 
@@ -435,7 +451,10 @@ export function TransactionModal({
 					});
 				}
 
-				if (txns.length === 0) return;
+				if (txns.length === 0) {
+					setIsSubmitting(false);
+					return;
+				}
 				for (const txn of txns) await addTransaction(txn);
 
 				// Release savings reservations via saving→account transactions
@@ -459,7 +478,10 @@ export function TransactionModal({
 			}
 
 			const typedAmount = reverseFormatCurrency(resolvedAmount);
-			if (isNaN(typedAmount) || typedAmount <= 0) return;
+			if (isNaN(typedAmount) || typedAmount <= 0) {
+				setIsSubmitting(false);
+				return;
+			}
 
 			const numAmount = roundMoney(typedAmount);
 
@@ -540,9 +562,8 @@ export function TransactionModal({
 			onClose();
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
-			// Still close so the user isn't stuck on a dead modal
-			void KeyboardController.dismiss();
-			onClose();
+			setIsSubmitting(false);
+			Alert.alert('Save failed', 'Could not save the transaction. Please try again.');
 		}
 	};
 
@@ -577,6 +598,12 @@ export function TransactionModal({
 		const IconComponent = getIcon(entity.icon || 'circle');
 		const typeColors = getEntityColors(entity.type, entity.color);
 		const isTappable = !!onPress;
+		let money = null;
+		if (isEntityWithBalance(entity)) {
+			if (entity.type === 'account' || entity.type === 'saving') money = entity.actual;
+			if (entity.type === 'income' || entity.type === 'category') money = entity.remaining;
+		}
+
 		return (
 			<Pressable
 				onPress={onPress}
@@ -603,6 +630,14 @@ export function TransactionModal({
 				>
 					{getEntityDisplayName(entity)}
 				</Text>
+				{money !== null && (
+					<Text
+						className="text-center font-sans text-[10px] text-ink-muted"
+						numberOfLines={1}
+					>
+						{formatAmount(money, entity.currency)}
+					</Text>
+				)}
 			</Pressable>
 		);
 	};
@@ -638,14 +673,14 @@ export function TransactionModal({
 					</Text>
 					<Pressable
 						onPress={handleSubmit}
-						disabled={!canSave}
+						disabled={!canSave || isSubmitting}
 						hitSlop={20}
 						testID="transaction-save-button"
 					>
 						<Text
-							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
+							className={`font-sans-semibold text-base ${canSave && !isSubmitting ? 'text-accent' : 'text-ink-muted'}`}
 						>
-							Save
+							{isSubmitting ? 'Saving…' : 'Save'}
 						</Text>
 					</Pressable>
 				</View>
