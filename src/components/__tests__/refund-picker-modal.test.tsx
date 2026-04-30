@@ -37,9 +37,7 @@ const flushPromises = async () => {
 	});
 };
 
-const renderModal = async (
-	ui: React.ReactElement
-): Promise<ReturnType<typeof render>> => {
+const renderModal = async (ui: React.ReactElement): Promise<ReturnType<typeof render>> => {
 	const utils = render(ui);
 	await flushPromises();
 	return utils;
