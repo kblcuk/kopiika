@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { RefundPickerModal } from '../refund-picker-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
@@ -30,6 +30,20 @@ jest.mock('lucide-react-native', () => {
 });
 
 const mockedGetTxs = getTransactionsBetweenEntities as jest.Mock;
+
+const flushPromises = async () => {
+	await act(async () => {
+		await Promise.resolve();
+	});
+};
+
+const renderModal = async (
+	ui: React.ReactElement
+): Promise<ReturnType<typeof render>> => {
+	const utils = render(ui);
+	await flushPromises();
+	return utils;
+};
 
 describe('RefundPickerModal', () => {
 	const account: EntityWithBalance = {
@@ -85,7 +99,7 @@ describe('RefundPickerModal', () => {
 	it('queries past transactions in the original direction (Account → Category refund)', async () => {
 		mockedGetTxs.mockResolvedValue([]);
 
-		render(
+		await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={account}
@@ -103,7 +117,7 @@ describe('RefundPickerModal', () => {
 	it('queries past transactions in the original direction (Income → Account refund)', async () => {
 		mockedGetTxs.mockResolvedValue([]);
 
-		render(
+		await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={income}
@@ -121,7 +135,7 @@ describe('RefundPickerModal', () => {
 	it('renders the header and direction label', async () => {
 		mockedGetTxs.mockResolvedValue([]);
 
-		const { getByText } = render(
+		const { getByText } = await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={account}
@@ -140,7 +154,7 @@ describe('RefundPickerModal', () => {
 	it('shows empty state when no past transactions exist between entities', async () => {
 		mockedGetTxs.mockResolvedValue([]);
 
-		const { getByText } = render(
+		const { getByText } = await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={account}
@@ -166,7 +180,7 @@ describe('RefundPickerModal', () => {
 		};
 		mockedGetTxs.mockResolvedValue([tx]);
 
-		const { getByTestId } = render(
+		const { getByTestId } = await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={account}
@@ -185,7 +199,7 @@ describe('RefundPickerModal', () => {
 	it('calls onClose when close button is pressed', async () => {
 		mockedGetTxs.mockResolvedValue([]);
 
-		const { getByTestId } = render(
+		const { getByTestId } = await renderModal(
 			<RefundPickerModal
 				visible={true}
 				originalFrom={account}

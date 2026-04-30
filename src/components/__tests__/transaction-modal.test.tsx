@@ -357,32 +357,41 @@ describe('TransactionModal', () => {
 
 		it('shows Alert, keeps modal open, and re-enables Save on DB error', async () => {
 			const alertSpy = jest.spyOn(Alert, 'alert');
+			const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 			useStore.setState({
 				addTransaction: jest.fn().mockRejectedValue(new Error('disk full')),
 			});
 
-			const { getByTestId, getByText } = render(
-				<TransactionModal
-					visible={true}
-					fromEntity={mockFromEntity}
-					toEntity={mockToEntity}
-					onClose={mockOnClose}
-				/>
-			);
+			try {
+				const { getByTestId, getByText } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
 
-			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
-			fireEvent.press(getByTestId('transaction-save-button'));
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('transaction-save-button'));
 
-			await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+				await waitFor(() => expect(alertSpy).toHaveBeenCalled());
 
-			expect(alertSpy).toHaveBeenCalledWith('Save failed', expect.any(String));
-			// Modal stays open — onClose must NOT have been called
-			expect(mockOnClose).not.toHaveBeenCalled();
-			// isSubmitting reset — button re-enabled and label restored
-			expect(getByText('Save')).toBeTruthy();
-			expect(
-				getByTestId('transaction-save-button').props.accessibilityState?.disabled
-			).toBeFalsy();
+				expect(alertSpy).toHaveBeenCalledWith('Save failed', expect.any(String));
+				expect(consoleErrorSpy).toHaveBeenCalledWith(
+					'Failed to save transaction:',
+					expect.any(Error)
+				);
+				// Modal stays open — onClose must NOT have been called
+				expect(mockOnClose).not.toHaveBeenCalled();
+				// isSubmitting reset — button re-enabled and label restored
+				expect(getByText('Save')).toBeTruthy();
+				expect(
+					getByTestId('transaction-save-button').props.accessibilityState?.disabled
+				).toBeFalsy();
+			} finally {
+				consoleErrorSpy.mockRestore();
+			}
 		});
 
 		it('does not create duplicate transactions on rapid double-press of Save', async () => {

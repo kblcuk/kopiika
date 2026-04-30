@@ -44,17 +44,27 @@ export function RefundPickerModal({
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
+		let cancelled = false;
+
 		if (visible && originalFrom && originalTo) {
 			setLoading(true);
 			// Fetch transactions in the original direction (e.g. account→category, income→account)
 			void (async () => {
 				const txs = await getTransactionsBetweenEntities(originalFrom.id, originalTo.id);
+				if (cancelled) {
+					return;
+				}
+
 				setPastTransactions(txs);
 				setLoading(false);
 			})();
 		} else {
 			setPastTransactions([]);
 		}
+
+		return () => {
+			cancelled = true;
+		};
 	}, [visible, originalFrom, originalTo]);
 
 	const entityMap = new Map(entities.map((e) => [e.id, e]));
