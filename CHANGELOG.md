@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.9](https://codeberg.org/kblcuk/kopiika/compare/v0.3.8...v0.3.9) (2026-04-30)
+
+
+### Features
+
+* **history:** Show reservation summary for entity filters ([f2ee45a](https://codeberg.org/kblcuk/kopiika/commit/f2ee45a393fc12eef46a5ad58c31f9603e6bd72d))
+* **ui:** Expose raw balance via accessibilityLabel ([91bc7b8](https://codeberg.org/kblcuk/kopiika/commit/91bc7b84fe2e603991c5460f27e8cc6946cdfdb7))
+
+
+### Bug Fixes
+
+* consistently use numeric pad for currency inputs ([9a4a0c1](https://codeberg.org/kblcuk/kopiika/commit/9a4a0c17804fefef6c4582f415f80e6b43628a94))
+* **transaction-modal:** Prevent double-submit and surface save errors ([80941a3](https://codeberg.org/kblcuk/kopiika/commit/80941a3e9d451549eabff1ce526cf4b4756ec59c))
+
 ## [0.3.8](https://codeberg.org/kblcuk/kopiika/compare/v0.3.7...v0.3.8) (2026-04-26)
 
 
