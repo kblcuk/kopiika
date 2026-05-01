@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "kopiika",
 		"slug": "kopiika",
-		"version": "0.3.9",
+		"version": "0.3.10",
 		"orientation": "portrait",
 		"icon": "./assets/images/icon.png",
 		"scheme": "kopiika",
@@ -24,7 +24,7 @@
 				"monochromeImage": "./assets/images/android-icon-monochrome.png"
 			},
 			"package": "com.kblcuk.kopiika",
-			"versionCode": 37
+			"versionCode": 38
 		},
 		"web": {
 			"output": "static",

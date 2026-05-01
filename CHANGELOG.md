@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.10](https://codeberg.org/kblcuk/kopiika/compare/v0.3.9...v0.3.10) (2026-05-01)
+
+
+### Features
+
+* **statistics:** Add allocation pie charts ([13c7eca](https://codeberg.org/kblcuk/kopiika/commit/13c7eca1e7abff07d916d0a99c98f52e6a5fae87))
+
 ## [0.3.9](https://codeberg.org/kblcuk/kopiika/compare/v0.3.8...v0.3.9) (2026-04-30)
 
 
