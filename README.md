@@ -17,13 +17,17 @@ Offline-first personal finance app for monthly planning vs reality. Built with E
 - **Split transactions** — divide a payment across multiple categories in one go
 - **Refund flows** — reverse drags trigger refund picker to undo prior transactions
 - **Savings reservations** — reserve money from accounts to savings goals; release reserved funds when spending
+- **Investment accounts** — track purchased price from transactions and optional manual market value snapshots
+- **Allocation charts** — category spending and reservation breakdowns use tappable pie charts
 - **Expression input** — type `100+50` or `200/2` in any amount field
 - **Summary with sparklines** — per-entity planned vs actual, 4-month trend, period picker
 - **Transaction history** — grouped by day, full-text search, entity filter, inline editing
 - **Scheduled transactions** — upcoming transactions visible in history before they land
+- **Transaction reminders** — opt-in local notifications and History badge for past-due unconfirmed items
 - **Default account** — pre-selects your main account in transaction flows
+- **Custom entity colors** — choose icon background colors from a curated palette
 - **Quick-add** — floating `+` button in the tab bar opens the transaction modal from anywhere
-- **CSV import/export** — full data portability (entities, plans, transactions), managed from Settings
+- **CSV import/export** — full data portability (entities, plans, transactions, market values), managed from Settings
 - **In-app changelog** — "What's New" modal on app update
 - **Accessibility** — WCAG AA contrast, large touch targets, no color-only indicators
 
@@ -61,18 +65,22 @@ bun run web
 
 ## Development Commands
 
-| Command                  | What it does                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| `bun run test`           | Run unit tests (Bun) + component/screen tests (Jest)                                  |
-| `bun run test:unit`      | Unit tests only (`src/db`, `src/store`, `src/utils`, `src/services`, `src/constants`) |
-| `bun run test:component` | Component/screen tests only (Jest + RNTL)                                             |
-| `bun run test:coverage`  | Collect coverage from both runners                                                    |
-| `bun run lint`           | Lint with oxlint                                                                      |
-| `bun run fmt`            | fmt with oxfmt                                                                        |
-| `bun run fmt:check`      | Check fmt without writing                                                             |
-| `bun run types`          | TypeScript type check                                                                 |
-| `bun run unused`         | Find unused exported code with knip                                                   |
-| `bun run checks`         | Run lint, fmt check, types, and unused export checks                                  |
+| Command                     | What it does                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `bun run test`              | Run unit tests (Bun) + component/screen tests (Jest)                                  |
+| `bun run test:unit`         | Unit tests only (`src/db`, `src/store`, `src/utils`, `src/services`, `src/constants`) |
+| `bun run test:component`    | Component/screen tests only (Jest + RNTL)                                             |
+| `bun run test:coverage`     | Collect coverage from both runners                                                    |
+| `bun run build:e2e:ios`     | Build the iOS Detox binary                                                            |
+| `bun run build:e2e:android` | Build the Android Detox binary                                                        |
+| `bun run test:e2e:ios`      | Run the iOS Detox suite                                                               |
+| `bun run test:e2e:android`  | Run the Android Detox suite                                                           |
+| `bun run lint`              | Lint with oxlint                                                                      |
+| `bun run fmt`               | fmt with oxfmt                                                                        |
+| `bun run fmt:check`         | Check fmt without writing                                                             |
+| `bun run types`             | TypeScript type check                                                                 |
+| `bun run unused`            | Find unused exported code with knip                                                   |
+| `bun run checks`            | Run lint, fmt check, types, and unused export checks                                  |
 
 ## Project Structure
 
@@ -91,9 +99,15 @@ scripts/          Maintenance and build helper scripts
 ios/ android/     Native Expo projects
 ```
 
+## Testing
+
+Use `bun run test` for the regular unit + component suite. Use Detox only for simulator/device behavior such as native gestures, lifecycle, persistence across relaunch, and platform quirks.
+
+Full testing guidance: [docs/testing.md](docs/testing.md).
+
 ## Core Concepts
 
-The domain model has four entity types — **income**, **account**, **category**, and **saving** — connected by immutable **transactions**. Balances are always derived, never stored. Savings reservations are tracked as `account <-> saving` transactions. Recurring transactions are managed through **recurrence templates** that pre-generate future occurrences. Drag-and-drop is the primary interaction.
+The domain model has four entity types — **income**, **account**, **category**, and **saving** — connected by immutable **transactions**. Balances are always derived, never stored. Savings reservations are tracked as `account <-> saving` transactions. Recurring transactions are managed through **recurrence templates** that pre-generate future occurrences. Investment account market values live in separate snapshots, while purchased price still comes from transaction flow. Drag-and-drop is the primary interaction.
 
 Full domain rules and data architecture: [docs/architecture.md](docs/architecture.md).
 
@@ -116,12 +130,15 @@ Full release guide: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Documentation
 
-| Document                                     | Content                                                             |
-| -------------------------------------------- | ------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md)                       | AI agent workflow, commands, coding conventions, testing guidelines |
-| [docs/architecture.md](docs/architecture.md) | Product intent, domain model, data architecture, interaction rules  |
-| [docs/RELEASING.md](docs/RELEASING.md)       | Release flow, signing, store uploads, build cleanup, secrets        |
-| [CHANGELOG.md](CHANGELOG.md)                 | Auto-generated release notes from conventional commits              |
+| Document                                             | Content                                                             |
+| ---------------------------------------------------- | ------------------------------------------------------------------- |
+| [AGENTS.md](AGENTS.md)                               | AI agent workflow, commands, coding conventions, testing guidelines |
+| [docs/architecture.md](docs/architecture.md)         | Product intent, domain model, data architecture, interaction rules  |
+| [docs/testing.md](docs/testing.md)                   | Test layers, placement, guardrails, and E2E decision flow           |
+| [docs/RELEASING.md](docs/RELEASING.md)               | Release flow, signing, store uploads, build cleanup, secrets        |
+| [e2e/CLAUDE.md](e2e/CLAUDE.md)                       | Detox testing level matrix, helpers, device notes, and commands     |
+| [docs/privacy-policy.html](docs/privacy-policy.html) | Published privacy policy source                                     |
+| [CHANGELOG.md](CHANGELOG.md)                         | Auto-generated release notes from conventional commits              |
 
 ## Tech Stack
 

@@ -39,7 +39,7 @@ Preserve the app’s deliberate visual style: avoid generic fintech UI, card-hea
 
 ## Testing Guidelines
 
-Unit tests run with Bun for `src/db`, `src/store`, and `src/utils`. Component and screen tests run with Jest and React Native Testing Library. Name tests `*.test.ts` or `*.test.tsx` and keep them in nearby `__tests__/` folders. Add regression coverage for database changes, state transitions, and UI flows touched by the change.
+Read [docs/testing.md](docs/testing.md) before changing test strategy or adding broad coverage. Unit tests run with Bun for `src/db`, `src/store`, `src/utils`, `src/services`, and `src/constants`. Component and screen tests run with Jest and React Native Testing Library. Name tests `*.test.ts` or `*.test.tsx` and keep them in nearby `__tests__/` folders. Add regression coverage for database changes, state transitions, and UI flows touched by the change.
 
 E2E tests (Detox, in `e2e/`) are reserved for behaviors that require a real simulator or device: native gestures, app lifecycle, cross-screen navigation, and persistence across relaunch. Do not add E2E tests for validation rules, picker filtering, balance math, or modal behavior — those belong at a lower level. See `e2e/CLAUDE.md` for the full testing-level matrix and decision flow.
 
