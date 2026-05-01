@@ -10,6 +10,11 @@ import { getCurrentPeriod } from '@/src/types';
 import type { EntityWithBalance } from '@/src/types';
 import { PeriodPicker } from '@/src/components/period-picker';
 import { ProgressBar } from '@/src/components/progress-bar';
+import {
+	AllocationPieChart,
+	DEFAULT_ALLOCATION_COLORS,
+	type AllocationPieSlice,
+} from '@/src/components/allocation-pie-chart';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
@@ -133,14 +138,16 @@ interface SectionProps {
 	entities: EntityWithBalance[];
 	/** Monthly trend maps, oldest first, used for sparklines */
 	trendActuals?: Map<string, number>[];
+	chartSlices?: AllocationPieSlice[];
 	onEntityPress: (entity: EntityWithBalance) => void;
 }
 
-function Section({ title, entities, trendActuals, onEntityPress }: SectionProps) {
+function Section({ title, entities, trendActuals, chartSlices, onEntityPress }: SectionProps) {
 	if (entities.length === 0) return null;
 
 	const totalActual = entities.reduce((s, e) => s + e.actual, 0);
 	const totalPlanned = entities.reduce((s, e) => s + e.planned, 0);
+	const currency = entities[0]?.currency ?? 'EUR';
 
 	return (
 		<View>
@@ -163,6 +170,19 @@ function Section({ title, entities, trendActuals, onEntityPress }: SectionProps)
 					</Text>
 				)}
 			</View>
+
+			{chartSlices && chartSlices.length > 0 && (
+				<AllocationPieChart
+					slices={chartSlices}
+					currency={currency}
+					totalLabel={title}
+					onSlicePress={(slice) => {
+						const entity = entities.find((e) => e.id === slice.id);
+						if (entity) onEntityPress(entity);
+					}}
+					testID={`summary-${title.toLowerCase()}-pie-chart`}
+				/>
+			)}
 
 			{/* Section items */}
 			{entities.map((entity) => {
@@ -219,6 +239,25 @@ export default function SummaryScreen() {
 		[entities, plans, transactions, selectedPeriod]
 	);
 
+	const categoryChartSlices = useMemo(
+		() =>
+			categories
+				.filter((entity) => entity.actual > 0)
+				.map((entity, index) => {
+					const color = entity.color
+						? getEntityColors(entity.type, entity.color).iconColor
+						: DEFAULT_ALLOCATION_COLORS[index % DEFAULT_ALLOCATION_COLORS.length];
+
+					return {
+						id: entity.id,
+						label: entity.name,
+						value: entity.actual,
+						color,
+					};
+				}),
+		[categories]
+	);
+
 	// Sparkline trend: 3 prior months + selected period (categories only)
 	const trendActuals = useMemo(() => {
 		const priorPeriods = getPriorPeriods(selectedPeriod, 3);
@@ -255,6 +294,7 @@ export default function SummaryScreen() {
 							title="Categories"
 							entities={categories}
 							trendActuals={trendActuals}
+							chartSlices={categoryChartSlices}
 							onEntityPress={handleEntityPress}
 						/>
 						<Section

@@ -1291,7 +1291,7 @@ describe('EntityDetailModal', () => {
 				],
 			});
 
-			const { getByTestId, getByText } = render(
+			const { getAllByText, getByTestId, getByText } = render(
 				<EntityDetailModal
 					visible={true}
 					entity={mockAccountEntity}
@@ -1301,10 +1301,11 @@ describe('EntityDetailModal', () => {
 
 			expect(getByTestId('account-reservations-section')).toBeTruthy();
 			expect(getByText('Reserved for')).toBeTruthy();
+			expect(getByTestId('account-reservations-pie-chart')).toBeTruthy();
 			expect(getByTestId('account-reservation-row-saving-1')).toBeTruthy();
 			expect(getByTestId('account-reservation-row-saving-2')).toBeTruthy();
-			expect(getByText('Emergency Fund')).toBeTruthy();
-			expect(getByText('Vacation')).toBeTruthy();
+			expect(getAllByText('Emergency Fund').length).toBeGreaterThan(0);
+			expect(getAllByText('Vacation').length).toBeGreaterThan(0);
 		});
 
 		it('shows empty state when no reservations exist', () => {

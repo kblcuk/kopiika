@@ -34,6 +34,11 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
+import {
+	AllocationPieChart,
+	DEFAULT_ALLOCATION_COLORS,
+	type AllocationPieSlice,
+} from '@/src/components/allocation-pie-chart';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import {
 	getReservationsForSaving,
@@ -143,6 +148,23 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			saving: EntityWithBalance;
 		}[];
 	}, [entity, transactions, entities, savings]);
+
+	const accountReservationChartSlices = useMemo<AllocationPieSlice[]>(
+		() =>
+			accountReservations.map(({ amount, saving }, index) => {
+				const color = saving.color
+					? getEntityColors('saving', saving.color).iconColor
+					: DEFAULT_ALLOCATION_COLORS[index % DEFAULT_ALLOCATION_COLORS.length];
+
+				return {
+					id: saving.id,
+					label: saving.name,
+					value: amount,
+					color,
+				};
+			}),
+		[accountReservations]
+	);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
@@ -671,46 +693,77 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 									Reserved for
 								</Text>
 								{accountReservations.length > 0 ? (
-									<View className="rounded-lg bg-paper-100">
-										{accountReservations.map(({ amount, saving }, index) => {
-											const SavingIcon = getIcon(saving.icon || 'circle');
-											const savingColors = getEntityColors(
-												'saving',
-												saving.color
-											);
-											return (
-												<Pressable
-													key={saving.id}
-													onPress={() => setReservationSaving(saving)}
-													className={`flex-row items-center px-4 py-3 ${
-														index > 0 ? 'border-t border-paper-300' : ''
-													}`}
-													testID={`account-reservation-row-${saving.id}`}
-												>
-													<View
-														className="mr-3 h-8 w-8 items-center justify-center rounded-full"
-														style={{
-															backgroundColor: savingColors.bgColor,
-														}}
-													>
-														<SavingIcon
-															size={16}
-															color={savingColors.iconColor}
-														/>
-													</View>
-													<Text className="flex-1 font-sans text-base text-ink">
-														{saving.name}
-													</Text>
-													<Text
-														className="font-sans-semibold text-base text-ink"
-														style={{ fontVariant: ['tabular-nums'] }}
-													>
-														{formatAmount(amount, entity.currency)}
-													</Text>
-												</Pressable>
-											);
-										})}
-									</View>
+									<>
+										<AllocationPieChart
+											slices={accountReservationChartSlices}
+											currency={entity.currency}
+											totalLabel="Reserved"
+											onSlicePress={(slice) => {
+												const reservation = accountReservations.find(
+													(r) => r.saving.id === slice.id
+												);
+												if (reservation) {
+													setReservationSaving(reservation.saving);
+												}
+											}}
+											containerClassName="pb-4"
+											testID="account-reservations-pie-chart"
+										/>
+										<View className="rounded-lg bg-paper-100">
+											{accountReservations.map(
+												({ amount, saving }, index) => {
+													const SavingIcon = getIcon(
+														saving.icon || 'circle'
+													);
+													const savingColors = getEntityColors(
+														'saving',
+														saving.color
+													);
+													return (
+														<Pressable
+															key={saving.id}
+															onPress={() =>
+																setReservationSaving(saving)
+															}
+															className={`flex-row items-center px-4 py-3 ${
+																index > 0
+																	? 'border-t border-paper-300'
+																	: ''
+															}`}
+															testID={`account-reservation-row-${saving.id}`}
+														>
+															<View
+																className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+																style={{
+																	backgroundColor:
+																		savingColors.bgColor,
+																}}
+															>
+																<SavingIcon
+																	size={16}
+																	color={savingColors.iconColor}
+																/>
+															</View>
+															<Text className="flex-1 font-sans text-base text-ink">
+																{saving.name}
+															</Text>
+															<Text
+																className="font-sans-semibold text-base text-ink"
+																style={{
+																	fontVariant: ['tabular-nums'],
+																}}
+															>
+																{formatAmount(
+																	amount,
+																	entity.currency
+																)}
+															</Text>
+														</Pressable>
+													);
+												}
+											)}
+										</View>
+									</>
 								) : (
 									<Text className="text-ink-faint font-sans text-sm">
 										Drag a savings goal onto this account to reserve funds

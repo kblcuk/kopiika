@@ -1,13 +1,15 @@
 import React from 'react';
-import { render, waitFor, act } from '@testing-library/react-native';
+import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import SummaryScreen from '../summary';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
 
+const mockPush = jest.fn();
+
 // Mock dependencies
 jest.mock('expo-router', () => ({
 	useRouter: () => ({
-		push: jest.fn(),
+		push: mockPush,
 	}),
 }));
 
@@ -205,6 +207,41 @@ describe('SummaryScreen', () => {
 
 			expect(getByText('Savings')).toBeTruthy();
 			expect(getByText('Vacation')).toBeTruthy();
+		});
+
+		it('renders a tappable category allocation chart that opens history', () => {
+			useStore.setState({
+				entities: [mockCategory, mockAccount],
+				plans: [mockPlan],
+				transactions: [
+					{
+						id: 'tx-1',
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						amount: 175,
+						currency: 'USD',
+						timestamp: Date.now(),
+					},
+				],
+			});
+
+			const { getAllByText, getByTestId } = render(<SummaryScreen />);
+
+			expect(getByTestId('summary-categories-pie-chart')).toBeTruthy();
+
+			fireEvent.press(getByTestId('summary-categories-pie-chart-legend-category-1'));
+
+			expect(mockPush).not.toHaveBeenCalled();
+			expect(getAllByText('100%').length).toBeGreaterThan(0);
+
+			fireEvent.press(getByTestId('summary-categories-pie-chart-clear-selection'));
+			fireEvent.press(getByTestId('summary-categories-pie-chart-slice-category-1'));
+
+			expect(mockPush).not.toHaveBeenCalled();
+
+			fireEvent.press(getByTestId('summary-categories-pie-chart-slice-category-1'));
+
+			expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('entityId=category-1'));
 		});
 
 		it('should use transactions for savings actuals', () => {
