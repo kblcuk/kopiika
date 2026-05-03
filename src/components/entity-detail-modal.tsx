@@ -30,6 +30,7 @@ import {
 } from '../styles/text-input';
 import { colors } from '@/src/theme/colors';
 import { generateId } from '@/src/utils/ids';
+import { TransactionValidationError } from '@/src/utils/transaction-validation';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
@@ -292,7 +293,18 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,
 				};
 
-				await addTransaction(adjustmentTransaction);
+				try {
+					await addTransaction(adjustmentTransaction);
+				} catch (error) {
+					console.error('Balance adjustment failed:', error);
+					Alert.alert(
+						'Balance update failed',
+						error instanceof TransactionValidationError
+							? error.message
+							: 'Could not record the balance adjustment.'
+					);
+					return;
+				}
 			}
 		}
 

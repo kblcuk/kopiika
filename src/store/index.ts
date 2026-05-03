@@ -25,6 +25,16 @@ import {
 	getTotalReservedForAccount,
 } from '@/src/utils/savings-transactions';
 import {
+	ensureValid,
+	validateTransaction,
+	validateUpdate,
+} from '@/src/utils/transaction-validation';
+import {
+	buildRecurringTemplate,
+	buildTransaction,
+	defaultIsConfirmed,
+} from '@/src/utils/transaction-builder';
+import {
 	getNotifiableTransactions,
 	scheduleTransactionNotification,
 	setupNotificationChannel,
@@ -197,6 +207,7 @@ async function syncBadgeCount(get: () => AppState): Promise<void> {
 async function backfillRecurrences(
 	templates: RecurrenceTemplate[],
 	existingTransactions: Transaction[],
+	entities: Entity[],
 	set: (fn: (state: AppState) => Partial<AppState>) => void
 ): Promise<void> {
 	const now = Date.now();
@@ -204,6 +215,25 @@ async function backfillRecurrences(
 
 	for (const template of templates) {
 		if (template.is_deleted) continue;
+
+		// Skip templates whose entities became invalid (e.g. soft-deleted) since
+		// authoring. Validating the template once is enough — every generated
+		// occurrence shares its from/to/currency.
+		const validation = validateTransaction(
+			{
+				from_entity_id: template.from_entity_id,
+				to_entity_id: template.to_entity_id,
+				amount: template.amount,
+				currency: template.currency,
+			},
+			entities
+		);
+		if (!validation.ok) {
+			console.warn(
+				`Skipping backfill for template ${template.id}: ${validation.code} (${validation.message})`
+			);
+			continue;
+		}
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
 		const exclusions: number[] = JSON.parse(template.exclusions ?? '[]');
@@ -224,17 +254,21 @@ async function backfillRecurrences(
 
 		for (const ts of expectedTimestamps) {
 			if (!existingTimestamps.has(ts)) {
-				newTransactions.push({
-					id: generateId(),
-					from_entity_id: template.from_entity_id,
-					to_entity_id: template.to_entity_id,
-					amount: template.amount,
-					currency: template.currency,
-					timestamp: ts,
-					note: template.note,
-					series_id: template.id,
-					is_confirmed: false,
-				});
+				newTransactions.push(
+					buildTransaction(
+						{
+							from_entity_id: template.from_entity_id,
+							to_entity_id: template.to_entity_id,
+							amount: template.amount,
+							currency: template.currency,
+							timestamp: ts,
+							note: template.note ?? undefined,
+							series_id: template.id,
+							is_confirmed: false,
+						},
+						now
+					)
+				);
 			}
 		}
 	}
@@ -245,7 +279,6 @@ async function backfillRecurrences(
 			transactions: [...newTransactions, ...state.transactions],
 		}));
 		// Schedule notifications for future unconfirmed transactions
-		const entities = await db.getAllEntities();
 		await scheduleNotificationsForTransactions(newTransactions, entities, set);
 	}
 }
@@ -302,7 +335,7 @@ export const useStore = create<AppState>((set, get) => ({
 				});
 
 				// Backfill any missing occurrences within the horizon window
-				await backfillRecurrences(recurrenceTemplates, transactions, set);
+				await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
 			} catch (error) {
 				console.error('Failed to initialize store:', error);
 				set({ isLoading: false });
@@ -331,6 +364,31 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 
 		const drizzleDb = await db.getDrizzleDb();
+
+		// Validate transactions against the *new* entity set (not the current store)
+		// since the import is replacing everything. Skip invalid rows rather than
+		// aborting — partial imports beat a hard failure when the user has already
+		// committed to the dialog. Include the BAL system entity so historical
+		// balance adjustments validate even if the export omitted it.
+		const validationEntities = newEntities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)
+			? newEntities
+			: [...newEntities, createBalanceAdjustmentEntity()];
+		const validTransactions: Transaction[] = [];
+		let droppedCount = 0;
+		for (const txn of newTransactions) {
+			const result = validateTransaction(txn, validationEntities);
+			if (result.ok) {
+				validTransactions.push(txn);
+			} else {
+				droppedCount += 1;
+				console.warn(
+					`Skipping imported transaction ${txn.id}: ${result.code} (${result.message})`
+				);
+			}
+		}
+		if (droppedCount > 0) {
+			console.warn(`Import: skipped ${droppedCount} invalid transaction(s)`);
+		}
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		drizzleDb.transaction((tx) => {
@@ -364,7 +422,7 @@ export const useStore = create<AppState>((set, get) => ({
 			for (const plan of newPlans) {
 				tx.insert(schema.plans).values(plan).run();
 			}
-			for (const txn of newTransactions) {
+			for (const txn of validTransactions) {
 				tx.insert(schema.transactions)
 					.values({
 						id: txn.id,
@@ -515,20 +573,11 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Transaction actions
 	addTransaction: async (transaction) => {
-		// Validate that both entities exist before creating transaction
-		const state = get();
-		const fromExists = hasActiveEntity(state.entities, transaction.from_entity_id);
-		const toExists = hasActiveEntity(state.entities, transaction.to_entity_id);
-		if (!fromExists || !toExists) {
-			console.warn(
-				`Cannot create transaction with non-existent entities: from=${transaction.from_entity_id}, to=${transaction.to_entity_id}`
-			);
-			return;
-		}
+		ensureValid(validateTransaction(transaction, get().entities));
 
 		const txWithConfirm = {
 			...transaction,
-			is_confirmed: transaction.is_confirmed ?? transaction.timestamp <= Date.now(),
+			is_confirmed: transaction.is_confirmed ?? defaultIsConfirmed(transaction.timestamp),
 		};
 		await db.createTransaction(txWithConfirm);
 		set((state) => ({ transactions: [txWithConfirm, ...state.transactions] }));
@@ -542,35 +591,7 @@ export const useStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		// Determine final from/to entity IDs after update
-		const finalFromId = updates.from_entity_id ?? transaction.from_entity_id;
-		const finalToId = updates.to_entity_id ?? transaction.to_entity_id;
-
-		// Prevent same entity on both sides
-		if (finalFromId === finalToId) {
-			console.warn('Cannot update transaction: from and to entities cannot be the same');
-			return;
-		}
-
-		// Validate entities exist (allow BALANCE_ADJUSTMENT as special case)
-		const fromEntity = state.entities.find((e) => e.id === finalFromId);
-		const toEntity = state.entities.find((e) => e.id === finalToId);
-
-		const fromExists =
-			finalFromId === BALANCE_ADJUSTMENT_ENTITY_ID ||
-			(fromEntity
-				? !fromEntity.is_deleted || finalFromId === transaction.from_entity_id
-				: false);
-		const toExists = toEntity
-			? !toEntity.is_deleted || finalToId === transaction.to_entity_id
-			: false;
-
-		if (!fromExists || !toExists) {
-			console.warn(
-				`Cannot update transaction with non-existent entities: from=${finalFromId}, to=${finalToId}`
-			);
-			return;
-		}
+		ensureValid(validateUpdate(transaction, updates, state.entities));
 
 		await db.updateTransaction(id, updates);
 		set((state) => ({
@@ -596,25 +617,21 @@ export const useStore = create<AppState>((set, get) => ({
 	// Recurrence actions
 	addRecurringTransaction: async (transaction, recurrence) => {
 		const state = get();
-		const fromExists = hasActiveEntity(state.entities, transaction.from_entity_id);
-		const toExists = hasActiveEntity(state.entities, transaction.to_entity_id);
-		if (!fromExists || !toExists) return;
+		ensureValid(validateTransaction(transaction, state.entities));
 
-		const templateId = generateId();
-		const template: RecurrenceTemplate = {
-			id: templateId,
+		const template = buildRecurringTemplate({
 			from_entity_id: transaction.from_entity_id,
 			to_entity_id: transaction.to_entity_id,
 			amount: transaction.amount,
 			currency: transaction.currency,
-			note: transaction.note,
-			rule: JSON.stringify(recurrence.rule),
-			start_date: transaction.timestamp,
-			end_date: recurrence.endDate ?? null,
-			end_count: recurrence.endCount ?? null,
+			note: transaction.note ?? undefined,
+			timestamp: transaction.timestamp,
+			rule: recurrence.rule,
+			endDate: recurrence.endDate,
+			endCount: recurrence.endCount,
 			horizon: recurrence.horizon,
-			created_at: Date.now(),
-		};
+		});
+		const templateId = template.id;
 
 		await db.createRecurrenceTemplate(template);
 
@@ -628,17 +645,20 @@ export const useStore = create<AppState>((set, get) => ({
 		});
 
 		const now = Date.now();
-		const txns: Transaction[] = occurrences.map((ts) => ({
-			id: generateId(),
-			from_entity_id: transaction.from_entity_id,
-			to_entity_id: transaction.to_entity_id,
-			amount: transaction.amount,
-			currency: transaction.currency,
-			timestamp: ts,
-			note: transaction.note,
-			series_id: templateId,
-			is_confirmed: ts <= now,
-		}));
+		const txns: Transaction[] = occurrences.map((ts) =>
+			buildTransaction(
+				{
+					from_entity_id: transaction.from_entity_id,
+					to_entity_id: transaction.to_entity_id,
+					amount: transaction.amount,
+					currency: transaction.currency,
+					timestamp: ts,
+					note: transaction.note ?? undefined,
+					series_id: templateId,
+				},
+				now
+			)
+		);
 
 		if (txns.length > 0) {
 			await db.createTransactionBatch(txns);
@@ -676,6 +696,8 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 
 		// scope === 'future': update template + all future transactions
+		ensureValid(validateUpdate(transaction, updates, state.entities));
+
 		const seriesId = transaction.series_id;
 		const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
 
@@ -897,13 +919,12 @@ export const useStore = create<AppState>((set, get) => ({
 	// Savings reservation — computes delta from current net and creates a transaction
 	reserveToSaving: async (accountEntityId, savingEntityId, desiredTotal) => {
 		const state = get();
-		const account = state.entities.find((e) => e.id === accountEntityId && !e.is_deleted);
-		const saving = state.entities.find((e) => e.id === savingEntityId && !e.is_deleted);
+		const account = state.entities.find((e) => e.id === accountEntityId);
+		const saving = state.entities.find((e) => e.id === savingEntityId);
 		if (!account || !saving) {
-			console.warn(
+			throw new Error(
 				`Cannot reserve with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
 			);
-			return;
 		}
 
 		const currentNet = getReservationForPair(
@@ -923,6 +944,8 @@ export const useStore = create<AppState>((set, get) => ({
 			currency: account.currency,
 			timestamp: Date.now(),
 		};
+
+		ensureValid(validateTransaction(transaction, state.entities));
 
 		await db.createTransaction(transaction);
 		set((s) => ({ transactions: [transaction, ...s.transactions] }));

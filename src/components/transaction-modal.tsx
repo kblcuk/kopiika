@@ -21,14 +21,24 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
-import { generateId } from '@/src/utils/ids';
 import {
 	sharedNumericTextInputProps,
 	sharedTextInputProps,
 	styles,
 	textInputClassNames,
 } from '../styles/text-input';
-import { getValidFromEntities, getValidToEntities } from '@/src/utils/transaction-validation';
+import {
+	getValidFromEntities,
+	getValidToEntities,
+	TransactionValidationError,
+} from '@/src/utils/transaction-validation';
+import {
+	buildSavingsReleases,
+	buildSplitRows,
+	buildTransaction,
+	normalizeCreateTimestamp,
+} from '@/src/utils/transaction-builder';
+import { generateId } from '@/src/utils/ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
@@ -406,50 +416,20 @@ export function TransactionModal({
 		const resolvedAmount = amountExpr.resolve();
 
 		try {
-			const now = new Date();
 			const timestamp = isEditing
 				? selectedDate.getTime()
-				: (() => {
-						const result = new Date(selectedDate);
-						result.setHours(
-							now.getHours(),
-							now.getMinutes(),
-							now.getSeconds(),
-							now.getMilliseconds()
-						);
-						return result.getTime();
-					})();
+				: normalizeCreateTimestamp(selectedDate);
 
 			const splitFrom = displayFromEntity;
 			if (isSplitMode && splitFrom) {
-				const txns: Parameters<typeof addTransaction>[0][] = [];
-
-				// Anchor transaction (row 0)
-				if (splits[0]?.toEntityId && anchorAmount > 0) {
-					txns.push({
-						id: generateId(),
-						from_entity_id: splitFrom.id,
-						to_entity_id: splits[0].toEntityId,
-						amount: anchorAmount,
-						currency: splitFrom.currency,
-						timestamp,
-						note: note.trim() || undefined,
-					});
-				}
-				// Non-anchor splits
-				for (const split of splits.slice(1)) {
-					const amt = reverseFormatCurrency(split.amount);
-					if (!split.toEntityId || isNaN(amt) || amt <= 0) continue;
-					txns.push({
-						id: generateId(),
-						from_entity_id: splitFrom.id,
-						to_entity_id: split.toEntityId,
-						amount: amt,
-						currency: splitFrom.currency,
-						timestamp,
-						note: note.trim() || undefined,
-					});
-				}
+				const txns = buildSplitRows({
+					fromEntityId: splitFrom.id,
+					currency: splitFrom.currency,
+					timestamp,
+					note: note.trim() || undefined,
+					splitTotal,
+					splits: splits.map((s) => ({ toEntityId: s.toEntityId, amount: s.amount })),
+				});
 
 				if (txns.length === 0) {
 					setIsSubmitting(false);
@@ -457,20 +437,13 @@ export function TransactionModal({
 				}
 				for (const txn of txns) await addTransaction(txn);
 
-				// Release savings reservations via saving→account transactions
-				// Always confirmed — releases are immediate regardless of main transaction date
-				const splitFunded = fundingRef.current?.getFundedReservations() ?? [];
-				for (const f of splitFunded) {
-					await addTransaction({
-						id: generateId(),
-						from_entity_id: f.savingEntityId,
-						to_entity_id: splitFrom.id,
-						amount: f.fundAmount,
-						currency: splitFrom.currency,
-						timestamp,
-						is_confirmed: true,
-					});
-				}
+				const splitReleases = buildSavingsReleases({
+					accountId: splitFrom.id,
+					currency: splitFrom.currency,
+					timestamp,
+					funded: fundingRef.current?.getFundedReservations() ?? [],
+				});
+				for (const r of splitReleases) await addTransaction(r);
 
 				void KeyboardController.dismiss();
 				onClose();
@@ -527,35 +500,29 @@ export function TransactionModal({
 						}
 					);
 				} else {
-					await addTransaction({
-						id: generateId(),
-						from_entity_id: selectedFromEntity.id,
-						to_entity_id: selectedToEntity.id,
-						amount: numAmount,
-						currency: selectedFromEntity.currency,
-						timestamp,
-						note: note.trim() || undefined,
-					});
+					await addTransaction(
+						buildTransaction({
+							from_entity_id: selectedFromEntity.id,
+							to_entity_id: selectedToEntity.id,
+							amount: numAmount,
+							currency: selectedFromEntity.currency,
+							timestamp,
+							note: note.trim() || undefined,
+						})
+					);
 				}
 			}
 
-			// Release savings reservations via saving→account transactions
-			// Always confirmed — releases are immediate regardless of main transaction date
-			const funded = fundingRef.current?.getFundedReservations() ?? [];
 			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
 			const fundCurrency = selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
 			if (accountId) {
-				for (const f of funded) {
-					await addTransaction({
-						id: generateId(),
-						from_entity_id: f.savingEntityId,
-						to_entity_id: accountId,
-						amount: f.fundAmount,
-						currency: fundCurrency,
-						timestamp,
-						is_confirmed: true,
-					});
-				}
+				const releases = buildSavingsReleases({
+					accountId,
+					currency: fundCurrency,
+					timestamp,
+					funded: fundingRef.current?.getFundedReservations() ?? [],
+				});
+				for (const r of releases) await addTransaction(r);
 			}
 
 			void KeyboardController.dismiss();
@@ -563,7 +530,11 @@ export function TransactionModal({
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
 			setIsSubmitting(false);
-			Alert.alert('Save failed', 'Could not save the transaction. Please try again.');
+			const detail =
+				error instanceof TransactionValidationError
+					? error.message
+					: 'Could not save the transaction. Please try again.';
+			Alert.alert('Save failed', detail);
 		}
 	};
 

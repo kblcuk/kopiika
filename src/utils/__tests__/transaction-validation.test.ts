@@ -1,6 +1,14 @@
-import type { Entity } from '@/src/types';
+import type { Entity, Transaction } from '@/src/types';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
-import { getValidFromEntities, getValidToEntities, isAllowedPair } from '../transaction-validation';
+import {
+	TransactionValidationError,
+	ensureValid,
+	getValidFromEntities,
+	getValidToEntities,
+	isAllowedPair,
+	validateTransaction,
+	validateUpdate,
+} from '../transaction-validation';
 
 describe('transaction-validation', () => {
 	// Test entities with different types and currencies
@@ -353,6 +361,276 @@ describe('transaction-validation', () => {
 			['saving', 'category'],
 		] as const)('%s → %s is blocked', (from, to) => {
 			expect(isAllowedPair(from, to)).toBe(false);
+		});
+	});
+
+	describe('validateTransaction', () => {
+		it('accepts a well-formed income → account transaction', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount: 100,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(true);
+		});
+
+		it('rejects zero or negative amounts', () => {
+			for (const amount of [0, -1, NaN, Infinity]) {
+				const result = validateTransaction(
+					{
+						from_entity_id: 'income-1',
+						to_entity_id: 'account-1',
+						amount,
+						currency: 'USD',
+					},
+					allEntities
+				);
+				expect(result.ok).toBe(false);
+				if (!result.ok) expect(result.code).toBe('INVALID_AMOUNT');
+			}
+		});
+
+		it('rejects same-entity transfers', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: 'account-1',
+					to_entity_id: 'account-1',
+					amount: 1,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('SAME_ENTITY');
+		});
+
+		it('rejects unknown source entity', () => {
+			const result = validateTransaction(
+				{ from_entity_id: 'ghost', to_entity_id: 'account-1', amount: 1, currency: 'USD' },
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('MISSING_FROM');
+		});
+
+		it('rejects unknown destination entity', () => {
+			const result = validateTransaction(
+				{ from_entity_id: 'income-1', to_entity_id: 'ghost', amount: 1, currency: 'USD' },
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('MISSING_TO');
+		});
+
+		it('rejects deleted source entity', () => {
+			const deletedIncome: Entity = { ...income1, is_deleted: true };
+			const result = validateTransaction(
+				{
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount: 1,
+					currency: 'USD',
+				},
+				[deletedIncome, account1]
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('DELETED_FROM');
+		});
+
+		it('rejects deleted destination entity', () => {
+			const deletedAccount: Entity = { ...account1, is_deleted: true };
+			const result = validateTransaction(
+				{
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount: 1,
+					currency: 'USD',
+				},
+				[income1, deletedAccount]
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('DELETED_TO');
+		});
+
+		it.each([
+			['income-1', 'income-2'],
+			['income-1', 'category-1'],
+			['category-1', 'income-1'],
+			['saving-1', 'category-1'],
+		])('rejects invalid type pair %s → %s', (from, to) => {
+			const result = validateTransaction(
+				{ from_entity_id: from, to_entity_id: to, amount: 1, currency: 'USD' },
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('INVALID_PAIR');
+		});
+
+		it('rejects entity currency mismatch (USD account → EUR account)', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: 'account-1',
+					to_entity_id: 'account-eur',
+					amount: 1,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('CURRENCY_MISMATCH');
+		});
+
+		it('rejects transaction currency that does not match entities', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount: 1,
+					currency: 'EUR',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('CURRENCY_MISMATCH');
+		});
+
+		it('allows balance-adjustment → account regardless of type rules', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-1',
+					amount: 5,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(true);
+		});
+
+		it('rejects balance-adjustment → non-account', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'category-1',
+					amount: 5,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('INVALID_PAIR');
+		});
+
+		it('allows account → balance-adjustment (downward correction)', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: 'account-1',
+					to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					amount: 5,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(true);
+		});
+
+		it('rejects balance-adjustment paired with wrong-currency account', () => {
+			const result = validateTransaction(
+				{
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-eur',
+					amount: 5,
+					currency: 'USD',
+				},
+				allEntities
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('CURRENCY_MISMATCH');
+		});
+	});
+
+	describe('validateUpdate', () => {
+		const baseTx: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount: 100,
+			currency: 'USD',
+			timestamp: 1_700_000_000_000,
+		};
+
+		it('accepts a no-op update', () => {
+			expect(validateUpdate(baseTx, {}, allEntities).ok).toBe(true);
+		});
+
+		it('accepts an amount-only patch', () => {
+			expect(validateUpdate(baseTx, { amount: 250 }, allEntities).ok).toBe(true);
+		});
+
+		it('rejects amount patch that goes to zero', () => {
+			const result = validateUpdate(baseTx, { amount: 0 }, allEntities);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('INVALID_AMOUNT');
+		});
+
+		it('rejects swap that makes from == to', () => {
+			const result = validateUpdate(baseTx, { to_entity_id: 'income-1' }, allEntities);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('SAME_ENTITY');
+		});
+
+		it('rejects patch that introduces an invalid type pair', () => {
+			const result = validateUpdate(baseTx, { to_entity_id: 'income-2' }, allEntities);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('INVALID_PAIR');
+		});
+
+		it('allows editing a transaction whose from-entity has since been deleted', () => {
+			// User can still edit amount/note even after the entity was soft-deleted, as
+			// long as the patch does not change which entity is referenced on that side.
+			const deletedIncome: Entity = { ...income1, is_deleted: true };
+			const result = validateUpdate(baseTx, { amount: 5 }, [deletedIncome, account1]);
+			expect(result.ok).toBe(true);
+		});
+
+		it('rejects a currency-only patch that mismatches the entities', () => {
+			// Patch changes only the transaction currency without touching either
+			// entity. The cross-check against the entities (USD) must reject EUR.
+			const result = validateUpdate(baseTx, { currency: 'EUR' }, allEntities);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('CURRENCY_MISMATCH');
+		});
+
+		it('rejects re-pointing TO a deleted entity', () => {
+			const deletedCategory: Entity = { ...category1, is_deleted: true };
+			const result = validateUpdate(
+				{ ...baseTx, from_entity_id: 'account-1', to_entity_id: 'category-2' },
+				{ to_entity_id: 'category-1' },
+				[account1, deletedCategory, category2]
+			);
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.code).toBe('DELETED_TO');
+		});
+	});
+
+	describe('ensureValid / TransactionValidationError', () => {
+		it('does nothing on ok results', () => {
+			expect(() => ensureValid({ ok: true })).not.toThrow();
+		});
+
+		it('throws TransactionValidationError with code on invalid results', () => {
+			try {
+				ensureValid({ ok: false, code: 'SAME_ENTITY', message: 'nope' });
+				throw new Error('expected throw');
+			} catch (e) {
+				expect(e).toBeInstanceOf(TransactionValidationError);
+				expect((e as TransactionValidationError).code).toBe('SAME_ENTITY');
+				expect((e as Error).message).toBe('nope');
+			}
 		});
 	});
 });

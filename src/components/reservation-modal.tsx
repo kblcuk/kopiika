@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, TextInput, Pressable, Modal, Platform } from 'react-native';
+import { View, TextInput, Pressable, Modal, Platform, Alert } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
@@ -17,6 +17,7 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { useStore } from '@/src/store';
+import { TransactionValidationError } from '@/src/utils/transaction-validation';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
@@ -64,18 +65,38 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const parsedAmount = roundMoney(reverseFormatCurrency(amount, currency));
 	const canSubmit = parsedAmount > 0;
 
+	const showReservationError = (error: unknown) => {
+		console.error('Reservation failed:', error);
+		Alert.alert(
+			'Reservation failed',
+			error instanceof TransactionValidationError
+				? error.message
+				: 'Could not update the reservation. Please try again.'
+		);
+	};
+
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
 		const resolved = amountExpr.resolve();
 		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
 		if (isNaN(finalAmount) || finalAmount <= 0) return;
-		await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
+		try {
+			await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
+		} catch (error) {
+			showReservationError(error);
+			return;
+		}
 		void KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleClear = async () => {
-		await reserveToSaving(account.id, saving.id, 0);
+		try {
+			await reserveToSaving(account.id, saving.id, 0);
+		} catch (error) {
+			showReservationError(error);
+			return;
+		}
 		void KeyboardController.dismiss();
 		onClose();
 	};

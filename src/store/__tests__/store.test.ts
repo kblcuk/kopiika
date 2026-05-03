@@ -266,7 +266,7 @@ describe('Store Data Integrity', () => {
 	});
 
 	describe('addTransaction', () => {
-		test('should prevent transaction with non-existent from_entity', async () => {
+		test('should reject transaction with non-existent from_entity', async () => {
 			useStore.setState({
 				entities: [
 					{
@@ -290,17 +290,16 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now(),
 			};
 
-			await useStore.getState().addTransaction(transaction);
+			await expect(useStore.getState().addTransaction(transaction)).rejects.toMatchObject({
+				name: 'TransactionValidationError',
+				code: 'MISSING_FROM',
+			});
 
-			const state = useStore.getState();
-			expect(state.transactions).toHaveLength(0);
-
-			// Verify it wasn't written to database
-			const dbTransactions = await db.getAllTransactions();
-			expect(dbTransactions).toHaveLength(0);
+			expect(useStore.getState().transactions).toHaveLength(0);
+			expect(await db.getAllTransactions()).toHaveLength(0);
 		});
 
-		test('should prevent transaction with non-existent to_entity', async () => {
+		test('should reject transaction with non-existent to_entity', async () => {
 			useStore.setState({
 				entities: [
 					{
@@ -324,14 +323,13 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now(),
 			};
 
-			await useStore.getState().addTransaction(transaction);
+			await expect(useStore.getState().addTransaction(transaction)).rejects.toMatchObject({
+				name: 'TransactionValidationError',
+				code: 'MISSING_TO',
+			});
 
-			const state = useStore.getState();
-			expect(state.transactions).toHaveLength(0);
-
-			// Verify it wasn't written to database
-			const dbTransactions = await db.getAllTransactions();
-			expect(dbTransactions).toHaveLength(0);
+			expect(useStore.getState().transactions).toHaveLength(0);
+			expect(await db.getAllTransactions()).toHaveLength(0);
 		});
 
 		test('should allow transaction between existing entities', async () => {
