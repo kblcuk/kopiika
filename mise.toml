@@ -10,7 +10,31 @@ bun = "latest"
 fnox = "latest"
 gradle = "9.0.0"
 java = "21"
+node = "latest"
 ruby = "latest"
+
+# --- E2E tasks ---
+# Wraps `detox build | xcpretty && detox test` with bash pipefail so a failing
+# xcodebuild propagates correctly. Fish's `cmd | xcpretty && next` ANDs on
+# xcpretty's status, which silently masks build failures and re-runs Detox
+# against the previous binary.
+
+[tasks."e2e:ios"]
+description = "Build the iOS E2E binary (with xcpretty) and run Detox tests"
+run = """
+set -eo pipefail
+bun run build:e2e:ios | xcpretty
+bunx detox test --configuration ios.sim.debug "$@"
+"""
+
+[tasks."e2e:android"]
+description = "Build the Android E2E binary and run Detox tests"
+run = """
+set -eo pipefail
+bun run build:e2e:android
+bunx detox test --configuration android.emu.debug "$@"
+"""
+
 
 # --- Release tasks ---
 # mise is the single implementation layer for release commands.
