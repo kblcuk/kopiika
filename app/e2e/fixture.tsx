@@ -3,7 +3,6 @@ import { View, Text } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { getAllEntities, getNextPosition } from '@/src/db/entities';
-import { createTransaction } from '@/src/db/transactions';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
@@ -44,12 +43,11 @@ export default function E2EFixtureScreen() {
 					: parsed;
 
 				await setHasCompletedOnboarding(true);
-
-				// Use the store's addEntity action: it writes the DB AND updates
-				// the in-memory entities array. A direct db.createEntity() call
-				// would persist but the home screen wouldn't render the new
-				// bubbles, since the store hydrates only at app launch.
-				const addEntity = useStore.getState().addEntity;
+				// Use the store's addEntity / addTransaction actions: they write
+				// the DB AND update the in-memory arrays. Direct db.* calls would
+				// persist but the home screen wouldn't reflect the changes, since
+				// the store hydrates only at app launch.
+				const { addEntity, addTransaction } = useStore.getState();
 				for (const e of payload.entities ?? []) {
 					const row = e.row ?? 0;
 					const position = await getNextPosition(e.type, row);
@@ -75,6 +73,7 @@ export default function E2EFixtureScreen() {
 						console.error(`[E2E fixture] entity not found: "${tx.from}" or "${tx.to}"`);
 						continue;
 					}
+
 					const transaction: Transaction = {
 						id: generateId(),
 						from_entity_id: from.id,
@@ -86,7 +85,7 @@ export default function E2EFixtureScreen() {
 						series_id: tx.seriesId,
 						is_confirmed: tx.isConfirmed,
 					};
-					await createTransaction(transaction);
+					await addTransaction(transaction);
 					// Push into the in-memory store so the History/Home screens see
 					// the seeded transaction without an app relaunch — entity bubbles
 					// re-render from `useStore`, not the DB.
