@@ -28,7 +28,13 @@ export async function dismissWhatsNewIfPresent() {
 
 // Reads the numeric amount shown on a bubble. Uses the accessibilityLabel
 // which contains the raw numeric string, bypassing locale-dependent formatting.
+// Waits for the bubble to render — after a fresh install or relaunch the home
+// grid hydrates entity-by-entity, and bubbles other than the first may not be
+// in the view hierarchy yet when a test reads them.
 export async function getAmount(entityName: string): Promise<number> {
+	await waitFor(element(by.id(TestIDs.entityAmount(entityName))))
+		.toBeVisible()
+		.withTimeout(5000);
 	const attrs = await element(by.id(TestIDs.entityAmount(entityName))).getAttributes();
 	if ('elements' in attrs) {
 		console.warn(`Found multiple entities matching [${entityName}], using first one`);
