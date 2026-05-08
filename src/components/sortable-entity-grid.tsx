@@ -422,6 +422,7 @@ export function SortableEntityGrid({
 					{hasEntities ? (
 						<Animated.ScrollView
 							ref={scrollViewRef}
+							testID={`section-scroll-${type}`}
 							horizontal
 							showsHorizontalScrollIndicator={false}
 							contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}

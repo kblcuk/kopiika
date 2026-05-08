@@ -5,6 +5,7 @@
 E2E tests cover **user journeys**, not implementation details. Each test should read like a real user scenario: open the app, do something, verify what the user would see.
 
 **Do not change application code to make tests pass.** Tests must work against exactly what a real user gets. The only permitted exceptions are:
+
 - Adding `testID` props to components (maximum one `testID` per interactive/observable element, no logic changes)
 - Using `seedFixture` to pre-populate the database (replaces manual UI setup, not business logic)
 
@@ -14,22 +15,22 @@ If a flow cannot be tested without changing app behaviour, the test design is wr
 
 A behaviour or risk should be tested at the **lowest level that can fully exercise it**. E2E is the slowest, most fragile layer; reserve it for things only an emulator can verify. Use this matrix when deciding where a new test belongs (or whether to keep an existing one):
 
-| Behaviour / Risk | Best level | Why |
-| --- | --- | --- |
-| Pure rules (transaction pair validity, allowed/blocked combos, drag target resolution) | **Unit / utils** (`src/utils/__tests__/*.test.ts`) | Pure functions, fast, deterministic, easy to cover exhaustively |
-| Picker source/destination filtering matrices | **Unit** (`transaction-validation.test.ts`) | Filtering output is a pure function of state + validation helpers |
-| Balance math, derived `actual`/`remaining`/`upcoming` values | **Store / DB / selector** (`src/store/__tests__`, `src/db/__tests__`) | Business logic & persistence semantics are easier to assert directly |
-| Modal submit/edit/delete behaviour, validation hints, split mode | **Component** (`src/components/__tests__/*.test.tsx`) | Modal state and rendering are testable headlessly without native gestures |
-| Drag mapping (source/target type → outcome) | **Unit** (`drop-zone.test.ts`) | Deterministic registry/lookup logic |
-| Screen-level filter/search/sort logic (history, summary) | **Screen** (`app/**/__tests__/*.test.tsx`) | RNTL can drive the screen with mocked navigation |
-| Real long-press drag gesture works on device | **E2E** | Requires simulator/native gesture behaviour |
-| Reverse-drag opens the right native modal/picker | **E2E** | Validates gesture + screen integration + modal presentation |
-| Native modal stacking / animation timing after picker transitions | **E2E** | Hard to reproduce faithfully in headless tests |
-| App launch, initial screen visibility, first-run overlays | **E2E** | Verifies full app shell behaviour |
-| Persistence across relaunch | **E2E** | Requires real app lifecycle and persisted SQLite state |
-| Platform-specific interaction (iOS clipping, Android notification shade, animation behaviour) | **E2E** | Only visible in emulator/device environments |
-| Deep-link / fixture seeding / share/import flows | **E2E** | Depend on app integration points outside pure React rendering |
-| End-to-end CRUD across navigation + persistence (history edit/delete) | **E2E** | Full-stack integration path |
+| Behaviour / Risk                                                                              | Best level                                                            | Why                                                                       |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Pure rules (transaction pair validity, allowed/blocked combos, drag target resolution)        | **Unit / utils** (`src/utils/__tests__/*.test.ts`)                    | Pure functions, fast, deterministic, easy to cover exhaustively           |
+| Picker source/destination filtering matrices                                                  | **Unit** (`transaction-validation.test.ts`)                           | Filtering output is a pure function of state + validation helpers         |
+| Balance math, derived `actual`/`remaining`/`upcoming` values                                  | **Store / DB / selector** (`src/store/__tests__`, `src/db/__tests__`) | Business logic & persistence semantics are easier to assert directly      |
+| Modal submit/edit/delete behaviour, validation hints, split mode                              | **Component** (`src/components/__tests__/*.test.tsx`)                 | Modal state and rendering are testable headlessly without native gestures |
+| Drag mapping (source/target type → outcome)                                                   | **Unit** (`drop-zone.test.ts`)                                        | Deterministic registry/lookup logic                                       |
+| Screen-level filter/search/sort logic (history, summary)                                      | **Screen** (`app/**/__tests__/*.test.tsx`)                            | RNTL can drive the screen with mocked navigation                          |
+| Real long-press drag gesture works on device                                                  | **E2E**                                                               | Requires simulator/native gesture behaviour                               |
+| Reverse-drag opens the right native modal/picker                                              | **E2E**                                                               | Validates gesture + screen integration + modal presentation               |
+| Native modal stacking / animation timing after picker transitions                             | **E2E**                                                               | Hard to reproduce faithfully in headless tests                            |
+| App launch, initial screen visibility, first-run overlays                                     | **E2E**                                                               | Verifies full app shell behaviour                                         |
+| Persistence across relaunch                                                                   | **E2E**                                                               | Requires real app lifecycle and persisted SQLite state                    |
+| Platform-specific interaction (iOS clipping, Android notification shade, animation behaviour) | **E2E**                                                               | Only visible in emulator/device environments                              |
+| Deep-link / fixture seeding / share/import flows                                              | **E2E**                                                               | Depend on app integration points outside pure React rendering             |
+| End-to-end CRUD across navigation + persistence (history edit/delete)                         | **E2E**                                                               | Full-stack integration path                                               |
 
 **Decision flow** when adding a new test:
 
@@ -39,12 +40,14 @@ A behaviour or risk should be tested at the **lowest level that can fully exerci
 4. Does it require a **real device/simulator** (gesture, navigation across native modals, relaunch, deep-link)? Only then write an E2E test.
 
 **Anti-patterns in E2E** (move these down):
+
 - Re-checking validation matrices that are already pure-function tests.
 - Re-checking picker inclusion/exclusion that's a pure derivation of state.
 - Multiple happy paths that differ only by entity-type combination — pick **one representative** per gesture (one quick-add, one DnD, one reservation).
 - Repeated assertions about modal field state, validation hints, or save/edit behaviour — that's component-level.
 
 **Keep in E2E** only the highest-signal flows:
+
 1. App launch smoke + first-run overlays
 2. One quick-add happy path
 3. One drag-and-drop happy path
@@ -130,6 +133,14 @@ bunx detox test --configuration ios.sim.debug -t "Account → Category"
 bunx detox test --configuration android.emu.debug -t "Account → Category"
 ```
 
+For iOS, prefer the `mise` task — it pipes `xcodebuild` through `xcpretty` while still propagating build failures (fish's `cmd | xcpretty && next` ANDs on xcpretty's status, which silently masks failed builds):
+
+```bash
+mise run e2e:ios                                   # build + run all iOS E2E tests
+mise run e2e:ios -- e2e/tests/dnd.test.ts          # build + run a single file
+mise run e2e:ios -- -t "auto-scrolls"              # build + run by test name
+```
+
 Devices: iOS uses **iPhone 17 Pro Max** simulator; Android uses **Pixel_9a** AVD.
 
 ## Stack & Entry Points
@@ -157,20 +168,26 @@ Devices: iOS uses **iPhone 17 Pro Max** simulator; Android uses **Pixel_9a** AVD
 
 ```ts
 beforeAll(async () => {
-    await device.launchApp({ delete: true }); // fresh install once per suite
-    await device.disableSynchronization();     // sync off for the entire suite
-    await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(15000);
-    await dismissWhatsNewIfPresent();
+	await device.launchApp({ delete: true }); // fresh install once per suite
+	await device.disableSynchronization(); // sync off for the entire suite
+	await waitFor(element(by.id(TestIDs.homeScreen)))
+		.toBeVisible()
+		.withTimeout(15000);
+	await dismissWhatsNewIfPresent();
 });
 
 beforeEach(async () => {
-    try {
-        await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(200);
-    } catch {
-        // Not on home screen (e.g. modal left open) — relaunch to reset
-        await device.launchApp({ newInstance: true });
-        await waitFor(element(by.id(TestIDs.homeScreen))).toBeVisible().withTimeout(10000);
-    }
+	try {
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(200);
+	} catch {
+		// Not on home screen (e.g. modal left open) — relaunch to reset
+		await device.launchApp({ newInstance: true });
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(10000);
+	}
 });
 ```
 
@@ -186,6 +203,7 @@ Detox auto-waits for the app to become idle before each interaction (`waitFor`, 
 This app's home screen has continuous layout work from entity bubbles and amount animations. Detox sync never settles — it reports "The app is busy with the following tasks: layers needs layout, views needs layout, N work items pending on Main Queue". This means **sync is disabled globally** for the entire test suite in `beforeAll`.
 
 **Consequences of sync being off:**
+
 - `waitFor` uses pure polling instead of waiting for idle — you **must** provide explicit `withTimeout()` on every `waitFor` call.
 - Never `await element(...).tap()` without a preceding `waitFor(...).toBeVisible().withTimeout(N)` — there is no auto-wait to catch you.
 - `setTimeout` delays (e.g. 500 ms for pageSheet animations) remain necessary — without sync, Detox cannot detect when an animation finishes.
@@ -215,7 +233,19 @@ jestExpect(await getAmount('Groceries')).toBeCloseTo(before + 43.21, 2);
 Use `seedFixture` when a test needs pre-existing transactions (e.g. refund flows):
 
 ```ts
-await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55.00 }]);
+await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55.0 }]);
+```
+
+For tests that need extra entities beyond the defaults (e.g. enough accounts to overflow the row for an auto-scroll test), pass an object with `entities` and/or `transactions`. Entities are created before transactions, so later transactions can reference seeded names:
+
+```ts
+await seedFixture({
+	entities: [
+		{ type: 'account', name: 'Bank A', icon: 'credit-card' },
+		{ type: 'account', name: 'Bank B' },
+	],
+	transactions: [{ from: 'Bank A', to: 'Groceries', amount: 12 }],
+});
 ```
 
 - `seedFixture` navigates away and back — wait for `homeScreen` is already handled inside it.
@@ -228,7 +258,7 @@ await seedFixture([{ from: 'Main Card', to: 'Groceries', amount: 55.00 }]);
 
 ```ts
 if (device.getPlatform() === 'android') {
-    await element(by.id(TestIDs.homeScrollView)).scroll(150, 'down');
+	await element(by.id(TestIDs.homeScrollView)).scroll(150, 'down');
 }
 ```
 
@@ -268,21 +298,21 @@ Amount text varies by device locale: some return `"43.21"`, others `"43,21"`. `g
 
 ## Shared Helpers (reuse, don't duplicate)
 
-| Helper | Purpose |
-|---|---|
-| `dismissWhatsNewIfPresent()` | Tap dismiss on the What's New modal if present |
-| `getAmount(entityName)` | Read numeric amount from an entity bubble |
-| `openIncomeSection()` | Tap income toggle and wait for Salary bubble |
-| `expectNoTransactionModal()` | Assert transaction modal did NOT appear |
-| `createTransaction(from, to, amount)` | Full [+] button happy path |
-| `createTransactionViaDnD(from, to, amount)` | Full DnD happy path |
-| `dnd(from, to)` | Raw DnD gesture without completing a form |
+| Helper                                      | Purpose                                        |
+| ------------------------------------------- | ---------------------------------------------- |
+| `dismissWhatsNewIfPresent()`                | Tap dismiss on the What's New modal if present |
+| `getAmount(entityName)`                     | Read numeric amount from an entity bubble      |
+| `openIncomeSection()`                       | Tap income toggle and wait for Salary bubble   |
+| `expectNoTransactionModal()`                | Assert transaction modal did NOT appear        |
+| `createTransaction(from, to, amount)`       | Full [+] button happy path                     |
+| `createTransactionViaDnD(from, to, amount)` | Full DnD happy path                            |
+| `dnd(from, to)`                             | Raw DnD gesture without completing a form      |
 
 Add new helpers to the file they are first needed in; move to a shared `helpers.ts` only when used across multiple test files.
 
 ## Domain Rules to Know
 
-- `income` entities: visible only when toggled via `TestIDs.incomeToggleButton`. The [+] picker reads from the store so income is *selectable* even when collapsed — but `getAmount('Salary')` will fail if the bubble is hidden.
+- `income` entities: visible only when toggled via `TestIDs.incomeToggleButton`. The [+] picker reads from the store so income is _selectable_ even when collapsed — but `getAmount('Salary')` will fail if the bubble is hidden.
 - `savings` entities are backed by real `account <-> saving` transactions. DnD Account → Saving opens `reservation-submit-button`, while Saving → Account uses the regular transaction modal for releases.
 - **Blocked pairs**: Income→Category and Category→Category — these must not open the transaction modal.
 - Refund flows (Category→Account, Account→Income) open the refund picker (`TestIDs.refundPicker.close`).

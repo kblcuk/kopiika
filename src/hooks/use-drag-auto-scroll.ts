@@ -11,7 +11,7 @@ import Animated, {
 	runOnJS,
 } from 'react-native-reanimated';
 
-import { computeEdgeSpeed, SECTION_COUNT } from '@/src/utils/drag-auto-scroll';
+import { computeEdgeSpeed, pickHoveredSection } from '@/src/utils/drag-auto-scroll';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 
 // Vertical constants
@@ -168,29 +168,33 @@ export function useDragAutoScroll() {
 			}
 		}
 
-		// 2. Horizontal scroll (hovered target section)
-		const srcIdx = dragSourceIndex.value;
-		if (srcIdx >= 0) {
+		// 2. Horizontal scroll — scroll the section the finger is currently over.
+		// Active only while a transaction-mode drag is tracked (dragSourceIndex >= 0);
+		// reorder-mode drags rely on Sortable.Grid's built-in horizontal auto-scroll.
+		if (dragSourceIndex.value >= 0) {
 			const hSpeed = computeEdgeSpeed(touchX.value, screenWidth, H_EDGE_ZONE, H_MAX_SPEED);
 			if (hSpeed !== 0) {
 				const currentScrollY = scrollOffset.value;
-				for (let i = 0; i < SECTION_COUNT; i++) {
-					if (i === srcIdx) continue;
-					const b = getSectionBounds(i);
-					// Convert content-relative bounds to screen-space
-					const screenTop = b.top - currentScrollY;
-					const screenBottom = b.bot - currentScrollY;
-					if (screenBottom <= screenTop) continue; // not measured yet
-					if (touchY.value >= screenTop && touchY.value <= screenBottom) {
-						const maxH = getSectionMaxOffset(i);
-						if (maxH <= 0) break;
-						const currentH = getSectionOffset(i);
-						const newH = Math.max(0, Math.min(maxH, currentH + hSpeed));
-						if (Math.abs(newH - currentH) >= 1) {
-							scrollSectionTo(i, newH);
-							scrolled = true;
-						}
-						break; // only scroll one section
+				const bounds = [
+					getSectionBounds(0),
+					getSectionBounds(1),
+					getSectionBounds(2),
+					getSectionBounds(3),
+				];
+				const maxOffsets = [
+					getSectionMaxOffset(0),
+					getSectionMaxOffset(1),
+					getSectionMaxOffset(2),
+					getSectionMaxOffset(3),
+				];
+				const idx = pickHoveredSection(touchY.value, currentScrollY, bounds, maxOffsets);
+				if (idx >= 0) {
+					const maxH = maxOffsets[idx];
+					const currentH = getSectionOffset(idx);
+					const newH = Math.max(0, Math.min(maxH, currentH + hSpeed));
+					if (Math.abs(newH - currentH) >= 1) {
+						scrollSectionTo(idx, newH);
+						scrolled = true;
 					}
 				}
 			}

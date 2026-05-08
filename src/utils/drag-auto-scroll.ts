@@ -34,3 +34,33 @@ export const SECTION_INDEX: Record<EntityType, number> = {
 };
 
 export const SECTION_COUNT = Object.keys(SECTION_INDEX).length;
+
+/**
+ * Pick the section index whose visible bounds contain `touchY` and which has
+ * horizontal scroll headroom. Returns -1 if no section qualifies.
+ *
+ * Bounds are stored content-relative (`screenY + scrollOffsetY` at measurement
+ * time); subtract the current `scrollOffsetY` to get the live screen-space
+ * range. Sections without overflow (`maxOffsets[i] <= 0`) are skipped — when a
+ * collapsed section retains stale bounds, the next section is checked instead
+ * of the loop bailing out.
+ */
+export function pickHoveredSection(
+	touchY: number,
+	scrollOffsetY: number,
+	bounds: readonly { top: number; bot: number }[],
+	maxOffsets: readonly number[]
+): number {
+	'worklet';
+	const len = bounds.length;
+	for (let i = 0; i < len; i++) {
+		const b = bounds[i];
+		const screenTop = b.top - scrollOffsetY;
+		const screenBottom = b.bot - scrollOffsetY;
+		if (screenBottom <= screenTop) continue;
+		if (touchY < screenTop || touchY > screenBottom) continue;
+		if (maxOffsets[i] <= 0) continue;
+		return i;
+	}
+	return -1;
+}

@@ -124,10 +124,26 @@ export default function HomeScreen() {
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
 			setDraggedEntity(entity);
+			// Reorder-mode drags rely on Sortable.Grid's built-in auto-scroll;
+			// activating the hook would race it on the source section's ScrollView.
+			const isReorder =
+				(entity.type === 'income' && incomeEditMode) ||
+				(entity.type === 'account' && accountsEditMode) ||
+				(entity.type === 'category' && categoriesEditMode) ||
+				(entity.type === 'saving' && savingsEditMode);
+			if (isReorder) return;
 			setDragSourceIndex(SECTION_INDEX[entity.type]);
 			startAutoScroll();
 		},
-		[setDraggedEntity, setDragSourceIndex, startAutoScroll]
+		[
+			setDraggedEntity,
+			setDragSourceIndex,
+			startAutoScroll,
+			incomeEditMode,
+			accountsEditMode,
+			categoriesEditMode,
+			savingsEditMode,
+		]
 	);
 
 	const handleDragEnd = useCallback(

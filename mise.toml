@@ -19,13 +19,22 @@ ruby = "latest"
 # xcpretty's status, which silently masks build failures and re-runs Detox
 # against the previous binary.
 
-[tasks."e2e:ios"]
-description = "Build the iOS E2E binary (with xcpretty) and run Detox tests"
+[tasks."e2e:ios:build"]
+description = "Build the iOS E2E binary (with xcpretty)"
 run = """
 set -eo pipefail
 bun run build:e2e:ios | xcpretty
+"""
+
+[tasks."e2e:ios:test"]
+description = "Run iOS E2E tests"
+run = """
 bunx detox test --configuration ios.sim.debug "$@"
 """
+
+[tasks."e2e:ios"]
+description = "Build the iOS E2E binary (with xcpretty) and run Detox tests"
+run = [{ task = "e2e:ios:build" }, { task = "e2e:ios:test" }]
 
 [tasks."e2e:android"]
 description = "Build the Android E2E binary and run Detox tests"

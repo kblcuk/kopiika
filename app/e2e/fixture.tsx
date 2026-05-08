@@ -2,18 +2,24 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
-import { getAllEntities } from '@/src/db/entities';
+import { getAllEntities, getNextPosition } from '@/src/db/entities';
 import { createTransaction } from '@/src/db/transactions';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
+import { useStore } from '@/src/store';
+import type { EntityType } from '@/src/types';
 
 // Accessible only in E2E builds (built with EXPO_PUBLIC_E2E=true).
-// Seeds fixture transactions into the DB and redirects to home.
+// Seeds fixture entities and transactions into the DB and redirects to home.
 //
 // Usage from Detox: device.openURL({ url: 'kopiika://e2e/fixture?data=BASE64' })
-// where BASE64 = btoa(JSON.stringify([{ from, to, amount }, ...]))
+// where BASE64 = btoa(JSON.stringify(payload)). The payload is either:
+//   - TxFixture[]                                  (legacy: just transactions)
+//   - { entities?: EntityFixture[]; transactions?: TxFixture[] }
 
 type TxFixture = { from: string; to: string; amount: number };
+type EntityFixture = { type: EntityType; name: string; icon?: string; row?: number };
+type FixturePayload = { entities?: EntityFixture[]; transactions?: TxFixture[] };
 
 export default function E2EFixtureScreen() {
 	const { data } = useLocalSearchParams<{ data: string }>();
@@ -21,11 +27,35 @@ export default function E2EFixtureScreen() {
 	useEffect(() => {
 		async function seed() {
 			try {
-				const fixtures: TxFixture[] = JSON.parse(atob(data ?? 'W10='));
+				const parsed = JSON.parse(atob(data ?? 'W10='));
+				const payload: FixturePayload = Array.isArray(parsed)
+					? { transactions: parsed }
+					: parsed;
+
+				// Use the store's addEntity action: it writes the DB AND updates
+				// the in-memory entities array. A direct db.createEntity() call
+				// would persist but the home screen wouldn't render the new
+				// bubbles, since the store hydrates only at app launch.
+				const addEntity = useStore.getState().addEntity;
+				for (const e of payload.entities ?? []) {
+					const row = e.row ?? 0;
+					const position = await getNextPosition(e.type, row);
+					await addEntity({
+						id: generateId(),
+						type: e.type,
+						name: e.name,
+						currency: DEFAULT_CURRENCY,
+						icon: e.icon ?? 'circle',
+						row,
+						position,
+						order: 0,
+					});
+				}
+
 				const allEntities = await getAllEntities();
 				const byName = Object.fromEntries(allEntities.map((e) => [e.name, e]));
 
-				for (const tx of fixtures) {
+				for (const tx of payload.transactions ?? []) {
 					const from = byName[tx.from];
 					const to = byName[tx.to];
 					if (!from || !to) {
@@ -46,7 +76,17 @@ export default function E2EFixtureScreen() {
 				console.error('[E2E fixture] seed error:', e);
 			}
 
-			router.replace('/(tabs)');
+			// Pop the deep-linked fixture screen back to the home that's
+			// already on the stack. router.replace('/(tabs)') would push a
+			// *new* home and leave the original mounted alongside it —
+			// duplicate `Sortable.PortalProvider`s break the drag visual lift
+			// and split SharedValue state across two `useDragAutoScroll`
+			// hooks (KII-97 diagnosis).
+			if (router.canDismiss()) {
+				router.dismiss();
+			} else {
+				router.replace('/(tabs)');
+			}
 		}
 
 		void seed();

@@ -10,6 +10,7 @@ export const TestIDs = {
 
 	entityBubble: (name: string) => `entity-bubble-${name}`,
 	entityAmount: (name: string) => `entity-amount-${name}`,
+	sectionScroll: (type: 'income' | 'account' | 'category' | 'saving') => `section-scroll-${type}`,
 
 	transaction: {
 		fromButton: 'transaction-from-button',
