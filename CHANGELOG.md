@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.12](https://codeberg.org/kblcuk/kopiika/compare/v0.3.11...v0.3.12) (2026-05-08)
+
 ## [0.3.11](https://codeberg.org/kblcuk/kopiika/compare/v0.3.10...v0.3.11) (2026-05-08)
 
 
