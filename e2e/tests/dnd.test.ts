@@ -86,6 +86,12 @@ describe('Transactions — drag and drop', () => {
 
 	// ── Auto-scroll while dragging (KII-97, Android-only) ────────────────────
 	itAndroidOnly('DnD: auto-scrolls Accounts row when finger holds at right edge', async () => {
+		// Run from a fresh app launch. Earlier tests in the suite leave
+		// UI/navigation state that intermittently makes `home-scroll-view`
+		// fail Detox's effective-visibility check, so reset before seeding
+		// the heavier fixture this test needs.
+		await launchFreshAndDismissOverlays();
+
 		// Seed a realistic data set: 8 accounts (defaults Main Card +
 		// Cash plus 6 extras) and 20 categories (defaults plus 16 extras
 		// spread across the 3 visual rows). With this, the Accounts row
