@@ -86,7 +86,7 @@
 	},
 	"devDependencies": {
 		"@config-plugins/detox": "^11.0.0",
-		"@jest/globals": "^30.4.1",
+		"@jest/globals": "^29.7.0",
 		"@resvg/resvg-js": "^2.6.2",
 		"@swc/core": "^1.15.33",
 		"@swc/jest": "^0.2.39",
