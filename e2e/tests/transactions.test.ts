@@ -3,7 +3,7 @@ import {
 	ensureHomeScreen,
 	expectAmount,
 	getAmount,
-	launchFreshAndDismissOverlays,
+	launchAppFast,
 } from '../support/helpers';
 
 // Quick-add ([+]) happy path on the home screen. The exhaustive picker
@@ -14,7 +14,7 @@ import {
 // the resulting balance change on the home screen.
 describe('Transactions — quick add', () => {
 	beforeAll(async () => {
-		await launchFreshAndDismissOverlays();
+		await launchAppFast();
 	});
 
 	beforeEach(async () => {

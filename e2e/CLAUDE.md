@@ -168,33 +168,27 @@ Devices: iOS uses **iPhone 17 Pro Max** simulator; Android uses **Pixel_9a** AVD
 
 ```ts
 beforeAll(async () => {
-	await device.launchApp({ delete: true }); // fresh install once per suite
-	await device.disableSynchronization(); // sync off for the entire suite
-	await waitFor(element(by.id(TestIDs.homeScreen)))
-		.toBeVisible()
-		.withTimeout(15000);
-	await dismissWhatsNewIfPresent();
+	await launchAppFast(); // installs once per worker, then newInstance:true
 });
 
 beforeEach(async () => {
-	try {
-		await waitFor(element(by.id(TestIDs.homeScreen)))
-			.toBeVisible()
-			.withTimeout(200);
-	} catch {
-		// Not on home screen (e.g. modal left open) — relaunch to reset
-		await device.launchApp({ newInstance: true });
-		await waitFor(element(by.id(TestIDs.homeScreen)))
-			.toBeVisible()
-			.withTimeout(10000);
-	}
+	await ensureHomeScreen(); // relaunches only if a previous test left state open
 });
 ```
 
-- Use `delete: true` in `beforeAll` for a clean install. **Do not** relaunch the app between every test — relaunches are expensive (~8-15 s each). Instead, `beforeEach` checks whether the home screen is already visible and relaunches only when the previous test left a modal or overlay open.
-- Always wait for `TestIDs.homeScreen` to be visible before proceeding.
-- Call `dismissWhatsNewIfPresent()` in `beforeAll` only — it uses a short timeout and swallows errors if the modal is absent.
-- Because tests share a single app process, all amount assertions must use **deltas** (before/after), never absolute values.
+- Use `launchAppFast()` from `helpers.ts` — it uninstalls + reinstalls only on the first call per Jest worker; later suites cold-start the existing binary. The only exception is `launch.test.ts`, which calls `device.launchApp({ delete: true })` directly because it tests first-run behaviour.
+- **Do not** relaunch between every test — relaunches are expensive (~8-15 s each). `ensureHomeScreen()` already relaunches only when state is dirty.
+- Always wait for `TestIDs.homeScreen` to be visible before proceeding (handled by `launchAppFast`).
+- Call `dismissWhatsNewIfPresent()` only in suite-level setup (also handled by `launchAppFast`).
+
+### State accumulation across the worker
+
+Since the install is shared across suites (Jest runs `maxWorkers: 1`), DB state persists from one suite into the next. **`launch.test.ts` is the only suite that wipes data mid-run** (via its own `delete: true`). Everything else inherits whatever the previous suite left behind.
+
+This puts two hard constraints on tests:
+
+- **Deltas, not absolutes.** All amount assertions must read a `before` snapshot, perform the action, then assert `before ± delta`. Never assert `getAmount(...) === N` against a raw value — the entity has been mutated by earlier suites.
+- **Identify your data, don't guess.** When asserting on inserted records (history rows, refund picker entries, etc.), match by an attribute the test itself owns — a unique amount, a known entity name, an ID — never by `atIndex(0)` or "the first row." With cumulative state, "first" is no longer "the one I just made."
 
 ## Detox Synchronization
 

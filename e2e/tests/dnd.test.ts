@@ -8,7 +8,7 @@ import {
 	expectAmount,
 	expectNoTransactionModal,
 	getAmount,
-	launchFreshAndDismissOverlays,
+	launchAppFast,
 } from '../support/helpers';
 
 // Detox iOS doesn't synthesize a true held-finger drag — `longPressAndDrag`
@@ -34,7 +34,7 @@ const itAndroidOnly = device.getPlatform() === 'android' ? it : it.skip;
 // `drop-zone.test.ts`. Modal/picker UI is covered by component tests.
 describe('Transactions — drag and drop', () => {
 	beforeAll(async () => {
-		await launchFreshAndDismissOverlays();
+		await launchAppFast();
 	});
 
 	beforeEach(async () => {
@@ -90,7 +90,7 @@ describe('Transactions — drag and drop', () => {
 		// UI/navigation state that intermittently makes `home-scroll-view`
 		// fail Detox's effective-visibility check, so reset before seeding
 		// the heavier fixture this test needs.
-		await launchFreshAndDismissOverlays();
+		await launchAppFast();
 
 		// Seed a realistic data set: 8 accounts (defaults Main Card +
 		// Cash plus 6 extras) and 20 categories (defaults plus 16 extras

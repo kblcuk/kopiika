@@ -5,7 +5,7 @@ import {
 	ensureHomeScreen,
 	expectAmount,
 	getAmount,
-	launchFreshAndDismissOverlays,
+	launchAppFast,
 } from '../support/helpers';
 import { seedFixture } from '../support/fixture';
 
@@ -19,7 +19,7 @@ import { seedFixture } from '../support/fixture';
 // the most recent row — newest transactions appear at the top of the list.
 describe('History', () => {
 	beforeAll(async () => {
-		await launchFreshAndDismissOverlays();
+		await launchAppFast();
 	});
 
 	beforeEach(async () => {
@@ -31,10 +31,9 @@ describe('History', () => {
 		await waitFor(element(by.id(TestIDs.historyScreen)))
 			.toBeVisible()
 			.withTimeout(5000);
-		// History screen may already be mounted (React Navigation keeps tabs alive).
-		// useDeferredValue in history.tsx defers the transaction list render by one
-		// cycle — give it time to populate before querying rows.
-		await new Promise((r) => setTimeout(r, 500));
+		// History screen may already be mounted (React Navigation keeps tabs alive)
+		// and useDeferredValue in history.tsx defers the row render by one cycle —
+		// callers waitFor a specific row, which handles the deferral naturally.
 	}
 
 	async function returnToHome() {

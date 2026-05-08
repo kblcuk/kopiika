@@ -50,8 +50,9 @@ export async function seedFixture(input: TxFixture[] | FixturePayload) {
 	await waitFor(element(by.id(TestIDs.homeScreen)))
 		.toBeVisible()
 		.withTimeout(15000);
-	// Brief settle window after the fixture screen dismisses (router.dismiss
-	// pops back to the existing home, but a few frames are needed for the
-	// transition + initial layout to finish).
-	await new Promise((r) => setTimeout(r, 1000));
+	// Anchor to a default-seeded bubble so the home grid has hydrated before
+	// callers issue gestures or read amounts.
+	await waitFor(element(by.id(TestIDs.entityBubble('Main Card'))))
+		.toBeVisible()
+		.withTimeout(5000);
 }

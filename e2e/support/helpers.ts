@@ -68,48 +68,64 @@ export async function expectNoTransactionModal() {
 		.withTimeout(3000);
 }
 
+// Tap an element, retrying until a follow-up element becomes visible. Sync is
+// disabled suite-wide (see e2e/CLAUDE.md), so taps issued mid-animation are
+// silently dropped — this replaces the fixed 500 ms sleeps that used to guard
+// each tap. attemptInterval is set above the ~400 ms modal/picker animation
+// duration so a successful first tap has time to settle before we'd retry —
+// avoids re-firing into a still-animating sheet and hitting the wrong element.
+async function tapUntilVisible(
+	tapMatcher: Detox.NativeMatcher,
+	expectMatcher: Detox.NativeMatcher,
+	{
+		totalTimeout = 8000,
+		attemptInterval = 600,
+	}: { totalTimeout?: number; attemptInterval?: number } = {}
+) {
+	const deadline = Date.now() + totalTimeout;
+	let lastError: unknown;
+	while (Date.now() < deadline) {
+		try {
+			await element(tapMatcher).tap();
+		} catch (e) {
+			lastError = e;
+		}
+		try {
+			await waitFor(element(expectMatcher)).toBeVisible().withTimeout(attemptInterval);
+			return;
+		} catch (e) {
+			lastError = e;
+		}
+	}
+	throw lastError ?? new Error('tapUntilVisible: timed out');
+}
+
 // Full [+] button happy path: open modal → pick from → pick to → enter amount → save.
 export async function createTransaction(fromName: string, toName: string, amount: string) {
 	await element(by.id(TestIDs.addTransactionButton)).tap();
 
-	await waitFor(element(by.id(TestIDs.transaction.fromButton)))
-		.toBeVisible()
-		.withTimeout(5000);
-	// Transaction modal slide-up animation ~400ms; taps during it are swallowed
-	await new Promise((r) => setTimeout(r, 500));
+	// Tap the from-button until the from-picker actually opens. Sync is off
+	// suite-wide, so taps issued during the modal's slide-up animation can be
+	// swallowed; re-tapping until the next state appears is cheaper and more
+	// reliable than a blind fixed sleep.
+	await tapUntilVisible(
+		by.id(TestIDs.transaction.fromButton),
+		by.id(TestIDs.fromOption(fromName))
+	);
 
-	await element(by.id(TestIDs.transaction.fromButton)).tap();
-	await waitFor(element(by.id(TestIDs.fromOption(fromName))))
-		.toBeVisible()
-		.withTimeout(5000);
-	// iOS pageSheet slide-in animation takes ~400ms; taps during it are ignored
-	await new Promise((r) => setTimeout(r, 500));
-	await element(by.id(TestIDs.fromOption(fromName))).tap();
+	// Pick the from-entity. After this the from-picker dismisses and the
+	// to-picker auto-opens after a 350 ms delay; both transitions intercept
+	// touches, so retry until the to-picker is interactive.
+	await tapUntilVisible(by.id(TestIDs.fromOption(fromName)), by.id(TestIDs.toOption(toName)));
 
-	// After selecting from-entity the from-picker starts its slide-out animation
-	// while the to-picker opens after 350ms. On Android the Dialog window stays
-	// on top in z-order; on iOS the pageSheet dismiss animation keeps the native
-	// container above the to-picker. Both intercept touches until fully dismissed.
-	await waitFor(element(by.id(TestIDs.fromOption(fromName))))
-		.not.toExist()
-		.withTimeout(5000);
-	await new Promise((r) => setTimeout(r, 500));
-
-	// In quickAdd mode the to-picker opens automatically after selecting from
-	await waitFor(element(by.id(TestIDs.toOption(toName))))
-		.toBeVisible()
-		.withTimeout(5000);
-	await new Promise((r) => setTimeout(r, 500));
-	await element(by.id(TestIDs.toOption(toName))).tap();
-
-	// "Select Destination" title is unique to the to-picker modal.
+	// Pick the to-entity. The to-picker dismisses and the amount input takes
+	// focus. Wait for the picker to fully dismiss before typing — typeText
+	// taps to focus first, and that tap can otherwise hit the dismissing sheet.
+	await tapUntilVisible(by.id(TestIDs.toOption(toName)), by.id(TestIDs.transaction.amountInput));
 	await waitFor(element(by.text('Select Destination')))
 		.not.toBeVisible()
 		.withTimeout(5000);
 
-	await waitFor(element(by.id(TestIDs.transaction.amountInput)))
-		.toBeVisible()
-		.withTimeout(5000);
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
@@ -163,15 +179,32 @@ export async function dnd(fromName: string, toName: string) {
 	);
 }
 
-// Fresh-install setup used in beforeAll. Disables sync globally for the suite
-// (this app's home screen has continuous layout work — see e2e/CLAUDE.md).
-export async function launchFreshAndDismissOverlays() {
-	await device.launchApp({ delete: true });
+// Tracks whether the app has been installed in this jest worker process.
+// Reused across suites so only the first beforeAll pays the ~12-15 s install
+// cost; subsequent suites cold-start the existing binary.
+let hasInstalled = false;
+
+// Lighter beforeAll for suites that don't depend on first-run UI state.
+// Installs once per jest worker (delete + reinstall), then cold-starts the
+// existing binary on subsequent suites. Saves ~12-15 s per suite. Tests that
+// share the worker accumulate transaction state — assertions must use deltas.
+// Sync is disabled globally — see e2e/CLAUDE.md (home screen has continuous
+// layout work, so Detox sync would never settle).
+export async function launchAppFast() {
+	if (hasInstalled) {
+		await device.launchApp({ newInstance: true });
+	} else {
+		await device.launchApp({ delete: true });
+		hasInstalled = true;
+	}
 	await device.disableSynchronization();
 	// Fresh install lands on the onboarding welcome screen; bypass it via the
 	// E2E deep-link so existing suites still land on home.
 	await skipOnboarding();
 	await dismissWhatsNewIfPresent();
+	await waitFor(element(by.id(TestIDs.entityBubble('Main Card'))))
+		.toBeVisible()
+		.withTimeout(10000);
 }
 
 // Per-test guard used in beforeEach. If a previous test left a modal open,
