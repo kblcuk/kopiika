@@ -1,4 +1,5 @@
 import React from 'react';
+import { SectionList } from 'react-native';
 import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import HistoryScreen from '../history';
 import { useStore } from '@/src/store';
@@ -917,6 +918,168 @@ describe('HistoryScreen search params', () => {
 					amount: 8100,
 					date: new Date(2026, 0, 10).setHours(0, 0, 0, 0),
 				});
+			});
+		});
+	});
+
+	describe('Initial scroll position (KII-105)', () => {
+		let scrollSpy: jest.SpyInstance;
+
+		beforeEach(() => {
+			scrollSpy = jest
+				.spyOn(SectionList.prototype, 'scrollToLocation')
+				.mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			scrollSpy.mockRestore();
+		});
+
+		const pastTx: Transaction = {
+			id: 'tx-past',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 100,
+			currency: 'USD',
+			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
+		};
+
+		const upcomingTx: Transaction = {
+			id: 'tx-upcoming',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+		};
+
+		const unconfirmedTx: Transaction = {
+			id: 'tx-unconfirmed',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 50,
+			currency: 'USD',
+			timestamp: new Date('2026-01-12T12:00:00Z').getTime(),
+			is_confirmed: false,
+		};
+
+		it('skips Upcoming and lands on the first past section when no Needs Confirmation', async () => {
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [pastTx, upcomingTx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			mockParams = { period: '2026-01' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-past')).toBeTruthy();
+			});
+
+			await waitFor(() => {
+				expect(scrollSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ sectionIndex: 1, itemIndex: 0 })
+				);
+			});
+		});
+
+		it('skips Upcoming and lands on Needs Confirmation when both present', async () => {
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [pastTx, upcomingTx, unconfirmedTx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			mockParams = { period: '2026-01' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-unconfirmed')).toBeTruthy();
+			});
+
+			// Upcoming is at index 0, Needs Confirmation at index 1.
+			await waitFor(() => {
+				expect(scrollSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ sectionIndex: 1, itemIndex: 0 })
+				);
+			});
+		});
+
+		it('does not scroll when only past transactions are visible', async () => {
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [pastTx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			mockParams = { period: '2026-01' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-past')).toBeTruthy();
+			});
+
+			expect(scrollSpy).not.toHaveBeenCalled();
+		});
+
+		it('does not scroll when only Upcoming is visible', async () => {
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [upcomingTx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			mockParams = { period: '2026-01' };
+
+			const { getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-upcoming')).toBeTruthy();
+			});
+
+			expect(scrollSpy).not.toHaveBeenCalled();
+		});
+
+		it('re-applies scroll when the search query changes', async () => {
+			// Both past and upcoming match "rent", so the section composition
+			// stays Upcoming + past — target stays 1 but the user-input key
+			// changes, which should re-fire the scroll.
+			const pastRent: Transaction = { ...pastTx, id: 'tx-rent-past', note: 'rent april' };
+			const upcomingRent: Transaction = {
+				...upcomingTx,
+				id: 'tx-rent-future',
+				note: 'rent may',
+			};
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [pastRent, upcomingRent],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			mockParams = { period: '2026-01' };
+
+			const { getByPlaceholderText, getByTestId } = render(<HistoryScreen />);
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-rent-past')).toBeTruthy();
+			});
+			scrollSpy.mockClear();
+
+			fireEvent.changeText(getByPlaceholderText('Search by note or amount'), 'rent');
+
+			await waitFor(() => {
+				expect(scrollSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ sectionIndex: 1, itemIndex: 0 })
+				);
 			});
 		});
 	});

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue, useEffect, useRef } from 'react';
 import { showSeriesScopeAlert, type SeriesScope } from '@/src/components/series-action-sheet';
 import {
 	View,
@@ -31,6 +31,7 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
+import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
 import { colors } from '@/src/theme/colors';
 import {
 	sharedNumericTextInputProps,
@@ -128,6 +129,11 @@ export default function HistoryScreen() {
 	const deferredSearch = useDeferredValue(searchQuery);
 	const paramsRef = useRef(params);
 	paramsRef.current = params;
+	const listRef = useRef<SectionList<Transaction, TransactionSection>>(null);
+	// Tracks the last set of user-driven inputs we applied an initial scroll
+	// for. Re-scrolling is gated on this so transactions arriving from
+	// background sync don't yank a scrolled-down user back to the top.
+	const lastScrollInputKey = useRef<string | null>(null);
 	// Tracks the entityId we applied on the last focus so that the same
 	// stale URL param on a subsequent tab-press is treated as "no filter".
 	const lastAppliedEntityId = useRef<string | null>(null);
@@ -241,6 +247,37 @@ export default function HistoryScreen() {
 				: [];
 		return [...upcomingSection, ...unconfirmedSection, ...pastSections];
 	}, [filteredTransactions, upcomingTransactions, unconfirmedTransactions]);
+
+	useEffect(() => {
+		const inputKey = `${deferredPeriod}|${selectedEntityId ?? ''}|${deferredSearch}`;
+		if (lastScrollInputKey.current === inputKey) return;
+		lastScrollInputKey.current = inputKey;
+
+		const target = pickInitialScrollSectionIndex(sections);
+		if (target <= 0) return;
+
+		listRef.current?.scrollToLocation({
+			sectionIndex: target,
+			itemIndex: 0,
+			viewPosition: 0,
+			animated: false,
+		});
+	}, [sections, deferredPeriod, selectedEntityId, deferredSearch]);
+
+	// VirtualizedList can fail to resolve a target offset when items haven't
+	// been measured yet; retrying after a tick lets layout catch up.
+	const handleScrollToIndexFailed = useCallback(() => {
+		setTimeout(() => {
+			const target = pickInitialScrollSectionIndex(sections);
+			if (target <= 0) return;
+			listRef.current?.scrollToLocation({
+				sectionIndex: target,
+				itemIndex: 0,
+				viewPosition: 0,
+				animated: false,
+			});
+		}, 100);
+	}, [sections]);
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
@@ -544,6 +581,7 @@ export default function HistoryScreen() {
 			{/* Transaction list */}
 			<View className="flex-1">
 				<SectionList
+					ref={listRef}
 					sections={sections}
 					renderItem={renderItem}
 					renderSectionHeader={renderSectionHeader}
@@ -553,6 +591,7 @@ export default function HistoryScreen() {
 					maxToRenderPerBatch={6}
 					windowSize={5}
 					removeClippedSubviews
+					onScrollToIndexFailed={handleScrollToIndexFailed}
 					className="flex-1"
 					style={isStale ? { opacity: 0.6 } : undefined}
 					ListHeaderComponent={

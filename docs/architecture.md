@@ -80,6 +80,8 @@ The History tab applies period, entity, and search filters consistently across c
 - reservation summaries when filtered to an account or saving
 - market value snapshot history when filtered to an investment account
 
+When `Upcoming` sits above other content, the list auto-scrolls past it on mount and on filter/period/search changes (`pickInitialScrollSectionIndex` in `src/utils/history-scroll.ts`) so the user lands on `Needs Confirmation` or the most recent confirmed day. Background data updates do not re-trigger this scroll.
+
 ## Transaction Rules
 
 Allowed transaction pairs are defined once in `src/utils/transaction-validation.ts` (`ALLOWED_COMBINATIONS`). Interactive entry points — drag-and-drop, quick add, edit, and split — use those helpers so picker filtering and drop handling stay aligned. CSV import validates structure and entity references, then preserves imported historical rows as supplied.
