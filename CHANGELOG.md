@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.11](https://codeberg.org/kblcuk/kopiika/compare/v0.3.10...v0.3.11) (2026-05-08)
+
+
+### Bug Fixes
+
+* **dnd:** Scroll the section under the finger during drag (KII-97) ([e4661e6](https://codeberg.org/kblcuk/kopiika/commit/e4661e68c6244d352f2cf7c08ea645c7d940f51d))
+
 ## [0.3.10](https://codeberg.org/kblcuk/kopiika/compare/v0.3.9...v0.3.10) (2026-05-01)
 
 
