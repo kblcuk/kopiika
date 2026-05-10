@@ -14,71 +14,66 @@ interface EntityColorPickerProps {
 
 const DOT_SIZE = 28;
 
+interface SwatchProps {
+	bgColor: string;
+	iconColor: string;
+	isSelected: boolean;
+	dotTestID: string;
+	checkTestID: string;
+	onPress: () => void;
+}
+
+function Swatch({ bgColor, iconColor, isSelected, dotTestID, checkTestID, onPress }: SwatchProps) {
+	return (
+		<Pressable onPress={onPress} testID={dotTestID}>
+			<View
+				className="items-center justify-center rounded-full"
+				style={{
+					width: DOT_SIZE,
+					height: DOT_SIZE,
+					backgroundColor: bgColor,
+					borderWidth: 2,
+					borderColor: isSelected ? colors.ink.DEFAULT : 'transparent',
+				}}
+			>
+				{isSelected && <Check size={14} color={iconColor} testID={checkTestID} />}
+			</View>
+		</Pressable>
+	);
+}
+
 export function EntityColorPicker({ entityType, selectedColor, onSelect }: EntityColorPickerProps) {
 	const typeDefault = getEntityTypeDefaults(entityType);
 	const isDefaultSelected = selectedColor === null;
 
 	return (
 		<View className="mt-3 flex-row flex-wrap gap-2">
-			{/* Default (type) dot */}
-			<Pressable
+			<Swatch
+				bgColor={typeDefault.bgColor}
+				iconColor={typeDefault.iconColor}
+				isSelected={isDefaultSelected}
+				dotTestID="color-dot-default"
+				checkTestID="color-check-default"
 				onPress={() => {
 					if (!isDefaultSelected) onSelect(null);
 				}}
-				testID="color-dot-default"
-			>
-				<View
-					className="items-center justify-center rounded-full"
-					style={{
-						width: DOT_SIZE,
-						height: DOT_SIZE,
-						backgroundColor: typeDefault.bgColor,
-						borderWidth: 2,
-						borderColor: isDefaultSelected ? colors.ink.DEFAULT : 'transparent',
-					}}
-				>
-					{isDefaultSelected && (
-						<Check
-							size={14}
-							color={typeDefault.iconColor}
-							testID="color-check-default"
-						/>
-					)}
-				</View>
-			</Pressable>
+			/>
 
-			{/* Palette dots */}
 			{ENTITY_COLOR_KEYS.map((key) => {
 				const swatch = ENTITY_COLOR_PALETTE[key];
 				const isSelected = selectedColor === key;
-
 				return (
-					<Pressable
+					<Swatch
 						key={key}
+						bgColor={swatch.bgColor}
+						iconColor={swatch.iconColor}
+						isSelected={isSelected}
+						dotTestID={`color-dot-${key}`}
+						checkTestID={`color-check-${key}`}
 						onPress={() => {
 							if (!isSelected) onSelect(key);
 						}}
-						testID={`color-dot-${key}`}
-					>
-						<View
-							className="items-center justify-center rounded-full"
-							style={{
-								width: DOT_SIZE,
-								height: DOT_SIZE,
-								backgroundColor: swatch.bgColor,
-								borderWidth: 2,
-								borderColor: isSelected ? colors.ink.DEFAULT : 'transparent',
-							}}
-						>
-							{isSelected && (
-								<Check
-									size={14}
-									color={swatch.iconColor}
-									testID={`color-check-${key}`}
-								/>
-							)}
-						</View>
-					</Pressable>
+					/>
 				);
 			})}
 		</View>
