@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.13](https://codeberg.org/kblcuk/kopiika/compare/v0.3.11...v0.3.13) (2026-05-10)
+
+
+### Features
+
+* **history:** Auto-scroll past Upcoming on initial render ([92eb600](https://codeberg.org/kblcuk/kopiika/commit/92eb600befa3674ef01cd511b4b757646b2736a9))
+
+
+### Bug Fixes
+
+* **colors:** Retune entity palette for perceptual distinctness ([16631f7](https://codeberg.org/kblcuk/kopiika/commit/16631f7d38106e666885c71cb2a210901cb39776))
+
 ## [0.3.12](https://codeberg.org/kblcuk/kopiika/compare/v0.3.11...v0.3.12) (2026-05-08)
 
 ## [0.3.11](https://codeberg.org/kblcuk/kopiika/compare/v0.3.10...v0.3.11) (2026-05-08)
