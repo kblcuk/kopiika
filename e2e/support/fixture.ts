@@ -1,7 +1,17 @@
 import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
 
-export type TxFixture = { from: string; to: string; amount: number };
+export type TxFixture = {
+	from: string;
+	to: string;
+	amount: number;
+	/** Optional series id — marks the transaction as part of a recurring series. */
+	seriesId?: string;
+	/** When false, the transaction lands in the "Needs Confirmation" bucket. */
+	isConfirmed?: boolean;
+	/** Offset from Date.now() in ms. Negative => past, positive => future. */
+	timestampOffsetMs?: number;
+};
 export type EntityFixture = {
 	type: 'income' | 'account' | 'category' | 'saving';
 	name: string;

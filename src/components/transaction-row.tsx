@@ -1,5 +1,5 @@
 import { useCallback, memo } from 'react';
-import { View, Alert, Pressable } from 'react-native';
+import { View, Alert } from 'react-native';
 import { Text } from './text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -85,10 +85,23 @@ export const TransactionRow = memo(function TransactionRow({
 		onEdit(transaction);
 	}, [onEdit, transaction]);
 
+	// The Confirm pill uses its own RNGH Tap so the row's tap can defer to it
+	// via requireExternalGestureToFail. Using a plain Pressable here was
+	// insufficient — on iOS, RN's responder system and RNGH don't share a
+	// gesture chain, so the row tap still fired and opened the "Edit Recurring
+	// Transaction" alert alongside confirmation (KII-106).
+	const confirmPillGesture = Gesture.Tap()
+		.runOnJS(true)
+		.hitSlop(8)
+		.onEnd(() => {
+			confirmTransaction(transaction.id);
+		});
+
 	const tapGesture = Gesture.Tap()
 		.maxDuration(250)
 		.maxDistance(10)
 		.runOnJS(true)
+		.requireExternalGestureToFail(confirmPillGesture)
 		.onEnd(() => {
 			handleEdit();
 		});
@@ -160,15 +173,18 @@ export const TransactionRow = memo(function TransactionRow({
 
 					{/* Confirm pill for unconfirmed transactions */}
 					{isUnconfirmed && (
-						<Pressable
-							onPress={() => confirmTransaction(transaction.id)}
-							className="mt-1 flex-row items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5"
-							hitSlop={8}
-							testID={`confirm-transaction-${transaction.id}`}
-						>
-							<CircleCheck size={11} color={colors.warning.DEFAULT} />
-							<Text className="font-sans-semibold text-xs text-warning">Confirm</Text>
-						</Pressable>
+						<GestureDetector gesture={confirmPillGesture}>
+							<View
+								accessibilityRole="button"
+								className="mt-1 flex-row items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5"
+								testID={`confirm-transaction-${transaction.id}`}
+							>
+								<CircleCheck size={11} color={colors.warning.DEFAULT} />
+								<Text className="font-sans-semibold text-xs text-warning">
+									Confirm
+								</Text>
+							</View>
+						</GestureDetector>
 					)}
 
 					{/* Scheduled date for upcoming transactions */}

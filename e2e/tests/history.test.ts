@@ -7,6 +7,7 @@ import {
 	getAmount,
 	launchFreshAndDismissOverlays,
 } from '../support/helpers';
+import { seedFixture } from '../support/fixture';
 
 // History screen end-to-end flows: edit via row tap and delete via swipe.
 // Both require real app lifecycle, cross-screen navigation, and (for swipe)
@@ -93,6 +94,52 @@ describe('History', () => {
 
 		// Created 40, edited to 60 — net delta is +20 vs balanceAfterCreate
 		await expectAmount('Groceries', balanceAfterCreate + 20);
+	});
+
+	// ── Confirm pill on recurring transaction (KII-106) ─────────────────────
+
+	// On Android, the Confirm pill (a RN Pressable) used to compete with the
+	// row's RNGH tap gesture: tapping it confirmed the tx AND opened the
+	// "Edit Recurring Transaction" dialog. Verified at the unit level via
+	// gesture-composition wiring; this guards the real on-device gesture race.
+	it('History confirm pill: tapping does not open "Edit Recurring Transaction" dialog', async () => {
+		await seedFixture({
+			transactions: [
+				{
+					from: 'Main Card',
+					to: 'Groceries',
+					amount: 12.34,
+					seriesId: 'kii-106-series',
+					isConfirmed: false,
+					// One hour ago — lands in "Needs Confirmation" bucket while
+					// staying inside the current-month period filter regardless
+					// of the emulator's local time-of-day.
+					timestampOffsetMs: -60 * 60 * 1000,
+				},
+			],
+		});
+
+		await openHistoryTab();
+
+		// Only one unconfirmed row exists in the seed, so match by visible text.
+		const confirmPill = element(
+			by.text('Confirm').withAncestor(by.id(TestIDs.historyScreen))
+		).atIndex(0);
+		await waitFor(confirmPill).toBeVisible().withTimeout(10000);
+		await confirmPill.tap();
+
+		// The buggy behaviour: the parent row's tap fires alongside the
+		// Pressable, opening the Edit Recurring Transaction alert. Assert it
+		// stays absent. (Detox's `not.toExist` is the strongest assertion
+		// — passes immediately if the element was never created.)
+		await waitFor(element(by.text('Edit Recurring Transaction')))
+			.not.toExist()
+			.withTimeout(2000);
+
+		// After confirmation the Confirm pill disappears.
+		await waitFor(confirmPill).not.toExist().withTimeout(5000);
+
+		await returnToHome();
 	});
 
 	// ── Swipe-delete ─────────────────────────────────────────────────────────

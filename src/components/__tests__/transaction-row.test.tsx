@@ -3,6 +3,7 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { Gesture } from 'react-native-gesture-handler';
 
 import { TransactionRow } from '../transaction-row';
+import { useStore } from '@/src/store';
 import type { Entity, Transaction } from '@/src/types';
 
 jest.mock('react-native-gesture-handler', () => {
@@ -29,6 +30,12 @@ jest.mock('react-native-gesture-handler', () => {
 					return this;
 				},
 				runOnJS() {
+					return this;
+				},
+				hitSlop() {
+					return this;
+				},
+				requireExternalGestureToFail() {
 					return this;
 				},
 				onEnd(callback: () => void) {
@@ -79,6 +86,9 @@ jest.mock('lucide-react-native', () => {
 	return {
 		Clock: () => <Text testID="clock-icon">Clock</Text>,
 		Trash2: () => <Text>Trash</Text>,
+		Repeat: () => <Text testID="repeat-icon">Repeat</Text>,
+		CircleAlert: () => <Text testID="alert-icon">Alert</Text>,
+		CircleCheck: () => <Text testID="check-icon">Check</Text>,
 	};
 });
 
@@ -181,6 +191,8 @@ describe('TransactionRow', () => {
 			maxDuration: jest.fn().mockReturnThis(),
 			maxDistance: jest.fn().mockReturnThis(),
 			runOnJS: jest.fn().mockReturnThis(),
+			hitSlop: jest.fn().mockReturnThis(),
+			requireExternalGestureToFail: jest.fn().mockReturnThis(),
 			onEnd: jest.fn().mockImplementation((cb) => {
 				tapCallback = cb;
 				return this;
@@ -198,6 +210,78 @@ describe('TransactionRow', () => {
 
 		if (tapCallback) tapCallback();
 		expect(onEdit).toHaveBeenCalledWith(transaction);
+
+		(Gesture as any).Tap = originalTap;
+	});
+
+	// KII-106: the row's tap gesture must defer to the Confirm pill's tap,
+	// otherwise tapping the pill on a recurring-series row also opens the
+	// "Edit Recurring Transaction" dialog. Verified at the structural level —
+	// the runtime gesture race is covered by the History E2E suite.
+	it('Confirm pill: row tap requires the pill gesture to fail (KII-106)', () => {
+		const requireExternalGestureToFail = jest.fn().mockReturnThis();
+		const originalTap = Gesture.Tap;
+		(Gesture as any).Tap = jest.fn().mockReturnValue({
+			maxDuration: jest.fn().mockReturnThis(),
+			maxDistance: jest.fn().mockReturnThis(),
+			runOnJS: jest.fn().mockReturnThis(),
+			hitSlop: jest.fn().mockReturnThis(),
+			requireExternalGestureToFail,
+			onEnd: jest.fn().mockReturnThis(),
+		});
+
+		render(
+			<TransactionRow
+				transaction={transaction}
+				entityMap={entityMap}
+				onEdit={jest.fn()}
+				index={0}
+				isUnconfirmed={true}
+			/>
+		);
+
+		expect(requireExternalGestureToFail).toHaveBeenCalled();
+
+		(Gesture as any).Tap = originalTap;
+	});
+
+	it('Confirm pill: firing its gesture confirms the tx without opening edit', () => {
+		const onEdit = jest.fn();
+		const confirmTransactionSpy = jest.fn();
+		useStore.setState({ confirmTransaction: confirmTransactionSpy });
+
+		// Capture both tap gestures in the order they're constructed: pill first,
+		// then the row.
+		const tapCallbacks: (() => void)[] = [];
+		const originalTap = Gesture.Tap;
+		(Gesture as any).Tap = jest.fn().mockImplementation(() => ({
+			maxDuration: jest.fn().mockReturnThis(),
+			maxDistance: jest.fn().mockReturnThis(),
+			runOnJS: jest.fn().mockReturnThis(),
+			hitSlop: jest.fn().mockReturnThis(),
+			requireExternalGestureToFail: jest.fn().mockReturnThis(),
+			onEnd: jest.fn().mockImplementation(function (this: object, cb: () => void) {
+				tapCallbacks.push(cb);
+				return this;
+			}),
+		}));
+
+		render(
+			<TransactionRow
+				transaction={{ ...transaction, series_id: 'series-1', is_confirmed: false }}
+				entityMap={entityMap}
+				onEdit={onEdit}
+				index={0}
+				isUnconfirmed={true}
+			/>
+		);
+
+		// Pill gesture is registered before the row tap in transaction-row.tsx,
+		// so tapCallbacks[0] is the pill's onEnd.
+		tapCallbacks[0]?.();
+
+		expect(confirmTransactionSpy).toHaveBeenCalledWith('tx-1');
+		expect(onEdit).not.toHaveBeenCalled();
 
 		(Gesture as any).Tap = originalTap;
 	});

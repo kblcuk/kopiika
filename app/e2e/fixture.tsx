@@ -7,7 +7,7 @@ import { createTransaction } from '@/src/db/transactions';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
 import { useStore } from '@/src/store';
-import type { EntityType } from '@/src/types';
+import type { EntityType, Transaction } from '@/src/types';
 
 // Accessible only in E2E builds (built with EXPO_PUBLIC_E2E=true).
 // Seeds fixture entities and transactions into the DB and redirects to home.
@@ -17,7 +17,17 @@ import type { EntityType } from '@/src/types';
 //   - TxFixture[]                                  (legacy: just transactions)
 //   - { entities?: EntityFixture[]; transactions?: TxFixture[] }
 
-type TxFixture = { from: string; to: string; amount: number };
+type TxFixture = {
+	from: string;
+	to: string;
+	amount: number;
+	/** Optional series id — marks the transaction as part of a recurring series. */
+	seriesId?: string;
+	/** When false, the transaction lands in the "Needs Confirmation" bucket. */
+	isConfirmed?: boolean;
+	/** Offset from Date.now() in ms. Negative => past, positive => future. */
+	timestampOffsetMs?: number;
+};
 type EntityFixture = { type: EntityType; name: string; icon?: string; row?: number };
 type FixturePayload = { entities?: EntityFixture[]; transactions?: TxFixture[] };
 
@@ -62,15 +72,24 @@ export default function E2EFixtureScreen() {
 						console.error(`[E2E fixture] entity not found: "${tx.from}" or "${tx.to}"`);
 						continue;
 					}
-					await createTransaction({
+					const transaction: Transaction = {
 						id: generateId(),
 						from_entity_id: from.id,
 						to_entity_id: to.id,
 						amount: tx.amount,
 						currency: DEFAULT_CURRENCY,
-						timestamp: Date.now(),
+						timestamp: Date.now() + (tx.timestampOffsetMs ?? 0),
 						note: null,
-					});
+						series_id: tx.seriesId,
+						is_confirmed: tx.isConfirmed,
+					};
+					await createTransaction(transaction);
+					// Push into the in-memory store so the History/Home screens see
+					// the seeded transaction without an app relaunch — entity bubbles
+					// re-render from `useStore`, not the DB.
+					useStore.setState((state) => ({
+						transactions: [transaction, ...state.transactions],
+					}));
 				}
 			} catch (e) {
 				console.error('[E2E fixture] seed error:', e);
