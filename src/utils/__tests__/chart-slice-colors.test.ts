@@ -40,10 +40,10 @@ describe('assignSliceColors', () => {
 		}
 	});
 
-	test(`every adjacent pair in the output is ΔE2000 ≥ ${NEIGHBOR_DELTA_E_MIN}`, () => {
-		// Run a fuzz of 100 random id arrays of length 1–12. For each,
-		// verify the output's *pairwise* distinctness (not just adjacent)
-		// because slices in a pie chart sit on a continuous ring.
+	test(`every pair in the output is ΔE2000 ≥ ${NEIGHBOR_DELTA_E_MIN}`, () => {
+		// Run a fuzz of 100 random id arrays of length 1–12. For each, verify
+		// every pair (not just adjacent) because slices sit on a continuous
+		// ring, so any two — not only neighbours — are visually compared.
 		const rng = mulberry32(0xc0ffee);
 		for (let iter = 0; iter < 100; iter++) {
 			const len = 1 + Math.floor(rng() * 12);

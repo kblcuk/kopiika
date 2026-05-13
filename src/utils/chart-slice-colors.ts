@@ -1,11 +1,10 @@
 import { CHART_SLICE_PALETTE } from '@/src/constants/chart-colors';
 
 /**
- * Defensive lower bound used to decide whether a candidate palette entry is
- * "too close" to an already-assigned slice. Matches the palette's static
- * pairwise floor so any candidate that is not the exact same entry already
- * clears this check. With the current palette this threshold only triggers
- * on exact-duplicate hash collisions, which is the desired behaviour.
+ * Runtime check threshold. Equals the palette's static pairwise floor (12) so
+ * any two distinct palette entries always clear this check. In practice the
+ * shift therefore only triggers when two ids hash to the same preferred
+ * index — which is the desired behaviour.
  */
 const NEIGHBOR_DELTA_E_MIN = 12;
 
@@ -44,9 +43,10 @@ export function assignSliceColors(slices: readonly { id: string }[]): string[] {
 				pickIdx = idx;
 				break;
 			}
-			// Pathological case (palette exhausted): pickIdx remains `preferred`
-			// from the most recent successful iteration. Only reachable at
-			// > palette.length slices, which the chart truncates with "+ N more".
+			// Pathological case (palette exhausted without finding a distinct
+			// candidate): pickIdx was never updated, so we fall back to the
+			// preferred index. Only reachable when slices > palette.length;
+			// the chart truncates those with a "+ N more" legend entry anyway.
 		}
 		out.push(CHART_SLICE_PALETTE[pickIdx]!);
 	}

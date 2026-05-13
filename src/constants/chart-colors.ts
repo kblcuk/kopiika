@@ -1,8 +1,9 @@
 /**
  * Pie-chart slice palette (KII-108).
  *
- * Curated 12-color "warm/earthy" palette assigned to slices by
- * `assignSliceColors()` in `src/utils/chart-slice-colors.ts`.
+ * Curated 12-color palette spanning the hue wheel, assigned to slices by
+ * `assignSliceColors()` in `src/utils/chart-slice-colors.ts`. Two low-chroma
+ * neutrals (cocoa, slate) sit at the tail to absorb hash-shift fallbacks.
  *
  * Invariants enforced by tests in __tests__/chart-colors.test.ts:
  *   - Every entry contrasts ≥3:1 against the cream paper surface (WCAG 1.4.11).
