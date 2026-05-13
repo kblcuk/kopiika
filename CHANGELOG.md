@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.14](https://codeberg.org/kblcuk/kopiika/compare/v0.3.13...v0.3.14) (2026-05-13)
+
+
+### Features
+
+* **colors:** Add curated pie-chart palette with hash-based slice assignment ([f07cbf3](https://codeberg.org/kblcuk/kopiika/commit/f07cbf3934858d5bb9babc6f2cc2372c432f72bb))
+* **entity-detail:** Use curated palette for reservation pie chart ([7bf9166](https://codeberg.org/kblcuk/kopiika/commit/7bf916672f1272200e5e77ba78a80d9d12f79a8e))
+* **summary:** Use curated palette for category pie chart slices ([53a5189](https://codeberg.org/kblcuk/kopiika/commit/53a5189d396bc0198b8a0158488db0f602d8f5fa))
+
+
+### Bug Fixes
+
+* **history:** Prevent edit dialog when confirming recurring tx ([b09e99d](https://codeberg.org/kblcuk/kopiika/commit/b09e99db386f8cbbc91533c017fcd47f1e321d09))
+
 ## [0.3.13](https://codeberg.org/kblcuk/kopiika/compare/v0.3.11...v0.3.13) (2026-05-10)
 
 
