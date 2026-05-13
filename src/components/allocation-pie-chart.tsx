@@ -6,17 +6,6 @@ import { Text } from '@/src/components/text';
 import { colors } from '@/src/theme/colors';
 import { formatAmount } from '@/src/utils/format';
 
-export const DEFAULT_ALLOCATION_COLORS = [
-	colors.positive.DEFAULT,
-	colors.accent.DEFAULT,
-	colors.info.DEFAULT,
-	colors.warning.DEFAULT,
-	colors.negative.DEFAULT,
-	colors.ink.muted,
-	colors.accent.dark,
-	colors.info.light,
-];
-
 export interface AllocationPieSlice {
 	id: string;
 	label: string;
