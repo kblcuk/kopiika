@@ -10,14 +10,11 @@ import { getCurrentPeriod } from '@/src/types';
 import type { EntityWithBalance } from '@/src/types';
 import { PeriodPicker } from '@/src/components/period-picker';
 import { ProgressBar } from '@/src/components/progress-bar';
-import {
-	AllocationPieChart,
-	DEFAULT_ALLOCATION_COLORS,
-	type AllocationPieSlice,
-} from '@/src/components/allocation-pie-chart';
+import { AllocationPieChart, type AllocationPieSlice } from '@/src/components/allocation-pie-chart';
 import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/format';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
+import { assignSliceColors } from '@/src/utils/chart-slice-colors';
 import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
@@ -239,24 +236,16 @@ export default function SummaryScreen() {
 		[entities, plans, transactions, selectedPeriod]
 	);
 
-	const categoryChartSlices = useMemo(
-		() =>
-			categories
-				.filter((entity) => entity.actual > 0)
-				.map((entity, index) => {
-					const color = entity.color
-						? getEntityColors(entity.type, entity.color).iconColor
-						: DEFAULT_ALLOCATION_COLORS[index % DEFAULT_ALLOCATION_COLORS.length];
-
-					return {
-						id: entity.id,
-						label: entity.name,
-						value: entity.actual,
-						color,
-					};
-				}),
-		[categories]
-	);
+	const categoryChartSlices = useMemo(() => {
+		const visible = categories.filter((entity) => entity.actual > 0);
+		const sliceColors = assignSliceColors(visible);
+		return visible.map((entity, index) => ({
+			id: entity.id,
+			label: entity.name,
+			value: entity.actual,
+			color: sliceColors[index]!,
+		}));
+	}, [categories]);
 
 	// Sparkline trend: 3 prior months + selected period (categories only)
 	const trendActuals = useMemo(() => {
