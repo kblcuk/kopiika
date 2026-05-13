@@ -35,11 +35,8 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
-import {
-	AllocationPieChart,
-	DEFAULT_ALLOCATION_COLORS,
-	type AllocationPieSlice,
-} from '@/src/components/allocation-pie-chart';
+import { AllocationPieChart, type AllocationPieSlice } from '@/src/components/allocation-pie-chart';
+import { assignSliceColors } from '@/src/utils/chart-slice-colors';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import {
 	getReservationsForSaving,
@@ -150,22 +147,15 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		}[];
 	}, [entity, transactions, entities, savings]);
 
-	const accountReservationChartSlices = useMemo<AllocationPieSlice[]>(
-		() =>
-			accountReservations.map(({ amount, saving }, index) => {
-				const color = saving.color
-					? getEntityColors('saving', saving.color).iconColor
-					: DEFAULT_ALLOCATION_COLORS[index % DEFAULT_ALLOCATION_COLORS.length];
-
-				return {
-					id: saving.id,
-					label: saving.name,
-					value: amount,
-					color,
-				};
-			}),
-		[accountReservations]
-	);
+	const accountReservationChartSlices = useMemo<AllocationPieSlice[]>(() => {
+		const slices = accountReservations.map(({ amount, saving }) => ({
+			id: saving.id,
+			label: saving.name,
+			value: amount,
+		}));
+		const sliceColors = assignSliceColors(slices);
+		return slices.map((slice, index) => ({ ...slice, color: sliceColors[index]! }));
+	}, [accountReservations]);
 
 	// Find existing plan for this entity - all plans use 'all-time' period
 	const existingPlan = entity
