@@ -26,6 +26,16 @@ remains as historical context; this doc is the actionable plan for the work trac
 - No backend storage of any readable domain data.
 - No swap of SQLite or Drizzle. The remote is an opaque encrypted mailbox, not a relational store.
 
+## Design Philosophy
+
+- **Minimal magic.** Household members negotiate structure outside the app (which categories
+  exist, what they mean, who tracks what). The app does not auto-merge entities, auto-share
+  history, or guess intent. Every visibility/ownership change is explicit.
+- **Permissive within the household, restrictive at the boundary.** All household members see
+  everything in scope; access is flat. Visibility decisions happen at the entity level.
+- **No income sharing.** Income entities are always private. Each household member tracks their
+  own income locally; the app does not aggregate it across members.
+
 ## Architecture Overview
 
 ```
@@ -68,6 +78,11 @@ Every entity field is one of three kinds:
 | `is_default` (preferred quick-add account)        | Per-device                 | Workflow preference                              |
 | `color`                                           | Shared with local override | Shared baseline; per-device override wins if set |
 | `icon`                                            | Shared with local override | Same pattern as color                            |
+| `owner_device_id` (new)                           | Shared                     | Device that owns the entity; relevant on leave   |
+
+**Income is always private.** Entities with `type='income'` cannot be set to `household`
+visibility. The validator rejects any such `entity.set_visibility` op (locally or inbound); the UI
+hides the visibility toggle for income entities.
 
 Plans on shared entities are themselves shared (household budget agreement). Plans on private
 entities are private to the owner.
@@ -105,7 +120,9 @@ local_device (              -- single-row table
 
 entity_visibility (
   entity_id text primary key references entities(id),
-  visibility text check (visibility in ('private', 'household')) not null default 'private'
+  visibility text check (visibility in ('private', 'household')) not null default 'private',
+  owner_device_id text nullable                 -- null when private; set when shared. Owner keeps
+                                                -- the entity on leave; transferrable via op
 )
 
 device_entity_preferences (
@@ -183,7 +200,9 @@ type Op =
   | { kind: 'entity.create',  fields: EntitySharedFields, ... }
   | { kind: 'entity.update',  id: string, patch: Partial<EntitySharedFields>, ... }
   | { kind: 'entity.delete',  id: string, ... }
-  | { kind: 'entity.set_visibility', id: string, visibility: 'private' | 'household', ... }
+  | { kind: 'entity.set_visibility', id: string, visibility: 'private' | 'household',
+      share_history?: boolean, ... }
+  | { kind: 'entity.transfer_ownership', id: string, new_owner_device_id: string, ... }
   | { kind: 'plan.set',       entity_id: string, amount: number, ... }
   | { kind: 'plan.delete',    entity_id: string, ... }
   | { kind: 'transaction.create', fields: TransactionFields, ... }
@@ -226,8 +245,9 @@ Behavior:
 
 1. Idempotency: if `op_id` already in `op_journal`, return immediately.
 2. Verify signature if `source === 'inbound'`.
-3. Validate against domain rules (`utils/transaction-validation.ts` extended for visibility
-   consistency — see Mixed-entity Policy below).
+3. Validate against domain rules (`utils/transaction-validation.ts`). The validator enforces
+   pair-type, currency, deleted-entity, and income-not-shareable rules, but does **not** block
+   cross-visibility transactions — see Cross-Visibility Transactions below.
 4. Apply to SQLite within a transaction:
     - Conflict resolution per the policy table below
     - Update affected rows
@@ -250,33 +270,100 @@ Outbound sync runs separately: collect `state='pending'` rows, encrypt for each 
 | Recurrence: delete-future from D vs edit instance ≥ D                     | Delete-future wins for affected instances                                                                                                                                                   |
 | Recurrence: edit instance < D unaffected                                  | Apply normally                                                                                                                                                                              |
 | Reorder (sort position)                                                   | Never syncs (per-device)                                                                                                                                                                    |
-| Visibility flip (private ↔ household)                                     | LWW on visibility field. Edge case: entity goes private after transactions referencing it have synced — historical transactions remain visible to household via the partial-sync rule below |
+| Visibility flip (private ↔ household)                                     | LWW on visibility field. Edge case: entity goes private after transactions referencing it have synced — historical transactions stay visible to household; the now-private entity renders as a typed placeholder for any new transactions referencing it     |
+| Ownership transfer (`entity.transfer_ownership`)                          | LWW by HLC on `owner_device_id`. If two devices simultaneously transfer same entity, last write wins; the loser device sees the corrected owner on next sync                                                                                                |
 
 The unifying rule: **same row ID → LWW per field; tombstone trumps edit; creates are independent.**
 
-## Mixed-Entity Transaction Policy (v1: disallow with prompt)
+## Cross-Visibility Transactions
 
-If a transaction references one shared entity and one private entity:
+Transactions between a shared and a private entity are **allowed**. A transaction is sync-eligible
+if **at least one** referenced entity is shared.
 
-- **Disallow at creation.** UI shows a modal:
+**Rendering:** recipients render unknown entities (those they don't have in their visible scope) as
+typed placeholders: `Private account`, `Private category`, `Private saving`. The placeholder uses a
+lock icon and neutral color. Type is derived from the transaction's allowed pair (account→category
+etc.), so no extra data needs to be embedded in the op.
 
-    > "Joint Account is shared with your household, but Hobbies is private. Make Hobbies shared
-    > with your household too?"
-    >
-    > [Make Hobbies Shared & Save] [Cancel]
+**Example (Jane has a private account; Groceries is shared household-wide):**
 
-    "Make Shared" updates `entity_visibility` for the private entity (an op) and proceeds with the
-    transaction (another op) atomically.
+- Jane creates `Main Card → Groceries, 35.00`.
+- The transaction op syncs (Groceries is shared).
+- On Jane's device: rendered normally as "Main Card → Groceries, 35.00".
+- On Joe's device: rendered as "Private account → Groceries, 35.00" with the source side locked.
+- Both devices' Groceries balance updates by 35.00.
 
-- Validator rule (extends `utils/transaction-validation.ts`): if `from.visibility != to.visibility`
-  and one is `household`, reject with a typed error code that the UI catches to show the prompt.
+**Awareness, not blocking.** When the user creates a cross-visibility transaction, the UI surfaces
+a non-blocking inline notice in the transaction modal: "Household members will see this as
+'Private account → Groceries'." This is informational only; the transaction proceeds normally. The
+notice is dismissible per session.
 
-- Inbound sync: the validator runs on inbound ops too. A peer's transaction op referencing an
-  entity not visible to us means that entity must already exist on our side (the `entity.create`
-  op preceded the transaction op). If not (out-of-order), buffer until prerequisites arrive.
+**Validator behavior:** the validator does not reject cross-visibility transactions. It only
+rejects:
 
-This v1 design is intentionally restrictive. Easier to relax to "partial sync, obscure private
-side" (KII-96 Option B) later than to retract a permissive default.
+- Invalid type pairs (existing rules)
+- Currency mismatches (existing)
+- Deleted entity references (existing)
+- `entity.set_visibility` targeting an income entity (new)
+
+**Inbound sync:** a peer's transaction op may reference an entity we don't have. We apply the
+transaction normally; the renderer falls back to the placeholder for unknown IDs. We do **not**
+need to buffer or wait for prerequisites — placeholders cover the gap.
+
+## Sharing History on Visibility Flip
+
+When an entity flips from `private` to `household`, the user is prompted:
+
+> "Share past transactions referencing **Groceries** with your household?"
+>
+> [Share History] [Only Future]
+
+**Share History:** the originator generates retroactive `transaction.create` ops for every past
+transaction referencing the entity, using current HLC values but preserving original
+`created_at` timestamps in the payload. Ops are batched and pushed. Recipients apply them and
+render with original dates.
+
+**Only Future:** no retroactive ops. Recipients see new transactions referencing this entity going
+forward, but the past stays local to the originator.
+
+The cross-visibility rules apply uniformly — past transactions referencing private entities on the
+other side render with placeholders for the private side. Nothing is filtered or held back.
+
+The `entity.set_visibility` op carries `share_history?: boolean` so peers know whether to expect a
+batch of retroactive ops (mostly for UX: a "syncing N historical transactions…" indicator).
+
+## Leaving and Disbanding Households
+
+A user can leave the household at any time via Settings → Household Sync → Leave Household.
+
+**Owned-entity choice.** For each shared entity owned by the leaving device, the user picks:
+
+- **Keep in Household:** ownership transfers to the **oldest remaining member** (by `joined_at`).
+  Generates an `entity.transfer_ownership` op.
+- **Make Private:** the entity flips back to `private` visibility, owner stays the leaving device.
+  Generates an `entity.set_visibility` op with `visibility='private'` (and `share_history=false`
+  semantics — no retroactive op cleanup; recipients' historical view stays as-is, with the entity
+  now rendered as a placeholder for any new transactions referencing it).
+
+**Sequence on leave:**
+
+1. User makes per-entity choices (or accepts defaults: Keep in Household for non-income, since
+   income can't be shared anyway).
+2. Local device generates `entity.transfer_ownership` / `entity.set_visibility` ops and pushes
+   them to the mailbox.
+3. After ops are acknowledged, the device calls Worker `POST /household/:id/leave` (transport
+   layer, not encrypted payload). Worker removes the device from the member list. Surviving
+   members will fail to receive new packets from this device and won't have its public key for
+   future encryption to it.
+4. Locally, `local_device.household_id` clears. The leaving device retains its own private
+   entities (and any entities it took private via step 1). Shared entities transferred away are
+   no longer visible.
+
+**Disbanding** is implicit: when the last member leaves, the Worker's Durable Object can be
+garbage-collected. There is no separate disband flow.
+
+**Non-owner leave** (a member leaves who doesn't own anything shared): no per-entity choices
+needed. Step 1 is skipped. Steps 2–4 proceed.
 
 ## Mutation Chokepoint Refactor
 
@@ -377,6 +464,9 @@ Worker routes:
 - `POST /household/:id/packets` — push encrypted packets.
 - `GET /household/:id/packets?cursor=X` — pull packets after cursor.
 - `POST /household/:id/ack` — ack packets.
+- `POST /household/:id/leave` — signed leave notification; Worker removes device from member list.
+  Called after the leaving device has pushed final ops (`entity.transfer_ownership` /
+  `entity.set_visibility`) and they've been acknowledged.
 
 Durable Object per household holds ordered packet log, member list, and pending-join state. No
 domain knowledge.
@@ -387,9 +477,20 @@ Authorization: every request signed by device key; DO verifies against household
 
 - Settings → "Household Sync" entry.
 - Create household / join household flows with QR + 6-digit confirm code.
-- Per-entity visibility toggle on entity detail screen.
+- **Bulk visibility selector at join time** — multi-select existing entities to mark as
+  household-shared during onboarding.
+- Per-entity visibility toggle on entity detail screen (hidden for `type='income'`).
+- **Visual indicator** on entity bubble/row: ⭐ or 🏠 icon for shared, none for private.
+- **Share-history opt-in** when flipping private → household: "Share past transactions
+  referencing this entity?" [Share History] / [Only Future].
+- **Cross-visibility awareness notice** in transaction modal: inline message "Household members
+  will see this as 'Private [type] → [other]'." Non-blocking, dismissible per session.
+- **Private-entity placeholder rendering** across all transaction surfaces (history, summary,
+  entity detail breakdowns, balance derivations): typed label + lock icon when entity ID is not
+  in the viewer's visible scope.
+- **Leave Household flow** with per-owned-entity choice (Keep in Household / Make Private).
+  Defaults reasonably; oldest remaining member auto-becomes new owner for Keep.
 - Sync status indicator (last sync, pending count, errors).
-- Mixed-entity transaction prompt (see policy above).
 - Override UX for color/icon ("for me" vs "for household" + reset).
 
 ### Stage 7 — Productionize
