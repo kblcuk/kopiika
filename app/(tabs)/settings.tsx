@@ -285,7 +285,7 @@ export default function SettingsScreen() {
 					<Pressable
 						testID={TestIDs.settings.helpRow}
 						onPress={() => router.push('/help' as never)}
-						className="flex-row items-center justify-between px-4 py-3.5 active:bg-paper-200"
+						className="flex-row items-center justify-between border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>
 						<View>
 							<Text className="font-sans text-base text-ink">
@@ -293,6 +293,22 @@ export default function SettingsScreen() {
 							</Text>
 							<Text className="font-sans text-sm text-ink-muted">
 								Concepts, transactions, tips
+							</Text>
+						</View>
+						<ChevronRight size={16} color={colors.ink.muted} />
+					</Pressable>
+
+					<Pressable
+						testID={TestIDs.settings.tourRow}
+						onPress={() =>
+							router.push('/onboarding/welcome?fromSettings=true' as never)
+						}
+						className="flex-row items-center justify-between px-4 py-3.5 active:bg-paper-200"
+					>
+						<View>
+							<Text className="font-sans text-base text-ink">Take the tour</Text>
+							<Text className="font-sans text-sm text-ink-muted">
+								See what new users see
 							</Text>
 						</View>
 						<ChevronRight size={16} color={colors.ink.muted} />

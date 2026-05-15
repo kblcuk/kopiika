@@ -2,10 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { EmptyBoardNudge } from '../empty-board-nudge';
-import {
-	getEmptyBoardNudgeDismissed,
-	setEmptyBoardNudgeDismissed,
-} from '@/src/utils/app-prefs';
+import { getEmptyBoardNudgeDismissed, setEmptyBoardNudgeDismissed } from '@/src/utils/app-prefs';
 
 jest.mock('@/src/utils/app-prefs');
 

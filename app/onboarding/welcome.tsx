@@ -13,9 +13,7 @@ export default function WelcomeScreen() {
 
 	const handleContinue = () => {
 		router.push(
-			(fromSettings
-				? '/onboarding/setup?fromSettings=true'
-				: '/onboarding/setup') as never
+			(fromSettings ? '/onboarding/setup?fromSettings=true' : '/onboarding/setup') as never
 		);
 	};
 

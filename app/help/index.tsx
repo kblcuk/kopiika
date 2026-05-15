@@ -17,9 +17,7 @@ export default function HelpIndexScreen() {
 		const q = query.trim().toLowerCase();
 		if (!q) return KB_ARTICLES;
 		return KB_ARTICLES.filter(
-			(a) =>
-				a.title.toLowerCase().includes(q) ||
-				a.summary.toLowerCase().includes(q)
+			(a) => a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q)
 		);
 	}, [query]);
 
@@ -57,11 +55,7 @@ export default function HelpIndexScreen() {
 					/>
 				</View>
 			</View>
-			<FlatList
-				data={filtered}
-				keyExtractor={(a) => a.id}
-				renderItem={renderItem}
-			/>
+			<FlatList data={filtered} keyExtractor={(a) => a.id} renderItem={renderItem} />
 		</SafeAreaView>
 	);
 }

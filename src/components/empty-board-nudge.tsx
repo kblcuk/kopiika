@@ -4,10 +4,7 @@ import { X } from 'lucide-react-native';
 
 import { Text } from './text';
 import { colors } from '@/src/theme/colors';
-import {
-	getEmptyBoardNudgeDismissed,
-	setEmptyBoardNudgeDismissed,
-} from '@/src/utils/app-prefs';
+import { getEmptyBoardNudgeDismissed, setEmptyBoardNudgeDismissed } from '@/src/utils/app-prefs';
 import { TestIDs } from '@/e2e/support/test-ids';
 
 interface EmptyBoardNudgeProps {
@@ -81,11 +78,7 @@ export function EmptyBoardNudge({
 					Drag an income onto an account to record getting paid. Or use ✚ for any
 					transaction.
 				</Text>
-				<Pressable
-					testID={TestIDs.emptyBoardNudge.dismiss}
-					onPress={dismiss}
-					hitSlop={12}
-				>
+				<Pressable testID={TestIDs.emptyBoardNudge.dismiss} onPress={dismiss} hitSlop={12}>
 					<X size={14} color={colors.ink.muted} />
 				</Pressable>
 			</View>
