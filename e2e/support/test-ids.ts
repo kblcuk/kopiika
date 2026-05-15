@@ -61,6 +61,17 @@ export const TestIDs = {
 
 	incomeToggleButton: 'income-toggle-button',
 
+	onboarding: {
+		welcomeScreen: 'onboarding-welcome',
+		welcomeContinueButton: 'onboarding-welcome-continue',
+		welcomeSkipLink: 'onboarding-welcome-skip',
+		setupScreen: 'onboarding-setup',
+		setupChip: (key: string) => `onboarding-setup-chip-${key}`,
+		setupCustomChip: (type: string) => `onboarding-setup-custom-${type}`,
+		setupContinueButton: 'onboarding-setup-continue',
+		setupSkipLink: 'onboarding-setup-skip',
+	},
+
 	entitySelectionSheet: {
 		closeButton: 'entity-selection-sheet-close',
 		fromSheet: 'entity-selection-sheet-from',
