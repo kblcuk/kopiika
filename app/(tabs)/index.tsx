@@ -10,12 +10,16 @@ import {
 import { Text } from '@/src/components/text';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
+import {
+	PRESET_CHIPS,
+	createEntitiesFromPresets,
+	createPlansForEntities,
+} from '@/src/onboarding/presets';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
-import { createDefaultEntities, createDefaultPlans } from '@/src/utils/seed';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -96,8 +100,12 @@ export default function HomeScreen() {
 		async function seedData() {
 			const userEntities = entities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID);
 			if (!isLoading && userEntities.length === 0) {
-				const defaultEntities = createDefaultEntities();
-				const defaultPlans = createDefaultPlans(defaultEntities);
+				const defaultPicks = PRESET_CHIPS.filter((c) => c.defaultSelected);
+				const defaultEntities = createEntitiesFromPresets(defaultPicks);
+				const entityToPreset = new Map(
+					defaultEntities.map((e, i) => [e.id, defaultPicks[i]])
+				);
+				const defaultPlans = createPlansForEntities(defaultEntities, entityToPreset);
 
 				for (const entity of defaultEntities) {
 					await addEntity(entity);
