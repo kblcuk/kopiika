@@ -1,8 +1,4 @@
-import {
-	PRESET_CHIPS,
-	createEntitiesFromPresets,
-	createPlansForEntities,
-} from '../presets';
+import { PRESET_CHIPS, createEntitiesFromPresets, createPlansForEntities } from '../presets';
 import { useStore } from '@/src/store';
 
 /**

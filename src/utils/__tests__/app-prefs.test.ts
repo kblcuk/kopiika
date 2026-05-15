@@ -44,7 +44,8 @@ describe('app-prefs — onboarding keys', () => {
 	});
 
 	test('hasCompletedOnboarding round-trips through set/get', async () => {
-		const { getHasCompletedOnboarding, setHasCompletedOnboarding } = await import('../app-prefs');
+		const { getHasCompletedOnboarding, setHasCompletedOnboarding } =
+			await import('../app-prefs');
 		await setHasCompletedOnboarding(true);
 		expect(await getHasCompletedOnboarding()).toBe(true);
 	});
@@ -55,7 +56,8 @@ describe('app-prefs — onboarding keys', () => {
 	});
 
 	test('emptyBoardNudgeDismissed round-trips through set/get', async () => {
-		const { getEmptyBoardNudgeDismissed, setEmptyBoardNudgeDismissed } = await import('../app-prefs');
+		const { getEmptyBoardNudgeDismissed, setEmptyBoardNudgeDismissed } =
+			await import('../app-prefs');
 		await setEmptyBoardNudgeDismissed(true);
 		expect(await getEmptyBoardNudgeDismissed()).toBe(true);
 	});

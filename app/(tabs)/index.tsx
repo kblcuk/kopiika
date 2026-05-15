@@ -8,13 +8,7 @@ import {
 	TransactionModal,
 } from '@/src/components';
 import { Text } from '@/src/components/text';
-import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
-import {
-	PRESET_CHIPS,
-	createEntitiesFromPresets,
-	createPlansForEntities,
-} from '@/src/onboarding/presets';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
@@ -54,8 +48,6 @@ export default function HomeScreen() {
 		entities,
 		incomeVisible,
 		draggedEntity,
-		addEntity,
-		setPlan,
 		setDraggedEntity,
 		toggleIncomeVisible,
 	} = useStore();
@@ -95,30 +87,7 @@ export default function HomeScreen() {
 	const [categoriesEditMode, setCategoriesEditMode] = useState(false);
 	const [savingsEditMode, setSavingsEditMode] = useState(false);
 
-	// Seed default data if empty (excluding system entities)
-	useEffect(() => {
-		async function seedData() {
-			const userEntities = entities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID);
-			if (!isLoading && userEntities.length === 0) {
-				const defaultPicks = PRESET_CHIPS.filter((c) => c.defaultSelected);
-				const defaultEntities = createEntitiesFromPresets(defaultPicks);
-				const entityToPreset = new Map(
-					defaultEntities.map((e, i) => [e.id, defaultPicks[i]])
-				);
-				const defaultPlans = createPlansForEntities(defaultEntities, entityToPreset);
-
-				for (const entity of defaultEntities) {
-					await addEntity(entity);
-				}
-				for (const plan of defaultPlans) {
-					await setPlan(plan);
-				}
-			}
-		}
-		void seedData();
-	}, [isLoading, entities, addEntity, setPlan]);
-
-	// Reset initial layout flag when entities change (e.g., after seeding)
+	// Reset initial layout flag when entities change
 	useEffect(() => {
 		setHasInitialLayout(false);
 	}, [entities.length]);

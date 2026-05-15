@@ -17,6 +17,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { WhatsNewModal } from '@/src/components';
 import { getLastSeenVersion, setLastSeenVersion } from '@/src/utils/app-prefs';
+import { useMigrateOnboarding } from '@/src/hooks/use-migrate-onboarding';
 import DatabaseProvider from '@/src/components/database-provider';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { getRawDb } from '@/src/db/db';
@@ -64,6 +65,9 @@ function App() {
 			if (lastSeen !== version) setShowWhatsNew(true);
 		})();
 	}, [fontsLoaded]);
+
+	// Silently migrate existing users to hasCompletedOnboarding=true
+	useMigrateOnboarding(fontsLoaded);
 
 	if (!fontsLoaded) {
 		return null;

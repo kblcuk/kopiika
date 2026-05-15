@@ -5,6 +5,9 @@ module.exports = {
 	testMatch: ['**/components/__tests__/**/*.test.tsx', '**/app/**/__tests__/**/*.test.tsx'],
 	testPathIgnorePatterns: ['/node_modules/', '\\.worktrees/'],
 	moduleNameMapper: {
+		// CSS imports are not valid in Jest (no bundler) — must come before @/ alias
+		'^@/.*\\.css$': '<rootDir>/src/__mocks__/style-mock.js',
+		'\\.css$': '<rootDir>/src/__mocks__/style-mock.js',
 		'^@/(.*)$': '<rootDir>/$1',
 		// Mock expo-sqlite for component tests
 		'^expo-sqlite$': '<rootDir>/src/db/__tests__/__mocks__/expo-sqlite.ts',
