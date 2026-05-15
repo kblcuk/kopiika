@@ -1,16 +1,45 @@
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
+import { Redirect, Tabs, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { colors } from '@/src/theme/colors';
-import { useUnconfirmedCount } from '@/src/store';
+import { useStore, useUnconfirmedCount } from '@/src/store';
+import { getHasCompletedOnboarding } from '@/src/utils/app-prefs';
+
+type OnboardingGate = 'unknown' | 'show-tabs' | 'redirect';
 
 export default function TabLayout() {
 	const router = useRouter();
 	const unconfirmedCount = useUnconfirmedCount();
+	const isLoading = useStore((s) => s.isLoading);
+	const entities = useStore((s) => s.entities);
+	const [gate, setGate] = useState<OnboardingGate>('unknown');
+
+	useEffect(() => {
+		if (isLoading) return;
+		let cancelled = false;
+		void (async () => {
+			const done = await getHasCompletedOnboarding();
+			if (cancelled) return;
+			if (done) {
+				setGate('show-tabs');
+				return;
+			}
+			const userEntities = entities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID);
+			setGate(userEntities.length > 0 ? 'show-tabs' : 'redirect');
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [isLoading, entities]);
+
+	if (gate === 'unknown') return null;
+	if (gate === 'redirect') return <Redirect href="/onboarding/welcome" />;
 
 	const handleOpenAdd = () => {
 		void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

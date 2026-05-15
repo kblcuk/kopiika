@@ -5,15 +5,13 @@ import { useStore } from '@/src/store';
 import { getHasCompletedOnboarding, setHasCompletedOnboarding } from '@/src/utils/app-prefs';
 
 /**
- * Silently marks existing users as having completed onboarding.
+ * Existing-user migration.
  *
- * Runs once after fonts are loaded and the store has finished hydrating.
- * If the flag is already set, does nothing. If there are real (non-system)
- * entities in the DB, sets the flag to true so existing users never see
- * the new onboarding flow when it lands in a later task.
- *
- * Fresh installs (no user entities) are left untouched — they will go
- * through onboarding when the flow is ready.
+ * Runs once after fonts are loaded and the store has hydrated. If the
+ * completion flag is unset but the DB already has real (non-system)
+ * entities, mark the flag true so an existing tester never sees the new
+ * onboarding flow. Fresh installs (no user entities) are left untouched —
+ * the (tabs) layout gate redirects them into /onboarding/welcome.
  */
 export function useMigrateOnboarding(fontsLoaded: boolean): void {
 	const isLoading = useStore((s) => s.isLoading);

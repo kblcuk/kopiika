@@ -63,4 +63,14 @@ describe('Root layout first-launch detection', () => {
 		// Now the negative assertion is meaningful
 		expect(mockedSetHasCompletedOnboarding).not.toHaveBeenCalled();
 	});
+
+	it('does NOT migrate when no completion + no entities (fresh install)', async () => {
+		// Fresh install branch: hook leaves the flag untouched; the (tabs)
+		// layout gate handles the actual redirect into /onboarding/welcome.
+		mockedGetHasCompletedOnboarding.mockResolvedValue(false);
+		(global as any).__testEntities = [];
+		renderHook(() => useMigrateOnboarding(true));
+		await waitFor(() => expect(mockedGetHasCompletedOnboarding).toHaveBeenCalled());
+		expect(mockedSetHasCompletedOnboarding).not.toHaveBeenCalled();
+	});
 });

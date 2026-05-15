@@ -83,6 +83,8 @@ function App() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<Stack screenOptions={{ headerShown: false }}>
 				<Stack.Screen name="(tabs)" />
+				<Stack.Screen name="onboarding" />
+				<Stack.Screen name="help" />
 			</Stack>
 			<WhatsNewModal visible={showWhatsNew} onClose={handleDismissWhatsNew} />
 			<StatusBar style="dark" />
