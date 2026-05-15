@@ -80,4 +80,11 @@ export const TestIDs = {
 	dashboardTabButton: 'dashboard-tab-button',
 	historyTabButton: 'history-tab-button',
 	historyScreen: 'history-screen',
+
+	help: {
+		listScreen: 'help-list-screen',
+		searchInput: 'help-search-input',
+		articleRow: (id: string) => `help-article-row-${id}`,
+		articleScreen: (id: string) => `help-article-screen-${id}`,
+	},
 } as const;
