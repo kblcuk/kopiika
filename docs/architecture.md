@@ -187,6 +187,18 @@ Reminder rules:
 
 Settings provides CSV export/import for entities, plans, transactions, and market value snapshots. Import replaces all app data atomically: old rows are deleted and new rows inserted inside a SQLite transaction, so a failed import should leave the previous database intact.
 
+## Onboarding & In-App Knowledge Base
+
+Fresh installs route into `app/onboarding/welcome.tsx` (single-page philosophy intro), then `app/onboarding/setup.tsx` (chip picker over `src/onboarding/presets.ts` — the relocated catalog formerly known as `createDefaultEntities`). Completion writes `hasCompletedOnboarding=true` to `app-prefs.json`. Existing-user migration in `src/hooks/use-migrate-onboarding.ts` flips the flag silently when entities already exist; fresh installs (no user entities, flag false) are redirected into `/onboarding/welcome`.
+
+The in-app knowledge base lives in `src/kb/articles.ts` (registry of 9 typed React components) and `app/help/` (list + detail screens). Metadata is split into `src/kb/articles-meta.ts` (no React imports) so `bun:test` can verify the registry without pulling in React Native. Contextual `<InfoPin articleId="..." />` (in `src/components/info-pin.tsx`) deep-links into the relevant article from inside reservation/transaction/entity modals.
+
+The empty-board nudge in `src/components/empty-board-nudge.tsx` covers two states on Home: no entities yet, or entities-but-no-transactions. Explicit ✕ dismissal persists via `emptyBoardNudgeDismissed` in `app-prefs.json`; transactions auto-hide the nudge without writing the pref.
+
+Settings exposes both "Help & how it works" (→ `/help`) and "Take the tour" (→ `/onboarding/welcome?fromSettings=true` — runs the welcome+setup screens in preview mode without re-creating entities).
+
+E2E `seedFixture` writes `hasCompletedOnboarding=true` on every fixture load so existing E2E suites bypass the first-launch redirect.
+
 ## Completed Linear Scope
 
 As of 2026-05-01, Linear has no open Todo, In Progress, or Backlog issues for the `kopiika` team. The docs should now describe the finished current state; planning docs under `docs/superpowers/` and dated review notes are historical unless they say otherwise.
