@@ -19,6 +19,14 @@ import {
 } from '@/src/services/notifications';
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
+jest.mock('expo-router', () => ({
+	useRouter: () => ({ push: jest.fn() }),
+}));
+
+jest.mock('lucide-react-native', () => ({
+	ChevronRight: 'ChevronRight',
+}));
+
 jest.mock('expo-constants', () => ({
 	expoConfig: { version: 'test-version' },
 }));

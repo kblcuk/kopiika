@@ -87,4 +87,9 @@ export const TestIDs = {
 		articleRow: (id: string) => `help-article-row-${id}`,
 		articleScreen: (id: string) => `help-article-screen-${id}`,
 	},
+
+	settings: {
+		helpRow: 'settings-help-row',
+		tourRow: 'settings-tour-row',
+	},
 } as const;

@@ -4,6 +4,10 @@ import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
+import { useRouter } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
+import { colors } from '@/src/theme/colors';
+import { TestIDs } from '@/e2e/support/test-ids';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
@@ -104,6 +108,7 @@ export default function SettingsScreen() {
 		}
 	};
 
+	const router = useRouter();
 	const version = Constants.expoConfig?.version || 'unknown';
 	const privacyPolicyUrl = 'https://kblcuk.codeberg.page/kopiika/privacy-policy.html';
 
@@ -269,6 +274,29 @@ export default function SettingsScreen() {
 							thumbColor="#FFFBF5"
 						/>
 					</View>
+				</View>
+
+				{/* Help Section */}
+				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					Help
+				</Text>
+
+				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
+					<Pressable
+						testID={TestIDs.settings.helpRow}
+						onPress={() => router.push('/help' as never)}
+						className="flex-row items-center justify-between px-4 py-3.5 active:bg-paper-200"
+					>
+						<View>
+							<Text className="font-sans text-base text-ink">
+								Help &amp; how it works
+							</Text>
+							<Text className="font-sans text-sm text-ink-muted">
+								Concepts, transactions, tips
+							</Text>
+						</View>
+						<ChevronRight size={16} color={colors.ink.muted} />
+					</Pressable>
 				</View>
 
 				{/* About Section */}
