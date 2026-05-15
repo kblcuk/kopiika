@@ -2,6 +2,17 @@ import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
 import { roundMoney } from '../../src/utils/format';
 
+// Marks onboarding as complete via the E2E deep-link route so the first-launch
+// welcome/setup flow doesn't show. Returns once home is visible. Call after
+// `device.launchApp({ delete: true })` in any suite that doesn't seed via
+// `seedFixture` (which already sets the flag).
+export async function skipOnboarding() {
+	await device.openURL({ url: 'kopiika://e2e/skip-onboarding' });
+	await waitFor(element(by.id(TestIDs.homeScreen)))
+		.toBeVisible()
+		.withTimeout(15000);
+}
+
 // Tap dismiss on the What's New modal if present. Uses a short timeout and
 // swallows the error if the modal is absent.
 export async function dismissWhatsNewIfPresent() {
@@ -157,9 +168,9 @@ export async function dnd(fromName: string, toName: string) {
 export async function launchFreshAndDismissOverlays() {
 	await device.launchApp({ delete: true });
 	await device.disableSynchronization();
-	await waitFor(element(by.id(TestIDs.homeScreen)))
-		.toBeVisible()
-		.withTimeout(15000);
+	// Fresh install lands on the onboarding welcome screen; bypass it via the
+	// E2E deep-link so existing suites still land on home.
+	await skipOnboarding();
 	await dismissWhatsNewIfPresent();
 }
 
