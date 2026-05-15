@@ -1,3 +1,4 @@
+export { EmptyBoardNudge } from './empty-board-nudge';
 export { EntityCreateModal } from './entity-create-modal';
 export { EntityDetailModal } from './entity-detail-modal';
 export { InfoPin } from './info-pin';

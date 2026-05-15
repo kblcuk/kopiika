@@ -4,6 +4,13 @@ export const TestIDs = {
 
 	addTransactionButton: 'add-transaction-button',
 	addEntityButton: (type: string) => `add-entity-button-${type}`,
+
+	emptyBoardNudge: {
+		card: 'empty-board-nudge-card',
+		dismiss: 'empty-board-nudge-dismiss',
+		addEntityCta: 'empty-board-nudge-add-entity',
+	},
+
 	entityOption: (name: string) => `entity-option-${name}`,
 	fromOption: (name: string) => `from-option-${name}`,
 	toOption: (name: string) => `to-option-${name}`,

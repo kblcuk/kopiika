@@ -1,4 +1,5 @@
 import {
+	EmptyBoardNudge,
 	EntityCreateModal,
 	EntityDetailModal,
 	RefundPickerModal,
@@ -7,6 +8,7 @@ import {
 	SummaryHeader,
 	TransactionModal,
 } from '@/src/components';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { Text } from '@/src/components/text';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
@@ -51,6 +53,13 @@ export default function HomeScreen() {
 		setDraggedEntity,
 		toggleIncomeVisible,
 	} = useStore();
+
+	const transactions = useStore((s) => s.transactions);
+
+	const userEntityCount = useMemo(
+		() => entities.filter((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID).length,
+		[entities]
+	);
 
 	const income = useEntitiesWithBalance('income');
 	const accounts = useEntitiesWithBalance('account');
@@ -357,6 +366,16 @@ export default function HomeScreen() {
 		>
 			{/* Summary bar */}
 			<SummaryHeader onToggleIncome={handleToggleIncome} />
+
+			{/* Empty-state nudge — renders null when not applicable */}
+			<EmptyBoardNudge
+				entityCount={userEntityCount}
+				transactionCount={transactions.length}
+				onAddEntity={() => {
+					setCreateEntityType('account');
+					setCreateModalVisible(true);
+				}}
+			/>
 
 			{/* PortalProvider ensures dragged items render above all other content */}
 			<Sortable.PortalProvider>
