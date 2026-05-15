@@ -26,8 +26,7 @@ export default function HelpIndexScreen() {
 	const renderItem = ({ item }: { item: KbArticle }) => (
 		<Pressable
 			testID={TestIDs.help.articleRow(item.id)}
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			onPress={() => router.push(`/help/${item.id}` as any)}
+			onPress={() => router.push(`/help/${item.id}` as never)}
 			className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4"
 		>
 			<View className="flex-1 pr-3">
