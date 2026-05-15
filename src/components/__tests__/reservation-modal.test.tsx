@@ -1,9 +1,12 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-
 import { ReservationModal } from '../reservation-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
 import { useStore } from '@/src/store';
+
+jest.mock('expo-router', () => ({
+	useRouter: () => ({ push: jest.fn() }),
+}));
 
 describe('ReservationModal', () => {
 	const mockOnClose = jest.fn();

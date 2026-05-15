@@ -25,6 +25,7 @@ import {
 import { colors } from '@/src/theme/colors';
 import { isEntityActive } from '@/src/utils/entity-display';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { InfoPin } from '@/src/components/info-pin';
 import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityCreateModalProps {
@@ -261,9 +262,12 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 					{entityType === 'account' && (
 						<View className="mb-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
 							<View className="flex-1 pr-4">
-								<Text className="font-sans text-base text-ink">
-									Investment account
-								</Text>
+								<View className="flex-row items-center">
+									<Text className="font-sans text-base text-ink">
+										Investment account
+									</Text>
+									<InfoPin articleId="investment-accounts" />
+								</View>
 								<Text className="font-sans text-xs text-ink-muted">
 									Track purchase value and market value
 								</Text>

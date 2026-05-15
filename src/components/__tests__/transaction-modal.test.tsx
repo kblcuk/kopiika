@@ -6,6 +6,10 @@ import { setupStoreForTest } from '@/src/test-utils-component';
 import type { Entity, EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 
+jest.mock('expo-router', () => ({
+	useRouter: () => ({ push: jest.fn() }),
+}));
+
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
 	notificationAsync: jest.fn(),

@@ -25,6 +25,7 @@ import { colors } from '@/src/theme/colors';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
 import { getReservationForPair } from '@/src/utils/savings-transactions';
+import { InfoPin } from '@/src/components/info-pin';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -146,7 +147,10 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					>
 						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
 					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
+					<View className="flex-row items-center">
+						<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
+						<InfoPin articleId="reservations" />
+					</View>
 					<View style={{ width: 48 }} />
 				</View>
 				<KeyboardAwareScrollView

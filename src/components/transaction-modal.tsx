@@ -50,6 +50,7 @@ import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { InfoPin } from '@/src/components/info-pin';
 import { showSeriesScopeAlert } from './series-action-sheet';
 
 const isEntityWithBalance: (e: Entity | EntityWithBalance | null) => e is EntityWithBalance = (e) =>
@@ -853,6 +854,7 @@ export function TransactionModal({
 									>
 										Split
 									</Text>
+									<InfoPin articleId="splits" />
 								</Pressable>
 
 								{isSplitMode && (
@@ -1079,6 +1081,7 @@ export function TransactionModal({
 								>
 									Repeat
 								</Text>
+								<InfoPin articleId="recurring" />
 							</Pressable>
 
 							{isRepeat && (

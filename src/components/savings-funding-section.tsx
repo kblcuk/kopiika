@@ -9,6 +9,7 @@ import { sharedNumericTextInputProps, styles, textInputClassNames } from '../sty
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
+import { InfoPin } from '@/src/components/info-pin';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
@@ -130,9 +131,12 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 
 		return (
 			<View className="mb-6">
-				<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-					Fund from savings
-				</Text>
+				<View className="mb-2 flex-row items-center">
+					<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Fund from savings
+					</Text>
+					<InfoPin articleId="refunds" />
+				</View>
 
 				<View className="overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
 					{visibleRows.map((row, index) => {

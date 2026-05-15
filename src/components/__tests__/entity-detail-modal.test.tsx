@@ -21,6 +21,10 @@ jest.mock('expo-haptics', () => ({
 	NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
+jest.mock('expo-router', () => ({
+	useRouter: () => ({ push: jest.fn() }),
+}));
+
 // Mock Alert.alert
 jest.spyOn(Alert, 'alert');
 

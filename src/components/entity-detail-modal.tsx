@@ -42,6 +42,7 @@ import {
 	getReservationsForSaving,
 	getReservationsForAccount,
 } from '@/src/utils/savings-transactions';
+import { InfoPin } from '@/src/components/info-pin';
 import { OperatorToolbar } from './operator-toolbar';
 
 interface EntityDetailModalProps {
@@ -572,9 +573,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							{/* Include in total toggle */}
 							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
 								<View className="flex-1 pr-4">
-									<Text className="font-sans text-base text-ink">
-										Include in total balance
-									</Text>
+									<View className="flex-row items-center">
+										<Text className="font-sans text-base text-ink">
+											Include in total balance
+										</Text>
+										<InfoPin articleId="entity-types" />
+									</View>
 									<Text className="font-sans text-xs text-ink-muted">
 										Turn off to exclude from summary header
 									</Text>
@@ -616,9 +620,12 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 							{/* Investment account toggle */}
 							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
 								<View className="flex-1 pr-4">
-									<Text className="font-sans text-base text-ink">
-										Investment account
-									</Text>
+									<View className="flex-row items-center">
+										<Text className="font-sans text-base text-ink">
+											Investment account
+										</Text>
+										<InfoPin articleId="investment-accounts" />
+									</View>
 									<Text className="font-sans text-xs text-ink-muted">
 										Track purchase value and market value
 									</Text>
