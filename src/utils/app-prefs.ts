@@ -7,6 +7,8 @@ interface AppPrefs {
 	remindersEnabled?: boolean;
 	hasRequestedNotificationPermission?: boolean;
 	lastBackgroundNotificationKey?: string | null;
+	hasCompletedOnboarding?: boolean;
+	emptyBoardNudgeDismissed?: boolean;
 }
 
 async function read(): Promise<AppPrefs> {
@@ -67,5 +69,27 @@ export async function getLastBackgroundNotificationKey(): Promise<string | null>
 export async function setLastBackgroundNotificationKey(value: string | null): Promise<void> {
 	const prefs = await read();
 	prefs.lastBackgroundNotificationKey = value;
+	write(prefs);
+}
+
+export async function getHasCompletedOnboarding(): Promise<boolean> {
+	const prefs = await read();
+	return prefs.hasCompletedOnboarding ?? false;
+}
+
+export async function setHasCompletedOnboarding(value: boolean): Promise<void> {
+	const prefs = await read();
+	prefs.hasCompletedOnboarding = value;
+	write(prefs);
+}
+
+export async function getEmptyBoardNudgeDismissed(): Promise<boolean> {
+	const prefs = await read();
+	return prefs.emptyBoardNudgeDismissed ?? false;
+}
+
+export async function setEmptyBoardNudgeDismissed(value: boolean): Promise<void> {
+	const prefs = await read();
+	prefs.emptyBoardNudgeDismissed = value;
 	write(prefs);
 }
