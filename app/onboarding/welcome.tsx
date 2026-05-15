@@ -12,18 +12,20 @@ export default function WelcomeScreen() {
 	const fromSettings = params.fromSettings === 'true';
 
 	const handleContinue = () => {
-		router.push(
-			(fromSettings ? '/onboarding/setup?fromSettings=true' : '/onboarding/setup') as never
-		);
+		if (fromSettings) {
+			router.push({ pathname: '/onboarding/setup', params: { fromSettings: 'true' } });
+		} else {
+			router.push('/onboarding/setup');
+		}
 	};
 
 	const handleSkip = async () => {
 		if (fromSettings) {
-			router.replace('/(tabs)/settings' as never);
+			router.replace('/(tabs)/settings');
 			return;
 		}
 		await setHasCompletedOnboarding(true);
-		router.replace('/(tabs)' as never);
+		router.replace('/(tabs)');
 	};
 
 	return (

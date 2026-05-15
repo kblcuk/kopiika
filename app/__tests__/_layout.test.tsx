@@ -11,30 +11,30 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import { getHasCompletedOnboarding, setHasCompletedOnboarding } from '@/src/utils/app-prefs';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { useMigrateOnboarding } from '@/src/hooks/use-migrate-onboarding';
+import type { Entity } from '@/src/types';
+
+let mockEntities: Entity[] = [];
 
 jest.mock('@/src/utils/app-prefs');
 jest.mock('@/src/store', () => ({
-	useStore: (selector?: any) => {
-		const state = {
-			isLoading: false,
-			entities: (global as any).__testEntities ?? [],
-		};
+	useStore: <T,>(selector?: (s: { isLoading: boolean; entities: Entity[] }) => T) => {
+		const state = { isLoading: false, entities: mockEntities };
 		return selector ? selector(state) : state;
 	},
 }));
 
-const mockedGetHasCompletedOnboarding = getHasCompletedOnboarding as jest.Mock;
-const mockedSetHasCompletedOnboarding = setHasCompletedOnboarding as jest.Mock;
+const mockedGetHasCompletedOnboarding = jest.mocked(getHasCompletedOnboarding);
+const mockedSetHasCompletedOnboarding = jest.mocked(setHasCompletedOnboarding);
 
 describe('Root layout first-launch detection', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		(global as any).__testEntities = [];
+		mockEntities = [];
 	});
 
 	it('does nothing when hasCompletedOnboarding=true', async () => {
 		mockedGetHasCompletedOnboarding.mockResolvedValue(true);
-		(global as any).__testEntities = [{ id: 'a', type: 'account' }];
+		mockEntities = [{ id: 'a', type: 'account' } as Entity];
 		renderHook(() => useMigrateOnboarding(true));
 		// Wait for the read to happen first — proves the async body ran
 		await waitFor(() => expect(mockedGetHasCompletedOnboarding).toHaveBeenCalledTimes(1));
@@ -44,9 +44,9 @@ describe('Root layout first-launch detection', () => {
 
 	it('migrates existing users (entities>0, flag false) to true', async () => {
 		mockedGetHasCompletedOnboarding.mockResolvedValue(false);
-		(global as any).__testEntities = [
-			{ id: BALANCE_ADJUSTMENT_ENTITY_ID, type: 'account' },
-			{ id: 'real-entity', type: 'account' },
+		mockEntities = [
+			{ id: BALANCE_ADJUSTMENT_ENTITY_ID, type: 'account' } as Entity,
+			{ id: 'real-entity', type: 'account' } as Entity,
 		];
 		renderHook(() => useMigrateOnboarding(true));
 		await waitFor(() => {
@@ -56,7 +56,7 @@ describe('Root layout first-launch detection', () => {
 
 	it('does NOT migrate when only system entity exists', async () => {
 		mockedGetHasCompletedOnboarding.mockResolvedValue(false);
-		(global as any).__testEntities = [{ id: BALANCE_ADJUSTMENT_ENTITY_ID, type: 'account' }];
+		mockEntities = [{ id: BALANCE_ADJUSTMENT_ENTITY_ID, type: 'account' } as Entity];
 		renderHook(() => useMigrateOnboarding(true));
 		// Wait for the read to happen first — proves the async body ran
 		await waitFor(() => expect(mockedGetHasCompletedOnboarding).toHaveBeenCalledTimes(1));
@@ -68,7 +68,7 @@ describe('Root layout first-launch detection', () => {
 		// Fresh install branch: hook leaves the flag untouched; the (tabs)
 		// layout gate handles the actual redirect into /onboarding/welcome.
 		mockedGetHasCompletedOnboarding.mockResolvedValue(false);
-		(global as any).__testEntities = [];
+		mockEntities = [];
 		renderHook(() => useMigrateOnboarding(true));
 		await waitFor(() => expect(mockedGetHasCompletedOnboarding).toHaveBeenCalled());
 		expect(mockedSetHasCompletedOnboarding).not.toHaveBeenCalled();

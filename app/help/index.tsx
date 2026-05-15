@@ -24,7 +24,9 @@ export default function HelpIndexScreen() {
 	const renderItem = ({ item }: { item: KbArticle }) => (
 		<Pressable
 			testID={TestIDs.help.articleRow(item.id)}
-			onPress={() => router.push(`/help/${item.id}` as never)}
+			onPress={() =>
+				router.push({ pathname: '/help/[articleId]', params: { articleId: item.id } })
+			}
 			className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4"
 		>
 			<View className="flex-1 pr-3">

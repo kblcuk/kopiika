@@ -6,8 +6,8 @@ import { getEmptyBoardNudgeDismissed, setEmptyBoardNudgeDismissed } from '@/src/
 
 jest.mock('@/src/utils/app-prefs');
 
-const mockedGet = getEmptyBoardNudgeDismissed as jest.Mock;
-const mockedSet = setEmptyBoardNudgeDismissed as jest.Mock;
+const mockedGet = jest.mocked(getEmptyBoardNudgeDismissed);
+const mockedSet = jest.mocked(setEmptyBoardNudgeDismissed);
 
 describe('EmptyBoardNudge', () => {
 	beforeEach(() => {

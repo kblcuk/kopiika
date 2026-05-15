@@ -5,6 +5,8 @@ export const TestIDs = {
 	addTransactionButton: 'add-transaction-button',
 	addEntityButton: (type: string) => `add-entity-button-${type}`,
 
+	infoPin: (articleId: string) => `info-pin-${articleId}`,
+
 	emptyBoardNudge: {
 		card: 'empty-board-nudge-card',
 		dismiss: 'empty-board-nudge-dismiss',
