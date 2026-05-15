@@ -6,6 +6,7 @@ import { getAllEntities, getNextPosition } from '@/src/db/entities';
 import { createTransaction } from '@/src/db/transactions';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
+import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
 import { useStore } from '@/src/store';
 import type { EntityType, Transaction } from '@/src/types';
 
@@ -41,6 +42,8 @@ export default function E2EFixtureScreen() {
 				const payload: FixturePayload = Array.isArray(parsed)
 					? { transactions: parsed }
 					: parsed;
+
+				await setHasCompletedOnboarding(true);
 
 				// Use the store's addEntity action: it writes the DB AND updates
 				// the in-memory entities array. A direct db.createEntity() call
