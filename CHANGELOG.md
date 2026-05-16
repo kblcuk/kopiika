@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.15](https://codeberg.org/kblcuk/kopiika/compare/v0.3.14...v0.3.15) (2026-05-16)
+
+
+### Features
+
+* **app-prefs:** Add onboarding + nudge dismissal keys ([3ff8c9d](https://codeberg.org/kblcuk/kopiika/commit/3ff8c9db5932c7658cd9c9e013983bb2bebd0fcd))
+* **help:** add article detail screen with related links ([7f05d61](https://codeberg.org/kblcuk/kopiika/commit/7f05d6101dc41466ff9a6e61861bf36f5678e545))
+* **help:** Add help article list screen ([b227645](https://codeberg.org/kblcuk/kopiika/commit/b22764512d65e46aa9b50acd4b42e8d22e3dfe0f))
+* **home:** Add dismissable empty-board nudge ([748922d](https://codeberg.org/kblcuk/kopiika/commit/748922d7f7595bee7a66a8a9a118cb8f9fa0865e))
+* **info-pin:** add contextual help icon ([582f1bc](https://codeberg.org/kblcuk/kopiika/commit/582f1bc7378d974d6c1bd693da6662d597c6793f))
+* **info-pin:** wire contextual help into 6 anchors across 4 modals ([b4387a9](https://codeberg.org/kblcuk/kopiika/commit/b4387a9882a0ad8edf9e8aa0cef3e10a2eafc0a8))
+* **kb:** add 9-article knowledge-base registry ([69ec392](https://codeberg.org/kblcuk/kopiika/commit/69ec3924c7fa974de00ba9c042ac7450827fe01a))
+* **onboarding:** add bulk-setup chip picker ([1a651a2](https://codeberg.org/kblcuk/kopiika/commit/1a651a2e804996c2015ce9699f7f66059b990d91))
+* **onboarding:** add welcome screen + stack layout ([cbc7ffc](https://codeberg.org/kblcuk/kopiika/commit/cbc7ffc15cd12f8c7fbfb4f84d1be44f3102582e))
+* **onboarding:** migrate existing users + drop silent preseed ([61b8a85](https://codeberg.org/kblcuk/kopiika/commit/61b8a8568f75992f21a893ffed3aeceb4603b7c6))
+* **onboarding:** redirect fresh installs into /onboarding/welcome ([d97428f](https://codeberg.org/kblcuk/kopiika/commit/d97428fdc35d5df481c1fb4cc5690966ba839c7b))
+* **onboarding:** stage custom entities until Continue ([755ed93](https://codeberg.org/kblcuk/kopiika/commit/755ed935a3f3419db08a9cece8effa6c02f12299))
+* **settings:** add Help row linking to /help ([e402b83](https://codeberg.org/kblcuk/kopiika/commit/e402b83244b77212553d877f5d081d09ae051fa9))
+* **settings:** add Take the tour row ([a52221d](https://codeberg.org/kblcuk/kopiika/commit/a52221d3e79efa0ca66b8804f25084a0f7ad5c6b))
+
+
+### Bug Fixes
+
+* **onboarding:** freeze gate decision after first hydration ([8eab5b1](https://codeberg.org/kblcuk/kopiika/commit/8eab5b1e9e56167d9800cd29e4a833cda9be4359))
+
 ## [0.3.14](https://codeberg.org/kblcuk/kopiika/compare/v0.3.13...v0.3.14) (2026-05-13)
 
 
