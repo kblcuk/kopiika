@@ -80,7 +80,7 @@ export async function expectNoTransactionModal() {
 // each tap. attemptInterval is set above the ~400 ms modal/picker animation
 // duration so a successful first tap has time to settle before we'd retry —
 // avoids re-firing into a still-animating sheet and hitting the wrong element.
-async function tapUntilVisible(
+export async function tapUntilVisible(
 	tapMatcher: Detox.NativeMatcher,
 	expectMatcher: Detox.NativeMatcher,
 	{

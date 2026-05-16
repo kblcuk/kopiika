@@ -1,5 +1,6 @@
 import { device, element, by, waitFor } from 'detox';
 import { TestIDs } from '../support/test-ids';
+import { tapUntilVisible } from '../support/helpers';
 
 describe('Onboarding — first launch', () => {
 	beforeAll(async () => {
@@ -17,16 +18,18 @@ describe('Onboarding — first launch', () => {
 		await waitFor(element(by.id(TestIDs.onboarding.welcomeContinueButton)))
 			.toBeVisible()
 			.withTimeout(5000);
-		await element(by.id(TestIDs.onboarding.welcomeContinueButton)).tap();
+		// Onboarding stack uses `animation: 'fade'`; sync is off, so the first
+		// tap can land mid-animation and get swallowed. Retry until the next
+		// screen's anchor element appears.
+		await tapUntilVisible(
+			by.id(TestIDs.onboarding.welcomeContinueButton),
+			by.id(TestIDs.onboarding.setupContinueButton)
+		);
 
-		await waitFor(element(by.id(TestIDs.onboarding.setupScreen)))
-			.toBeVisible()
-			.withTimeout(5000);
-
-		await waitFor(element(by.id(TestIDs.onboarding.setupContinueButton)))
-			.toBeVisible()
-			.withTimeout(5000);
-		await element(by.id(TestIDs.onboarding.setupContinueButton)).tap();
+		await tapUntilVisible(
+			by.id(TestIDs.onboarding.setupContinueButton),
+			by.id(TestIDs.homeScreen)
+		);
 
 		await waitFor(element(by.id(TestIDs.homeScreen)))
 			.toBeVisible()
