@@ -22,6 +22,14 @@ export type EntityFixture = {
 export type FixturePayload = {
 	entities?: EntityFixture[];
 	transactions?: TxFixture[];
+	/**
+	 * Deletes all non-system entities (and their plans) before seeding the
+	 * `entities` array. Use for tests that need a minimal entity set so the
+	 * home grid fits in a smaller viewport. The next suite's `launchAppFast`
+	 * re-seeds missing presets via skip-onboarding, so state restoration is
+	 * automatic across suites.
+	 */
+	clearEntities?: boolean;
 };
 
 /**

@@ -67,21 +67,47 @@ describe('Transactions — drag and drop', () => {
 			.withTimeout(5000);
 	});
 
-	// ── Reservation flow ─────────────────────────────────────────────────────
-
-	it('DnD Account → Saving: opens reservation modal, not transaction modal', async () => {
-		await dnd('Main Card', 'Vacation');
-
-		await waitFor(element(by.id(TestIDs.reservation.modal)))
-			.toBeVisible()
-			.withTimeout(5000);
-	});
-
 	// ── Blocked drag ─────────────────────────────────────────────────────────
 
 	it('DnD Category → Category: blocked — no transaction modal appears', async () => {
 		await dnd('Groceries', 'Transport');
 		await expectNoTransactionModal();
+	});
+
+	// ── Reservation flow ─────────────────────────────────────────────────────
+	// Runs after the blocked-drag test: this one wipes the seeded entities
+	// (see comment in the test), which would otherwise remove the Groceries /
+	// Transport the blocked-drag test needs.
+
+	it('DnD Account → Saving: opens reservation modal, not transaction modal', async () => {
+		// The default 12-preset seed (1 income + 3 accounts + 6 categories +
+		// 2 savings) overflows iPhone 16e's viewport, putting Vacation below
+		// the fold. `longPressAndDrag` requires both source and target at 100%
+		// visibility — and there's no scroll position where Main Card (top of
+		// Accounts) and Vacation (in Savings, below 3 rows of Categories) fit
+		// together. Wipe the seeded entities and seed only what this test
+		// needs so both bubbles render above the fold on any viewport.
+		// `launchAppFast` in the next suite re-seeds missing presets via
+		// skip-onboarding, so state is restored automatically.
+		await seedFixture({
+			clearEntities: true,
+			entities: [
+				{ type: 'account', name: 'Main Card', icon: 'credit-card' },
+				{ type: 'saving', name: 'Vacation', icon: 'plane' },
+			],
+		});
+		// `seedFixture` already waits for Main Card, but Vacation is the drag
+		// target — make sure it's laid out before issuing the gesture, or the
+		// drop can hit a stale section.
+		await waitFor(element(by.id(TestIDs.entityBubble('Vacation'))))
+			.toBeVisible(100)
+			.withTimeout(5000);
+
+		await dnd('Main Card', 'Vacation');
+
+		await waitFor(element(by.id(TestIDs.reservation.modal)))
+			.toBeVisible()
+			.withTimeout(5000);
 	});
 
 	// ── Auto-scroll while dragging (KII-97, Android-only) ────────────────────

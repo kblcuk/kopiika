@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { getAllEntities, getNextPosition } from '@/src/db/entities';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
@@ -29,7 +30,16 @@ type TxFixture = {
 	timestampOffsetMs?: number;
 };
 type EntityFixture = { type: EntityType; name: string; icon?: string; row?: number };
-type FixturePayload = { entities?: EntityFixture[]; transactions?: TxFixture[] };
+type FixturePayload = {
+	entities?: EntityFixture[];
+	transactions?: TxFixture[];
+	/**
+	 * When true, deletes all non-system entities (and their plans) before
+	 * seeding. Useful for tests that need a minimal entity set so the home
+	 * grid fits in a smaller viewport.
+	 */
+	clearEntities?: boolean;
+};
 
 export default function E2EFixtureScreen() {
 	const { data } = useLocalSearchParams<{ data: string }>();
@@ -47,7 +57,16 @@ export default function E2EFixtureScreen() {
 				// the DB AND update the in-memory arrays. Direct db.* calls would
 				// persist but the home screen wouldn't reflect the changes, since
 				// the store hydrates only at app launch.
-				const { addEntity, addTransaction } = useStore.getState();
+				const { addEntity, addTransaction, deleteEntity } = useStore.getState();
+
+				if (payload.clearEntities) {
+					const existing = useStore.getState().entities;
+					for (const e of existing) {
+						if (e.id === BALANCE_ADJUSTMENT_ENTITY_ID) continue;
+						await deleteEntity(e.id);
+					}
+				}
+
 				for (const e of payload.entities ?? []) {
 					const row = e.row ?? 0;
 					const position = await getNextPosition(e.type, row);
