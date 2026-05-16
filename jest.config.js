@@ -2,7 +2,11 @@
 module.exports = {
 	preset: 'jest-expo',
 	// Only run component/screen tests (unit tests handled by Bun)
-	testMatch: ['**/components/__tests__/**/*.test.tsx', '**/app/**/__tests__/**/*.test.tsx'],
+	testMatch: [
+		'**/components/__tests__/**/*.test.tsx',
+		'**/hooks/__tests__/**/*.test.tsx',
+		'**/app/**/__tests__/**/*.test.tsx',
+	],
 	testPathIgnorePatterns: ['/node_modules/', '\\.worktrees/'],
 	moduleNameMapper: {
 		// CSS imports are not valid in Jest (no bundler) — must come before @/ alias
