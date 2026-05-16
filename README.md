@@ -82,6 +82,45 @@ bun run web
 | `bun run unused`            | Find unused exported code with knip                                                   |
 | `bun run checks`            | Run lint, fmt check, types, and unused export checks                                  |
 
+## Simulator Workflow
+
+The native binary and the JS bundle are independent — Metro serves JS to a running app, so JS changes don't need a rebuild. Only native code, dependencies, or `app.json` changes require recompiling.
+
+### Reset to a clean state
+
+App state (SQLite DB + `app-prefs.json`) lives in the app sandbox, so uninstalling the app is enough to simulate a fresh install. No keychain entries to worry about today.
+
+```sh
+# iOS — remove the app from the booted simulator
+xcrun simctl uninstall booted com.kblcuk.kopiika
+
+# iOS — nuke the simulator entirely (all apps + settings)
+xcrun simctl shutdown booted && xcrun simctl erase booted
+
+# Android — uninstall, or just clear data without uninstalling
+adb uninstall com.kblcuk.kopiika
+adb shell pm clear com.kblcuk.kopiika
+```
+
+### Reinstall a pre-built app without rebuilding
+
+Once `bun run ios` (or `bun run build:e2e:ios`) has produced a `.app`, you can install it on any booted simulator directly:
+
+```sh
+# Dev build (from `bun run ios`)
+xcrun simctl install booted ios/build/Build/Products/Debug-iphonesimulator/kopiika.app
+
+# E2E build (from `bun run build:e2e:ios`)
+xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/kopiika.app
+
+# Launch (Metro must be running for dev builds)
+xcrun simctl launch booted com.kblcuk.kopiika
+```
+
+`booted` targets the currently-running simulator; replace with a UDID from `xcrun simctl list devices` to target a specific one. Dragging the `.app` folder onto the Simulator window does the same thing without the terminal.
+
+For Android, `adb install -r android/app/build/outputs/apk/release/app-release.apk` installs the E2E build; `bun run android` rebuilds + deploys the dev build.
+
 ## Project Structure
 
 ```
