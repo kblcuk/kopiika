@@ -28,13 +28,30 @@ import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { InfoPin } from '@/src/components/info-pin';
 import { OperatorToolbar } from './operator-toolbar';
 
+export interface EntityDraft {
+	type: EntityType;
+	name: string;
+	icon: string;
+	color: EntityColorKey | null;
+	isInvestment: boolean;
+	plannedAmount: number | null;
+}
+
 interface EntityCreateModalProps {
 	visible: boolean;
 	entityType: EntityType | null;
 	onClose: () => void;
+	/** Staging mode: when provided, the modal emits a draft instead of writing
+	 * to the store. The caller is responsible for committing later. */
+	onCreate?: (draft: EntityDraft) => void;
 }
 
-export function EntityCreateModal({ visible, entityType, onClose }: EntityCreateModalProps) {
+export function EntityCreateModal({
+	visible,
+	entityType,
+	onClose,
+	onCreate,
+}: EntityCreateModalProps) {
 	const [name, setName] = useState('');
 	const [selectedIcon, setSelectedIcon] = useState('');
 	const [selectedColor, setSelectedColor] = useState<EntityColorKey | null>(null);
@@ -67,6 +84,24 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 
 	const handleCreate = useCallback(async () => {
 		if (!entityType || !name.trim()) return;
+
+		// Staging mode: hand the draft to the caller and exit.
+		if (onCreate) {
+			const planned =
+				entityType !== 'account' ? reverseFormatCurrency(plannedExpr.resolve()) : NaN;
+			const plannedAmount = !isNaN(planned) && planned > 0 ? planned : null;
+			onCreate({
+				type: entityType,
+				name: name.trim(),
+				icon: selectedIcon,
+				color: selectedColor,
+				isInvestment: entityType === 'account' ? isInvestment : false,
+				plannedAmount,
+			});
+			void KeyboardController.dismiss();
+			onClose();
+			return;
+		}
 
 		const maxRows = entityType === 'category' ? 3 : 1;
 		const sameTypeEntities = entities.filter((e) => e.type === entityType && isEntityActive(e));
@@ -138,6 +173,7 @@ export function EntityCreateModal({ visible, entityType, onClose }: EntityCreate
 		setPlan,
 		currentPeriod,
 		onClose,
+		onCreate,
 		isInvestment,
 	]);
 

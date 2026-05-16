@@ -370,4 +370,65 @@ describe('EntityCreateModal', () => {
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
+
+	describe('Staging mode (onCreate provided)', () => {
+		it('invokes onCreate with the draft and does NOT call addEntity', async () => {
+			const addEntitySpy = jest.fn();
+			const setPlanSpy = jest.fn();
+			useStore.setState({ addEntity: addEntitySpy, setPlan: setPlanSpy });
+
+			const onCreate = jest.fn();
+			const { getByTestId } = render(
+				<EntityCreateModal
+					visible={true}
+					entityType="category"
+					onClose={mockOnClose}
+					onCreate={onCreate}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Pets');
+			fireEvent.changeText(getByTestId('entity-create-amount-input'), '1500');
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(onCreate).toHaveBeenCalledWith(
+					expect.objectContaining({
+						type: 'category',
+						name: 'Pets',
+						plannedAmount: 1500,
+					})
+				);
+			});
+			expect(addEntitySpy).not.toHaveBeenCalled();
+			expect(setPlanSpy).not.toHaveBeenCalled();
+			expect(mockOnClose).toHaveBeenCalled();
+		});
+
+		it('emits plannedAmount=null when amount is empty', async () => {
+			useStore.setState({ addEntity: jest.fn(), setPlan: jest.fn() });
+			const onCreate = jest.fn();
+			const { getByTestId } = render(
+				<EntityCreateModal
+					visible={true}
+					entityType="saving"
+					onClose={mockOnClose}
+					onCreate={onCreate}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('entity-create-name-input'), 'Yacht');
+			fireEvent.press(getByTestId('entity-create-save-button'));
+
+			await waitFor(() => {
+				expect(onCreate).toHaveBeenCalledWith(
+					expect.objectContaining({
+						type: 'saving',
+						name: 'Yacht',
+						plannedAmount: null,
+					})
+				);
+			});
+		});
+	});
 });

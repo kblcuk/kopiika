@@ -4,6 +4,8 @@ import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import SetupScreen from '../setup';
 import { PRESET_CHIPS, presetKey } from '@/src/onboarding/presets';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import type { EntityDraft } from '@/src/components/entity-create-modal';
+import type { Entity, EntityType, Plan } from '@/src/types';
 
 const mockReplace = jest.fn();
 let mockSearchParams: { fromSettings?: string } = {};
@@ -18,8 +20,8 @@ jest.mock('react-native-safe-area-context', () => ({
 	useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-const mockAddEntity = jest.fn(async () => {});
-const mockSetPlan = jest.fn(async () => {});
+const mockAddEntity = jest.fn(async (_entity: Entity) => {});
+const mockSetPlan = jest.fn(async (_plan: Plan) => {});
 
 type SetupStoreSlice = { addEntity: typeof mockAddEntity; setPlan: typeof mockSetPlan };
 
@@ -30,6 +32,25 @@ jest.mock('@/src/store', () => ({
 	},
 }));
 
+let modalProps: {
+	visible: boolean;
+	entityType: EntityType | null;
+	onClose: () => void;
+	onCreate?: (draft: EntityDraft) => void;
+} | null = null;
+
+jest.mock('@/src/components/entity-create-modal', () => ({
+	EntityCreateModal: (props: {
+		visible: boolean;
+		entityType: EntityType | null;
+		onClose: () => void;
+		onCreate?: (draft: EntityDraft) => void;
+	}) => {
+		modalProps = props;
+		return null;
+	},
+}));
+
 jest.mock('@/src/utils/app-prefs');
 const mockedSetHasCompleted = jest.mocked(setHasCompletedOnboarding);
 
@@ -37,6 +58,7 @@ describe('Onboarding setup screen', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		mockSearchParams = {};
+		modalProps = null;
 	});
 
 	it('default-selects chips with defaultSelected=true', () => {
@@ -85,5 +107,99 @@ describe('Onboarding setup screen', () => {
 		fireEvent.press(getByTestId('onboarding-setup-continue'));
 		expect(mockReplace).toHaveBeenCalledWith('/(tabs)/settings');
 		expect(mockAddEntity).not.toHaveBeenCalled();
+	});
+
+	it('+ Custom opens the modal with the matching entity type', () => {
+		const { getByTestId } = render(<SetupScreen />);
+		fireEvent.press(getByTestId('onboarding-setup-custom-category'));
+		expect(modalProps?.visible).toBe(true);
+		expect(modalProps?.entityType).toBe('category');
+	});
+
+	it('staged customs render as chips and commit on Continue', async () => {
+		const { getByTestId, queryByTestId } = render(<SetupScreen />);
+		fireEvent.press(getByTestId('onboarding-setup-custom-category'));
+
+		act(() => {
+			modalProps!.onCreate!({
+				type: 'category',
+				name: 'Pets',
+				icon: 'cat',
+				color: 'jade',
+				isInvestment: false,
+				plannedAmount: 1500,
+			});
+		});
+
+		const stagedChip = queryByTestId(/^onboarding-setup-staged-custom-/);
+		expect(stagedChip).toBeTruthy();
+
+		await act(async () => {
+			fireEvent.press(getByTestId('onboarding-setup-continue'));
+		});
+		await waitFor(() => {
+			const defaultCount = PRESET_CHIPS.filter((c) => c.defaultSelected).length;
+			expect(mockAddEntity).toHaveBeenCalledTimes(defaultCount + 1);
+			expect(mockSetPlan).toHaveBeenCalledTimes(defaultCount + 1);
+			expect(mockedSetHasCompleted).toHaveBeenCalledWith(true);
+		});
+		const customEntity = mockAddEntity.mock.calls
+			.map((c) => c[0])
+			.find((e) => e.name === 'Pets');
+		expect(customEntity).toBeTruthy();
+		expect(customEntity!.type).toBe('category');
+		expect(customEntity!.icon).toBe('cat');
+		expect(customEntity!.color).toBe('jade');
+	});
+
+	it('removing a staged custom takes it out of Continue commit', async () => {
+		const { getByTestId, queryByTestId } = render(<SetupScreen />);
+		fireEvent.press(getByTestId('onboarding-setup-custom-saving'));
+		act(() => {
+			modalProps!.onCreate!({
+				type: 'saving',
+				name: 'Yacht',
+				icon: 'sailboat',
+				color: 'sapphire',
+				isInvestment: false,
+				plannedAmount: null,
+			});
+		});
+		const stagedChip = queryByTestId(/^onboarding-setup-staged-custom-/);
+		expect(stagedChip).toBeTruthy();
+		fireEvent.press(stagedChip!);
+		expect(queryByTestId(/^onboarding-setup-staged-custom-/)).toBeNull();
+
+		await act(async () => {
+			fireEvent.press(getByTestId('onboarding-setup-continue'));
+		});
+		await waitFor(() => {
+			const defaultCount = PRESET_CHIPS.filter((c) => c.defaultSelected).length;
+			expect(mockAddEntity).toHaveBeenCalledTimes(defaultCount);
+		});
+		const yacht = mockAddEntity.mock.calls.map((c) => c[0]).find((e) => e.name === 'Yacht');
+		expect(yacht).toBeFalsy();
+	});
+
+	it('Skip link drops staged customs without committing', async () => {
+		const { getByTestId } = render(<SetupScreen />);
+		fireEvent.press(getByTestId('onboarding-setup-custom-account'));
+		act(() => {
+			modalProps!.onCreate!({
+				type: 'account',
+				name: 'Swiss Bank',
+				icon: 'landmark',
+				color: 'sapphire',
+				isInvestment: false,
+				plannedAmount: null,
+			});
+		});
+		await act(async () => {
+			fireEvent.press(getByTestId('onboarding-setup-skip'));
+		});
+		await waitFor(() => {
+			expect(mockAddEntity).not.toHaveBeenCalled();
+			expect(mockedSetHasCompleted).toHaveBeenCalledWith(true);
+		});
 	});
 });

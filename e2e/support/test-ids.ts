@@ -70,6 +70,7 @@ export const TestIDs = {
 		setupScreen: 'onboarding-setup',
 		setupChip: (key: string) => `onboarding-setup-chip-${key}`,
 		setupCustomChip: (type: string) => `onboarding-setup-custom-${type}`,
+		setupStagedCustom: (id: string) => `onboarding-setup-staged-custom-${id}`,
 		setupContinueButton: 'onboarding-setup-continue',
 		setupSkipLink: 'onboarding-setup-skip',
 	},
