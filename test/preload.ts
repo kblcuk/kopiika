@@ -35,7 +35,13 @@ void mock.module('expo-background-task', () => ({
 	BackgroundTaskResult: { Success: 1, Failed: 2 },
 }));
 
-// expo-file-system is used by app-prefs — provide no-op FS stubs.
+// expo-sharing is used by export.ts — provide no-op stubs.
+void mock.module('expo-sharing', () => ({
+	isAvailableAsync: async () => false,
+	shareAsync: async () => {},
+}));
+
+// expo-file-system is used by app-prefs and export.ts — provide no-op FS stubs.
 void mock.module('expo-file-system', () => {
 	const fileContents = new Map<string, string>();
 
@@ -58,7 +64,25 @@ void mock.module('expo-file-system', () => {
 			fileContents.set(this.path, content);
 		}
 	}
-	return { File: MockFile, Paths: { document: '/tmp' } };
+	class MockDirectory {
+		path: string;
+
+		constructor(...parts: string[]) {
+			this.path = parts.join('/');
+		}
+
+		get exists() {
+			return false;
+		}
+
+		create(_opts?: unknown) {}
+	}
+
+	return {
+		File: MockFile,
+		Directory: MockDirectory,
+		Paths: { document: '/tmp', cache: '/tmp/cache' },
+	};
 });
 
 // Polyfill browser/RN globals missing in bun's test environment

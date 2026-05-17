@@ -138,7 +138,13 @@ export default function SettingsScreen() {
 
 	const handleExport = async () => {
 		try {
-			await exportAllData(entities, plans, transactions, recurrenceTemplates, marketValueSnapshots);
+			await exportAllData(
+				entities,
+				plans,
+				transactions,
+				recurrenceTemplates,
+				marketValueSnapshots
+			);
 		} catch (error) {
 			console.error('Failed to export data', error);
 			Alert.alert('Export Failed', 'Could not export data. Please try again.');
