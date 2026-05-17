@@ -380,7 +380,7 @@ function parseTransactions(
 			currency: row.currency,
 			timestamp,
 			note: row.note || null,
-			series_id: row.series_id || undefined,
+			series_id: row.series_id || null,
 			is_confirmed: row.is_confirmed === 'false' ? false : true,
 		});
 	}
