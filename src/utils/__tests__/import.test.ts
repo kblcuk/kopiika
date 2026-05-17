@@ -213,7 +213,7 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(result.errors[0]).toContain('entity_id "nonexistent" not found');
 	});
 
-	test('rejects transaction referencing non-existent from entity', () => {
+	test('drops transaction referencing non-existent from entity (not fatal)', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
@@ -226,12 +226,18 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note
 t1,nonexistent,e1,100,EUR,1706745600000,`;
 
 		const result = parseImportCsv(csv);
-		expect(result.ok).toBe(false);
-		if (result.ok) return;
-		expect(result.errors[0]).toContain('from_entity_id "nonexistent" not found');
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.transactions).toEqual([]);
+		expect(result.droppable).toHaveLength(1);
+		expect(result.droppable[0]).toMatchObject({
+			kind: 'transaction',
+			id: 't1',
+		});
+		expect(result.droppable[0].reason).toContain('from_entity_id "nonexistent"');
 	});
 
-	test('rejects transaction referencing non-existent to entity', () => {
+	test('drops transaction referencing non-existent to entity', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
@@ -244,9 +250,11 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note
 t1,e1,nonexistent,100,EUR,1706745600000,`;
 
 		const result = parseImportCsv(csv);
-		expect(result.ok).toBe(false);
-		if (result.ok) return;
-		expect(result.errors[0]).toContain('to_entity_id "nonexistent" not found');
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.transactions).toEqual([]);
+		expect(result.droppable).toHaveLength(1);
+		expect(result.droppable[0].reason).toContain('to_entity_id "nonexistent"');
 	});
 
 	test('handles quoted fields with commas and escaped quotes in notes', () => {
@@ -470,6 +478,40 @@ rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.recurrenceTemplates).toEqual([]);
+	});
+
+	test('drops recurrence_template referencing unknown entity', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e-gone,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.recurrenceTemplates).toEqual([]);
+		expect(result.droppable).toHaveLength(1);
+		expect(result.droppable[0]).toMatchObject({
+			kind: 'recurrenceTemplate',
+			id: 'rt1',
+		});
+		expect(result.droppable[0].reason).toContain('to_entity_id "e-gone"');
+	});
+
+	test('happy-path parse returns empty droppable', () => {
+		const result = parseImportCsv(VALID_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.droppable).toEqual([]);
 	});
 
 	test('rejects recurrence_template with malformed rule JSON', () => {

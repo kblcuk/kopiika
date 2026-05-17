@@ -13,7 +13,15 @@ interface ParsedImportData {
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
-type ParseResult = { ok: true; data: ParsedImportData } | { ok: false; errors: string[] };
+export type DroppableItem = {
+	kind: 'transaction' | 'recurrenceTemplate';
+	id: string;
+	reason: string;
+};
+
+type ParseResult =
+	| { ok: true; data: ParsedImportData; droppable: DroppableItem[] }
+	| { ok: false; errors: string[] };
 
 const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
 
@@ -307,7 +315,8 @@ function parsePlans(
 function parseTransactions(
 	rows: Record<string, string>[],
 	entityIds: Set<string>,
-	errors: string[]
+	errors: string[],
+	droppable: DroppableItem[]
 ): Transaction[] {
 	const result: Transaction[] = [];
 
@@ -324,9 +333,11 @@ function parseTransactions(
 			continue;
 		}
 		if (!entityIds.has(row.from_entity_id)) {
-			errors.push(
-				`Transaction row ${lineNum}: from_entity_id "${row.from_entity_id}" not found in imported entities`
-			);
+			droppable.push({
+				kind: 'transaction',
+				id: row.id,
+				reason: `from_entity_id "${row.from_entity_id}" not present in this import`,
+			});
 			continue;
 		}
 		if (!row.to_entity_id) {
@@ -334,9 +345,11 @@ function parseTransactions(
 			continue;
 		}
 		if (!entityIds.has(row.to_entity_id)) {
-			errors.push(
-				`Transaction row ${lineNum}: to_entity_id "${row.to_entity_id}" not found in imported entities`
-			);
+			droppable.push({
+				kind: 'transaction',
+				id: row.id,
+				reason: `to_entity_id "${row.to_entity_id}" not present in this import`,
+			});
 			continue;
 		}
 
@@ -377,7 +390,9 @@ function parseTransactions(
 
 function parseRecurrenceTemplates(
 	rows: Record<string, string>[],
-	errors: string[]
+	entityIds: Set<string>,
+	errors: string[],
+	droppable: DroppableItem[]
 ): RecurrenceTemplate[] {
 	const result: RecurrenceTemplate[] = [];
 
@@ -467,6 +482,23 @@ function parseRecurrenceTemplates(
 			}
 		}
 
+		if (!entityIds.has(row.from_entity_id)) {
+			droppable.push({
+				kind: 'recurrenceTemplate',
+				id: row.id,
+				reason: `from_entity_id "${row.from_entity_id}" not present in this import`,
+			});
+			continue;
+		}
+		if (!entityIds.has(row.to_entity_id)) {
+			droppable.push({
+				kind: 'recurrenceTemplate',
+				id: row.id,
+				reason: `to_entity_id "${row.to_entity_id}" not present in this import`,
+			});
+			continue;
+		}
+
 		result.push({
 			id: row.id,
 			from_entity_id: row.from_entity_id,
@@ -505,6 +537,7 @@ export function parseImportCsv(content: string): ParseResult {
 	}
 
 	const errors: string[] = [];
+	const droppable: DroppableItem[] = [];
 
 	const entityRows = parseSection(sections.entities);
 	const entities = parseEntities(entityRows, errors);
@@ -520,10 +553,15 @@ export function parseImportCsv(content: string): ParseResult {
 	const plans = parsePlans(planRows, entityIds, errors);
 
 	const transactionRows = parseSection(sections.transactions);
-	const transactions = parseTransactions(transactionRows, entityIds, errors);
+	const transactions = parseTransactions(transactionRows, entityIds, errors, droppable);
 
 	const recurrenceTemplateRows = parseSection(sections.recurrenceTemplates);
-	const recurrenceTemplates = parseRecurrenceTemplates(recurrenceTemplateRows, errors);
+	const recurrenceTemplates = parseRecurrenceTemplates(
+		recurrenceTemplateRows,
+		entityIds,
+		errors,
+		droppable
+	);
 
 	const marketValueSnapshotRows = parseSection(sections.marketValueSnapshots);
 	const marketValueSnapshots = parseMarketValueSnapshots(
@@ -536,7 +574,11 @@ export function parseImportCsv(content: string): ParseResult {
 		return { ok: false, errors };
 	}
 
-	return { ok: true, data: { entities, plans, transactions, recurrenceTemplates, marketValueSnapshots } };
+	return {
+		ok: true,
+		data: { entities, plans, transactions, recurrenceTemplates, marketValueSnapshots },
+		droppable,
+	};
 }
 
 export function formatImportErrors(errors: string[]): string {
