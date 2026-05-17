@@ -382,6 +382,434 @@ describe('Store Data Integrity', () => {
 		});
 	});
 
+	describe('createTransactionBatch (KII-116 atomicity)', () => {
+		const seedSplitEntities = async (): Promise<Entity[]> => {
+			const entities: Entity[] = [
+				{
+					id: 'acct-1',
+					type: 'account',
+					name: 'Main',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-groceries',
+					type: 'category',
+					name: 'Groceries',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-fuel',
+					type: 'category',
+					name: 'Fuel',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+			];
+			for (const e of entities) await db.createEntity(e);
+			useStore.setState({ entities });
+			return entities;
+		};
+
+		test('persists every row when all pass validation', async () => {
+			await seedSplitEntities();
+
+			const ts = Date.now();
+			const txns: Transaction[] = [
+				{
+					id: 'batch-ok-1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 10,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'batch-ok-2',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-fuel',
+					amount: 20,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'batch-ok-3',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 30,
+					currency: 'USD',
+					timestamp: ts,
+				},
+			];
+
+			await useStore.getState().createTransactionBatch(txns);
+
+			const ids = new Set((await db.getAllTransactions()).map((t) => t.id));
+			expect(ids.has('batch-ok-1')).toBe(true);
+			expect(ids.has('batch-ok-2')).toBe(true);
+			expect(ids.has('batch-ok-3')).toBe(true);
+			expect(useStore.getState().transactions).toHaveLength(3);
+		});
+
+		test('rejects whole batch and persists nothing when a later row fails validation', async () => {
+			await seedSplitEntities();
+
+			const ts = Date.now();
+			const good1: Transaction = {
+				id: 'batch-rb-1',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-groceries',
+				amount: 11,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			const good2: Transaction = {
+				id: 'batch-rb-2',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-fuel',
+				amount: 22,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			// Third row references a non-existent destination — validation must reject
+			// before any DB write happens.
+			const bad: Transaction = {
+				id: 'batch-rb-3',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'does-not-exist',
+				amount: 33,
+				currency: 'USD',
+				timestamp: ts,
+			};
+
+			await expect(
+				useStore.getState().createTransactionBatch([good1, good2, bad])
+			).rejects.toMatchObject({
+				name: 'TransactionValidationError',
+				code: 'MISSING_TO',
+			});
+
+			// No partial split — neither store nor DB has any of the three.
+			expect(useStore.getState().transactions).toHaveLength(0);
+			const ids = new Set((await db.getAllTransactions()).map((t) => t.id));
+			expect(ids.has('batch-rb-1')).toBe(false);
+			expect(ids.has('batch-rb-2')).toBe(false);
+			expect(ids.has('batch-rb-3')).toBe(false);
+		});
+
+		test('rolls back DB-level on a constraint violation mid-batch', async () => {
+			await seedSplitEntities();
+
+			// Pre-insert an id that the batch will collide with on the second row.
+			// The first row of the batch is valid and unique, so without an
+			// atomic SQL transaction it would persist; with one, the collision
+			// rolls back the entire batch.
+			const ts = Date.now();
+			await db.createTransaction({
+				id: 'collision-id',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-groceries',
+				amount: 5,
+				currency: 'USD',
+				timestamp: ts,
+			});
+
+			const batch: Transaction[] = [
+				{
+					id: 'batch-col-1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 7,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					// Same id as the pre-existing row → PRIMARY KEY collision when
+					// the batch's INSERT runs.
+					id: 'collision-id',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-fuel',
+					amount: 9,
+					currency: 'USD',
+					timestamp: ts,
+				},
+			];
+
+			await expect(useStore.getState().createTransactionBatch(batch)).rejects.toBeDefined();
+
+			// Only the pre-existing row should remain; the batch's first row
+			// must not have leaked through.
+			const all = await db.getAllTransactions();
+			expect(all.map((t) => t.id)).toEqual(['collision-id']);
+
+			// And the store must also be clean — if `set(...)` ran before the DB
+			// throw, the partial-state bug we're fixing would still ship.
+			expect(useStore.getState().transactions.map((t) => t.id)).not.toContain('batch-col-1');
+		});
+
+		test('first row failing validation rejects the whole batch (symmetric to last-row case)', async () => {
+			await seedSplitEntities();
+
+			const ts = Date.now();
+			const bad: Transaction = {
+				id: 'first-bad',
+				from_entity_id: 'does-not-exist',
+				to_entity_id: 'cat-groceries',
+				amount: 1,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			const good: Transaction = {
+				id: 'first-bad-tail',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-groceries',
+				amount: 2,
+				currency: 'USD',
+				timestamp: ts,
+			};
+
+			await expect(
+				useStore.getState().createTransactionBatch([bad, good])
+			).rejects.toMatchObject({
+				name: 'TransactionValidationError',
+				code: 'MISSING_FROM',
+			});
+
+			expect(useStore.getState().transactions).toHaveLength(0);
+			expect(await db.getAllTransactions()).toHaveLength(0);
+		});
+
+		test('pre-existing transactions survive a failed batch', async () => {
+			await seedSplitEntities();
+
+			// Establish a healthy pre-existing row through the public store API so
+			// in-memory state and DB are aligned, then attempt a batch that must fail.
+			const ts = Date.now();
+			const existing: Transaction = {
+				id: 'pre-existing-1',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-groceries',
+				amount: 42,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			await useStore.getState().addTransaction(existing);
+
+			const bad: Transaction = {
+				id: 'should-not-persist',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'does-not-exist',
+				amount: 99,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			await expect(useStore.getState().createTransactionBatch([bad])).rejects.toMatchObject({
+				name: 'TransactionValidationError',
+			});
+
+			// Pre-existing row must still be present in both store and DB; a buggy
+			// implementation that overwrites state on failure would wipe it.
+			const storeIds = useStore.getState().transactions.map((t) => t.id);
+			expect(storeIds).toEqual(['pre-existing-1']);
+			const dbIds = (await db.getAllTransactions()).map((t) => t.id);
+			expect(dbIds).toEqual(['pre-existing-1']);
+		});
+
+		test('preserves explicit is_confirmed values (true and false) regardless of timestamp', async () => {
+			await seedSplitEntities();
+
+			// `buildSavingsReleases` always sets `is_confirmed: true` even on
+			// past-dated releases. If a future refactor swaps `??` for a check that
+			// only honours explicit values when undefined, this test catches it.
+			// Conversely, an explicit `false` on a past timestamp must not be
+			// silently flipped to true by `defaultIsConfirmed`.
+			const past = Date.now() - 86400000;
+			await useStore.getState().createTransactionBatch([
+				{
+					id: 'confirm-explicit-true-past',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 1,
+					currency: 'USD',
+					timestamp: past,
+					is_confirmed: true,
+				},
+				{
+					id: 'confirm-explicit-false-past',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-fuel',
+					amount: 2,
+					currency: 'USD',
+					timestamp: past,
+					is_confirmed: false,
+				},
+			]);
+
+			const all = await db.getAllTransactions();
+			expect(all.find((t) => t.id === 'confirm-explicit-true-past')?.is_confirmed).toBe(true);
+			expect(all.find((t) => t.id === 'confirm-explicit-false-past')?.is_confirmed).toBe(
+				false
+			);
+		});
+
+		test('duplicate IDs within the same batch roll back the whole batch', async () => {
+			await seedSplitEntities();
+
+			// Builder bug scenario: two rows generated with the same id. PRIMARY KEY
+			// conflict must abort the transaction with neither row persisting.
+			const ts = Date.now();
+			const batch: Transaction[] = [
+				{
+					id: 'dup-within-batch',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 3,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'dup-within-batch',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-fuel',
+					amount: 4,
+					currency: 'USD',
+					timestamp: ts,
+				},
+			];
+
+			await expect(useStore.getState().createTransactionBatch(batch)).rejects.toBeDefined();
+
+			expect(useStore.getState().transactions).toHaveLength(0);
+			const dbIds = (await db.getAllTransactions()).map((t) => t.id);
+			expect(dbIds).not.toContain('dup-within-batch');
+		});
+
+		test('real-world mixed-direction batch (split rows + saving→account release)', async () => {
+			// Mirrors what `handleSubmit` produces in split mode with funded savings:
+			// N account→category split rows followed by M saving→account release rows
+			// all in a single atomic batch.
+			const entities: Entity[] = [
+				{
+					id: 'acct-mix',
+					type: 'account',
+					name: 'Main',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-groc',
+					type: 'category',
+					name: 'Groceries',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-fuel',
+					type: 'category',
+					name: 'Fuel',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+				{
+					id: 'sav-buf',
+					type: 'saving',
+					name: 'Buffer',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+			];
+			for (const e of entities) await db.createEntity(e);
+			useStore.setState({ entities });
+
+			const ts = Date.now();
+			await useStore.getState().createTransactionBatch([
+				{
+					id: 'mix-split-1',
+					from_entity_id: 'acct-mix',
+					to_entity_id: 'cat-groc',
+					amount: 25,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'mix-split-2',
+					from_entity_id: 'acct-mix',
+					to_entity_id: 'cat-fuel',
+					amount: 15,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'mix-release',
+					from_entity_id: 'sav-buf',
+					to_entity_id: 'acct-mix',
+					amount: 40,
+					currency: 'USD',
+					timestamp: ts,
+					is_confirmed: true,
+				},
+			]);
+
+			const all = await db.getAllTransactions();
+			const byId = new Map(all.map((t) => [t.id, t]));
+			expect(byId.get('mix-split-1')?.amount).toBe(25);
+			expect(byId.get('mix-split-2')?.amount).toBe(15);
+			expect(byId.get('mix-release')?.from_entity_id).toBe('sav-buf');
+			expect(byId.get('mix-release')?.is_confirmed).toBe(true);
+		});
+
+		test('no-op on empty array', async () => {
+			await seedSplitEntities();
+			await useStore.getState().createTransactionBatch([]);
+			expect(useStore.getState().transactions).toHaveLength(0);
+			expect(await db.getAllTransactions()).toHaveLength(0);
+		});
+
+		test('applies defaultIsConfirmed per row', async () => {
+			await seedSplitEntities();
+
+			const past = Date.now() - 86400000;
+			const future = Date.now() + 86400000;
+			await useStore.getState().createTransactionBatch([
+				{
+					id: 'batch-conf-past',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-groceries',
+					amount: 1,
+					currency: 'USD',
+					timestamp: past,
+				},
+				{
+					id: 'batch-conf-future',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-fuel',
+					amount: 2,
+					currency: 'USD',
+					timestamp: future,
+				},
+			]);
+
+			const all = await db.getAllTransactions();
+			expect(all.find((t) => t.id === 'batch-conf-past')?.is_confirmed).toBe(true);
+			expect(all.find((t) => t.id === 'batch-conf-future')?.is_confirmed).toBe(false);
+		});
+	});
+
 	describe('deleteEntity', () => {
 		test('should remove entity and its plans from store', async () => {
 			const entities: Entity[] = [

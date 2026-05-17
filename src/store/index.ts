@@ -96,6 +96,7 @@ interface AppState {
 
 	// Transaction actions
 	addTransaction: (transaction: Transaction) => Promise<void>;
+	createTransactionBatch: (transactions: Transaction[]) => Promise<void>;
 	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
 
@@ -581,6 +582,26 @@ export const useStore = create<AppState>((set, get) => ({
 		};
 		await db.createTransaction(txWithConfirm);
 		set((state) => ({ transactions: [txWithConfirm, ...state.transactions] }));
+	},
+
+	createTransactionBatch: async (transactions) => {
+		if (transactions.length === 0) return;
+
+		const entities = get().entities;
+		// Validate every row before any DB write — fail fast so a bad row
+		// rejects the whole batch instead of leaking a partial split (KII-116).
+		const prepared: Transaction[] = transactions.map((tx) => {
+			ensureValid(validateTransaction(tx, entities));
+			return {
+				...tx,
+				is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
+			};
+		});
+
+		await db.createTransactionBatch(prepared);
+		set((state) => ({ transactions: [...prepared, ...state.transactions] }));
+
+		await scheduleNotificationsForTransactions(prepared, entities, set);
 	},
 
 	updateTransaction: async (id, updates) => {
