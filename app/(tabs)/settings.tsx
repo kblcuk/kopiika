@@ -11,7 +11,7 @@ import { TestIDs } from '@/e2e/support/test-ids';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
-import { parseImportCsv, formatImportErrors } from '@/src/utils/import';
+import { parseImportCsv, formatImportErrors, type ParsedImportData } from '@/src/utils/import';
 import { resetDrizzleDb, updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
 import {
@@ -145,6 +145,38 @@ export default function SettingsScreen() {
 		}
 	};
 
+	const confirmReplace = (data: ParsedImportData) => {
+		Alert.alert(
+			'Replace All Data?',
+			`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, ${data.transactions.length} transactions, ${data.recurrenceTemplates.length} recurring rules, and ${data.marketValueSnapshots.length} market value snapshots.\n\nThis cannot be undone.`,
+			[
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Replace',
+					style: 'destructive',
+					onPress: async () => {
+						try {
+							await replaceAllData(
+								data.entities,
+								data.plans,
+								data.transactions,
+								data.recurrenceTemplates,
+								data.marketValueSnapshots
+							);
+							Alert.alert('Import Complete', 'All data has been replaced.');
+						} catch (error) {
+							console.error('Failed to import data', error);
+							Alert.alert(
+								'Import Failed',
+								'An error occurred during import. Your previous data should be intact.'
+							);
+						}
+					},
+				},
+			]
+		);
+	};
+
 	const handleImport = async () => {
 		try {
 			const result = await DocumentPicker.getDocumentAsync({
@@ -163,36 +195,25 @@ export default function SettingsScreen() {
 				return;
 			}
 
-			const { data } = parsed;
-			Alert.alert(
-				'Replace All Data?',
-				`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, ${data.transactions.length} transactions, and ${data.marketValueSnapshots.length} market value snapshots.\n\nThis cannot be undone.`,
-				[
-					{ text: 'Cancel', style: 'cancel' },
-					{
-						text: 'Replace',
-						style: 'destructive',
-						onPress: async () => {
-							try {
-								await replaceAllData(
-									data.entities,
-									data.plans,
-									data.transactions,
-									data.recurrenceTemplates,
-									data.marketValueSnapshots
-								);
-								Alert.alert('Import Complete', 'All data has been replaced.');
-							} catch (error) {
-								console.error('Failed to import data', error);
-								Alert.alert(
-									'Import Failed',
-									'An error occurred during import. Your previous data should be intact.'
-								);
-							}
-						},
-					},
-				]
-			);
+			if (parsed.droppable.length > 0) {
+				const preview = parsed.droppable
+					.slice(0, 5)
+					.map((d) => `• ${d.kind} ${d.id}: ${d.reason}`)
+					.join('\n');
+				const more =
+					parsed.droppable.length > 5 ? `\nand ${parsed.droppable.length - 5} more` : '';
+				Alert.alert(
+					"Some items can't be imported",
+					`${parsed.droppable.length} item(s) can't be imported with your current data:\n\n${preview}${more}\n\nContinue without them, or cancel to fix the file?`,
+					[
+						{ text: 'Cancel', style: 'cancel' },
+						{ text: 'Continue', onPress: () => confirmReplace(parsed.data) },
+					]
+				);
+				return;
+			}
+
+			confirmReplace(parsed.data);
 		} catch (error) {
 			console.error('Failed to pick document', error);
 			Alert.alert('Import Failed', 'Could not read the selected file.');
