@@ -147,7 +147,7 @@ describe('plans.ts', () => {
 			expect(result).toEqual(plan);
 		});
 
-		test('should update planned_amount when plan exists', async () => {
+		test('should update planned_amount when a plan with the same (entity_id, period_start) exists', async () => {
 			const original: Plan = {
 				id: 'plan-upsert-2',
 				entity_id: 'entity-1',
@@ -157,24 +157,37 @@ describe('plans.ts', () => {
 			};
 
 			await upsertPlan(original);
+			await upsertPlan({ ...original, planned_amount: 1500 });
 
-			const updated: Plan = {
-				id: 'plan-upsert-2',
-				entity_id: 'entity-2', // This should be ignored by upsert
+			const result = await getPlanForEntity('entity-1', '2025-01');
+			expect(result?.planned_amount).toBe(1500);
+			expect(result?.id).toBe('plan-upsert-2');
+			expect(await getAllPlans()).toHaveLength(1);
+		});
+
+		test('should collapse two ids with the same (entity_id, period_start) into one row, preserving the original id', async () => {
+			const first: Plan = {
+				id: 'plan-upsert-dup-a',
+				entity_id: 'entity-1',
 				period: 'all-time',
-				period_start: '2025-02', // This should be ignored by upsert
+				period_start: '2025-01',
+				planned_amount: 1000,
+			};
+			const second: Plan = {
+				id: 'plan-upsert-dup-b', // different id, same composite key
+				entity_id: 'entity-1',
+				period: 'all-time',
+				period_start: '2025-01',
 				planned_amount: 1500,
 			};
 
-			await upsertPlan(updated);
+			await upsertPlan(first);
+			await upsertPlan(second);
 
-			const result = await getPlanForEntity('entity-1', '2025-01');
-
-			// Only planned_amount should be updated
-			expect(result?.planned_amount).toBe(1500);
-			expect(result?.entity_id).toBe('entity-1'); // Original value
-			expect(result?.period).toBe('all-time'); // Original value
-			expect(result?.period_start).toBe('2025-01'); // Original value
+			const all = await getAllPlans();
+			expect(all).toHaveLength(1);
+			expect(all[0].id).toBe('plan-upsert-dup-a'); // ON CONFLICT keeps the original row
+			expect(all[0].planned_amount).toBe(1500); // planned_amount is overwritten
 		});
 
 		test('should handle multiple upserts idempotently', async () => {

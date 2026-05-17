@@ -27,7 +27,7 @@ export async function upsertPlan(plan: Plan): Promise<void> {
 		.insert(plans)
 		.values(plan)
 		.onConflictDoUpdate({
-			target: plans.id,
+			target: [plans.entity_id, plans.period_start],
 			set: { planned_amount: plan.planned_amount },
 		});
 }

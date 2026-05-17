@@ -113,6 +113,13 @@
 			"when": 1779043048552,
 			"tag": "0015_market_value_snapshots_fk",
 			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "6",
+			"when": 1779044065577,
+			"tag": "0016_unique_plan_per_entity_period",
+			"breakpoints": true
 		}
 	]
 }

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
 // Entities table
@@ -39,7 +39,7 @@ export const plans = sqliteTable(
 		period_start: text('period_start').notNull(),
 		planned_amount: real('planned_amount').notNull(),
 	},
-	(table) => [index('idx_plans_entity_period').on(table.entity_id, table.period_start)]
+	(table) => [uniqueIndex('unq_plans_entity_period').on(table.entity_id, table.period_start)]
 );
 
 // Transactions table
