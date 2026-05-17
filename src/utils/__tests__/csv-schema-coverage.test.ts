@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import { getTableColumns } from 'drizzle-orm';
 import * as schema from '@/src/db/drizzle-schema';
 import {
@@ -52,6 +54,24 @@ describe('csv schema coverage', () => {
 			const drizzleCols = new Set(Object.keys(getTableColumns(entry.table)));
 			for (const col of excluded) {
 				expect(drizzleCols.has(col)).toBe(true);
+			}
+		}
+	});
+
+	// Parser-coverage guard: ensure every header column is mentioned in
+	// the roundtrip fixture so the csv-roundtrip test exercises the full
+	// parse path for each column. If you add a new column, set it to a
+	// non-default value in csv-roundtrip.test.ts's FULL_FIXTURE.
+	test('csv-roundtrip fixture mentions every header column', () => {
+		const fixtureSource = readFileSync(
+			path.join(import.meta.dir, 'csv-roundtrip.test.ts'),
+			'utf-8'
+		);
+		for (const entry of TABLE_REGISTRY) {
+			const excluded = EXPORT_EXCLUDED_COLUMNS[entry.name] ?? [];
+			for (const col of entry.header) {
+				if (excluded.includes(col as never)) continue;
+				expect(fixtureSource).toContain(col);
 			}
 		}
 	});
