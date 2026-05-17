@@ -1,23 +1,15 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
+import {
+	ENTITY_HEADERS,
+	PLAN_HEADERS,
+	TRANSACTION_HEADERS,
+	MARKET_VALUE_SNAPSHOT_HEADERS,
+} from './csv-spec';
 
 // Convert entities to CSV
 function entitiesToCsv(entities: Entity[]): string {
-	const headers = [
-		'id',
-		'type',
-		'name',
-		'currency',
-		'icon',
-		'color',
-		'order',
-		'row',
-		'position',
-		'include_in_total',
-		'is_deleted',
-		'is_investment',
-	];
 	const rows = entities.map((e) =>
 		[
 			e.id,
@@ -34,31 +26,19 @@ function entitiesToCsv(entities: Entity[]): string {
 			e.is_investment === true,
 		].join(',')
 	);
-	return [headers.join(','), ...rows].join('\n');
+	return [ENTITY_HEADERS.join(','), ...rows].join('\n');
 }
 
 // Convert plans to CSV
 function plansToCsv(plans: Plan[]): string {
-	const headers = ['id', 'entity_id', 'period', 'period_start', 'planned_amount'];
 	const rows = plans.map((p) =>
 		[p.id, p.entity_id, p.period, p.period_start, p.planned_amount].join(',')
 	);
-	return [headers.join(','), ...rows].join('\n');
+	return [PLAN_HEADERS.join(','), ...rows].join('\n');
 }
 
 // Convert transactions to CSV
 function transactionsToCsv(transactions: Transaction[]): string {
-	const headers = [
-		'id',
-		'from_entity_id',
-		'to_entity_id',
-		'amount',
-		'currency',
-		'timestamp',
-		'note',
-		'series_id',
-		'is_confirmed',
-	];
 	const rows = transactions.map((t) =>
 		[
 			t.id,
@@ -72,17 +52,16 @@ function transactionsToCsv(transactions: Transaction[]): string {
 			t.is_confirmed !== false,
 		].join(',')
 	);
-	return [headers.join(','), ...rows].join('\n');
+	return [TRANSACTION_HEADERS.join(','), ...rows].join('\n');
 }
 
 function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
-	const headers = ['id', 'entity_id', 'amount', 'currency', 'date'];
 	const rows = marketValueSnapshots.map((snapshot) =>
 		[snapshot.id, snapshot.entity_id, snapshot.amount, snapshot.currency, snapshot.date].join(
 			','
 		)
 	);
-	return [headers.join(','), ...rows].join('\n');
+	return [MARKET_VALUE_SNAPSHOT_HEADERS.join(','), ...rows].join('\n');
 }
 
 // Export all data to CSV files and share
