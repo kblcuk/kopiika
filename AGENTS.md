@@ -29,6 +29,10 @@ Use Bun for app and development scripts. Use `mise run ...` for deployment, sign
 - `mise run ios:setup`, `ios:beta`, `android:beta`, `release:beta`, `release:production`: signing, store-upload, and coordinated release tasks.
 - Read [docs/RELEASING.md](docs/RELEASING.md) before changing release automation or running production-facing release commands.
 
+## Database Migrations
+
+Always generate Drizzle migrations with `bunx drizzle-kit generate --name <description>`. Never hand-write SQL files in `drizzle/` — drizzle-kit emits the SQL **and** the matching `meta/<idx>_snapshot.json` it needs to diff future schema changes against. A hand-written migration leaves the meta snapshot missing, so the next `drizzle-kit generate` will diff against a stale baseline and produce a broken migration that re-creates already-existing tables/columns (this is exactly how the 0014/0015 drift happened). If a migration needs custom SQL beyond what drizzle-kit emits, use `--custom` to generate an empty migration plus snapshot, then fill in the SQL; do not create the file by hand. Run `bunx drizzle-kit check` before committing.
+
 ## Coding Style & Naming Conventions
 
 TypeScript is the default. `oxfmt` enforces tabs, `tabWidth: 4`, single quotes, semicolons, trailing commas, and a 100-character print width. Prefer lowercase kebab-case file names such as `transaction-row.tsx`; keep React components and exported types in PascalCase, functions and variables in camelCase, and route files aligned with Expo Router conventions like `app/(tabs)/summary.tsx`.
