@@ -389,7 +389,7 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(result.data.entities.find((e) => e.id === 'e2')!.is_deleted).toBe(false);
 	});
 
-	test('round-trips entities.is_default', () => {
+	test('parses entities.is_default from CSV', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_default,is_investment
 __system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,-1,true,false,false,false
@@ -407,6 +407,8 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		const main = result.data.entities.find((e) => e.id === 'e1');
 		expect(main).toBeDefined();
 		expect(main!.is_default).toBe(true);
+		const sys = result.data.entities.find((e) => e.id === '__system_balance_adjustment__');
+		expect(sys!.is_default).toBe(false);
 	});
 
 	test('transactions can reference the system entity', () => {
