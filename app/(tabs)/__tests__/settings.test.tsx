@@ -77,6 +77,8 @@ describe('SettingsScreen reminders toggle', () => {
 		entities: { id: string; name: string }[];
 		plans: unknown[];
 		transactions: Record<string, unknown>[];
+		recurrenceTemplates: unknown[];
+		marketValueSnapshots: unknown[];
 		initialize: jest.Mock;
 		replaceAllData: jest.Mock;
 	};
@@ -91,6 +93,8 @@ describe('SettingsScreen reminders toggle', () => {
 			],
 			plans: [],
 			transactions: [],
+			recurrenceTemplates: [],
+			marketValueSnapshots: [],
 			initialize: jest.fn(),
 			replaceAllData: jest.fn(),
 		};
