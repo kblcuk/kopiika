@@ -185,7 +185,11 @@ Reminder rules:
 
 ## Data Portability
 
-Settings provides CSV export/import for entities, plans, transactions, and market value snapshots. Import replaces all app data atomically: old rows are deleted and new rows inserted inside a SQLite transaction, so a failed import should leave the previous database intact.
+Settings provides CSV export/import for entities, plans, transactions, recurrence templates, and market value snapshots. Import replaces all app data atomically: old rows are deleted and new rows inserted inside a SQLite transaction, so a failed import should leave the previous database intact.
+
+The combined CSV round-trips every column of every drizzle table, with one explicit exception: `transactions.notification_id` is excluded because it stores a per-device OS notification handle that is meaningless after re-import. Exclusions are documented in `src/utils/csv-spec.ts:EXPORT_EXCLUDED_COLUMNS`, and `src/utils/__tests__/csv-schema-coverage.test.ts` introspects the drizzle schema on each `bun run test` to fail loudly when a new column is added without being wired through export and import — the contributor must either extend `csv-spec.ts` or add a justified entry to `EXPORT_EXCLUDED_COLUMNS`. A companion full-fixture roundtrip test in `src/utils/__tests__/csv-roundtrip.test.ts` catches "wired but wrong" cases by serializing every nullable/boolean/JSON field and asserting `parse(export(F)) === F`.
+
+On import, rows that reference entities not present in the same CSV (transactions and recurrence_templates) are diverted to a `droppable` bucket in the parse result rather than being silently dropped. Settings prompts the user before applying an import with non-empty `droppable`, listing the affected items so the data loss is explicit and acknowledged.
 
 ## Onboarding & In-App Knowledge Base
 
