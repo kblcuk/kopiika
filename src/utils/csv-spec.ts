@@ -15,6 +15,7 @@ export const ENTITY_HEADERS = [
 	'position',
 	'include_in_total',
 	'is_deleted',
+	'is_default',
 	'is_investment',
 ] as const;
 

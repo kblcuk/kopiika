@@ -389,6 +389,26 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(result.data.entities.find((e) => e.id === 'e2')!.is_deleted).toBe(false);
 	});
 
+	test('round-trips entities.is_default', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_default,is_investment
+__system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,-1,true,false,false,false
+e1,account,"Main",EUR,landmark,,0,0,0,true,false,true,false
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		const main = result.data.entities.find((e) => e.id === 'e1');
+		expect(main).toBeDefined();
+		expect(main!.is_default).toBe(true);
+	});
+
 	test('transactions can reference the system entity', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total

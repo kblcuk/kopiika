@@ -158,6 +158,7 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			position,
 			include_in_total: row.include_in_total !== 'false',
 			is_deleted: row.is_deleted === 'true',
+			is_default: row.is_default === 'true',
 			is_investment: row.is_investment === 'true',
 		});
 	}

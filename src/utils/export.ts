@@ -23,6 +23,7 @@ function entitiesToCsv(entities: Entity[]): string {
 			e.position,
 			e.include_in_total !== false,
 			e.is_deleted === true,
+			e.is_default === true,
 			e.is_investment === true,
 		].join(',')
 	);
