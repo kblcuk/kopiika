@@ -64,6 +64,29 @@ function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]):
 	return [MARKET_VALUE_SNAPSHOT_HEADERS.join(','), ...rows].join('\n');
 }
 
+export interface CombinedCsvInput {
+	entities: Entity[];
+	plans: Plan[];
+	transactions: Transaction[];
+	marketValueSnapshots: MarketValueSnapshot[];
+}
+
+export function buildCombinedCsv(data: CombinedCsvInput): string {
+	return [
+		'# ENTITIES',
+		entitiesToCsv(data.entities),
+		'',
+		'# PLANS',
+		plansToCsv(data.plans),
+		'',
+		'# TRANSACTIONS',
+		transactionsToCsv(data.transactions),
+		'',
+		'# MARKET_VALUE_SNAPSHOTS',
+		marketValueSnapshotsToCsv(data.marketValueSnapshots),
+	].join('\n');
+}
+
 // Export all data to CSV files and share
 export async function exportAllData(
 	entities: Entity[],
@@ -89,19 +112,12 @@ export async function exportAllData(
 	// Share all files (will share them one at a time on iOS)
 	if (await Sharing.isAvailableAsync()) {
 		// Create a combined export for easier sharing
-		const combined = [
-			'# ENTITIES',
-			entitiesToCsv(entities),
-			'',
-			'# PLANS',
-			plansToCsv(plans),
-			'',
-			'# TRANSACTIONS',
-			transactionsToCsv(transactions),
-			'',
-			'# MARKET_VALUE_SNAPSHOTS',
-			marketValueSnapshotsToCsv(marketValueSnapshots),
-		].join('\n');
+		const combined = buildCombinedCsv({
+			entities,
+			plans,
+			transactions,
+			marketValueSnapshots,
+		});
 
 		const combinedFile = new File(dir.uri, `kopiika-export-${timestamp}.csv`);
 		combinedFile.write(combined);
