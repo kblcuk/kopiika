@@ -368,31 +368,6 @@ export const useStore = create<AppState>((set, get) => ({
 
 		const drizzleDb = await db.getDrizzleDb();
 
-		// Validate transactions against the *new* entity set (not the current store)
-		// since the import is replacing everything. Skip invalid rows rather than
-		// aborting — partial imports beat a hard failure when the user has already
-		// committed to the dialog. Include the BAL system entity so historical
-		// balance adjustments validate even if the export omitted it.
-		const validationEntities = newEntities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)
-			? newEntities
-			: [...newEntities, createBalanceAdjustmentEntity()];
-		const validTransactions: Transaction[] = [];
-		let droppedCount = 0;
-		for (const txn of newTransactions) {
-			const result = validateTransaction(txn, validationEntities);
-			if (result.ok) {
-				validTransactions.push(txn);
-			} else {
-				droppedCount += 1;
-				console.warn(
-					`Skipping imported transaction ${txn.id}: ${result.code} (${result.message})`
-				);
-			}
-		}
-		if (droppedCount > 0) {
-			console.warn(`Import: skipped ${droppedCount} invalid transaction(s)`);
-		}
-
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		drizzleDb.transaction((tx) => {
 			// Delete in FK-safe order: snapshots → transactions → recurrenceTemplates → plans → entities
@@ -445,7 +420,7 @@ export const useStore = create<AppState>((set, get) => ({
 					})
 					.run();
 			}
-			for (const txn of validTransactions) {
+			for (const txn of newTransactions) {
 				tx.insert(schema.transactions)
 					.values({
 						id: txn.id,
