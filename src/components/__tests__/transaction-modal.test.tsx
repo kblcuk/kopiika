@@ -175,8 +175,8 @@ describe('TransactionModal', () => {
 
 	describe('Transaction Creation', () => {
 		it('does not create transaction when amount is empty', () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -190,13 +190,13 @@ describe('TransactionModal', () => {
 			// Try to submit without entering amount
 			fireEvent.press(getByTestId('transaction-save-button'));
 
-			expect(addTransactionSpy).not.toHaveBeenCalled();
+			expect(batchSpy).not.toHaveBeenCalled();
 			expect(mockOnClose).not.toHaveBeenCalled();
 		});
 
 		it('does not create transaction when amount is zero', () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -210,12 +210,12 @@ describe('TransactionModal', () => {
 			fireEvent.changeText(getByTestId('transaction-amount-input'), '0');
 			fireEvent.press(getByTestId('transaction-save-button'));
 
-			expect(addTransactionSpy).not.toHaveBeenCalled();
+			expect(batchSpy).not.toHaveBeenCalled();
 		});
 
 		it('does not create transaction when amount is negative', () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -229,7 +229,7 @@ describe('TransactionModal', () => {
 			fireEvent.changeText(getByTestId('transaction-amount-input'), '-100');
 			fireEvent.press(getByTestId('transaction-save-button'));
 
-			expect(addTransactionSpy).not.toHaveBeenCalled();
+			expect(batchSpy).not.toHaveBeenCalled();
 		});
 
 		it('shows validation hint when amount is zero or negative', () => {
@@ -253,8 +253,8 @@ describe('TransactionModal', () => {
 		});
 
 		it('creates transaction with valid amount', async () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -269,22 +269,24 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-1',
-						to_entity_id: 'category-1',
-						amount: 150,
-						currency: 'USD',
-					})
-				);
+				expect(batchSpy).toHaveBeenCalledTimes(1);
+				const batch = batchSpy.mock.calls[0][0] as unknown[];
+				// No funding section → no releases; batch is exactly the main tx.
+				expect(batch).toHaveLength(1);
+				expect(batch[0]).toMatchObject({
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 150,
+					currency: 'USD',
+				});
 			});
 
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
 		it('creates transaction with decimal amount using dot separator', async () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -299,17 +301,19 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						amount: 1.15,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							amount: 1.15,
+						}),
+					])
 				);
 			});
 		});
 
 		it('evaluates arithmetic expression on save (KII-44)', async () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -324,17 +328,19 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						amount: 70,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							amount: 70,
+						}),
+					])
 				);
 			});
 		});
 
 		it('disables Save button and shows "Saving…" label while save is in flight', async () => {
 			// Simulate a slow DB write that never resolves — button should go disabled immediately
-			useStore.setState({ addTransaction: jest.fn(() => new Promise(() => {})) });
+			useStore.setState({ createTransactionBatch: jest.fn(() => new Promise(() => {})) });
 
 			const { getByTestId, getByText, queryByText } = render(
 				<TransactionModal
@@ -363,7 +369,7 @@ describe('TransactionModal', () => {
 			const alertSpy = jest.spyOn(Alert, 'alert');
 			const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 			useStore.setState({
-				addTransaction: jest.fn().mockRejectedValue(new Error('disk full')),
+				createTransactionBatch: jest.fn().mockRejectedValue(new Error('disk full')),
 			});
 
 			try {
@@ -400,7 +406,7 @@ describe('TransactionModal', () => {
 
 		it('does not create duplicate transactions on rapid double-press of Save', async () => {
 			let resolveFirstSave: () => void;
-			const addTransactionSpy = jest
+			const batchSpy = jest
 				.fn()
 				.mockImplementationOnce(
 					() =>
@@ -409,7 +415,7 @@ describe('TransactionModal', () => {
 						})
 				)
 				.mockResolvedValue(undefined);
-			useStore.setState({ addTransaction: addTransactionSpy });
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -430,13 +436,13 @@ describe('TransactionModal', () => {
 			resolveFirstSave!(); // resolve the first save
 			await waitFor(() => expect(mockOnClose).toHaveBeenCalledTimes(1));
 
-			// Only one transaction created despite two presses
-			expect(addTransactionSpy).toHaveBeenCalledTimes(1);
+			// Only one batch call despite two presses
+			expect(batchSpy).toHaveBeenCalledTimes(1);
 		});
 
 		it('includes note when provided', async () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -452,11 +458,13 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						amount: 100,
-						note: 'Weekly groceries',
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							amount: 100,
+							note: 'Weekly groceries',
+						}),
+					])
 				);
 			});
 		});
@@ -913,8 +921,8 @@ describe('TransactionModal', () => {
 		});
 
 		it('saves anchor-only transaction when non-anchor split has no entity', async () => {
-			const addTransactionSpy = jest.fn();
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId } = render(
 				<TransactionModal
@@ -933,23 +941,27 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledTimes(1);
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-1',
-						to_entity_id: 'category-1',
-						amount: 30,
-						currency: 'USD',
-					})
+				expect(batchSpy).toHaveBeenCalledTimes(1);
+				const batch = batchSpy.mock.calls[0][0] as unknown[];
+				expect(batch).toHaveLength(1);
+				expect(batch).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'account-1',
+							to_entity_id: 'category-1',
+							amount: 30,
+							currency: 'USD',
+						}),
+					])
 				);
 			});
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
 		it('saves two transactions when anchor and second split are both valid', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 				entities: [mockFromEntity, mockToEntity, category2],
 			});
 
@@ -974,21 +986,24 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledTimes(2);
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ to_entity_id: 'category-1', amount: 30 })
-				);
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ to_entity_id: 'category-2', amount: 20 })
+				// One atomic batch call containing both split rows (KII-116).
+				expect(batchSpy).toHaveBeenCalledTimes(1);
+				const batch = batchSpy.mock.calls[0][0] as unknown[];
+				expect(batch).toHaveLength(2);
+				expect(batch).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({ to_entity_id: 'category-1', amount: 30 }),
+						expect.objectContaining({ to_entity_id: 'category-2', amount: 20 }),
+					])
 				);
 			});
 		});
 
 		it('does not create duplicate split transactions on rapid double-press of Save', async () => {
-			// addTransaction resolves immediately for all but the very first call,
+			// createTransactionBatch resolves immediately for all but the very first call,
 			// which we hold open so the second Save press fires while save is in flight.
 			let resolveFirstSave!: () => void;
-			const addTransactionSpy = jest
+			const batchSpy = jest
 				.fn()
 				.mockImplementationOnce(
 					() =>
@@ -998,7 +1013,7 @@ describe('TransactionModal', () => {
 				)
 				.mockResolvedValue(undefined);
 			useStore.setState({
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 				entities: [mockFromEntity, mockToEntity, category2],
 			});
 
@@ -1014,22 +1029,23 @@ describe('TransactionModal', () => {
 			fireEvent.changeText(getByTestId('transaction-amount-input'), '50');
 			fireEvent.press(getByTestId('split-toggle-button'));
 
-			// Give row 1 a real entity + amount so two addTransaction calls fire per save
+			// Give row 1 a real entity + amount so the batch contains anchor + row1
 			fireEvent.press(getByTestId('split-entity-1'));
 			fireEvent.press(getByText('Pets'));
 			fireEvent.changeText(getByTestId('split-amount-1'), '20');
-			// anchor=30 (Groceries), row1=20 (Pets) → 2 addTransaction calls per save
 
 			const saveButton = getByTestId('transaction-save-button');
-			fireEvent.press(saveButton); // first press → in-flight on first addTransaction
+			fireEvent.press(saveButton); // first press → in-flight on the batch call
 			await act(async () => {}); // isSubmitting = true, button disabled
 			fireEvent.press(saveButton); // second press → guard blocks it entirely
 
 			resolveFirstSave(); // let the first save complete
 			await waitFor(() => expect(mockOnClose).toHaveBeenCalledTimes(1));
 
-			// Exactly 2 transactions (anchor + row1), not 4 (which a double-save would produce)
-			expect(addTransactionSpy).toHaveBeenCalledTimes(2);
+			// Exactly one batch call (containing 2 rows), not two batch calls (4 rows)
+			// which a double-save without the in-flight guard would produce.
+			expect(batchSpy).toHaveBeenCalledTimes(1);
+			expect((batchSpy.mock.calls[0][0] as unknown[]).length).toBe(2);
 		});
 
 		it('toggling split off exits split mode and restores original amount', () => {
@@ -1502,9 +1518,9 @@ describe('TransactionModal', () => {
 		});
 
 		it('saves DnD transaction with changed From entity (KII-80)', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
 			});
 
@@ -1525,20 +1541,22 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-2',
-						to_entity_id: 'category-1',
-						amount: 50,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'account-2',
+							to_entity_id: 'category-1',
+							amount: 50,
+						}),
+					])
 				);
 			});
 		});
 
 		it('saves DnD transaction with changed To entity (KII-80)', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 				entities: [mockFromEntity, mockToEntity, account2, category2, incomeEntity],
 			});
 
@@ -1559,12 +1577,14 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-1',
-						to_entity_id: 'category-2',
-						amount: 75,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'account-1',
+							to_entity_id: 'category-2',
+							amount: 75,
+						}),
+					])
 				);
 			});
 		});
@@ -1675,10 +1695,10 @@ describe('TransactionModal', () => {
 		};
 
 		it('creates income→account transaction via quickAdd', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
 				entities: [incomeEntity, accountEntity, categoryEntity],
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 			});
 
 			const { getByTestId, getByText } = render(
@@ -1704,23 +1724,25 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'income-1',
-						to_entity_id: 'account-1',
-						amount: 500,
-						currency: 'USD',
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'income-1',
+							to_entity_id: 'account-1',
+							amount: 500,
+							currency: 'USD',
+						}),
+					])
 				);
 			});
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
 		it('creates account→category transaction via quickAdd', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
 				entities: [incomeEntity, accountEntity, categoryEntity],
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 			});
 
 			const { getByTestId, getByText } = render(
@@ -1745,12 +1767,14 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-1',
-						to_entity_id: 'category-1',
-						amount: 42.5,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'account-1',
+							to_entity_id: 'category-1',
+							amount: 42.5,
+						}),
+					])
 				);
 			});
 			expect(mockOnClose).toHaveBeenCalled();
@@ -1912,10 +1936,10 @@ describe('TransactionModal', () => {
 		});
 
 		it('allows overriding the pre-selected default account', async () => {
-			const addTransactionSpy = jest.fn();
+			const batchSpy = jest.fn();
 			useStore.setState({
 				entities: [incomeEntity, defaultAccount, otherAccount, categoryEntity],
-				addTransaction: addTransactionSpy,
+				createTransactionBatch: batchSpy,
 			});
 
 			const { getByTestId, getByText } = render(
@@ -1941,12 +1965,14 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'account-other',
-						to_entity_id: 'category-1',
-						amount: 25,
-					})
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'account-other',
+							to_entity_id: 'category-1',
+							amount: 25,
+						}),
+					])
 				);
 			});
 		});
@@ -1983,8 +2009,8 @@ describe('TransactionModal', () => {
 		});
 
 		it('transaction amount equals entered amount, not entered + funded', async () => {
-			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -2000,16 +2026,19 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				// Main transaction should be exactly what was typed
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ amount: 10, from_entity_id: 'account-1' })
+				// Main transaction (in the same atomic batch as the release) is exactly
+				// what was typed — release does NOT inflate it.
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({ amount: 10, from_entity_id: 'account-1' }),
+					])
 				);
 			});
 		});
 
 		it('creates saving→account release transaction for funded amount', async () => {
-			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -2025,20 +2054,22 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				// Should create a saving→account release transaction for funded amount (10, clamped to max 300)
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'saving-1',
-						to_entity_id: 'account-1',
-						amount: 10,
-					})
+				// Release sits in the same atomic batch as the main tx (KII-116).
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'saving-1',
+							to_entity_id: 'account-1',
+							amount: 10,
+						}),
+					])
 				);
 			});
 		});
 
 		it('caps funded amount at reservation max when entered exceeds it', async () => {
-			const addTransactionSpy = jest.fn().mockResolvedValue(undefined);
-			useStore.setState({ addTransaction: addTransactionSpy });
+			const batchSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({ createTransactionBatch: batchSpy });
 
 			const { getByTestId, getByText } = render(
 				<TransactionModal
@@ -2055,17 +2086,20 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-save-button'));
 
 			await waitFor(() => {
-				// Transaction amount should be exactly what was typed
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({ amount: 400 })
-				);
-				// Release capped at 300 (max reservation)
-				expect(addTransactionSpy).toHaveBeenCalledWith(
-					expect.objectContaining({
-						from_entity_id: 'saving-1',
-						to_entity_id: 'account-1',
-						amount: 300,
-					})
+				// Main tx amount = typed; release capped at max reservation. Both rows
+				// land in the same atomic batch — either both persist or neither does.
+				expect(batchSpy).toHaveBeenCalledTimes(1);
+				const batch = batchSpy.mock.calls[0][0] as unknown[];
+				expect(batch).toHaveLength(2);
+				expect(batch).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({ amount: 400 }),
+						expect.objectContaining({
+							from_entity_id: 'saving-1',
+							to_entity_id: 'account-1',
+							amount: 300,
+						}),
+					])
 				);
 			});
 		});

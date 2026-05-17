@@ -113,7 +113,7 @@ export function TransactionModal({
 	const [repeatEndCount, setRepeatEndCount] = useState('');
 	const [repeatHorizon, setRepeatHorizon] = useState(DEFAULT_HORIZON_DAYS);
 
-	const addTransaction = useStore((state) => state.addTransaction);
+	const createTransactionBatch = useStore((state) => state.createTransactionBatch);
 	const updateTransaction = useStore((state) => state.updateTransaction);
 	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
@@ -436,7 +436,6 @@ export function TransactionModal({
 					setIsSubmitting(false);
 					return;
 				}
-				for (const txn of txns) await addTransaction(txn);
 
 				const splitReleases = buildSavingsReleases({
 					accountId: splitFrom.id,
@@ -444,7 +443,11 @@ export function TransactionModal({
 					timestamp,
 					funded: fundingRef.current?.getFundedReservations() ?? [],
 				});
-				for (const r of splitReleases) await addTransaction(r);
+
+				// All split rows + their savings releases commit atomically: either
+				// every row persists or none do (KII-116). Without this, a mid-loop
+				// failure would leave orphaned partial-split transactions.
+				await createTransactionBatch([...txns, ...splitReleases]);
 
 				void KeyboardController.dismiss();
 				onClose();
@@ -500,30 +503,54 @@ export function TransactionModal({
 							horizon: repeatHorizon,
 						}
 					);
-				} else {
-					await addTransaction(
-						buildTransaction({
-							from_entity_id: selectedFromEntity.id,
-							to_entity_id: selectedToEntity.id,
-							amount: numAmount,
-							currency: selectedFromEntity.currency,
-							timestamp,
-							note: note.trim() || undefined,
-						})
-					);
-				}
-			}
 
-			const accountId = selectedFromEntity?.id ?? fromEntity?.id;
-			const fundCurrency = selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
-			if (accountId) {
-				const releases = buildSavingsReleases({
-					accountId,
-					currency: fundCurrency,
-					timestamp,
-					funded: fundingRef.current?.getFundedReservations() ?? [],
-				});
-				for (const r of releases) await addTransaction(r);
+					// Releases belong to the same user intent as the recurring transaction,
+					// but the template + first occurrence already persisted above; we
+					// commit releases as their own batch (still atomic among themselves).
+					const accountId = selectedFromEntity.id;
+					const releases = buildSavingsReleases({
+						accountId,
+						currency: selectedFromEntity.currency,
+						timestamp,
+						funded: fundingRef.current?.getFundedReservations() ?? [],
+					});
+					if (releases.length > 0) await createTransactionBatch(releases);
+				} else {
+					const mainTx = buildTransaction({
+						from_entity_id: selectedFromEntity.id,
+						to_entity_id: selectedToEntity.id,
+						amount: numAmount,
+						currency: selectedFromEntity.currency,
+						timestamp,
+						note: note.trim() || undefined,
+					});
+					const releases = buildSavingsReleases({
+						accountId: selectedFromEntity.id,
+						currency: selectedFromEntity.currency,
+						timestamp,
+						funded: fundingRef.current?.getFundedReservations() ?? [],
+					});
+					// Main tx + funding releases commit atomically (KII-116).
+					await createTransactionBatch([mainTx, ...releases]);
+				}
+			} else {
+				// Defensive fallback for the partial-selection state: no entity pair
+				// to commit, but a funding ref might still have produced releases.
+				// In edit mode the SavingsFundingSection is unmounted (gated on
+				// `!isEditing`), so `fundingRef` is null and releases is empty —
+				// this branch effectively no-ops in edit mode.
+				const accountId = selectedFromEntity?.id ?? fromEntity?.id;
+				const fundCurrency =
+					selectedFromEntity?.currency ?? fromEntity?.currency ?? currency;
+				if (accountId) {
+					const releases = buildSavingsReleases({
+						accountId,
+						currency: fundCurrency,
+						timestamp,
+						funded: fundingRef.current?.getFundedReservations() ?? [],
+					});
+					if (releases.length > 0) await createTransactionBatch(releases);
+				}
 			}
 
 			void KeyboardController.dismiss();
