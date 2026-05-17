@@ -507,6 +507,33 @@ rt1,e1,e-gone,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,17067455
 		expect(result.droppable[0].reason).toContain('to_entity_id "e-gone"');
 	});
 
+	test('drops recurrence_template referencing unknown from entity', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e-gone,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.recurrenceTemplates).toEqual([]);
+		expect(result.droppable).toHaveLength(1);
+		expect(result.droppable[0]).toMatchObject({
+			kind: 'recurrenceTemplate',
+			id: 'rt1',
+		});
+		expect(result.droppable[0].reason).toContain('from_entity_id "e-gone"');
+	});
+
 	test('happy-path parse returns empty droppable', () => {
 		const result = parseImportCsv(VALID_CSV);
 		expect(result.ok).toBe(true);
