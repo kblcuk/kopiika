@@ -178,6 +178,7 @@ export default function SettingsScreen() {
 									data.entities,
 									data.plans,
 									data.transactions,
+									data.recurrenceTemplates,
 									data.marketValueSnapshots
 								);
 								Alert.alert('Import Complete', 'All data has been replaced.');

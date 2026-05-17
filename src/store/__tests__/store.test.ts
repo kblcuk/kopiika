@@ -4087,6 +4087,7 @@ describe('Store Data Integrity', () => {
 					importedEntities,
 					importedPlans,
 					importedTransactions,
+					[],
 					importedSnapshots
 				);
 

@@ -70,6 +70,7 @@ interface AppState {
 		entities: Entity[],
 		plans: Plan[],
 		transactions: Transaction[],
+		recurrenceTemplates: RecurrenceTemplate[],
 		marketValueSnapshots?: MarketValueSnapshot[]
 	) => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
@@ -354,6 +355,7 @@ export const useStore = create<AppState>((set, get) => ({
 		newEntities,
 		newPlans,
 		newTransactions,
+		newRecurrenceTemplates,
 		newMarketValueSnapshots = []
 	) => {
 		// Cancel all scheduled notifications before replacing data
@@ -400,7 +402,7 @@ export const useStore = create<AppState>((set, get) => ({
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
 
-			// Insert in FK-safe order: entities → plans → transactions → market value snapshots
+			// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots
 			for (const entity of newEntities) {
 				tx.insert(schema.entities)
 					.values({
@@ -422,6 +424,26 @@ export const useStore = create<AppState>((set, get) => ({
 			}
 			for (const plan of newPlans) {
 				tx.insert(schema.plans).values(plan).run();
+			}
+			for (const template of newRecurrenceTemplates) {
+				tx.insert(schema.recurrenceTemplates)
+					.values({
+						id: template.id,
+						from_entity_id: template.from_entity_id,
+						to_entity_id: template.to_entity_id,
+						amount: template.amount,
+						currency: template.currency,
+						note: template.note ?? null,
+						rule: template.rule,
+						start_date: template.start_date,
+						end_date: template.end_date ?? null,
+						end_count: template.end_count ?? null,
+						horizon: template.horizon,
+						exclusions: template.exclusions ?? null,
+						is_deleted: template.is_deleted ?? false,
+						created_at: template.created_at,
+					})
+					.run();
 			}
 			for (const txn of validTransactions) {
 				tx.insert(schema.transactions)
