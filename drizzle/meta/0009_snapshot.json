@@ -1,8 +1,8 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "ed0130e1-30b0-4e60-86ea-eec817dd5f38",
-	"prevId": "9d3009bf-6889-4b14-ac3e-84029d3abcc4",
+	"id": "9d3009bf-6889-4b14-ac3e-84029d3abcc4",
+	"prevId": "9da50749-560f-4605-aa13-84f7df4bc3c1",
 	"tables": {
 		"entities": {
 			"name": "entities",
@@ -80,14 +80,6 @@
 				},
 				"is_deleted": {
 					"name": "is_deleted",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": false
-				},
-				"is_default": {
-					"name": "is_default",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": true,
