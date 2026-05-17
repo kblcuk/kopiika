@@ -8,7 +8,8 @@ import {
 	createPlansForEntities,
 } from '@/src/onboarding/presets';
 import { useStore } from '@/src/store';
-import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import { setEmptyBoardNudgeDismissed, setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import { isEntityActive } from '@/src/utils/entity-display';
 
 // Accessible only in E2E builds (built with EXPO_PUBLIC_E2E=true).
 // Marks onboarding as complete AND seeds the full PRESET_CHIPS catalog
@@ -25,10 +26,22 @@ export default function E2ESkipOnboardingScreen() {
 		async function run() {
 			try {
 				await setHasCompletedOnboarding(true);
+				// Suppress the empty-board nudge in E2E. It mounts async (reads its
+				// dismissed flag from AsyncStorage in a useEffect), and on a fresh
+				// install that delayed mount shifts the home layout right when the
+				// first test reads a category amount — flipping it from 75 % visible
+				// to under threshold and making getAmount('Groceries') flake.
+				await setEmptyBoardNudgeDismissed(true);
 
 				const addEntity = useStore.getState().addEntity;
 				const setPlan = useStore.getState().setPlan;
-				const existing = useStore.getState().entities;
+				// Use only active entities when computing "missing". `useStore`
+				// holds raw entities including soft-deleted ones (getAllEntities
+				// doesn't filter), so after a clearEntities fixture call the
+				// preset names still match soft-deleted rows and nothing gets
+				// re-seeded — leaving subsequent tests without Groceries / Cash /
+				// etc.
+				const existing = useStore.getState().entities.filter(isEntityActive);
 
 				// Idempotent: only seed chips that aren't already present.
 				const missing = PRESET_CHIPS.filter(

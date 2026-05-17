@@ -118,10 +118,11 @@ describe('Transactions — drag and drop', () => {
 		// the heavier fixture this test needs.
 		await launchAppFast();
 
-		// Seed a realistic data set: 8 accounts (defaults Main Card +
-		// Cash plus 6 extras) and 20 categories (defaults plus 16 extras
-		// spread across the 3 visual rows). With this, the Accounts row
-		// overflows horizontally — Acct08 starts well off the right edge.
+		// Seed a realistic data set: 9 accounts (defaults Main Card +
+		// Cash + Savings account plus 6 extras) and 20 categories (defaults
+		// plus 16 extras spread across the 3 visual rows). With this, the
+		// Accounts row overflows horizontally — Acct08 starts well off the
+		// right edge.
 		const newCategories = Array.from({ length: 16 }, (_, i) => ({
 			type: 'category' as const,
 			name: `Cat${String(i + 1).padStart(2, '0')}`,
@@ -139,6 +140,16 @@ describe('Transactions — drag and drop', () => {
 			],
 		});
 
+		// Make sure the seeded accounts have rendered before the sanity
+		// check below. Acct08 is the last seeded account; if it's in the
+		// view hierarchy, all earlier ones (including the Acct03 drop
+		// target) are too. Without this, `.not.toBeVisible()` passes
+		// vacuously while bubbles are still hydrating and the drag then
+		// races a half-mounted row.
+		await waitFor(element(by.id(TestIDs.entityBubble('Acct08'))))
+			.toExist()
+			.withTimeout(5000);
+
 		// Sanity: Acct08 starts off the right edge.
 		await waitFor(element(by.id(TestIDs.entityBubble('Acct08'))))
 			.not.toBeVisible()
@@ -147,15 +158,17 @@ describe('Transactions — drag and drop', () => {
 		// On Android a drag near the top edge opens the notification shade.
 		await element(by.id(TestIDs.homeScrollView)).scroll(150, 'down');
 
-		// Drag the category onto the rightmost visible account, far-right
-		// of that bubble (targetX=0.99) so the touch lands inside the
-		// 60 px right-edge auto-scroll zone. `holdDuration=4000` gives
-		// auto-scroll plenty of time to chew through the row's overflow.
+		// Drag the category onto the rightmost visible account
+		// (Acct03 — column 3, at x≈316-412 dp; Acct04 starts past
+		// Pixel_9a's 411 dp viewport and is unreachable). Touch lands
+		// at targetX=0.99 so it falls inside the 60 dp right-edge
+		// auto-scroll zone. `holdDuration=4000` gives auto-scroll
+		// plenty of time to chew through the row's overflow.
 		await element(by.id(TestIDs.entityBubble('Groceries'))).longPressAndDrag(
 			600,
 			0.5,
 			0.5,
-			element(by.id(TestIDs.entityBubble('Acct04'))),
+			element(by.id(TestIDs.entityBubble('Acct03'))),
 			0.99,
 			0.5,
 			'slow',
