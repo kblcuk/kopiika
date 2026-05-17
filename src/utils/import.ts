@@ -1,4 +1,5 @@
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
+import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -8,6 +9,7 @@ interface ParsedImportData {
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];
+	recurrenceTemplates: RecurrenceTemplate[];
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
@@ -62,27 +64,50 @@ export function parseCsvLine(line: string): string[] {
  * Split combined CSV content into sections by # ENTITIES / # PLANS / # TRANSACTIONS markers.
  * Returns null with error message if markers are missing.
  */
-function splitSections(
-	content: string
-): { entities: string; plans: string; transactions: string; marketValueSnapshots: string } | null {
+function splitSections(content: string): {
+	entities: string;
+	plans: string;
+	transactions: string;
+	recurrenceTemplates: string;
+	marketValueSnapshots: string;
+} | null {
 	const entitiesIdx = content.indexOf('# ENTITIES');
 	const plansIdx = content.indexOf('# PLANS');
 	const transactionsIdx = content.indexOf('# TRANSACTIONS');
+	const recurrenceTemplatesIdx = content.indexOf('# RECURRENCE_TEMPLATES');
 	const marketValueSnapshotsIdx = content.indexOf('# MARKET_VALUE_SNAPSHOTS');
 
 	if (entitiesIdx === -1 || plansIdx === -1 || transactionsIdx === -1) {
 		return null;
 	}
 
+	// Transactions end at recurrence_templates if present, else market_value_snapshots if present, else EOF.
+	const transactionsEndIdx =
+		recurrenceTemplatesIdx !== -1
+			? recurrenceTemplatesIdx
+			: marketValueSnapshotsIdx !== -1
+				? marketValueSnapshotsIdx
+				: undefined;
+
+	// Recurrence templates end at market_value_snapshots if present, else EOF.
+	const recurrenceTemplatesEndIdx =
+		marketValueSnapshotsIdx !== -1 ? marketValueSnapshotsIdx : undefined;
+
 	return {
 		entities: content.slice(entitiesIdx + '# ENTITIES'.length, plansIdx).trim(),
 		plans: content.slice(plansIdx + '# PLANS'.length, transactionsIdx).trim(),
 		transactions: content
-			.slice(
-				transactionsIdx + '# TRANSACTIONS'.length,
-				marketValueSnapshotsIdx === -1 ? undefined : marketValueSnapshotsIdx
-			)
+			.slice(transactionsIdx + '# TRANSACTIONS'.length, transactionsEndIdx)
 			.trim(),
+		recurrenceTemplates:
+			recurrenceTemplatesIdx === -1
+				? ''
+				: content
+						.slice(
+							recurrenceTemplatesIdx + '# RECURRENCE_TEMPLATES'.length,
+							recurrenceTemplatesEndIdx
+						)
+						.trim(),
 		marketValueSnapshots:
 			marketValueSnapshotsIdx === -1
 				? ''
@@ -350,6 +375,119 @@ function parseTransactions(
 	return result;
 }
 
+function parseRecurrenceTemplates(
+	rows: Record<string, string>[],
+	errors: string[]
+): RecurrenceTemplate[] {
+	const result: RecurrenceTemplate[] = [];
+
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		const lineNum = i + 1;
+
+		const missing: string[] = [];
+		for (const field of [
+			'id',
+			'from_entity_id',
+			'to_entity_id',
+			'amount',
+			'currency',
+			'rule',
+			'start_date',
+			'horizon',
+			'created_at',
+		]) {
+			if (!row[field]) missing.push(field);
+		}
+		if (missing.length > 0) {
+			errors.push(
+				`Recurrence template row ${lineNum}: missing required field(s): ${missing.join(', ')}`
+			);
+			continue;
+		}
+
+		const amount = Number(row.amount);
+		const start_date = Number(row.start_date);
+		const horizon = Number(row.horizon);
+		const created_at = Number(row.created_at);
+		if (isNaN(amount) || isNaN(start_date) || isNaN(horizon) || isNaN(created_at)) {
+			errors.push(
+				`Recurrence template row ${lineNum}: amount/start_date/horizon/created_at must be numbers`
+			);
+			continue;
+		}
+
+		let end_date: number | null = null;
+		if (row.end_date) {
+			const parsed = Number(row.end_date);
+			if (isNaN(parsed)) {
+				errors.push(`Recurrence template row ${lineNum}: end_date must be a number`);
+				continue;
+			}
+			end_date = parsed;
+		}
+
+		let end_count: number | null = null;
+		if (row.end_count) {
+			const parsed = Number(row.end_count);
+			if (isNaN(parsed)) {
+				errors.push(`Recurrence template row ${lineNum}: end_count must be a number`);
+				continue;
+			}
+			end_count = parsed;
+		}
+
+		try {
+			const parsedRule = JSON.parse(row.rule);
+			if (!parsedRule || typeof parsedRule.type !== 'string') {
+				errors.push(
+					`Recurrence template row ${lineNum}: rule must be JSON with a "type" field`
+				);
+				continue;
+			}
+		} catch {
+			errors.push(`Recurrence template row ${lineNum}: rule "${row.rule}" is not valid JSON`);
+			continue;
+		}
+
+		if (row.exclusions) {
+			try {
+				const parsed = JSON.parse(row.exclusions);
+				if (!Array.isArray(parsed)) {
+					errors.push(
+						`Recurrence template row ${lineNum}: exclusions must be a JSON array`
+					);
+					continue;
+				}
+			} catch {
+				errors.push(
+					`Recurrence template row ${lineNum}: exclusions "${row.exclusions}" is not valid JSON`
+				);
+				continue;
+			}
+		}
+
+		result.push({
+			id: row.id,
+			from_entity_id: row.from_entity_id,
+			to_entity_id: row.to_entity_id,
+			amount,
+			currency: row.currency,
+			note: row.note || null,
+			rule: row.rule,
+			start_date,
+			end_date,
+			end_count,
+			horizon,
+			exclusions: row.exclusions || null,
+			is_deleted: row.is_deleted === 'true',
+			created_at,
+		});
+	}
+
+	return result;
+}
+
 /**
  * Parse a combined CSV import file with # ENTITIES / # PLANS / # TRANSACTIONS sections,
  * and an optional # MARKET_VALUE_SNAPSHOTS section.
@@ -384,6 +522,9 @@ export function parseImportCsv(content: string): ParseResult {
 	const transactionRows = parseSection(sections.transactions);
 	const transactions = parseTransactions(transactionRows, entityIds, errors);
 
+	const recurrenceTemplateRows = parseSection(sections.recurrenceTemplates);
+	const recurrenceTemplates = parseRecurrenceTemplates(recurrenceTemplateRows, errors);
+
 	const marketValueSnapshotRows = parseSection(sections.marketValueSnapshots);
 	const marketValueSnapshots = parseMarketValueSnapshots(
 		marketValueSnapshotRows,
@@ -395,7 +536,7 @@ export function parseImportCsv(content: string): ParseResult {
 		return { ok: false, errors };
 	}
 
-	return { ok: true, data: { entities, plans, transactions, marketValueSnapshots } };
+	return { ok: true, data: { entities, plans, transactions, recurrenceTemplates, marketValueSnapshots } };
 }
 
 export function formatImportErrors(errors: string[]): string {

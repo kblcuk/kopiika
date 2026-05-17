@@ -429,4 +429,68 @@ t1,__system_balance_adjustment__,e1,100,EUR,1706745600000,Correction`;
 		expect(result.data.transactions).toHaveLength(1);
 		expect(result.data.transactions[0].from_entity_id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
 	});
+
+	test('parses recurrence_templates section', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"[1706832000000]",false,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.recurrenceTemplates).toHaveLength(1);
+		const t = result.data.recurrenceTemplates[0];
+		expect(t.id).toBe('rt1');
+		expect(t.from_entity_id).toBe('e1');
+		expect(t.amount).toBe(50);
+		expect(t.note).toBe('Weekly groceries');
+		expect(t.rule).toBe('{"type":"weekly"}');
+		expect(t.start_date).toBe(1706745600000);
+		expect(t.end_date).toBeNull();
+		expect(t.end_count).toBeNull();
+		expect(t.horizon).toBe(90);
+		expect(t.exclusions).toBe('[1706832000000]');
+		expect(t.is_deleted).toBe(false);
+		expect(t.created_at).toBe(1706745500000);
+	});
+
+	test('accepts imports without recurrence_templates section (backward compat)', () => {
+		const result = parseImportCsv(VALID_CSV);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.recurrenceTemplates).toEqual([]);
+	});
+
+	test('rejects recurrence_template with malformed rule JSON', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,50,EUR,,not-json,1706745600000,,,90,,false,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.errors[0]).toMatch(/rule/i);
+	});
 });
