@@ -1,10 +1,12 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
+import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
 	ENTITY_HEADERS,
 	PLAN_HEADERS,
 	TRANSACTION_HEADERS,
+	RECURRENCE_TEMPLATE_HEADERS,
 	MARKET_VALUE_SNAPSHOT_HEADERS,
 } from './csv-spec';
 
@@ -56,6 +58,28 @@ function transactionsToCsv(transactions: Transaction[]): string {
 	return [TRANSACTION_HEADERS.join(','), ...rows].join('\n');
 }
 
+function recurrenceTemplatesToCsv(templates: RecurrenceTemplate[]): string {
+	const rows = templates.map((t) =>
+		[
+			t.id,
+			t.from_entity_id,
+			t.to_entity_id,
+			t.amount,
+			t.currency,
+			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
+			`"${t.rule.replace(/"/g, '""')}"`,
+			t.start_date,
+			t.end_date ?? '',
+			t.end_count ?? '',
+			t.horizon,
+			t.exclusions ? `"${t.exclusions.replace(/"/g, '""')}"` : '',
+			t.is_deleted === true,
+			t.created_at,
+		].join(',')
+	);
+	return [RECURRENCE_TEMPLATE_HEADERS.join(','), ...rows].join('\n');
+}
+
 function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
 	const rows = marketValueSnapshots.map((snapshot) =>
 		[snapshot.id, snapshot.entity_id, snapshot.amount, snapshot.currency, snapshot.date].join(
@@ -69,6 +93,7 @@ export interface CombinedCsvInput {
 	entities: Entity[];
 	plans: Plan[];
 	transactions: Transaction[];
+	recurrenceTemplates: RecurrenceTemplate[];
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
@@ -83,6 +108,9 @@ export function buildCombinedCsv(data: CombinedCsvInput): string {
 		'# TRANSACTIONS',
 		transactionsToCsv(data.transactions),
 		'',
+		'# RECURRENCE_TEMPLATES',
+		recurrenceTemplatesToCsv(data.recurrenceTemplates),
+		'',
 		'# MARKET_VALUE_SNAPSHOTS',
 		marketValueSnapshotsToCsv(data.marketValueSnapshots),
 	].join('\n');
@@ -93,6 +121,7 @@ export async function exportAllData(
 	entities: Entity[],
 	plans: Plan[],
 	transactions: Transaction[],
+	recurrenceTemplates: RecurrenceTemplate[],
 	marketValueSnapshots: MarketValueSnapshot[]
 ): Promise<void> {
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -117,6 +146,7 @@ export async function exportAllData(
 			entities,
 			plans,
 			transactions,
+			recurrenceTemplates,
 			marketValueSnapshots,
 		});
 

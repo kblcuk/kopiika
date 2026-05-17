@@ -31,8 +31,15 @@ import {
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 export default function SettingsScreen() {
-	const { entities, plans, transactions, marketValueSnapshots, initialize, replaceAllData } =
-		useStore();
+	const {
+		entities,
+		plans,
+		transactions,
+		recurrenceTemplates,
+		marketValueSnapshots,
+		initialize,
+		replaceAllData,
+	} = useStore();
 
 	const [remindersEnabled, setRemindersToggle] = useState(true);
 
@@ -131,7 +138,7 @@ export default function SettingsScreen() {
 
 	const handleExport = async () => {
 		try {
-			await exportAllData(entities, plans, transactions, marketValueSnapshots);
+			await exportAllData(entities, plans, transactions, recurrenceTemplates, marketValueSnapshots);
 		} catch (error) {
 			console.error('Failed to export data', error);
 			Alert.alert('Export Failed', 'Could not export data. Please try again.');

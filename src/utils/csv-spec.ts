@@ -39,6 +39,23 @@ export const TRANSACTION_HEADERS = [
 	'is_confirmed',
 ] as const;
 
+export const RECURRENCE_TEMPLATE_HEADERS = [
+	'id',
+	'from_entity_id',
+	'to_entity_id',
+	'amount',
+	'currency',
+	'note',
+	'rule',
+	'start_date',
+	'end_date',
+	'end_count',
+	'horizon',
+	'exclusions',
+	'is_deleted',
+	'created_at',
+] as const;
+
 export const MARKET_VALUE_SNAPSHOT_HEADERS = [
 	'id',
 	'entity_id',
