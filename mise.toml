@@ -9,7 +9,7 @@ age = "latest"
 bun = "latest"
 fnox = "latest"
 gradle = "9.0.0"
-java = "21"
+java = "21.0.11+10.0.LTS"
 node = "latest"
 ruby = "latest"
 
