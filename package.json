@@ -110,7 +110,7 @@
 		"oxfmt": "^0.48.0",
 		"oxlint": "^1.64.0",
 		"oxlint-tsgolint": "^0.22.1",
-		"react-test-renderer": "19.2.6",
+		"react-test-renderer": "19.2.0",
 		"ts-jest": "^29.4.9"
 	},
 	"private": true,
