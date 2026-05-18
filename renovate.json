@@ -1,0 +1,49 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", ":dependencyDashboard"],
+	"timezone": "Europe/Kyiv",
+	"lockFileMaintenance": {
+		"enabled": true
+	},
+	"packageRules": [
+		{
+			"matchDepTypes": ["devDependencies"],
+			"matchUpdateTypes": ["patch", "minor"],
+			"automerge": true,
+			"platformAutomerge": true
+		},
+		{
+			"matchPackageNames": ["@types/*"],
+			"groupName": "types",
+			"automerge": true,
+			"platformAutomerge": true
+		},
+		{
+			"matchPackageNames": ["expo", "expo-*", "@expo/*"],
+			"groupName": "expo"
+		},
+		{
+			"matchPackageNames": [
+				"react",
+				"react-dom",
+				"react-native",
+				"react-native-*",
+				"@react-native/*",
+				"@react-native-*/*"
+			],
+			"groupName": "react-native"
+		},
+		{
+			"matchPackageNames": ["drizzle-*"],
+			"groupName": "drizzle"
+		},
+		{
+			"matchPackageNames": ["jest", "@jest/*", "jest-*", "detox", "@testing-library/*"],
+			"groupName": "test-toolchain"
+		},
+		{
+			"matchPackageNames": ["oxlint", "oxfmt"],
+			"groupName": "oxc"
+		}
+	]
+}
