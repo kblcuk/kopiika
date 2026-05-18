@@ -31,4 +31,5 @@ jobs:
                   RENOVATE_AUTODISCOVER: 'false'
                   RENOVATE_BINARY_SOURCE: install
                   RENOVATE_DRY_RUN: ${{ github.event.inputs.dry-run == 'true' && 'full' || '' }}
+                  RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_COM_TOKEN }}
                   LOG_LEVEL: ${{ github.event.inputs.log-level || 'info' }}
