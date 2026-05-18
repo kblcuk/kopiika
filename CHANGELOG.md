@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.16](https://codeberg.org/kblcuk/kopiika/compare/v0.3.15...v0.3.16) (2026-05-18)
+
+
+### Features
+
+* **csv:** export recurrence_templates section ([673358b](https://codeberg.org/kblcuk/kopiika/commit/673358bad74a8ab4b4d8c0c2cdf01419ef2547f2))
+* **csv:** parse recurrence_templates section on import ([1a1ab56](https://codeberg.org/kblcuk/kopiika/commit/1a1ab560c4638a40416c95fca4ffdd8866bd55b1))
+* **import:** persist recurrence_templates through replaceAllData ([79c453a](https://codeberg.org/kblcuk/kopiika/commit/79c453aeb73230da48df1c36e750bd7ba4c62dbb))
+* **import:** Surface unknown-FK rows as droppable instead of fatal ([159b701](https://codeberg.org/kblcuk/kopiika/commit/159b7018328800080439d6414d951697b5bb27c1))
+* **settings:** prompt before importing with droppable items ([876a1dd](https://codeberg.org/kblcuk/kopiika/commit/876a1dd34b5923b371e95b59e487b71d1db7974e))
+* **store:** add atomic createTransactionBatch action (KII-116) ([6a24e51](https://codeberg.org/kblcuk/kopiika/commit/6a24e51c1ec1d83380d968dd585e1996645365ee))
+
+
+### Bug Fixes
+
+* **csv:** round-trip entities.is_default through export and import ([91a410d](https://codeberg.org/kblcuk/kopiika/commit/91a410dc56fbd2722364b7c7613061656fabd131))
+* **db:** Conflict plan upserts on (entity_id, period_start) ([efb0b6e](https://codeberg.org/kblcuk/kopiika/commit/efb0b6e628b9a699ffb9272d0a745d5c4a7b4947))
+* **e2e:** Unblock Android DnD suite on Pixel9 ([63cc40f](https://codeberg.org/kblcuk/kopiika/commit/63cc40f96d486a62092ccb35c51b6adf4cbd6fd5))
+* **e2e:** Update store from seedFixture so home reflects seeded transactions ([259d4e1](https://codeberg.org/kblcuk/kopiika/commit/259d4e1c7d95195c5cb611f9ed8ac891d134366d))
+* **import:** align transaction.series_id parse with drizzle (null, not undefined) ([2f0ad29](https://codeberg.org/kblcuk/kopiika/commit/2f0ad299861c9f2bd52d589ed36447ba17933c3b))
+* **transactions:** KII-116 commit split + release rows atomically ([6258ed9](https://codeberg.org/kblcuk/kopiika/commit/6258ed99e0a2f86ce6b91867dbacf287e2999610))
+
 ## [0.3.15](https://codeberg.org/kblcuk/kopiika/compare/v0.3.14...v0.3.15) (2026-05-16)
 
 
