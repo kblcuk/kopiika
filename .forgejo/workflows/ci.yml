@@ -23,14 +23,11 @@ jobs:
 
             - name: Setup cache
               uses: https://code.forgejo.org/actions/cache@v4
-
-              id: cache
               with:
                   path: node_modules
                   key: modules-${{ hashFiles('bun.lock') }}
 
             - name: Install dependencies
-              if: steps.cache.outputs.cache-hit != 'true'
               env:
                   BUN_CONFIG_DNS_PREFER: ipv4
               run: bun install --frozen-lockfile
