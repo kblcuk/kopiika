@@ -957,6 +957,39 @@ describe('transactions.ts', () => {
 			const result = await getTransactionsBySeriesId('series-2');
 			expect(result.length).toBe(2);
 		});
+
+		test('createTransactionBatch surfaces errors thrown inside the transaction (KII-115)', async () => {
+			const dupId = 'kii-115-dup';
+			const batch: Transaction[] = [
+				{
+					id: dupId,
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 5,
+					currency: 'USD',
+					timestamp: Date.now(),
+				},
+				{
+					id: dupId,
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 6,
+					currency: 'USD',
+					timestamp: Date.now() + 1,
+				},
+			];
+
+			let caught: unknown;
+			try {
+				await createTransactionBatch(batch);
+			} catch (err) {
+				caught = err;
+			}
+			expect(caught).toBeInstanceOf(Error);
+
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === dupId)).toBeUndefined();
+		});
 	});
 
 	describe('transaction confirmation', () => {

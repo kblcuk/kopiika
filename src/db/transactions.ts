@@ -221,7 +221,7 @@ export async function updateTransactionsBySeriesFuture(
 export async function createTransactionBatch(txns: Transaction[]): Promise<void> {
 	if (txns.length === 0) return;
 	const db = await getDrizzleDb();
-	db.transaction((tx) => {
+	await db.transaction((tx) => {
 		for (const txn of txns) {
 			tx.insert(transactions)
 				.values({

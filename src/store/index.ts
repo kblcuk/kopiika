@@ -369,7 +369,7 @@ export const useStore = create<AppState>((set, get) => ({
 		const drizzleDb = await db.getDrizzleDb();
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
-		drizzleDb.transaction((tx) => {
+		await drizzleDb.transaction((tx) => {
 			// Delete in FK-safe order: snapshots → transactions → recurrenceTemplates → plans → entities
 			tx.delete(schema.marketValueSnapshots).run();
 			tx.delete(schema.transactions).run();
