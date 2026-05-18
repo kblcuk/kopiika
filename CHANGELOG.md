@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.16](https://codeberg.org/kblcuk/kopiika/compare/v0.3.15...v0.3.16) (2026-05-18)
+
+
+### Features
+
+* **store:** add atomic createTransactionBatch action (KII-116) ([6a24e51](https://codeberg.org/kblcuk/kopiika/commit/6a24e51c1ec1d83380d968dd585e1996645365ee))
+
+
+### Bug Fixes
+
+* **db:** Conflict plan upserts on (entity_id, period_start) ([efb0b6e](https://codeberg.org/kblcuk/kopiika/commit/efb0b6e628b9a699ffb9272d0a745d5c4a7b4947))
+* **e2e:** Unblock Android DnD suite on Pixel9 ([63cc40f](https://codeberg.org/kblcuk/kopiika/commit/63cc40f96d486a62092ccb35c51b6adf4cbd6fd5))
+* **e2e:** Update store from seedFixture so home reflects seeded transactions ([259d4e1](https://codeberg.org/kblcuk/kopiika/commit/259d4e1c7d95195c5cb611f9ed8ac891d134366d))
+* **transactions:** KII-116 commit split + release rows atomically ([6258ed9](https://codeberg.org/kblcuk/kopiika/commit/6258ed99e0a2f86ce6b91867dbacf287e2999610))
+
 ## [0.3.15](https://codeberg.org/kblcuk/kopiika/compare/v0.3.14...v0.3.15) (2026-05-16)
 
 
