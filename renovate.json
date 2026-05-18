@@ -26,12 +26,18 @@
 			"matchPackageNames": [
 				"react",
 				"react-dom",
+				"react-test-renderer",
 				"react-native",
 				"react-native-*",
 				"@react-native/*",
 				"@react-native-*/*"
 			],
 			"groupName": "react-native"
+		},
+		{
+			"matchPackageNames": ["react-test-renderer"],
+			"description": "Version must match react exactly (jest cross-checks at runtime). Park in dashboard so it never lands alone.",
+			"dependencyDashboardApproval": true
 		},
 		{
 			"matchPackageNames": ["drizzle-*"],
