@@ -562,4 +562,227 @@ rt1,e1,e2,50,EUR,,not-json,1706745600000,,,90,,false,1706745500000`;
 		if (result.ok) return;
 		expect(result.errors[0]).toMatch(/rule/i);
 	});
+
+	// KII-117 — Domain validation on import (allowed type pairs, currency, amount)
+	describe('domain validation', () => {
+		test('rejects category → category (blocked pair)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,category,"Groceries",EUR,,,0,0,0,true
+e2,category,"Rent",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/category to category/i);
+		});
+
+		test('rejects income → category (blocked pair)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,income,"Salary",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/income to category/i);
+		});
+
+		test('rejects saving → category (blocked pair)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,saving,"Emergency",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/saving to category/i);
+		});
+
+		test('rejects same-entity transfer (from == to)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e1,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/source and destination must differ/i);
+		});
+
+		test('rejects currency mismatch between entities', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main EUR",EUR,,,0,0,0,true
+e2,category,"USD Goods",USD,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/currency mismatch/i);
+		});
+
+		test('rejects non-positive transaction amount', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,0,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/positive number/i);
+		});
+
+		test('accepts transaction whose entity is soft-deleted (historical record)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted
+e1,account,"Old Card",EUR,,,0,0,0,true,true
+e2,category,"Groceries",EUR,,,0,0,1,true,false
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions).toHaveLength(1);
+		});
+
+		test('rejects recurrence_template with blocked pair (category → category)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,category,"Groceries",EUR,,,0,0,0,true
+e2,category,"Rent",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/category to category/i);
+		});
+
+		test('rejects recurrence_template with currency mismatch', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main EUR",EUR,,,0,0,0,true
+e2,category,"USD Goods",USD,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.join('\n')).toMatch(/currency mismatch/i);
+		});
+
+		test('accepts recurrence_template whose entity is soft-deleted', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted
+e1,account,"Old Card",EUR,,,0,0,0,true,true
+e2,category,"Groceries",EUR,,,0,0,1,true,false
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.recurrenceTemplates).toHaveLength(1);
+		});
+
+		test('rejects whole import even if one row is invalid (all-or-nothing)', () => {
+			const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+e3,category,"Rent",EUR,,,0,0,2,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,50,EUR,1706745600000,
+t2,e2,e3,25,EUR,1706745700000,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.errors.length).toBeGreaterThan(0);
+			expect(result.errors.join('\n')).toMatch(/category to category/i);
+		});
+	});
 });

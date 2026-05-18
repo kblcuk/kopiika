@@ -4,6 +4,7 @@ import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
+import { validateTransaction } from './transaction-validation';
 
 export interface ParsedImportData {
 	entities: Entity[];
@@ -314,6 +315,7 @@ function parsePlans(
 
 function parseTransactions(
 	rows: Record<string, string>[],
+	entities: Entity[],
 	entityIds: Set<string>,
 	errors: string[],
 	droppable: DroppableItem[]
@@ -372,6 +374,21 @@ function parseTransactions(
 			continue;
 		}
 
+		const validation = validateTransaction(
+			{
+				from_entity_id: row.from_entity_id,
+				to_entity_id: row.to_entity_id,
+				amount,
+				currency: row.currency,
+			},
+			entities,
+			{ allowDeletedEntities: true }
+		);
+		if (!validation.ok) {
+			errors.push(`Transaction row ${lineNum}: ${validation.message}`);
+			continue;
+		}
+
 		result.push({
 			id: row.id,
 			from_entity_id: row.from_entity_id,
@@ -390,6 +407,7 @@ function parseTransactions(
 
 function parseRecurrenceTemplates(
 	rows: Record<string, string>[],
+	entities: Entity[],
 	entityIds: Set<string>,
 	errors: string[],
 	droppable: DroppableItem[]
@@ -499,6 +517,21 @@ function parseRecurrenceTemplates(
 			continue;
 		}
 
+		const validation = validateTransaction(
+			{
+				from_entity_id: row.from_entity_id,
+				to_entity_id: row.to_entity_id,
+				amount,
+				currency: row.currency,
+			},
+			entities,
+			{ allowDeletedEntities: true }
+		);
+		if (!validation.ok) {
+			errors.push(`Recurrence template row ${lineNum}: ${validation.message}`);
+			continue;
+		}
+
 		result.push({
 			id: row.id,
 			from_entity_id: row.from_entity_id,
@@ -553,11 +586,12 @@ export function parseImportCsv(content: string): ParseResult {
 	const plans = parsePlans(planRows, entityIds, errors);
 
 	const transactionRows = parseSection(sections.transactions);
-	const transactions = parseTransactions(transactionRows, entityIds, errors, droppable);
+	const transactions = parseTransactions(transactionRows, entities, entityIds, errors, droppable);
 
 	const recurrenceTemplateRows = parseSection(sections.recurrenceTemplates);
 	const recurrenceTemplates = parseRecurrenceTemplates(
 		recurrenceTemplateRows,
+		entities,
 		entityIds,
 		errors,
 		droppable

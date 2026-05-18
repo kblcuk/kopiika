@@ -84,7 +84,7 @@ When `Upcoming` sits above other content, the list auto-scrolls past it on mount
 
 ## Transaction Rules
 
-Allowed transaction pairs are defined once in `src/utils/transaction-validation.ts` (`ALLOWED_COMBINATIONS`). Interactive entry points — drag-and-drop, quick add, edit, and split — use those helpers so picker filtering and drop handling stay aligned. CSV import validates structure and entity references, then preserves imported historical rows as supplied.
+Allowed transaction pairs are defined once in `src/utils/transaction-validation.ts` (`ALLOWED_COMBINATIONS`). Interactive entry points — drag-and-drop, quick add, edit, and split — use those helpers so picker filtering and drop handling stay aligned. CSV import runs the same `validateTransaction` per transaction and per recurrence template (with `allowDeletedEntities: true`, since imported rows are historical and may legitimately reference soft-deleted entities); a domain violation fails the whole import, keeping restoration all-or-nothing.
 
 | From \ To | Income | Account | Category | Saving |
 | --------- | ------ | ------- | -------- | ------ |

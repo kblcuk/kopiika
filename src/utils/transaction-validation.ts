@@ -147,6 +147,16 @@ function findEntity(entities: Entity[], id: string): Entity | undefined {
 	return entities.find((e) => e.id === id);
 }
 
+export interface ValidateTransactionOptions {
+	/**
+	 * Skip the soft-deleted-entity checks. Set when re-creating historical
+	 * records (CSV import, sync replay) where the original row legitimately
+	 * referenced an entity that was later soft-deleted — the transaction
+	 * itself still happened in the real world.
+	 */
+	allowDeletedEntities?: boolean;
+}
+
 /**
  * Validates a transaction input for creation at the mutation boundary.
  *
@@ -160,7 +170,11 @@ function findEntity(entities: Entity[], id: string): Entity | undefined {
  * skips the type-pair check (it is allowed to send to any account) and the
  * currency check (it adopts the target's currency).
  */
-export function validateTransaction(input: MutationInput, entities: Entity[]): ValidationResult {
+export function validateTransaction(
+	input: MutationInput,
+	entities: Entity[],
+	options?: ValidateTransactionOptions
+): ValidationResult {
 	if (!(Number.isFinite(input.amount) && input.amount > 0)) {
 		return invalid('INVALID_AMOUNT', 'Amount must be a positive number.');
 	}
@@ -179,11 +193,13 @@ export function validateTransaction(input: MutationInput, entities: Entity[]): V
 	if (!toEntity)
 		return invalid('MISSING_TO', `Unknown destination entity: ${input.to_entity_id}.`);
 
-	if (isEntityDeleted(fromEntity)) {
-		return invalid('DELETED_FROM', `Source entity "${fromEntity.name}" is deleted.`);
-	}
-	if (isEntityDeleted(toEntity)) {
-		return invalid('DELETED_TO', `Destination entity "${toEntity.name}" is deleted.`);
+	if (!options?.allowDeletedEntities) {
+		if (isEntityDeleted(fromEntity)) {
+			return invalid('DELETED_FROM', `Source entity "${fromEntity.name}" is deleted.`);
+		}
+		if (isEntityDeleted(toEntity)) {
+			return invalid('DELETED_TO', `Destination entity "${toEntity.name}" is deleted.`);
+		}
 	}
 
 	if (isAdjustmentFrom || isAdjustmentTo) {
