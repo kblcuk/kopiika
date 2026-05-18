@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.17](https://codeberg.org/kblcuk/kopiika/compare/v0.3.16...v0.3.17) (2026-05-18)
+
+
+### Bug Fixes
+
+* **async-handlers:** surface silent failures in async onPress/onValueChange (KII-127) ([bc17408](https://codeberg.org/kblcuk/kopiika/commit/bc17408de79e9749042f9ad07f971e95d9a85b9f))
+* **db:** await db.transaction() calls + regression test (KII-115) ([6e2fc68](https://codeberg.org/kblcuk/kopiika/commit/6e2fc6858fe7db5fdd5f0dbb9dba57172b114305))
+* **db:** enforce foreign_keys PRAGMA on native + clean snapshot orphans (KII-122) ([de38fad](https://codeberg.org/kblcuk/kopiika/commit/de38fad66d62481e6ae5cbe5afe4e0e265d5b2ca))
+* **import:** enforce domain validation on CSV import (KII-117) ([c134fef](https://codeberg.org/kblcuk/kopiika/commit/c134fefd5211c1da048f1203ccaeeefe6755780c))
+
 ## [0.3.16](https://codeberg.org/kblcuk/kopiika/compare/v0.3.15...v0.3.16) (2026-05-18)
 
 
