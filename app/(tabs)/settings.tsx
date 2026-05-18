@@ -50,68 +50,86 @@ export default function SettingsScreen() {
 	}, []);
 
 	const handleToggleReminders = async (enabled: boolean) => {
+		// Optimistic UI: flip the toggle first so the user sees the intent.
+		// If anything below fails, the catch reverts to the pre-toggle state
+		// so the switch can't lie about whether reminders are actually on.
+		const previous = remindersEnabled;
 		setRemindersToggle(enabled);
-		await setRemindersEnabled(enabled);
+		try {
+			await setRemindersEnabled(enabled);
 
-		if (!enabled) {
-			await cancelAllNotifications();
-			await updateBadgeCount(0);
-			await unregisterBackgroundTask();
-			await setLastBackgroundNotificationKey(null);
+			if (!enabled) {
+				await cancelAllNotifications();
+				await updateBadgeCount(0);
+				await unregisterBackgroundTask();
+				await setLastBackgroundNotificationKey(null);
 
-			const existingNotificationIds = transactions
-				.filter((tx) => tx.notification_id)
-				.map((tx) => ({ id: tx.id, notificationId: null }));
-			if (existingNotificationIds.length > 0) {
-				await updateTransactionNotificationIdsBatch(existingNotificationIds);
-				useStore.setState((state) => ({
-					transactions: state.transactions.map((tx) =>
-						tx.notification_id ? { ...tx, notification_id: undefined } : tx
-					),
-				}));
-			}
-		} else {
-			const granted = await requestPermission();
-			await setHasRequestedPermission(true);
-			if (!granted) {
-				setRemindersToggle(false);
-				await setRemindersEnabled(false);
-				return;
-			}
-			await setLastBackgroundNotificationKey(null);
-			await setupNotificationChannel();
-			const now = Date.now();
-			const toSchedule = getNotifiableTransactions(transactions, now);
-			const entityMap = new Map(entities.map((e) => [e.id, e.name]));
-			const updates: { id: string; notificationId: string | null }[] = [];
-			for (const tx of toSchedule) {
-				try {
-					const notificationId = await scheduleTransactionNotification({
-						transactionId: tx.id,
-						fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
-						toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
-						amount: `${tx.amount} ${tx.currency}`,
-						timestamp: tx.timestamp,
-					});
-					updates.push({ id: tx.id, notificationId });
-				} catch (e) {
-					console.warn('Failed to reschedule notification', e);
+				const existingNotificationIds = transactions
+					.filter((tx) => tx.notification_id)
+					.map((tx) => ({ id: tx.id, notificationId: null }));
+				if (existingNotificationIds.length > 0) {
+					await updateTransactionNotificationIdsBatch(existingNotificationIds);
+					useStore.setState((state) => ({
+						transactions: state.transactions.map((tx) =>
+							tx.notification_id ? { ...tx, notification_id: undefined } : tx
+						),
+					}));
 				}
+			} else {
+				const granted = await requestPermission();
+				await setHasRequestedPermission(true);
+				if (!granted) {
+					setRemindersToggle(false);
+					await setRemindersEnabled(false);
+					return;
+				}
+				await setLastBackgroundNotificationKey(null);
+				await setupNotificationChannel();
+				const now = Date.now();
+				const toSchedule = getNotifiableTransactions(transactions, now);
+				const entityMap = new Map(entities.map((e) => [e.id, e.name]));
+				const updates: { id: string; notificationId: string | null }[] = [];
+				for (const tx of toSchedule) {
+					try {
+						const notificationId = await scheduleTransactionNotification({
+							transactionId: tx.id,
+							fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
+							toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
+							amount: `${tx.amount} ${tx.currency}`,
+							timestamp: tx.timestamp,
+						});
+						updates.push({ id: tx.id, notificationId });
+					} catch (e) {
+						console.warn('Failed to reschedule notification', e);
+					}
+				}
+				if (updates.length > 0) {
+					await updateTransactionNotificationIdsBatch(updates);
+					const updateMap = new Map(
+						updates.map((update) => [update.id, update.notificationId])
+					);
+					useStore.setState((state) => ({
+						transactions: state.transactions.map((tx) =>
+							updateMap.has(tx.id)
+								? { ...tx, notification_id: updateMap.get(tx.id) ?? undefined }
+								: tx
+						),
+					}));
+				}
+				await registerBackgroundTask();
 			}
-			if (updates.length > 0) {
-				await updateTransactionNotificationIdsBatch(updates);
-				const updateMap = new Map(
-					updates.map((update) => [update.id, update.notificationId])
-				);
-				useStore.setState((state) => ({
-					transactions: state.transactions.map((tx) =>
-						updateMap.has(tx.id)
-							? { ...tx, notification_id: updateMap.get(tx.id) ?? undefined }
-							: tx
-					),
-				}));
+		} catch (error) {
+			console.error('Failed to toggle reminders:', error);
+			setRemindersToggle(previous);
+			try {
+				await setRemindersEnabled(previous);
+			} catch (revertError) {
+				console.error('Failed to revert reminder pref:', revertError);
 			}
-			await registerBackgroundTask();
+			Alert.alert(
+				'Could not update reminders',
+				'Something went wrong while updating your reminder settings. Please try again.'
+			);
 		}
 	};
 
@@ -270,7 +288,9 @@ export default function SettingsScreen() {
 
 				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
 					<Pressable
-						onPress={handleExport}
+						onPress={() => {
+							void handleExport();
+						}}
 						className="flex-row items-center justify-between border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>
 						<Text className="font-sans text-base text-ink">Export to CSV</Text>
@@ -280,7 +300,9 @@ export default function SettingsScreen() {
 					</Pressable>
 
 					<Pressable
-						onPress={handleImport}
+						onPress={() => {
+							void handleImport();
+						}}
 						className="flex-row items-center border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>
 						<Text className="font-sans text-base text-ink">Import from CSV</Text>
@@ -304,7 +326,9 @@ export default function SettingsScreen() {
 						<Text className="font-sans text-base text-ink">Transaction Reminders</Text>
 						<Switch
 							value={remindersEnabled}
-							onValueChange={handleToggleReminders}
+							onValueChange={(enabled) => {
+								void handleToggleReminders(enabled);
+							}}
 							trackColor={{ false: '#D1CBC0', true: '#D4652F' }}
 							thumbColor="#FFFBF5"
 						/>
@@ -361,7 +385,9 @@ export default function SettingsScreen() {
 						<Text className="font-sans text-sm text-ink-muted">{version}</Text>
 					</View>
 					<Pressable
-						onPress={handleOpenPrivacyPolicy}
+						onPress={() => {
+							void handleOpenPrivacyPolicy();
+						}}
 						className="flex-row items-center justify-between border-t border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>
 						<Text className="font-sans text-base text-ink">Privacy Policy</Text>

@@ -217,117 +217,131 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const handleSave = async () => {
 		if (!canSave) return;
 
-		const trimmedName = name.trim();
-		const shouldDeleteSnapshots =
-			entity.type === 'account' && entity.is_investment === true && !isInvestment;
+		try {
+			const trimmedName = name.trim();
+			const shouldDeleteSnapshots =
+				entity.type === 'account' && entity.is_investment === true && !isInvestment;
 
-		// Validate icon is in allowed list, fallback to default if not
-		const allowedIcons = ICON_OPTIONS[entity.type];
-		const validIcon = allowedIcons.includes(selectedIcon)
-			? selectedIcon
-			: DEFAULT_ICONS[entity.type];
+			// Validate icon is in allowed list, fallback to default if not
+			const allowedIcons = ICON_OPTIONS[entity.type];
+			const validIcon = allowedIcons.includes(selectedIcon)
+				? selectedIcon
+				: DEFAULT_ICONS[entity.type];
 
-		// Update entity
-		const updatedEntity = {
-			...entity,
-			name: trimmedName,
-			icon: validIcon,
-			color: selectedColor,
-			include_in_total: includeInTotal,
-			is_investment: isInvestment,
-		};
+			// Update entity
+			const updatedEntity = {
+				...entity,
+				name: trimmedName,
+				icon: validIcon,
+				color: selectedColor,
+				include_in_total: includeInTotal,
+				is_investment: isInvestment,
+			};
 
-		if (shouldDeleteSnapshots) {
-			await updateEntityWithOptions(updatedEntity, { deleteMarketValueSnapshots: true });
-		} else {
-			await updateEntity(updatedEntity);
-		}
-
-		if (entity.type !== 'account') {
-			const amount = reverseFormatCurrency(plannedExpr.resolve());
-			if (!Number.isNaN(amount) && amount > 0) {
-				await setPlan({
-					id: existingPlan?.id ?? generateId(),
-					entity_id: entity.id,
-					// All plans use 'all-time' period - static budget/goal
-					period: 'all-time',
-					// If updating existing plan, preserve original period_start; otherwise use current period
-					period_start: existingPlan?.period_start ?? currentPeriod,
-					planned_amount: amount,
-				});
-			} else if (existingPlan) {
-				await deletePlan(existingPlan.id);
+			if (shouldDeleteSnapshots) {
+				await updateEntityWithOptions(updatedEntity, { deleteMarketValueSnapshots: true });
+			} else {
+				await updateEntity(updatedEntity);
 			}
-		}
 
-		// Handle default account toggle
-		if (entity.type === 'account' && isDefault !== (entity.is_default === true)) {
-			await setDefaultAccount(isDefault ? entity.id : null);
-		}
-
-		// Handle balance adjustment for accounts
-		if (entity.type === 'account' && isEditingActual) {
-			const currentBalance = entity.actual;
-			const targetBalance = reverseFormatCurrency(actualExpr.resolve()) || 0;
-			const adjustment = targetBalance - currentBalance;
-
-			const roundedAdjustment = roundMoney(adjustment);
-			if (roundedAdjustment !== 0) {
-				const adjustmentTransaction: Transaction = {
-					id: generateId(),
-					from_entity_id:
-						roundedAdjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
-					to_entity_id: roundedAdjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
-					amount: Math.abs(roundedAdjustment),
-					currency: entity.currency,
-					timestamp: Date.now(),
-					note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,
-				};
-
-				try {
-					await addTransaction(adjustmentTransaction);
-				} catch (error) {
-					console.error('Balance adjustment failed:', error);
-					Alert.alert(
-						'Balance update failed',
-						error instanceof TransactionValidationError
-							? error.message
-							: 'Could not record the balance adjustment.'
-					);
-					return;
-				}
-			}
-		}
-
-		// Handle market value snapshot for investment accounts
-		if (entity.type === 'account' && isInvestment && marketValueAmount.trim()) {
-			const amount = reverseFormatCurrency(marketValueAmount);
-			if (!Number.isNaN(amount)) {
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-				const date = today.getTime();
-
-				// Skip creating a duplicate snapshot if the latest one on the same day has the same amount
-				const latestToday = marketValueSnapshots
-					.filter((s) => s.entity_id === entity.id && s.date === date)
-					.sort((a, b) => b.date - a.date)[0];
-				if (!latestToday || latestToday.amount !== amount) {
-					await addMarketValueSnapshot({
-						id: generateId(),
+			if (entity.type !== 'account') {
+				const amount = reverseFormatCurrency(plannedExpr.resolve());
+				if (!Number.isNaN(amount) && amount > 0) {
+					await setPlan({
+						id: existingPlan?.id ?? generateId(),
 						entity_id: entity.id,
-						amount,
-						currency: entity.currency,
-						date,
+						// All plans use 'all-time' period - static budget/goal
+						period: 'all-time',
+						// If updating existing plan, preserve original period_start; otherwise use current period
+						period_start: existingPlan?.period_start ?? currentPeriod,
+						planned_amount: amount,
 					});
+				} else if (existingPlan) {
+					await deletePlan(existingPlan.id);
 				}
 			}
-		}
 
-		void KeyboardController.dismiss();
-		onClose();
+			// Handle default account toggle
+			if (entity.type === 'account' && isDefault !== (entity.is_default === true)) {
+				await setDefaultAccount(isDefault ? entity.id : null);
+			}
+
+			// Handle balance adjustment for accounts
+			if (entity.type === 'account' && isEditingActual) {
+				const currentBalance = entity.actual;
+				const targetBalance = reverseFormatCurrency(actualExpr.resolve()) || 0;
+				const adjustment = targetBalance - currentBalance;
+
+				const roundedAdjustment = roundMoney(adjustment);
+				if (roundedAdjustment !== 0) {
+					const adjustmentTransaction: Transaction = {
+						id: generateId(),
+						from_entity_id:
+							roundedAdjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
+						to_entity_id:
+							roundedAdjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
+						amount: Math.abs(roundedAdjustment),
+						currency: entity.currency,
+						timestamp: Date.now(),
+						note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,
+					};
+
+					try {
+						await addTransaction(adjustmentTransaction);
+					} catch (error) {
+						console.error('Balance adjustment failed:', error);
+						Alert.alert(
+							'Balance update failed',
+							error instanceof TransactionValidationError
+								? error.message
+								: 'Could not record the balance adjustment.'
+						);
+						return;
+					}
+				}
+			}
+
+			// Handle market value snapshot for investment accounts
+			if (entity.type === 'account' && isInvestment && marketValueAmount.trim()) {
+				const amount = reverseFormatCurrency(marketValueAmount);
+				if (!Number.isNaN(amount)) {
+					const today = new Date();
+					today.setHours(0, 0, 0, 0);
+					const date = today.getTime();
+
+					// Skip creating a duplicate snapshot if the latest one on the same day has the same amount
+					const latestToday = marketValueSnapshots
+						.filter((s) => s.entity_id === entity.id && s.date === date)
+						.sort((a, b) => b.date - a.date)[0];
+					if (!latestToday || latestToday.amount !== amount) {
+						await addMarketValueSnapshot({
+							id: generateId(),
+							entity_id: entity.id,
+							amount,
+							currency: entity.currency,
+							date,
+						});
+					}
+				}
+			}
+
+			void KeyboardController.dismiss();
+			onClose();
+		} catch (error) {
+			console.error('Failed to save entity:', error);
+			Alert.alert('Save failed', 'Could not save your changes. Please try again.');
+		}
 	};
 
 	const handleDelete = () => {
+		const runDelete = async (deleter: () => Promise<unknown>) => {
+			try {
+				await deleter();
+			} catch (error) {
+				console.error('Failed to delete entity:', error);
+				Alert.alert('Delete failed', 'Could not delete this entity. Please try again.');
+			}
+		};
 		const activeTemplates = recurrenceTemplates.filter(
 			(t) => !t.is_deleted && (t.from_entity_id === entity.id || t.to_entity_id === entity.id)
 		);
@@ -340,20 +354,24 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					{ text: 'Cancel', style: 'cancel' },
 					{
 						text: 'Keep recurring',
-						onPress: async () => {
+						onPress: () => {
 							onClose();
-							await new Promise((resolve) => setTimeout(resolve, 300));
-							await deleteEntity(entity.id);
+							void runDelete(async () => {
+								await new Promise((resolve) => setTimeout(resolve, 300));
+								await deleteEntity(entity.id);
+							});
 						},
 					},
 					{
 						text: 'Stop & delete future',
 						style: 'destructive',
-						onPress: async () => {
+						onPress: () => {
 							onClose();
-							await new Promise((resolve) => setTimeout(resolve, 300));
-							await deactivateTemplatesForEntity(entity.id);
-							await deleteEntity(entity.id);
+							void runDelete(async () => {
+								await new Promise((resolve) => setTimeout(resolve, 300));
+								await deactivateTemplatesForEntity(entity.id);
+								await deleteEntity(entity.id);
+							});
 						},
 					},
 				]
@@ -378,13 +396,15 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				{
 					text: 'Delete',
 					style: 'destructive',
-					onPress: async () => {
+					onPress: () => {
 						// Close modal first so user can see the gap-closing animation
 						onClose();
-						// Small delay to allow modal close animation to complete
-						await new Promise((resolve) => setTimeout(resolve, 300));
-						// Now delete - user will see entities slide to close the gap
-						await deleteEntity(entity.id);
+						void runDelete(async () => {
+							// Small delay to allow modal close animation to complete
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							// Now delete - user will see entities slide to close the gap
+							await deleteEntity(entity.id);
+						});
 					},
 				},
 			]
@@ -422,7 +442,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
 					<Pressable
-						onPress={handleSave}
+						onPress={() => {
+							void handleSave();
+						}}
 						disabled={!canSave}
 						hitSlop={20}
 						testID="entity-detail-save-button"

@@ -1191,7 +1191,7 @@ describe('TransactionModal', () => {
 		});
 
 		it('deletes transaction and closes modal on confirm', () => {
-			const deleteTransactionSpy = jest.fn();
+			const deleteTransactionSpy = jest.fn().mockResolvedValue(undefined);
 			useStore.setState({ deleteTransaction: deleteTransactionSpy });
 			const alertSpy = jest.spyOn(Alert, 'alert');
 

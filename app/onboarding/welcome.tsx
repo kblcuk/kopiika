@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -20,12 +20,17 @@ export default function WelcomeScreen() {
 	};
 
 	const handleSkip = async () => {
-		if (fromSettings) {
-			router.replace('/(tabs)/settings');
-			return;
+		try {
+			if (fromSettings) {
+				router.replace('/(tabs)/settings');
+				return;
+			}
+			await setHasCompletedOnboarding(true);
+			router.replace('/(tabs)');
+		} catch (error) {
+			console.error('Failed to skip onboarding:', error);
+			Alert.alert('Could not continue', 'Please try again.');
 		}
-		await setHasCompletedOnboarding(true);
-		router.replace('/(tabs)');
 	};
 
 	return (
@@ -69,7 +74,9 @@ export default function WelcomeScreen() {
 				</Pressable>
 				<Pressable
 					testID={TestIDs.onboarding.welcomeSkipLink}
-					onPress={handleSkip}
+					onPress={() => {
+						void handleSkip();
+					}}
 					className="mt-4 items-center"
 				>
 					<Text className="font-sans text-sm text-ink-muted">

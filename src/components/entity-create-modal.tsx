@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, TextInput, Pressable, Modal, Platform, Switch } from 'react-native';
+import { Alert, View, TextInput, Pressable, Modal, Platform, Switch } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
@@ -189,6 +189,9 @@ export function EntityCreateModal({
 
 		try {
 			await handleCreate();
+		} catch (error) {
+			console.error('Failed to create entity:', error);
+			Alert.alert('Could not create entity', 'Please try again.');
 		} finally {
 			setTimeout(() => {
 				createPressInFlightRef.current = false;
@@ -235,8 +238,12 @@ export function EntityCreateModal({
 					</Pressable>
 					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
 					<Pressable
-						onPressIn={handleCreatePress}
-						onPress={handleCreatePress}
+						onPressIn={() => {
+							void handleCreatePress();
+						}}
+						onPress={() => {
+							void handleCreatePress();
+						}}
 						disabled={!isValid}
 						hitSlop={20}
 						testID="entity-create-save-button"

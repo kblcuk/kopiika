@@ -231,7 +231,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					<View className="flex-row gap-3">
 						{hasExisting && (
 							<Pressable
-								onPress={handleClear}
+								onPress={() => {
+									void handleClear();
+								}}
 								testID="reservation-clear-button"
 								className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
 							>
@@ -241,7 +243,9 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 							</Pressable>
 						)}
 						<Pressable
-							onPress={handleSubmit}
+							onPress={() => {
+								void handleSubmit();
+							}}
 							disabled={!canSubmit}
 							testID="reservation-submit-button"
 							className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}

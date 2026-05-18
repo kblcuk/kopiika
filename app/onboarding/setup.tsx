@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X } from 'lucide-react-native';
@@ -77,76 +77,86 @@ export default function SetupScreen() {
 	}, []);
 
 	const handleContinue = async () => {
-		if (fromSettings) {
-			router.replace('/(tabs)/settings');
-			return;
-		}
-		const selected = PRESET_CHIPS.filter((c) => picked.has(presetKey(c)));
-		const presetEntities = createEntitiesFromPresets(selected);
-		const entityToPreset = new Map(
-			presetEntities.map((e) => [
-				e.id,
-				selected.find((c) => c.name === e.name && c.type === e.type)!,
-			])
-		);
-		const presetPlans = createPlansForEntities(presetEntities, entityToPreset);
-
-		// Customs: lay out after presets of the same type, respecting maxRows.
-		const customEntities: Entity[] = [];
-		const customPlans: Plan[] = [];
-		const period = getCurrentPeriod();
-		for (const custom of customs) {
-			const maxRows = custom.type === 'category' ? 3 : 1;
-			const sameType = [
-				...presetEntities.filter((e) => e.type === custom.type),
-				...customEntities.filter((e) => e.type === custom.type),
-			];
-			const rowCounts = Array.from(
-				{ length: maxRows },
-				(_, i) => sameType.filter((e) => e.row === i).length
+		try {
+			if (fromSettings) {
+				router.replace('/(tabs)/settings');
+				return;
+			}
+			const selected = PRESET_CHIPS.filter((c) => picked.has(presetKey(c)));
+			const presetEntities = createEntitiesFromPresets(selected);
+			const entityToPreset = new Map(
+				presetEntities.map((e) => [
+					e.id,
+					selected.find((c) => c.name === e.name && c.type === e.type)!,
+				])
 			);
-			let targetRow = 0;
-			for (let i = 1; i < maxRows; i++) {
-				if (rowCounts[i] < rowCounts[targetRow]) targetRow = i;
-			}
-			const position = rowCounts[targetRow];
-			const entityId = generateId();
-			customEntities.push({
-				id: entityId,
-				type: custom.type,
-				name: custom.name,
-				currency: DEFAULT_CURRENCY,
-				icon: custom.icon,
-				color: custom.color,
-				row: targetRow,
-				position,
-				order: position,
-				is_investment: custom.type === 'account' ? custom.isInvestment : undefined,
-			});
-			if (custom.type !== 'account' && custom.plannedAmount != null) {
-				customPlans.push({
-					id: generateId(),
-					entity_id: entityId,
-					period: 'all-time',
-					period_start: period,
-					planned_amount: custom.plannedAmount,
-				});
-			}
-		}
+			const presetPlans = createPlansForEntities(presetEntities, entityToPreset);
 
-		for (const entity of [...presetEntities, ...customEntities]) await addEntity(entity);
-		for (const plan of [...presetPlans, ...customPlans]) await setPlan(plan);
-		await setHasCompletedOnboarding(true);
-		router.replace('/(tabs)');
+			// Customs: lay out after presets of the same type, respecting maxRows.
+			const customEntities: Entity[] = [];
+			const customPlans: Plan[] = [];
+			const period = getCurrentPeriod();
+			for (const custom of customs) {
+				const maxRows = custom.type === 'category' ? 3 : 1;
+				const sameType = [
+					...presetEntities.filter((e) => e.type === custom.type),
+					...customEntities.filter((e) => e.type === custom.type),
+				];
+				const rowCounts = Array.from(
+					{ length: maxRows },
+					(_, i) => sameType.filter((e) => e.row === i).length
+				);
+				let targetRow = 0;
+				for (let i = 1; i < maxRows; i++) {
+					if (rowCounts[i] < rowCounts[targetRow]) targetRow = i;
+				}
+				const position = rowCounts[targetRow];
+				const entityId = generateId();
+				customEntities.push({
+					id: entityId,
+					type: custom.type,
+					name: custom.name,
+					currency: DEFAULT_CURRENCY,
+					icon: custom.icon,
+					color: custom.color,
+					row: targetRow,
+					position,
+					order: position,
+					is_investment: custom.type === 'account' ? custom.isInvestment : undefined,
+				});
+				if (custom.type !== 'account' && custom.plannedAmount != null) {
+					customPlans.push({
+						id: generateId(),
+						entity_id: entityId,
+						period: 'all-time',
+						period_start: period,
+						planned_amount: custom.plannedAmount,
+					});
+				}
+			}
+
+			for (const entity of [...presetEntities, ...customEntities]) await addEntity(entity);
+			for (const plan of [...presetPlans, ...customPlans]) await setPlan(plan);
+			await setHasCompletedOnboarding(true);
+			router.replace('/(tabs)');
+		} catch (error) {
+			console.error('Failed to complete setup:', error);
+			Alert.alert('Setup failed', 'Could not save your selections. Please try again.');
+		}
 	};
 
 	const handleSkip = async () => {
-		if (fromSettings) {
-			router.replace('/(tabs)/settings');
-			return;
+		try {
+			if (fromSettings) {
+				router.replace('/(tabs)/settings');
+				return;
+			}
+			await setHasCompletedOnboarding(true);
+			router.replace('/(tabs)');
+		} catch (error) {
+			console.error('Failed to skip setup:', error);
+			Alert.alert('Could not continue', 'Please try again.');
 		}
-		await setHasCompletedOnboarding(true);
-		router.replace('/(tabs)');
 	};
 
 	return (
@@ -238,7 +248,9 @@ export default function SetupScreen() {
 			<View className="border-t border-paper-300 px-6 py-4">
 				<Pressable
 					testID={TestIDs.onboarding.setupContinueButton}
-					onPress={handleContinue}
+					onPress={() => {
+						void handleContinue();
+					}}
 					className="h-12 items-center justify-center rounded-2xl bg-ink"
 				>
 					<Text className="font-sans-semibold text-base text-paper-50">
@@ -248,7 +260,9 @@ export default function SetupScreen() {
 				{!fromSettings && (
 					<Pressable
 						testID={TestIDs.onboarding.setupSkipLink}
-						onPress={handleSkip}
+						onPress={() => {
+							void handleSkip();
+						}}
 						className="mt-3 items-center"
 					>
 						<Text className="font-sans text-sm text-ink-muted">

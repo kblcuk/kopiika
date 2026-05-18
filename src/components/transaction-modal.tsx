@@ -345,11 +345,25 @@ export function TransactionModal({
 
 	const handleDelete = useCallback(() => {
 		if (!existingTransaction) return;
+		// Close immediately so the user sees the row disappear; surface any
+		// background failure via Alert. Caller does `onClose()` synchronously,
+		// then `void runDelete(...)` to dispatch the async deletion.
+		const runDelete = async (deleter: () => Promise<unknown>) => {
+			try {
+				await deleter();
+			} catch (error) {
+				console.error('Failed to delete transaction:', error);
+				Alert.alert(
+					'Delete failed',
+					'Could not delete this transaction. Please try again.'
+				);
+			}
+		};
 		if (existingTransaction.series_id) {
-			showSeriesScopeAlert('delete', async (scope) => {
-				void deleteTransactionWithScope(existingTransaction.id, scope);
+			showSeriesScopeAlert('delete', (scope) => {
 				void KeyboardController.dismiss();
 				onClose();
+				void runDelete(() => deleteTransactionWithScope(existingTransaction.id, scope));
 			});
 		} else {
 			Alert.alert('Delete Transaction', 'Are you sure you want to delete this transaction?', [
@@ -357,10 +371,10 @@ export function TransactionModal({
 				{
 					text: 'Delete',
 					style: 'destructive',
-					onPress: async () => {
-						void deleteTransaction(existingTransaction.id);
+					onPress: () => {
 						void KeyboardController.dismiss();
 						onClose();
+						void runDelete(() => deleteTransaction(existingTransaction.id));
 					},
 				},
 			]);
@@ -671,7 +685,9 @@ export function TransactionModal({
 								: 'New Transaction'}
 					</Text>
 					<Pressable
-						onPress={handleSubmit}
+						onPress={() => {
+							void handleSubmit();
+						}}
 						disabled={!canSave || isSubmitting}
 						hitSlop={20}
 						testID="transaction-save-button"

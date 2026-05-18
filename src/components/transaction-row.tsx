@@ -61,9 +61,20 @@ export const TransactionRow = memo(function TransactionRow({
 	const toColors = toEntity ? getEntityColors(toEntity.type, toEntity.color) : null;
 
 	const confirmDelete = useCallback(() => {
+		const runDelete = async (deleter: () => Promise<unknown>) => {
+			try {
+				await deleter();
+			} catch (error) {
+				console.error('Failed to delete transaction:', error);
+				Alert.alert(
+					'Delete failed',
+					'Could not delete this transaction. Please try again.'
+				);
+			}
+		};
 		if (transaction.series_id) {
 			showSeriesScopeAlert('delete', (scope) => {
-				void deleteTransactionWithScope(transaction.id, scope);
+				void runDelete(() => deleteTransactionWithScope(transaction.id, scope));
 			});
 		} else {
 			Alert.alert(
@@ -74,7 +85,9 @@ export const TransactionRow = memo(function TransactionRow({
 					{
 						text: 'Delete',
 						style: 'destructive',
-						onPress: () => deleteTransaction(transaction.id),
+						onPress: () => {
+							void runDelete(() => deleteTransaction(transaction.id));
+						},
 					},
 				]
 			);

@@ -37,6 +37,23 @@ Always generate Drizzle migrations with `bunx drizzle-kit generate --name <descr
 
 TypeScript is the default. `oxfmt` enforces tabs, `tabWidth: 4`, single quotes, semicolons, trailing commas, and a 100-character print width. Prefer lowercase kebab-case file names such as `transaction-row.tsx`; keep React components and exported types in PascalCase, functions and variables in camelCase, and route files aligned with Expo Router conventions like `app/(tabs)/summary.tsx`.
 
+## Async Event Handlers
+
+Never pass an `async` function directly to a prop typed `() => void` (most commonly `onPress`, `onValueChange`, or `Alert.alert` button `onPress`). The returned Promise is dropped: any thrown error becomes an unhandled rejection and the user sees no feedback — a silent failure (KII-127). One uniform pattern:
+
+- **Declare the handler `async` and `try/catch` inside.** Surface failures via `console.error(...)` + `Alert.alert(<friendly title>, <friendly msg>)`. Avoid `.then()/.catch()` chains for consistency.
+- **At the call site**, wrap the dispatch so the Promise discard is explicit: `onPress={() => { void handleFoo(); }}`.
+- **For fire-and-forget UX** (close the modal immediately, run the deletion in the background), call the sync side-effect first and then `void` an internal async helper: `onPress: () => { onClose(); void runDelete(() => deleteFoo(id)); }` where `runDelete` is `async + try/catch`.
+
+Audit sweep (re-run when touching event handlers):
+
+```bash
+grep -RnE "const handle[A-Za-z]+\s*=\s*(async|useCallback\(async)" --include="*.tsx" app src
+grep -RnE "onPress=\{handle|onValueChange=\{handle|onPress:\s*async" --include="*.tsx" app src
+```
+
+`typescript/no-misused-promises` (the lint rule that would catch this automatically) is not yet implemented in oxlint 1.64.0, so this check stays manual.
+
 ## Design & Accessibility
 
 Preserve the app’s deliberate visual style: avoid generic fintech UI, card-heavy layouts, and decorative motion. The current theme and font stack are defined in `src/theme/colors.ts` and `tailwind.config.ts`; use those tokens instead of introducing new ad hoc colors or typography. Maintain strong contrast, large touch targets, and states that are distinguishable without relying on color alone.

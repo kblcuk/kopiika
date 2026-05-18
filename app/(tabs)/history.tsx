@@ -324,8 +324,16 @@ export default function HistoryScreen() {
 
 	const confirmAllDueTransactions = useStore((state) => state.confirmAllDueTransactions);
 
-	const handleConfirmAll = useCallback(() => {
-		void confirmAllDueTransactions();
+	const handleConfirmAll = useCallback(async () => {
+		try {
+			await confirmAllDueTransactions();
+		} catch (error) {
+			console.error('Failed to confirm due transactions:', error);
+			Alert.alert(
+				'Could not confirm transactions',
+				'Something went wrong. Please try again.'
+			);
+		}
 	}, [confirmAllDueTransactions]);
 
 	const handleEdit = useCallback((transaction: Transaction) => {
@@ -372,11 +380,16 @@ export default function HistoryScreen() {
 			return;
 		}
 
-		await updateMarketValueSnapshot(editingSnapshot.id, {
-			amount: parsedSnapshotAmount,
-			date: parsedSnapshotDate,
-		});
-		handleCloseSnapshotEditor();
+		try {
+			await updateMarketValueSnapshot(editingSnapshot.id, {
+				amount: parsedSnapshotAmount,
+				date: parsedSnapshotDate,
+			});
+			handleCloseSnapshotEditor();
+		} catch (error) {
+			console.error('Failed to update market value snapshot:', error);
+			Alert.alert('Save failed', 'Could not update the snapshot. Please try again.');
+		}
 	}, [
 		editingSnapshot,
 		parsedSnapshotAmount,
@@ -388,15 +401,25 @@ export default function HistoryScreen() {
 
 	const handleDeleteSnapshot = useCallback(() => {
 		if (!editingSnapshot) return;
+		const snapshotId = editingSnapshot.id;
+
+		const performDelete = async () => {
+			try {
+				await deleteMarketValueSnapshot(snapshotId);
+				handleCloseSnapshotEditor();
+			} catch (error) {
+				console.error('Failed to delete market value snapshot:', error);
+				Alert.alert('Delete failed', 'Could not delete the snapshot. Please try again.');
+			}
+		};
 
 		Alert.alert('Delete Snapshot', 'Delete this market value snapshot?', [
 			{ text: 'Cancel', style: 'cancel' },
 			{
 				text: 'Delete',
 				style: 'destructive',
-				onPress: async () => {
-					await deleteMarketValueSnapshot(editingSnapshot.id);
-					handleCloseSnapshotEditor();
+				onPress: () => {
+					void performDelete();
 				},
 			},
 		]);
@@ -446,7 +469,9 @@ export default function HistoryScreen() {
 						{section.title}
 					</Text>
 					<Pressable
-						onPress={handleConfirmAll}
+						onPress={() => {
+							void handleConfirmAll();
+						}}
 						className="flex-row items-center gap-1 rounded-full bg-warning/15 px-2.5 py-1"
 					>
 						<CheckCheck size={12} color={colors.warning.DEFAULT} />
