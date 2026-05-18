@@ -47,6 +47,10 @@ export const transactions = sqliteTable(
 	'transactions',
 	{
 		id: text('id').primaryKey(),
+		// RESTRICT FK (no onDelete): with PRAGMA foreign_keys=ON, hard-deleting a
+		// referenced entity row throws. The app soft-deletes entities, so this is
+		// usually irrelevant; bulk wipes (replaceAllData) must delete in FK-safe
+		// order: snapshots → transactions → recurrence_templates → plans → entities.
 		from_entity_id: text('from_entity_id')
 			.notNull()
 			.references(() => entities.id),
@@ -75,6 +79,7 @@ export const recurrenceTemplates = sqliteTable(
 	'recurrence_templates',
 	{
 		id: text('id').primaryKey(),
+		// RESTRICT FK — see transactions.from_entity_id comment above.
 		from_entity_id: text('from_entity_id')
 			.notNull()
 			.references(() => entities.id),

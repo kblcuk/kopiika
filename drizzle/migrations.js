@@ -18,6 +18,7 @@ import m0013 from './0013_add-notification-id.sql';
 import m0014 from './0014_add-investment-mode.sql';
 import m0015 from './0015_market_value_snapshots_fk.sql';
 import m0016 from './0016_unique_plan_per_entity_period.sql';
+import m0017 from './0017_cleanup_market_value_snapshot_orphans.sql';
 
 export default {
 	journal,
@@ -39,5 +40,6 @@ export default {
 		m0014,
 		m0015,
 		m0016,
+		m0017,
 	},
 };

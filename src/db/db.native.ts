@@ -40,6 +40,13 @@ async function initializeDb(runMigrations: boolean): Promise<DrizzleDb> {
 		}
 	}
 
+	// Enable FK enforcement on the connection AFTER migrations.
+	// SQLite ignores `PRAGMA foreign_keys` inside a transaction, and drizzle
+	// wraps every migration in BEGIN/COMMIT — so setting it inside a migration
+	// SQL file is a no-op. The pragma is per-connection and persists for the
+	// lifetime of `rawExpoDb`.
+	await rawExpoDb.execAsync('PRAGMA foreign_keys = ON');
+
 	return db;
 }
 
@@ -48,13 +55,8 @@ export function getRawDb(): SQLiteDatabase | null {
 }
 
 export function resetDb() {
-	// Delete all data from the persistent DB file before dropping references.
-	// Just nulling dbPromise/rawExpoDb would reconnect to the same file with data intact.
-	if (rawExpoDb) {
-		rawExpoDb.execSync('DELETE FROM transactions');
-		rawExpoDb.execSync('DELETE FROM plans');
-		rawExpoDb.execSync('DELETE FROM entities');
-	}
-	dbPromise = null;
-	rawExpoDb = null;
+	// Intentional no-op on native. The export is kept so `resetDrizzleDb`
+	// (re-exported from `./db`) keeps the same shape across platforms — tests
+	// run against the bun build (`db.ts`) where the real reset lives. Users
+	// can reinstall the app to wipe state.
 }

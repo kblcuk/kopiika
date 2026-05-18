@@ -1,4 +1,5 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
+import { eq } from 'drizzle-orm';
 import {
 	getMarketValueSnapshots,
 	getLatestMarketValueSnapshot,
@@ -9,7 +10,8 @@ import {
 	getAllMarketValueSnapshots,
 } from '../market-values';
 import { createEntity } from '../entities';
-import { resetDrizzleDb } from '../drizzle-client';
+import { getDrizzleDb, resetDrizzleDb } from '../drizzle-client';
+import { entities } from '../drizzle-schema';
 import type { Entity, MarketValueSnapshot } from '@/src/types';
 
 describe('market-values.ts', () => {
@@ -188,6 +190,31 @@ describe('market-values.ts', () => {
 
 			const result2 = await getMarketValueSnapshots('entity-2');
 			expect(result2).toHaveLength(1);
+		});
+	});
+
+	describe('FK cascade on entity hard-delete', () => {
+		// Verifies the SQL-level cascade declared in drizzle-schema.ts and
+		// installed by migration 0015 — independent of softDeleteEntity's
+		// app-level cleanup. Requires `PRAGMA foreign_keys = ON` on the
+		// connection (db.ts sets this for the bun test DB; db.native.ts does
+		// the same after migrate() in production).
+		test('deleting an entity row cascades its market_value_snapshots', async () => {
+			await createTestEntity('cascade-entity');
+			const snapshot: MarketValueSnapshot = {
+				id: 'cascade-snap',
+				entity_id: 'cascade-entity',
+				amount: 1234,
+				currency: 'USD',
+				date: Date.now(),
+			};
+			await createMarketValueSnapshot(snapshot);
+			expect(await getLatestMarketValueSnapshot('cascade-entity')).not.toBeNull();
+
+			const db = await getDrizzleDb();
+			await db.delete(entities).where(eq(entities.id, 'cascade-entity'));
+
+			expect(await getLatestMarketValueSnapshot('cascade-entity')).toBeNull();
 		});
 	});
 
