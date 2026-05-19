@@ -107,13 +107,14 @@ export async function updateEntityPositions(
 	updates: { id: string; row: number; position: number }[]
 ): Promise<void> {
 	const db = await getDrizzleDb();
-	// Update each entity's row and position in a transaction
-	for (const update of updates) {
-		await db
-			.update(entities)
-			.set({ row: update.row, position: update.position })
-			.where(eq(entities.id, update.id));
-	}
+	await db.transaction((tx) => {
+		for (const update of updates) {
+			tx.update(entities)
+				.set({ row: update.row, position: update.position })
+				.where(eq(entities.id, update.id))
+				.run();
+		}
+	});
 }
 
 async function getEntitiesInRow(type: EntityType, row: number): Promise<Entity[]> {

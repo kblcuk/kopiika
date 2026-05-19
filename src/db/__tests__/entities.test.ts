@@ -8,6 +8,7 @@ import {
 	updateEntity,
 	deleteEntity,
 	getNextPosition,
+	updateEntityPositions,
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
 import { createTransaction, getAllTransactions } from '../transactions';
@@ -661,6 +662,55 @@ describe('entities.ts', () => {
 
 			const incomeOrder = await getNextPosition('income', 0);
 			expect(incomeOrder).toBe(0); // no income entities
+		});
+	});
+
+	describe('updateEntityPositions', () => {
+		const baseEntity = (id: string, row: number, position: number): Entity => ({
+			id,
+			type: 'category',
+			name: id,
+			currency: 'USD',
+			row,
+			position,
+			order: position,
+		});
+
+		test('applies all row/position updates', async () => {
+			await createEntity(baseEntity('a', 0, 0));
+			await createEntity(baseEntity('b', 0, 1));
+			await createEntity(baseEntity('c', 1, 0));
+
+			await updateEntityPositions([
+				{ id: 'a', row: 1, position: 1 },
+				{ id: 'b', row: 1, position: 2 },
+				{ id: 'c', row: 0, position: 0 },
+			]);
+
+			expect(await getEntityById('a')).toMatchObject({ row: 1, position: 1 });
+			expect(await getEntityById('b')).toMatchObject({ row: 1, position: 2 });
+			expect(await getEntityById('c')).toMatchObject({ row: 0, position: 0 });
+		});
+
+		// KII-119: previously the loop was N sequential awaits with no transaction,
+		// so a failure mid-loop left the grid in a half-updated state. The fix
+		// wraps the loop in a single drizzle transaction; a NOT NULL violation on
+		// the second update here forces a rollback of the first. If anyone
+		// refactors back to per-statement awaits, the first update commits and
+		// this test fails.
+		test('is atomic: mid-loop failure preserves all prior positions', async () => {
+			await createEntity(baseEntity('a', 0, 0));
+			await createEntity(baseEntity('b', 0, 1));
+
+			await expect(
+				updateEntityPositions([
+					{ id: 'a', row: 5, position: 5 },
+					{ id: 'b', row: null as unknown as number, position: 7 },
+				])
+			).rejects.toThrow();
+
+			expect(await getEntityById('a')).toMatchObject({ row: 0, position: 0 });
+			expect(await getEntityById('b')).toMatchObject({ row: 0, position: 1 });
 		});
 	});
 });
