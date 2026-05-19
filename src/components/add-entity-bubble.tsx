@@ -22,7 +22,7 @@ export function AddEntityBubble({ type, onPress }: AddEntityBubbleProps) {
 			{/* Dashed circle with plus icon */}
 			<View className="relative h-14 w-14 items-center justify-center">
 				<View
-					className="border-paper-400 h-14 w-14 items-center justify-center rounded-full border-2 border-dashed"
+					className="h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-paper-300"
 					style={{ backgroundColor: 'transparent' }}
 				>
 					<Plus size={24} color={colors.ink.placeholder} />

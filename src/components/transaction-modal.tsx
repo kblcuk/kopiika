@@ -817,7 +817,7 @@ export function TransactionModal({
 							)}
 						</View>
 						{Platform.OS === 'ios' ? (
-							<View className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100">
+							<View className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100">
 								<View className="flex-1 flex-row items-center px-4 py-2">
 									<Calendar size={20} color={colors.ink.muted} />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -836,7 +836,7 @@ export function TransactionModal({
 							<>
 								<Pressable
 									onPress={() => setShowDatePicker(true)}
-									className="border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3"
+									className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-3"
 								>
 									<Calendar size={20} color={colors.ink.muted} />
 									<Text className="ml-3 font-sans text-base text-ink">
@@ -1212,7 +1212,7 @@ export function TransactionModal({
 														onPress={() =>
 															setShowRepeatEndDatePicker(true)
 														}
-														className="border-paper-400 flex-row items-center rounded-lg border bg-paper-200 px-3 py-2"
+														className="flex-row items-center rounded-lg border border-paper-300 bg-paper-200 px-3 py-2"
 													>
 														<Calendar
 															size={16}

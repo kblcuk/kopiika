@@ -61,7 +61,7 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 		<>
 			<Pressable
 				onPress={() => setVisible(true)}
-				className="border-paper-400 mx-5 flex-row items-center justify-between rounded-lg border bg-paper-100 px-4 py-3 active:bg-paper-200"
+				className="mx-5 flex-row items-center justify-between rounded-lg border border-paper-300 bg-paper-100 px-4 py-3 active:bg-paper-200"
 			>
 				<Text className="font-sans text-base text-ink">
 					{selectedEntity ? getEntityDisplayName(selectedEntity) : 'All Entities'}

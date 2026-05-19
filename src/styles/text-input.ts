@@ -1,9 +1,9 @@
 import { Platform, StyleSheet } from 'react-native';
 
 export const textInputClassNames = {
-	container: 'border-paper-400 rounded-lg border bg-paper-100 px-4 py-3',
+	container: 'border-paper-300 rounded-lg border bg-paper-100 px-4 py-3',
 	inlineContainer:
-		'border-paper-400 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3',
+		'border-paper-300 flex-row items-center rounded-lg border bg-paper-100 px-4 py-3',
 	input: 'font-sans text-base text-ink',
 	inlineAmountInput: 'font-sans-semibold text-lg text-ink',
 	primaryAmountInput: 'flex-1 font-sans-semibold text-2xl text-ink',

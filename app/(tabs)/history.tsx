@@ -562,7 +562,7 @@ export default function HistoryScreen() {
 			</View>
 
 			{/* Search */}
-			<View className="border-paper-400 mx-5 mb-3 flex-row items-center rounded-lg border bg-paper-100 px-3">
+			<View className="mx-5 mb-3 flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-3">
 				<Search size={16} color={colors.ink.placeholder} />
 				<TextInput
 					value={searchQuery}
