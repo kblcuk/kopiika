@@ -419,6 +419,77 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(sys!.is_default).toBe(false);
 	});
 
+	describe('transactions.is_confirmed default', () => {
+		const PAST = 1000; // 1970, always past
+		const FUTURE = 9_999_999_999_999; // year 2286, always future
+		const ENTITIES = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,income,"Salary",EUR,,,0,0,0,true
+e2,account,"Bank",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount
+
+# TRANSACTIONS
+`;
+
+		test('explicit "true" stays true regardless of timestamp', () => {
+			const csv =
+				ENTITIES +
+				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,10,EUR,${PAST},,,true
+t2,e1,e2,20,EUR,${FUTURE},,,true`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(true);
+			expect(result.data.transactions.find((t) => t.id === 't2')!.is_confirmed).toBe(true);
+		});
+
+		test('explicit "false" stays false regardless of timestamp', () => {
+			const csv =
+				ENTITIES +
+				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,10,EUR,${PAST},,,false
+t2,e1,e2,20,EUR,${FUTURE},,,false`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(false);
+			expect(result.data.transactions.find((t) => t.id === 't2')!.is_confirmed).toBe(false);
+		});
+
+		test('empty cell defaults by timestamp (past → true, future → false)', () => {
+			const csv =
+				ENTITIES +
+				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,10,EUR,${PAST},,,
+t2,e1,e2,20,EUR,${FUTURE},,,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(true);
+			expect(result.data.transactions.find((t) => t.id === 't2')!.is_confirmed).toBe(false);
+		});
+
+		test('missing column defaults by timestamp (past → true, future → false)', () => {
+			const csv =
+				ENTITIES +
+				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+t1,e1,e2,10,EUR,${PAST},
+t2,e1,e2,20,EUR,${FUTURE},`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(true);
+			expect(result.data.transactions.find((t) => t.id === 't2')!.is_confirmed).toBe(false);
+		});
+	});
+
 	test('transactions can reference the system entity', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total

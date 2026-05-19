@@ -5,6 +5,7 @@ import {
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
 import { validateTransaction } from './transaction-validation';
+import { defaultIsConfirmed } from './transaction-builder';
 
 export interface ParsedImportData {
 	entities: Entity[];
@@ -398,7 +399,12 @@ function parseTransactions(
 			timestamp,
 			note: row.note || null,
 			series_id: row.series_id || null,
-			is_confirmed: row.is_confirmed === 'false' ? false : true,
+			is_confirmed:
+				row.is_confirmed === 'true'
+					? true
+					: row.is_confirmed === 'false'
+						? false
+						: defaultIsConfirmed(timestamp),
 		});
 	}
 
