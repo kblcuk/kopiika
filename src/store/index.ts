@@ -920,13 +920,9 @@ export const useStore = create<AppState>((set, get) => ({
 		await syncBadgeCount(get);
 	},
 
-	// Default account — clear old default and optionally set a new one
+	// Default account — atomic clear-and-set in a single DB transaction (KII-113).
 	setDefaultAccount: async (accountId) => {
-		await db.clearDefaultAccount(accountId ?? undefined);
-		if (accountId) {
-			const entity = get().entities.find((e) => e.id === accountId);
-			if (entity) await db.updateEntity({ ...entity, is_default: true });
-		}
+		await db.setDefaultAccount(accountId);
 		set((state) => ({
 			entities: state.entities.map((e) =>
 				e.type === 'account' ? { ...e, is_default: e.id === accountId } : e

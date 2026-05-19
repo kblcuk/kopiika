@@ -135,15 +135,37 @@ async function reindexRow(type: EntityType, row: number): Promise<void> {
 	await updateEntityPositions(updates);
 }
 
-/** Clear is_default on all accounts except the given one (or all if excludeId is omitted). */
-export async function clearDefaultAccount(excludeId?: string): Promise<void> {
+/**
+ * Atomically set (or clear) the default account. Clearing all other accounts'
+ * `is_default` and promoting the new one happen inside a single transaction —
+ * either both apply or neither. Pass `null` to clear all defaults. Throws if
+ * `accountId` does not refer to an existing account (KII-113).
+ */
+export async function setDefaultAccount(accountId: string | null): Promise<void> {
 	const db = await getDrizzleDb();
-	const conditions = [eq(entities.type, 'account'), eq(entities.is_default, true)];
-	if (excludeId) conditions.push(ne(entities.id, excludeId));
-	await db
-		.update(entities)
-		.set({ is_default: false })
-		.where(and(...conditions));
+	await db.transaction((tx) => {
+		const clearConditions = [eq(entities.type, 'account'), eq(entities.is_default, true)];
+		if (accountId) clearConditions.push(ne(entities.id, accountId));
+		tx.update(entities)
+			.set({ is_default: false })
+			.where(and(...clearConditions))
+			.run();
+
+		if (accountId) {
+			// Verify target exists inside the transaction. A missing id throws
+			// here so the clear above is rolled back — guarantees rather than
+			// trusts the atomicity boundary at runtime.
+			const existing = tx
+				.select({ id: entities.id })
+				.from(entities)
+				.where(and(eq(entities.id, accountId), eq(entities.type, 'account')))
+				.all();
+			if (existing.length === 0) {
+				throw new Error(`setDefaultAccount: account "${accountId}" does not exist`);
+			}
+			tx.update(entities).set({ is_default: true }).where(eq(entities.id, accountId)).run();
+		}
+	});
 }
 
 export async function deleteEntityAndReindex(entityId: string): Promise<void> {

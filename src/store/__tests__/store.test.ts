@@ -4252,6 +4252,46 @@ describe('Store Data Integrity', () => {
 			).toBe(false);
 		});
 
+		// KII-113: previously the clear-then-set used two separate awaits, so a
+		// crash between them could leave the user with no default. Both ops are
+		// now in a single drizzle transaction with an in-transaction existence
+		// check; a missing id throws AFTER the clear, forcing rollback. The
+		// bogus id here exercises that rollback path — if anyone refactors
+		// setDefaultAccount back to two separate awaits, the clear would commit
+		// and account1 would lose its default, failing this test.
+		test('setDefaultAccount is atomic: mid-transaction failure preserves old default', async () => {
+			const account1 = makeEntity('account-1', 'account', { is_default: true });
+			const account2 = makeEntity('account-2', 'account', { position: 1 });
+
+			for (const entity of [account1, account2]) {
+				await db.createEntity(entity);
+			}
+
+			useStore.setState({
+				entities: [account1, account2],
+				plans: [],
+				transactions: [],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			await expect(useStore.getState().setDefaultAccount('does-not-exist')).rejects.toThrow(
+				/does not exist/
+			);
+
+			const dbAccounts = await db.getEntitiesByType('account');
+			expect(dbAccounts.find((entity) => entity.id === account1.id)?.is_default).toBe(true);
+			expect(dbAccounts.find((entity) => entity.id === account2.id)?.is_default).toBe(false);
+
+			const storeEntities = useStore.getState().entities;
+			expect(storeEntities.find((entity) => entity.id === account1.id)?.is_default).toBe(
+				true
+			);
+			expect(
+				storeEntities.find((entity) => entity.id === account2.id)?.is_default
+			).toBeFalsy();
+		});
+
 		test('updateTransactionWithScope updates recurrence template and future transactions only', async () => {
 			const account = makeEntity('account-1', 'account');
 			const category = makeEntity('category-1', 'category');
