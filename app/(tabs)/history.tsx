@@ -113,18 +113,8 @@ function parseSnapshotDateInput(input: string): number | null {
 }
 
 export default function HistoryScreen() {
-	// Consume the one-shot nav signal at mount so navigation from a
-	// Dashboard/Summary tap lands on the right filter on the very first
-	// render (no flicker). Subsequent focuses re-consume; tab-bar returns
-	// see no signal and reset to defaults — see KII-111.
-	const [initialFilter] = useState(() => consumePendingHistoryFilter());
-
-	const [selectedPeriod, setSelectedPeriod] = useState(
-		initialFilter?.period || getCurrentPeriod()
-	);
-	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
-		initialFilter?.entityId || null
-	);
+	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
+	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingSnapshot, setEditingSnapshot] = useState<MarketValueSnapshot | null>(null);
 	const [editingSnapshotAmount, setEditingSnapshotAmount] = useState('');
@@ -138,9 +128,6 @@ export default function HistoryScreen() {
 	// for. Re-scrolling is gated on this so transactions arriving from
 	// background sync don't yank a scrolled-down user back to the top.
 	const lastScrollInputKey = useRef<string | null>(null);
-	// The initial state was already populated from the signal we consumed at
-	// mount, so the first focus event must not re-consume (or reset).
-	const skipNextFocusResetRef = useRef(initialFilter !== null);
 
 	const {
 		transactions,
@@ -158,15 +145,13 @@ export default function HistoryScreen() {
 		}))
 	);
 
-	// On every focus, consume the pending nav signal (if any) and reset
-	// otherwise. Initial-mount focus is skipped because useState already
-	// applied the signal — see comment above.
+	// On every focus (including initial mount), consume the pending nav
+	// signal and reset to defaults if none. Producers (Dashboard / Summary)
+	// set the signal right before router.push('/history'); tab-bar returns
+	// have no pending signal and land on "All Entities + current month".
+	// See KII-111 for why URL params can't drive this directly.
 	useFocusEffect(
 		useCallback(() => {
-			if (skipNextFocusResetRef.current) {
-				skipNextFocusResetRef.current = false;
-				return;
-			}
 			const pending = consumePendingHistoryFilter();
 			setSelectedPeriod(pending?.period || getCurrentPeriod());
 			setSelectedEntityId(pending?.entityId || null);
