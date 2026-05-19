@@ -1,3 +1,7 @@
+// Stop-gap guard for KII-128 (missing `paper-400` shade rendering invisible
+// borders). Once we move to Tailwind v4 + NativeWind v5, replace this with
+// the `tailwindcss/no-unknown-classes` rule from `oxlint-tailwindcss`, which
+// covers the same ground at edit time with autofix + typo suggestions.
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { colors } from '../../theme/colors';
