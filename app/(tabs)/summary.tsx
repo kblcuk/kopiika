@@ -15,6 +15,7 @@ import { formatAmount, getProgressPercent, isOverspent } from '@/src/utils/forma
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { assignSliceColors } from '@/src/utils/chart-slice-colors';
+import { setPendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
@@ -210,7 +211,8 @@ export default function SummaryScreen() {
 	);
 
 	const handleEntityPress = (entity: EntityWithBalance) => {
-		router.push(`/history?period=${selectedPeriod}&entityId=${entity.id}`);
+		setPendingHistoryFilter({ entityId: entity.id, period: selectedPeriod });
+		router.push('/history');
 	};
 
 	// Canonical derivation — single authoritative path shared with the dashboard

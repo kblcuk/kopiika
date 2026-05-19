@@ -3,6 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import HomeScreen from '../(tabs)/index';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
+import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import type { EntityWithBalance } from '@/src/types';
 
 const mockPush = jest.fn();
@@ -208,15 +209,15 @@ describe('HomeScreen entity interactions', () => {
 	});
 
 	it('navigates to history screen when tapping a category', async () => {
+		consumePendingHistoryFilter();
 		const { getByTestId } = render(<HomeScreen />);
 
 		fireEvent.press(getByTestId('entity-cat-1').parent!);
 
 		await waitFor(() => {
-			expect(mockPush).toHaveBeenCalledWith(
-				expect.stringMatching(/\/history\?period=\d{4}-\d{2}&entityId=cat-1/)
-			);
+			expect(mockPush).toHaveBeenCalledWith('/history');
 		});
+		expect(consumePendingHistoryFilter()).toEqual({ entityId: 'cat-1' });
 	});
 
 	it('opens edit modal when tapping category in categories edit mode', async () => {

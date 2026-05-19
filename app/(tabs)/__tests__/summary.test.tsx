@@ -2,6 +2,7 @@ import React from 'react';
 import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import SummaryScreen from '../summary';
 import { useStore } from '@/src/store';
+import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import type { Entity, Plan, Transaction } from '@/src/types';
 
 const mockPush = jest.fn();
@@ -239,9 +240,13 @@ describe('SummaryScreen', () => {
 
 			expect(mockPush).not.toHaveBeenCalled();
 
+			consumePendingHistoryFilter();
 			fireEvent.press(getByTestId('summary-categories-pie-chart-slice-category-1'));
 
-			expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('entityId=category-1'));
+			expect(mockPush).toHaveBeenCalledWith('/history');
+			expect(consumePendingHistoryFilter()).toEqual(
+				expect.objectContaining({ entityId: 'category-1' })
+			);
 		});
 
 		it('should use transactions for savings actuals', () => {

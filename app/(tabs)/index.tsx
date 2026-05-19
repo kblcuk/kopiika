@@ -13,9 +13,9 @@ import { Text } from '@/src/components/text';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
-import { getCurrentPeriod } from '@/src/types';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
+import { setPendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -233,7 +233,8 @@ export default function HomeScreen() {
 				setDetailModalVisible(true);
 				return;
 			}
-			router.push(`/history?period=${getCurrentPeriod()}&entityId=${entity.id}`);
+			setPendingHistoryFilter({ entityId: entity.id });
+			router.push('/history');
 		},
 		[router, incomeEditMode, accountsEditMode, categoriesEditMode, savingsEditMode]
 	);

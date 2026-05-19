@@ -12,7 +12,6 @@ import {
 import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
-import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Search, X, CheckCheck } from 'lucide-react-native';
 
@@ -32,6 +31,7 @@ import {
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
 import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
+import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { colors } from '@/src/theme/colors';
 import {
 	sharedNumericTextInputProps,
@@ -113,11 +113,17 @@ function parseSnapshotDateInput(input: string): number | null {
 }
 
 export default function HistoryScreen() {
-	const params = useLocalSearchParams<{ period?: string; entityId?: string }>();
+	// Consume the one-shot nav signal at mount so navigation from a
+	// Dashboard/Summary tap lands on the right filter on the very first
+	// render (no flicker). Subsequent focuses re-consume; tab-bar returns
+	// see no signal and reset to defaults — see KII-111.
+	const [initialFilter] = useState(() => consumePendingHistoryFilter());
 
-	const [selectedPeriod, setSelectedPeriod] = useState(params.period || getCurrentPeriod());
+	const [selectedPeriod, setSelectedPeriod] = useState(
+		initialFilter?.period || getCurrentPeriod()
+	);
 	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
-		params.entityId || null
+		initialFilter?.entityId || null
 	);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingSnapshot, setEditingSnapshot] = useState<MarketValueSnapshot | null>(null);
@@ -127,16 +133,14 @@ export default function HistoryScreen() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const deferredPeriod = useDeferredValue(selectedPeriod);
 	const deferredSearch = useDeferredValue(searchQuery);
-	const paramsRef = useRef(params);
-	paramsRef.current = params;
 	const listRef = useRef<SectionList<Transaction, TransactionSection>>(null);
 	// Tracks the last set of user-driven inputs we applied an initial scroll
 	// for. Re-scrolling is gated on this so transactions arriving from
 	// background sync don't yank a scrolled-down user back to the top.
 	const lastScrollInputKey = useRef<string | null>(null);
-	// Tracks the entityId we applied on the last focus so that the same
-	// stale URL param on a subsequent tab-press is treated as "no filter".
-	const lastAppliedEntityId = useRef<string | null>(null);
+	// The initial state was already populated from the signal we consumed at
+	// mount, so the first focus event must not re-consume (or reset).
+	const skipNextFocusResetRef = useRef(initialFilter !== null);
 
 	const {
 		transactions,
@@ -154,22 +158,18 @@ export default function HistoryScreen() {
 		}))
 	);
 
-	// On every focus: apply period from URL. For entityId, only apply it if
-	// it's a *new* value we haven't seen before (fresh navigation from an
-	// entity). If it matches what we applied last time, the URL is stale
-	// (user returned via tab bar) and we reset to All Entities instead.
+	// On every focus, consume the pending nav signal (if any) and reset
+	// otherwise. Initial-mount focus is skipped because useState already
+	// applied the signal — see comment above.
 	useFocusEffect(
 		useCallback(() => {
-			const { entityId, period } = paramsRef.current;
-			setSelectedPeriod(period || getCurrentPeriod());
-
-			if (entityId && entityId !== lastAppliedEntityId.current) {
-				setSelectedEntityId(entityId);
-				lastAppliedEntityId.current = entityId;
-			} else {
-				setSelectedEntityId(null);
-				lastAppliedEntityId.current = null;
+			if (skipNextFocusResetRef.current) {
+				skipNextFocusResetRef.current = false;
+				return;
 			}
+			const pending = consumePendingHistoryFilter();
+			setSelectedPeriod(pending?.period || getCurrentPeriod());
+			setSelectedEntityId(pending?.entityId || null);
 		}, [])
 	);
 

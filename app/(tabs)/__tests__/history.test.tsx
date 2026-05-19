@@ -3,13 +3,18 @@ import { SectionList } from 'react-native';
 import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import HistoryScreen from '../history';
 import { useStore } from '@/src/store';
+import {
+	consumePendingHistoryFilter,
+	setPendingHistoryFilter,
+} from '@/src/utils/history-nav-signal';
 import type { Entity, Transaction } from '@/src/types';
 
-let mockParams: { period?: string; entityId?: string } = {};
 const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
 
+// Stub expo-router so its JSX-laden internals don't load in the headless
+// test environment. The screen no longer reads URL params anyway.
 jest.mock('expo-router', () => ({
-	useLocalSearchParams: () => mockParams,
+	useLocalSearchParams: () => ({}),
 }));
 
 // Expose a handle to re-trigger focus on the mounted component
@@ -133,7 +138,7 @@ describe('HistoryScreen search params', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		mockParams = {};
+		consumePendingHistoryFilter();
 		jest.useFakeTimers();
 		jest.setSystemTime(fixedNow);
 
@@ -151,8 +156,8 @@ describe('HistoryScreen search params', () => {
 		jest.restoreAllMocks();
 	});
 
-	it('applies URL params on focus when navigating with params', async () => {
-		mockParams = { period: '2025-12', entityId: 'category-1' };
+	it('applies the pending filter on mount when navigating from another screen', async () => {
+		setPendingHistoryFilter({ period: '2025-12', entityId: 'category-1' });
 
 		const { getByTestId } = render(<HistoryScreen />);
 
@@ -162,9 +167,7 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
-	it('uses default period when no params provided', async () => {
-		mockParams = {};
-
+	it('uses default period when no pending filter is provided', async () => {
 		const { getByTestId } = render(<HistoryScreen />);
 
 		await waitFor(() => {
@@ -174,16 +177,25 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
-	it('resets to All Entities on second focus when URL params are stale', async () => {
-		// Simulate navigation from entity tap: entityId is in params
-		mockParams = { period: '2025-12', entityId: 'category-1' };
+	it('resets to All Entities on every tab-bar focus (KII-111)', async () => {
+		// Initial navigation from a Dashboard tap.
+		setPendingHistoryFilter({ entityId: 'category-1' });
 		const { getByTestId } = render(<HistoryScreen />);
 
 		await waitFor(() => {
 			expect(getByTestId('entity-filter').props.children).toBe('category-1');
 		});
 
-		// Simulate user going to another tab and returning (second focus, same stale params)
+		// Tab-bar return: no pending signal, must reset.
+		act(() => {
+			triggerFocus?.();
+		});
+
+		await waitFor(() => {
+			expect(getByTestId('entity-filter').props.children).toBe('all');
+		});
+
+		// Another tab-bar return: stays reset (no alternation, the KII-111 bug).
 		act(() => {
 			triggerFocus?.();
 		});
@@ -193,30 +205,48 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
-	it('reapplies entity filter when navigating from entity after a reset', async () => {
-		mockParams = { entityId: 'category-1' };
+	it('applies a freshly-set pending filter on subsequent focus', async () => {
+		setPendingHistoryFilter({ entityId: 'category-1' });
 		const { getByTestId } = render(<HistoryScreen />);
 
 		await waitFor(() => {
 			expect(getByTestId('entity-filter').props.children).toBe('category-1');
 		});
 
-		// Second focus (tab press) — resets
+		// Tab-bar return without a new signal: reset.
 		act(() => {
 			triggerFocus?.();
 		});
-
 		await waitFor(() => {
 			expect(getByTestId('entity-filter').props.children).toBe('all');
 		});
 
-		// Third focus — new navigation with same entityId (lastApplied was cleared)
+		// Producer sets a fresh signal, then focus fires (e.g., Dashboard tap).
+		setPendingHistoryFilter({ entityId: 'account-1' });
 		act(() => {
 			triggerFocus?.();
 		});
 
 		await waitFor(() => {
-			expect(getByTestId('entity-filter').props.children).toBe('category-1');
+			expect(getByTestId('entity-filter').props.children).toBe('account-1');
+		});
+	});
+
+	it('resets the period to current on tab-bar focus when no signal is pending', async () => {
+		setPendingHistoryFilter({ period: '2025-12' });
+		const { getByTestId } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByTestId('period-picker').props.children).toBe('2025-12');
+		});
+
+		act(() => {
+			triggerFocus?.();
+		});
+
+		await waitFor(() => {
+			// fixedNow is 2026-01-15, so current period is 2026-01
+			expect(getByTestId('period-picker').props.children).toBe('2026-01');
 		});
 	});
 
@@ -258,7 +288,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByTestId, queryByTestId } = render(<HistoryScreen />);
 
@@ -287,7 +317,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2025-12' };
+		setPendingHistoryFilter({ period: '2025-12' });
 
 		const { queryByText, queryByTestId } = render(<HistoryScreen />);
 
@@ -324,7 +354,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByText, getByTestId } = render(<HistoryScreen />);
 
@@ -360,7 +390,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByTestId, queryByText } = render(<HistoryScreen />);
 
@@ -391,7 +421,7 @@ describe('HistoryScreen search params', () => {
 		});
 
 		// Navigate with entity filter for the source account
-		mockParams = { period: '2026-01', entityId: 'account-1' };
+		setPendingHistoryFilter({ period: '2026-01', entityId: 'account-1' });
 
 		const { getByTestId } = render(<HistoryScreen />);
 
@@ -436,7 +466,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01', entityId: 'account-1' };
+		setPendingHistoryFilter({ period: '2026-01', entityId: 'account-1' });
 
 		const { getByTestId, getByText, queryByTestId } = render(<HistoryScreen />);
 
@@ -490,7 +520,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01', entityId: 'saving-1' };
+		setPendingHistoryFilter({ period: '2026-01', entityId: 'saving-1' });
 
 		const { getByTestId, getByText } = render(<HistoryScreen />);
 
@@ -523,7 +553,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01', entityId: 'category-1' };
+		setPendingHistoryFilter({ period: '2026-01', entityId: 'category-1' });
 
 		const { queryByTestId } = render(<HistoryScreen />);
 
@@ -581,7 +611,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
@@ -620,7 +650,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
@@ -660,7 +690,7 @@ describe('HistoryScreen search params', () => {
 			isLoading: false,
 		});
 
-		mockParams = { period: '2026-01' };
+		setPendingHistoryFilter({ period: '2026-01' });
 
 		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
@@ -715,7 +745,7 @@ describe('HistoryScreen search params', () => {
 		// Filter by category-1 as destination only (txMatch has to=category-1)
 		// Both transactions involve category-1, so entity filter alone won't
 		// separate them — but search for "Lidl" will.
-		mockParams = { period: '2026-01', entityId: 'category-1' };
+		setPendingHistoryFilter({ period: '2026-01', entityId: 'category-1' });
 
 		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
 
@@ -757,7 +787,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01', entityId: 'inv-account' };
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'inv-account' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -777,7 +807,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01', entityId: 'inv-account' };
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'inv-account' });
 
 			const { getByTestId, getByText } = render(<HistoryScreen />);
 
@@ -807,7 +837,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01', entityId: 'account-1' };
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'account-1' });
 
 			const { queryByTestId } = render(<HistoryScreen />);
 
@@ -834,7 +864,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { queryByTestId } = render(<HistoryScreen />);
 
@@ -870,7 +900,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01', entityId: 'inv-account' };
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'inv-account' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -900,7 +930,7 @@ describe('HistoryScreen search params', () => {
 				isLoading: false,
 			});
 
-			mockParams = { period: '2026-01', entityId: 'inv-account' };
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'inv-account' });
 
 			const { getByTestId, getByText } = render(<HistoryScreen />);
 
@@ -971,7 +1001,7 @@ describe('HistoryScreen search params', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 			});
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -994,7 +1024,7 @@ describe('HistoryScreen search params', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 			});
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -1018,7 +1048,7 @@ describe('HistoryScreen search params', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 			});
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -1037,7 +1067,7 @@ describe('HistoryScreen search params', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 			});
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { getByTestId } = render(<HistoryScreen />);
 
@@ -1065,7 +1095,7 @@ describe('HistoryScreen search params', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 			});
-			mockParams = { period: '2026-01' };
+			setPendingHistoryFilter({ period: '2026-01' });
 
 			const { getByPlaceholderText, getByTestId } = render(<HistoryScreen />);
 
