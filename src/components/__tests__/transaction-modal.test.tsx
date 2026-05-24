@@ -723,10 +723,14 @@ describe('TransactionModal', () => {
 			upcoming: 0,
 		};
 
+		let replaceSpy: jest.Mock;
+
 		beforeEach(() => {
 			useStore.setState({
 				entities: [mockFromEntity, mockToEntity, category2],
 			});
+			replaceSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({ replaceTransactionWithSplit: replaceSpy });
 		});
 
 		it('shows split toggle button for new transactions', () => {
@@ -741,7 +745,7 @@ describe('TransactionModal', () => {
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
-		it('does not show split toggle in edit mode', () => {
+		it('shows split toggle in edit mode for account → category transactions', () => {
 			const existingTransaction = {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
@@ -750,6 +754,28 @@ describe('TransactionModal', () => {
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+			expect(getByTestId('split-toggle-button')).toBeTruthy();
+		});
+
+		it('hides split toggle in edit mode when editing all future of a series', () => {
+			const existingTransaction = {
+				id: 'txn-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+				series_id: 'series-1',
+			};
 			const { queryByTestId } = render(
 				<TransactionModal
 					visible={true}
@@ -757,6 +783,7 @@ describe('TransactionModal', () => {
 					toEntity={mockToEntity}
 					onClose={mockOnClose}
 					existingTransaction={existingTransaction}
+					seriesScope="future"
 				/>
 			);
 			expect(queryByTestId('split-toggle-button')).toBeNull();
@@ -1117,6 +1144,75 @@ describe('TransactionModal', () => {
 
 			expect(queryByTestId('split-row-0')).toBeNull();
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
+		});
+
+		it('seeds anchor row with original to_entity when splitting an existing transaction', () => {
+			const existingTransaction = {
+				id: 'txn-pre',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: Date.now(),
+			};
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+			fireEvent.press(getByTestId('split-toggle-button'));
+			// Anchor row chip should render the entity name from the original transaction.
+			expect(getByTestId('split-row-0')).toBeTruthy();
+			expect(getByTestId('split-entity-0')).toHaveTextContent(mockToEntity.name);
+		});
+
+		it('save in edit+split mode calls replaceTransactionWithSplit with the original id', async () => {
+			const existingTransaction = {
+				id: 'txn-save',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: fixedNow,
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			fireEvent.press(getByTestId('split-toggle-button'));
+			// Fill the non-anchor split row 1: pick the second category, type 20.
+			fireEvent.press(getByTestId('split-entity-1'));
+			// EntitySelectionSheet emits testIDs as `entity-option-${entity.name}` by default
+			// (no testIDPrefix passed by the split picker — see entity-selection-sheet.tsx:82
+			// and transaction-modal.tsx where the split picker is rendered).
+			fireEvent.press(getByTestId(`entity-option-${category2.name}`));
+			fireEvent.changeText(getByTestId('split-amount-1'), '20');
+
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(replaceSpy).toHaveBeenCalledTimes(1);
+			});
+			expect(replaceSpy.mock.calls[0][0]).toBe('txn-save');
+			const passedRows = replaceSpy.mock.calls[0][1] as {
+				amount: number;
+				to_entity_id: string;
+			}[];
+			// Anchor (30 = 50 - 20) + non-anchor (20)
+			expect(passedRows).toHaveLength(2);
+			const amounts = passedRows.map((r) => r.amount).sort((a, b) => a - b);
+			expect(amounts).toEqual([20, 30]);
 		});
 	});
 
