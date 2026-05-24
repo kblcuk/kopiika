@@ -428,7 +428,10 @@ export function TransactionModal({
 		if (isSubmitting) return;
 		setIsSubmitting(true);
 
-		// Resolve any pending calculator expression before submitting
+		// Resolve any pending calculator expression before submitting.
+		// The split branches don't consume `resolvedAmount` (they use `splitTotal`);
+		// calling .resolve() here still has the desired side effect of flushing the
+		// pending expression in all paths.
 		const resolvedAmount = amountExpr.resolve();
 
 		try {
@@ -437,6 +440,9 @@ export function TransactionModal({
 				: normalizeCreateTimestamp(selectedDate);
 
 			const splitFrom = displayFromEntity;
+			// seriesScope === 'future' is gated out by the split-toggle visibility
+			// condition; only 'single' or undefined can reach this branch.
+			// replaceTransactionWithSplit handles series exclusion internally.
 			if (isEditing && existingTransaction && isSplitMode && splitFrom) {
 				const txns = buildSplitRows({
 					fromEntityId: splitFrom.id,
