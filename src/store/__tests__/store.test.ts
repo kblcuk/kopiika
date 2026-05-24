@@ -810,6 +810,230 @@ describe('Store Data Integrity', () => {
 		});
 	});
 
+	describe('replaceTransactionWithSplit (KII-110)', () => {
+		const seedAccountCategory = async (): Promise<void> => {
+			const entities: Entity[] = [
+				{
+					id: 'acct-1',
+					type: 'account',
+					name: 'Main',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-1',
+					type: 'category',
+					name: 'Food',
+					currency: 'USD',
+					row: 0,
+					position: 0,
+					order: 0,
+				},
+				{
+					id: 'cat-2',
+					type: 'category',
+					name: 'Drinks',
+					currency: 'USD',
+					row: 0,
+					position: 1,
+					order: 1,
+				},
+			];
+			for (const e of entities) await db.createEntity(e);
+			useStore.setState({ entities });
+		};
+
+		test('replaces the original with N new rows in the store and DB', async () => {
+			await seedAccountCategory();
+			const ts = Date.now();
+			const original: Transaction = {
+				id: 'orig',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount: 20,
+				currency: 'USD',
+				timestamp: ts,
+				note: 'lunch',
+			};
+			await db.createTransaction(original);
+			useStore.setState({ transactions: [original] });
+
+			const children: Transaction[] = [
+				{
+					id: 'c1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-1',
+					amount: 12,
+					currency: 'USD',
+					timestamp: ts,
+					note: 'lunch',
+				},
+				{
+					id: 'c2',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-2',
+					amount: 8,
+					currency: 'USD',
+					timestamp: ts,
+					note: 'lunch',
+				},
+			];
+
+			await useStore.getState().replaceTransactionWithSplit('orig', children);
+
+			const ids = new Set(useStore.getState().transactions.map((t) => t.id));
+			expect(ids.has('orig')).toBe(false);
+			expect(ids.has('c1')).toBe(true);
+			expect(ids.has('c2')).toBe(true);
+
+			const dbIds = new Set((await db.getAllTransactions()).map((t) => t.id));
+			expect(dbIds.has('orig')).toBe(false);
+			expect(dbIds.has('c1')).toBe(true);
+			expect(dbIds.has('c2')).toBe(true);
+		});
+
+		test('does not error when the original has a notification_id (notification path runs)', async () => {
+			// Mirrors the existing deleteTransaction tests: the codebase does not spy on
+			// cancelNotification (Bun's ESM bindings make it unreliable to patch the
+			// store's already-bound import). We assert the happy-path behavior — the
+			// action completes and the original is removed — when notification_id is
+			// present, exercising the cancellation branch without mocking it.
+			await seedAccountCategory();
+
+			const ts = Date.now() + 7 * 86_400_000; // future, so it's unconfirmed
+			const original: Transaction = {
+				id: 'orig-n',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount: 30,
+				currency: 'USD',
+				timestamp: ts,
+				is_confirmed: false,
+				notification_id: 'sys-notif-1',
+			};
+			await db.createTransaction(original);
+			useStore.setState({ transactions: [original] });
+
+			const children: Transaction[] = [
+				{
+					id: 'cn1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-1',
+					amount: 18,
+					currency: 'USD',
+					timestamp: ts,
+				},
+				{
+					id: 'cn2',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-2',
+					amount: 12,
+					currency: 'USD',
+					timestamp: ts,
+				},
+			];
+
+			await expect(
+				useStore.getState().replaceTransactionWithSplit('orig-n', children)
+			).resolves.toBeUndefined();
+
+			const ids = new Set(useStore.getState().transactions.map((t) => t.id));
+			expect(ids.has('orig-n')).toBe(false);
+			expect(ids.has('cn1')).toBe(true);
+			expect(ids.has('cn2')).toBe(true);
+		});
+
+		test('adds an exclusion to the recurrence template when the original has series_id', async () => {
+			await seedAccountCategory();
+
+			const templateId = 'tmpl-split';
+			const template = {
+				id: templateId,
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount: 25,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: 1_000_000,
+				end_date: null,
+				end_count: null,
+				horizon: 90,
+				created_at: 0,
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				recurrenceTemplates: [{ ...template, exclusions: null, is_deleted: false }],
+			});
+
+			const occurrenceTs = 1_500_000;
+			const original: Transaction = {
+				id: 'rec-1',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount: 25,
+				currency: 'USD',
+				timestamp: occurrenceTs,
+				series_id: templateId,
+			};
+			await db.createTransaction(original);
+			useStore.setState({ transactions: [original] });
+
+			const children: Transaction[] = [
+				{
+					id: 'rs1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-1',
+					amount: 15,
+					currency: 'USD',
+					timestamp: occurrenceTs,
+				},
+				{
+					id: 'rs2',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-2',
+					amount: 10,
+					currency: 'USD',
+					timestamp: occurrenceTs,
+				},
+			];
+
+			await useStore.getState().replaceTransactionWithSplit('rec-1', children);
+
+			const tmplFromState = useStore
+				.getState()
+				.recurrenceTemplates.find((t) => t.id === templateId);
+			expect(tmplFromState).toBeTruthy();
+			const exclusionsFromState: number[] = JSON.parse(tmplFromState!.exclusions ?? '[]');
+			expect(exclusionsFromState).toContain(occurrenceTs);
+
+			// Children should not inherit series_id
+			const newChildren = useStore
+				.getState()
+				.transactions.filter((t) => t.id === 'rs1' || t.id === 'rs2');
+			for (const c of newChildren) {
+				expect(c.series_id).toBeUndefined();
+			}
+		});
+
+		test('warns and no-ops when called for a non-existent transaction', async () => {
+			await seedAccountCategory();
+			const before = useStore.getState().transactions.length;
+			await useStore.getState().replaceTransactionWithSplit('does-not-exist', [
+				{
+					id: 'noop-1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-1',
+					amount: 1,
+					currency: 'USD',
+					timestamp: Date.now(),
+				},
+			]);
+			expect(useStore.getState().transactions.length).toBe(before);
+		});
+	});
+
 	describe('deleteEntity', () => {
 		test('should remove entity and its plans from store', async () => {
 			const entities: Entity[] = [

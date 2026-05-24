@@ -100,6 +100,7 @@ interface AppState {
 	createTransactionBatch: (transactions: Transaction[]) => Promise<void>;
 	updateTransaction: (id: string, updates: Omit<Partial<Transaction>, 'id'>) => Promise<void>;
 	deleteTransaction: (id: string) => Promise<void>;
+	replaceTransactionWithSplit: (originalId: string, rows: Transaction[]) => Promise<void>;
 
 	// Recurrence actions
 	addRecurringTransaction: (
@@ -630,6 +631,66 @@ export const useStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			transactions: state.transactions.filter((t) => t.id !== id),
 		}));
+	},
+
+	replaceTransactionWithSplit: async (originalId, rows) => {
+		const state = get();
+		const original = state.transactions.find((t) => t.id === originalId);
+		if (!original) {
+			console.warn(`Cannot split non-existent transaction: ${originalId}`);
+			return;
+		}
+		if (rows.length === 0) {
+			console.warn('replaceTransactionWithSplit called with no rows; aborting');
+			return;
+		}
+
+		// Validate + default is_confirmed for each row, same shape as createTransactionBatch.
+		const prepared: Transaction[] = rows.map((tx) => {
+			ensureValid(validateTransaction(tx, state.entities));
+			return {
+				...tx,
+				is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
+			};
+		});
+
+		// Cancel the original's scheduled notification (if any) BEFORE mutating the DB
+		// so a system-side failure surfaces before we touch persistent state.
+		if (original.notification_id) {
+			try {
+				await cancelNotification(original.notification_id);
+			} catch (e) {
+				console.warn('Failed to cancel notification', e);
+			}
+		}
+
+		const seriesExclusion = original.series_id
+			? { templateId: original.series_id, timestamp: original.timestamp }
+			: undefined;
+
+		await db.replaceTransactionAtomic(originalId, prepared, { seriesExclusion });
+
+		set((s) => {
+			const transactionsNext = [
+				...prepared,
+				...s.transactions.filter((t) => t.id !== originalId),
+			];
+			let recurrenceTemplatesNext = s.recurrenceTemplates;
+			if (seriesExclusion) {
+				recurrenceTemplatesNext = s.recurrenceTemplates.map((t) => {
+					if (t.id !== seriesExclusion.templateId) return t;
+					const existing: number[] = JSON.parse(t.exclusions ?? '[]');
+					existing.push(seriesExclusion.timestamp);
+					return { ...t, exclusions: JSON.stringify(existing) };
+				});
+			}
+			return {
+				transactions: transactionsNext,
+				recurrenceTemplates: recurrenceTemplatesNext,
+			};
+		});
+
+		await scheduleNotificationsForTransactions(prepared, get().entities, set);
 	},
 
 	// Recurrence actions
