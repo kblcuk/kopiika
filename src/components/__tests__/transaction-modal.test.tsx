@@ -725,15 +725,22 @@ describe('TransactionModal', () => {
 
 		let replaceSpy: jest.Mock;
 
-		beforeEach(() => {
-			useStore.setState({
-				entities: [mockFromEntity, mockToEntity, category2],
-			});
+		// Install the spy once for the whole describe — re-installing it in afterEach
+		// causes Zustand to notify the still-mounted component before RNTL's
+		// auto-cleanup runs, producing "update not wrapped in act(...)" warnings.
+		beforeAll(() => {
 			replaceSpy = jest.fn().mockResolvedValue(undefined);
 			useStore.setState({ replaceTransactionWithSplit: replaceSpy });
 		});
 
-		afterEach(() => {
+		beforeEach(() => {
+			useStore.setState({
+				entities: [mockFromEntity, mockToEntity, category2],
+			});
+			replaceSpy.mockClear();
+		});
+
+		afterAll(() => {
 			// Restore real store action so it doesn't bleed into later describes.
 			useStore.setState({ replaceTransactionWithSplit: jest.fn() });
 		});
