@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.18](https://codeberg.org/kblcuk/kopiika/compare/v0.3.17...v0.3.18) (2026-05-24)
+
+
+### Features
+
+* **ci:** renovate ([b40f32c](https://codeberg.org/kblcuk/kopiika/commit/b40f32c2370f6fe113735d3ff83c8830b600c7b4))
+* **db:** add replaceTransactionAtomic for split-of-existing (KII-110) ([e079108](https://codeberg.org/kblcuk/kopiika/commit/e079108a834072b79c3d0170ad21b83245ee8cda))
+* **modal:** wire Split toggle into edit mode (KII-110) ([d98b615](https://codeberg.org/kblcuk/kopiika/commit/d98b615b26985d9e42aeadb3151580e62056c8e8))
+* **store:** replaceTransactionWithSplit action (KII-110) ([29bd370](https://codeberg.org/kblcuk/kopiika/commit/29bd3702b13b5296943f92426e444d6cc6f9119c))
+
+
+### Bug Fixes
+
+* **db:** rollback replaceTransactionAtomic when series template missing (KII-110) ([023c992](https://codeberg.org/kblcuk/kopiika/commit/023c992611716c32b5b69ed2d1cfe1f515cefda7))
+* **db:** wrap updateEntityPositions in a transaction (KII-119) ([2d4e184](https://codeberg.org/kblcuk/kopiika/commit/2d4e184792f42422debc9970a0d983664eaf2adb))
+* **history:** reset filter on tab-bar focus via one-shot nav signal (KII-111) ([7791bb7](https://codeberg.org/kblcuk/kopiika/commit/7791bb7baba14910be65c1b3e07bcb1aa0f68f41))
+* **import:** default is_confirmed by timestamp when CSV column missing (KII-118) ([f0e9c04](https://codeberg.org/kblcuk/kopiika/commit/f0e9c04d6e4f5bab77184a68a5d9fd31a0377dc4))
+* pass github token for renovate job ([5692f1e](https://codeberg.org/kblcuk/kopiika/commit/5692f1e4f88f5e3e2d1f75dbefad4d639872f0b9))
+* **store:** make setDefaultAccount atomic (KII-113) ([0300d83](https://codeberg.org/kblcuk/kopiika/commit/0300d8330dc0951f80587901bbf8282960ae4e83))
+* **store:** strip series_id from split children + empty-rows guard test (KII-110) ([b0bb171](https://codeberg.org/kblcuk/kopiika/commit/b0bb171b0729d8a1578305ea5ce5a95526690b64))
+* **theme:** replace non-existent paper-400 with paper-300 (KII-128) ([276cec3](https://codeberg.org/kblcuk/kopiika/commit/276cec3c6b910424467b04c580ca26dac2bb6f91))
+
 ## [0.3.17](https://codeberg.org/kblcuk/kopiika/compare/v0.3.16...v0.3.17) (2026-05-18)
 
 
