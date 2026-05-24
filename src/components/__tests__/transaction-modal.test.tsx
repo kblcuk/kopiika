@@ -733,6 +733,11 @@ describe('TransactionModal', () => {
 			useStore.setState({ replaceTransactionWithSplit: replaceSpy });
 		});
 
+		afterEach(() => {
+			// Restore real store action so it doesn't bleed into later describes.
+			useStore.setState({ replaceTransactionWithSplit: jest.fn() });
+		});
+
 		it('shows split toggle button for new transactions', () => {
 			const { getByTestId } = render(
 				<TransactionModal
@@ -776,6 +781,9 @@ describe('TransactionModal', () => {
 				timestamp: Date.now(),
 				series_id: 'series-1',
 			};
+			// seriesScope === 'future' means user picked "edit all future occurrences" in the
+			// series scope alert. Splitting all future occurrences is incoherent — gate hides
+			// the toggle.
 			const { queryByTestId } = render(
 				<TransactionModal
 					visible={true}
