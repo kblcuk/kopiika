@@ -18,6 +18,7 @@ import {
 	confirmTransactionsBatch,
 	updateTransactionNotificationId,
 	updateTransactionNotificationIdsBatch,
+	replaceTransactionAtomic,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -1163,6 +1164,160 @@ describe('transactions.ts', () => {
 			all = await getAllTransactions();
 			expect(all.find((t) => t.id === 'notif-batch-1')?.notification_id).toBe('notif-a');
 			expect(all.find((t) => t.id === 'notif-batch-2')?.notification_id).toBe('notif-b');
+		});
+	});
+
+	describe('replaceTransactionAtomic', () => {
+		test('deletes the original and inserts the new rows atomically', async () => {
+			const original: Transaction = {
+				id: 'orig-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 20,
+				currency: 'USD',
+				timestamp: 1000,
+				note: 'Sandwich + sparkling',
+			};
+			await createTransaction(original);
+
+			const children: Transaction[] = [
+				{
+					id: 'child-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 12,
+					currency: 'USD',
+					timestamp: 1000,
+					note: 'Sandwich + sparkling',
+				},
+				{
+					id: 'child-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 8,
+					currency: 'USD',
+					timestamp: 1000,
+					note: 'Sandwich + sparkling',
+				},
+			];
+
+			await replaceTransactionAtomic('orig-1', children);
+
+			const all = await getAllTransactions();
+			const ids = new Set(all.map((t) => t.id));
+			expect(ids.has('orig-1')).toBe(false);
+			expect(ids.has('child-1')).toBe(true);
+			expect(ids.has('child-2')).toBe(true);
+		});
+
+		test('rolls back the delete when an insert fails (PK conflict)', async () => {
+			const original: Transaction = {
+				id: 'orig-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 10,
+				currency: 'USD',
+				timestamp: 2000,
+			};
+			await createTransaction(original);
+
+			// Pre-existing row with the same id as one of the children — insert will conflict.
+			const sibling: Transaction = {
+				id: 'sibling',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 1,
+				currency: 'USD',
+				timestamp: 3000,
+			};
+			await createTransaction(sibling);
+
+			const children: Transaction[] = [
+				{
+					id: 'child-x',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 5,
+					currency: 'USD',
+					timestamp: 2000,
+				},
+				{
+					// PK collision — will throw, must roll back the delete of orig-2 and the insert of child-x.
+					id: 'sibling',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 5,
+					currency: 'USD',
+					timestamp: 2000,
+				},
+			];
+
+			await expect(replaceTransactionAtomic('orig-2', children)).rejects.toBeDefined();
+
+			const all = await getAllTransactions();
+			const ids = new Set(all.map((t) => t.id));
+			expect(ids.has('orig-2')).toBe(true); // delete rolled back
+			expect(ids.has('child-x')).toBe(false); // insert rolled back
+			expect(ids.has('sibling')).toBe(true); // pre-existing row untouched
+		});
+
+		test('adds the original timestamp to the series exclusions list', async () => {
+			// Seed a recurrence template via direct DB op so we don't depend on store.
+			const { createRecurrenceTemplate } = await import('../recurrence-templates');
+			const templateId = 'tmpl-1';
+			await createRecurrenceTemplate({
+				id: templateId,
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: 500,
+				end_date: null,
+				end_count: null,
+				horizon: 90,
+				created_at: 0,
+			});
+
+			const recurringOccurrence: Transaction = {
+				id: 'occ-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 50,
+				currency: 'USD',
+				timestamp: 1500,
+				series_id: templateId,
+			};
+			await createTransaction(recurringOccurrence);
+
+			const children: Transaction[] = [
+				{
+					id: 'split-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 30,
+					currency: 'USD',
+					timestamp: 1500,
+				},
+				{
+					id: 'split-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 20,
+					currency: 'USD',
+					timestamp: 1500,
+				},
+			];
+
+			await replaceTransactionAtomic('occ-1', children, {
+				seriesExclusion: { templateId, timestamp: 1500 },
+			});
+
+			const { getRecurrenceTemplateById } = await import('../recurrence-templates');
+			const tmpl = await getRecurrenceTemplateById(templateId);
+			expect(tmpl).toBeTruthy();
+			const exclusions: number[] = JSON.parse(tmpl!.exclusions ?? '[]');
+			expect(exclusions).toContain(1500);
 		});
 	});
 });

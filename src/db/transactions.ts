@@ -1,7 +1,7 @@
 import { eq, and, between, or, desc, sum, inArray, gte } from 'drizzle-orm';
 import type { Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { transactions } from './drizzle-schema';
+import { transactions, recurrenceTemplates } from './drizzle-schema';
 
 export async function getAllTransactions(): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
@@ -280,4 +280,49 @@ export async function updateTransactionNotificationIdsBatch(
 			.set({ notification_id: notificationId })
 			.where(eq(transactions.id, id));
 	}
+}
+
+export async function replaceTransactionAtomic(
+	idToDelete: string,
+	txns: Transaction[],
+	options?: { seriesExclusion?: { templateId: string; timestamp: number } }
+): Promise<void> {
+	const db = await getDrizzleDb();
+	await db.transaction((tx) => {
+		tx.delete(transactions).where(eq(transactions.id, idToDelete)).run();
+
+		if (options?.seriesExclusion) {
+			const { templateId, timestamp } = options.seriesExclusion;
+			const rows = tx
+				.select({ exclusions: recurrenceTemplates.exclusions })
+				.from(recurrenceTemplates)
+				.where(eq(recurrenceTemplates.id, templateId))
+				.all();
+			if (rows.length > 0) {
+				const current: number[] = JSON.parse(rows[0].exclusions ?? '[]');
+				current.push(timestamp);
+				tx.update(recurrenceTemplates)
+					.set({ exclusions: JSON.stringify(current) })
+					.where(eq(recurrenceTemplates.id, templateId))
+					.run();
+			}
+		}
+
+		for (const txn of txns) {
+			tx.insert(transactions)
+				.values({
+					id: txn.id,
+					from_entity_id: txn.from_entity_id,
+					to_entity_id: txn.to_entity_id,
+					amount: txn.amount,
+					currency: txn.currency,
+					timestamp: txn.timestamp,
+					note: txn.note ?? null,
+					series_id: txn.series_id ?? null,
+					is_confirmed: txn.is_confirmed ?? true,
+					notification_id: txn.notification_id ?? null,
+				})
+				.run();
+		}
+	});
 }
