@@ -298,14 +298,17 @@ export async function replaceTransactionAtomic(
 				.from(recurrenceTemplates)
 				.where(eq(recurrenceTemplates.id, templateId))
 				.all();
-			if (rows.length > 0) {
-				const current: number[] = JSON.parse(rows[0].exclusions ?? '[]');
-				current.push(timestamp);
-				tx.update(recurrenceTemplates)
-					.set({ exclusions: JSON.stringify(current) })
-					.where(eq(recurrenceTemplates.id, templateId))
-					.run();
+			if (rows.length === 0) {
+				throw new Error(
+					`replaceTransactionAtomic: recurrence template ${templateId} not found`
+				);
 			}
+			const current: number[] = JSON.parse(rows[0].exclusions ?? '[]');
+			current.push(timestamp);
+			tx.update(recurrenceTemplates)
+				.set({ exclusions: JSON.stringify(current) })
+				.where(eq(recurrenceTemplates.id, templateId))
+				.run();
 		}
 
 		for (const txn of txns) {

@@ -1319,5 +1319,50 @@ describe('transactions.ts', () => {
 			const exclusions: number[] = JSON.parse(tmpl!.exclusions ?? '[]');
 			expect(exclusions).toContain(1500);
 		});
+
+		test('rolls back when seriesExclusion references a non-existent template', async () => {
+			const original: Transaction = {
+				id: 'orig-no-tmpl',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 15,
+				currency: 'USD',
+				timestamp: 4000,
+				series_id: 'tmpl-missing',
+			};
+			await createTransaction(original);
+
+			const children: Transaction[] = [
+				{
+					id: 'child-rb-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 10,
+					currency: 'USD',
+					timestamp: 4000,
+				},
+				{
+					id: 'child-rb-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount: 5,
+					currency: 'USD',
+					timestamp: 4000,
+				},
+			];
+
+			await expect(
+				replaceTransactionAtomic('orig-no-tmpl', children, {
+					seriesExclusion: { templateId: 'tmpl-missing', timestamp: 4000 },
+				})
+			).rejects.toThrow(/recurrence template tmpl-missing not found/);
+
+			// Delete must have rolled back
+			const all = await getAllTransactions();
+			const ids = new Set(all.map((t) => t.id));
+			expect(ids.has('orig-no-tmpl')).toBe(true);
+			expect(ids.has('child-rb-1')).toBe(false);
+			expect(ids.has('child-rb-2')).toBe(false);
+		});
 	});
 });
