@@ -118,6 +118,7 @@ export function TransactionModal({
 	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
+	const replaceTransactionWithSplit = useStore((state) => state.replaceTransactionWithSplit);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 
 	const accounts = useEntitiesWithBalance('account');
@@ -299,8 +300,8 @@ export function TransactionModal({
 		setSplitTotal(total);
 		setIsSplitMode(true);
 		setSplits([
-			// Row 0: anchor — toEntityId from drag, amount ignored (always derived)
-			{ id: generateId(), toEntityId: toEntity?.id ?? null, amount: '' },
+			// Row 0: anchor — follows current selection (handles edit and post-picker create)
+			{ id: generateId(), toEntityId: selectedToId ?? toEntity?.id ?? null, amount: '' },
 			// Row 1: first user-editable split
 			{ id: generateId(), toEntityId: null, amount: '' },
 		]);
@@ -436,6 +437,28 @@ export function TransactionModal({
 				: normalizeCreateTimestamp(selectedDate);
 
 			const splitFrom = displayFromEntity;
+			if (isEditing && existingTransaction && isSplitMode && splitFrom) {
+				const txns = buildSplitRows({
+					fromEntityId: splitFrom.id,
+					currency: splitFrom.currency,
+					timestamp,
+					note: note.trim() || undefined,
+					splitTotal,
+					splits: splits.map((s) => ({ toEntityId: s.toEntityId, amount: s.amount })),
+				});
+				if (txns.length === 0) {
+					setIsSubmitting(false);
+					return;
+				}
+				// No savings releases in edit-mode split: SavingsFundingSection is gated
+				// on `!isEditing`, so `fundingRef.current` is null and no funded
+				// reservations can be picked up here.
+				await replaceTransactionWithSplit(existingTransaction.id, txns);
+				void KeyboardController.dismiss();
+				onClose();
+				return;
+			}
+
 			if (isSplitMode && splitFrom) {
 				const txns = buildSplitRows({
 					fromEntityId: splitFrom.id,
@@ -868,11 +891,11 @@ export function TransactionModal({
 						/>
 					)}
 
-					{/* Split — only for account → category */}
-					{!isEditing &&
-						!quickAdd &&
-						fromEntity?.type === 'account' &&
-						toEntity?.type === 'category' && (
+					{/* Split — only for account → category; hidden when editing "all future" of a series */}
+					{!quickAdd &&
+						displayFromEntity?.type === 'account' &&
+						displayToEntity?.type === 'category' &&
+						(!seriesScope || seriesScope === 'single') && (
 							<View className="mb-6">
 								<Pressable
 									onPress={isSplitMode ? handleMerge : handleEnterSplitMode}
