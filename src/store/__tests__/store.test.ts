@@ -988,6 +988,7 @@ describe('Store Data Integrity', () => {
 					amount: 15,
 					currency: 'USD',
 					timestamp: occurrenceTs,
+					series_id: templateId, // caller mistakenly passed series_id; action must strip it
 				},
 				{
 					id: 'rs2',
@@ -996,6 +997,7 @@ describe('Store Data Integrity', () => {
 					amount: 10,
 					currency: 'USD',
 					timestamp: occurrenceTs,
+					series_id: templateId, // caller mistakenly passed series_id; action must strip it
 				},
 			];
 
@@ -1031,6 +1033,27 @@ describe('Store Data Integrity', () => {
 				},
 			]);
 			expect(useStore.getState().transactions.length).toBe(before);
+		});
+
+		test('warns and no-ops when rows is empty', async () => {
+			await seedAccountCategory();
+			const ts = Date.now();
+			const original: Transaction = {
+				id: 'orig-empty',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount: 5,
+				currency: 'USD',
+				timestamp: ts,
+			};
+			await db.createTransaction(original);
+			useStore.setState({ transactions: [original] });
+
+			await useStore.getState().replaceTransactionWithSplit('orig-empty', []);
+
+			// Original survives (no-op), state unchanged.
+			const ids = new Set(useStore.getState().transactions.map((t) => t.id));
+			expect(ids.has('orig-empty')).toBe(true);
 		});
 	});
 

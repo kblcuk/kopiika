@@ -650,6 +650,8 @@ export const useStore = create<AppState>((set, get) => ({
 			ensureValid(validateTransaction(tx, state.entities));
 			return {
 				...tx,
+				// Split children are never part of the parent series — strip unconditionally.
+				series_id: undefined,
 				is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
 			};
 		});
