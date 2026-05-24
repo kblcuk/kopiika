@@ -45,6 +45,9 @@ export default function HomeScreen() {
 		updateSectionMaxOffset,
 	} = useDragAutoScroll();
 
+	// KII-132: bare `useStore()` subscribes to every store change — re-renders
+	// the home screen on any unrelated mutation. Switch to `useShallow` with a
+	// selector returning just these fields (highest-impact single fix).
 	const {
 		isLoading,
 		entities,

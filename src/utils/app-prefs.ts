@@ -20,6 +20,11 @@ async function read(): Promise<AppPrefs> {
 	}
 }
 
+// KII-132: no write serialization — concurrent `set*` callers read-modify-write
+// the same file and the last commit wins (silent data loss). Also: only
+// `setLastSeenVersion` wraps in try/catch; every other setter is unguarded.
+// Fix together: introduce an in-memory source-of-truth + serialized write-through
+// (or a single write queue) and wrap every setter consistently.
 function write(prefs: AppPrefs): void {
 	prefsFile.write(JSON.stringify(prefs));
 }

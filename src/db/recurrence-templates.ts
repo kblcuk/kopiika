@@ -3,6 +3,9 @@ import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import { getDrizzleDb } from './drizzle-client';
 import { recurrenceTemplates } from './drizzle-schema';
 
+// KII-132: `is_deleted` alone is low-cardinality. Consider composite indexes
+// `(is_deleted, from_entity_id)` / `(is_deleted, to_entity_id)` to make
+// `getActiveTemplatesForEntity` queries cheap as the table grows.
 export async function getAllRecurrenceTemplates(): Promise<RecurrenceTemplate[]> {
 	const db = await getDrizzleDb();
 	return await db

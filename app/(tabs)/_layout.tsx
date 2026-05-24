@@ -73,6 +73,9 @@ export default function TabLayout() {
 										width: 52,
 										height: 52,
 										borderRadius: 26,
+										// KII-132: brand orange hardcoded here and in
+										// `settings.tsx`. Move to `src/theme/colors` and
+										// reference from both.
 										backgroundColor: '#D4652F',
 										alignItems: 'center',
 										justifyContent: 'center',

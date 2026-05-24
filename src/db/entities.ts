@@ -80,6 +80,9 @@ export async function deleteEntity(id: string): Promise<void> {
 
 async function softDeleteEntity(id: string): Promise<void> {
 	const db = await getDrizzleDb();
+	// KII-132: TOCTOU between this read and the UPDATE inside the transaction —
+	// a concurrent caller can re-delete. Move the guard into the UPDATE's WHERE
+	// (`is_deleted = false`) and check `changes > 0`.
 	const entity = await getEntityById(id);
 	if (!entity || entity.is_deleted) {
 		return;

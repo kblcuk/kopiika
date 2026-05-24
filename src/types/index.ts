@@ -8,6 +8,10 @@ type DrizzlePlan = InferSelectModel<typeof schema.plans>;
 type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 
 // Convert Drizzle's null types to optional (undefined) for better TypeScript ergonomics
+// KII-132: the boolean fields below are made optional via `Omit + &`, which
+// forces `!== false` checks scattered throughout the codebase (e.g.
+// `utils/export.ts:33`). Default them at the DB read boundary instead and
+// keep these non-optional booleans on `Entity`.
 export type Entity = Omit<
 	DrizzleEntity,
 	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default' | 'is_investment'
@@ -68,6 +72,9 @@ export interface EntityWithBalance extends Entity {
 	latestMarketValue?: number | null; // accounts only: latest market value snapshot
 }
 
+// KII-132: `getCurrentPeriod` / `getPeriodRange` are runtime helpers living in
+// the types barrel. Move to `src/utils/period.ts` (or merge into `format.ts`)
+// so this file stays types-only.
 // Helper to get current period in YYYY-MM format
 export function getCurrentPeriod(): string {
 	const now = new Date();

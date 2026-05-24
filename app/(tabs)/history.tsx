@@ -47,6 +47,9 @@ interface TransactionSection {
 	isUnconfirmed?: boolean;
 }
 
+// KII-132: `formatDayLabel`, `groupTransactionsByDay`, `parseSnapshotDateInput`
+// and the other pure helpers below live in this screen module. Move to
+// `src/utils/` so they're reusable + unit-testable independently of the screen.
 function formatDayLabel(timestamp: number): string {
 	const date = new Date(timestamp);
 	const today = new Date();
@@ -285,6 +288,9 @@ export default function HistoryScreen() {
 		() => parseSnapshotDateInput(editingSnapshotDate),
 		[editingSnapshotDate]
 	);
+	// KII-132: memoized with `[]` deps — stale after midnight if the screen
+	// stays mounted across the day boundary. Either drop the memo (cheap to
+	// recompute) or document the limitation explicitly.
 	const todayStart = useMemo(() => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);

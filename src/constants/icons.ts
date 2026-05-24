@@ -1,5 +1,8 @@
 import type { EntityType } from '@/src/types';
 
+// KII-132: this list is maintained alongside `src/constants/icon-registry.ts`
+// — drift between the two is silent. Add a unit test asserting
+// `allEntityIcons ⊆ Object.keys(iconRegistry)`.
 const allEntityIcons = [
 	'briefcase',
 	'building',

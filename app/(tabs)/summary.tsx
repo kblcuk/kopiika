@@ -250,6 +250,9 @@ export default function SummaryScreen() {
 	}, [categories]);
 
 	// Sparkline trend: 3 prior months + selected period (categories only)
+	// KII-132: calls `getEntitiesWithBalance` 4× per render. The function walks
+	// the entire transactions array each call — precompute a single
+	// period→entity-actual map (one pass through transactions) instead.
 	const trendActuals = useMemo(() => {
 		const priorPeriods = getPriorPeriods(selectedPeriod, 3);
 		const allPeriods = [...priorPeriods, selectedPeriod];

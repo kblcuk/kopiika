@@ -32,6 +32,12 @@ export function useDragAutoScroll() {
 	const layoutHeight = useSharedValue(0);
 
 	// --- Section (horizontal) scroll ---
+	// KII-132: there are exactly 4 hard-coded sections via parallel SharedValue
+	// declarations and switch/case dispatch — abstracting was rejected by the
+	// 2026-05-16 audit (worklets can't index SharedValues dynamically). If a
+	// 5th section is ever added, every `switch`/parallel-array below needs
+	// updating. Consider a build-time assert that SECTION_COUNT === 4 if this
+	// constant is ever introduced.
 	const sectionRef0 = useAnimatedRef<Animated.ScrollView>();
 	const sectionRef1 = useAnimatedRef<Animated.ScrollView>();
 	const sectionRef2 = useAnimatedRef<Animated.ScrollView>();
@@ -69,6 +75,9 @@ export function useDragAutoScroll() {
 	const dragSourceIndex = useSharedValue(-1);
 	const remeasurePending = useSharedValue(false);
 
+	// KII-132: `Dimensions.get('window')` is captured once at hook init — stale
+	// across iPad split-view resizes and orientation changes. Switch to
+	// `useWindowDimensions()` so the values stay live.
 	const screenHeight = Dimensions.get('window').height;
 	const screenWidth = Dimensions.get('window').width;
 

@@ -9,6 +9,10 @@ export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): num
 
 	switch (rule.type) {
 		case 'daily':
+			// KII-132: `setDate(+1)` operates in local time and can drift across
+			// DST boundaries (a "daily" rule crossing spring/fall DST will
+			// silently shift by an hour). Add a DST-boundary regression test
+			// and consider snapping to local midnight before computing.
 			d.setDate(d.getDate() + 1);
 			break;
 		case 'weekly':

@@ -31,6 +31,8 @@ import {
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 export default function SettingsScreen() {
+	// KII-132: bare `useStore()` re-renders on every store change. Switch to
+	// `useShallow` selector — settings doesn't need fine-grained reactivity.
 	const {
 		entities,
 		plans,
@@ -329,6 +331,8 @@ export default function SettingsScreen() {
 							onValueChange={(enabled) => {
 								void handleToggleReminders(enabled);
 							}}
+							// KII-132: brand orange hardcoded here and in `app/(tabs)/_layout.tsx`.
+							// Pull from `src/theme/colors` so the brand color lives in one place.
 							trackColor={{ false: '#D1CBC0', true: '#D4652F' }}
 							thumbColor="#FFFBF5"
 						/>
@@ -343,6 +347,8 @@ export default function SettingsScreen() {
 				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
 					<Pressable
 						testID={TestIDs.settings.helpRow}
+						// KII-132: `as never` defeats expo-router's typed-route check. Use the
+						// typed route form (typed `Href` for `/help`) and drop the cast.
 						onPress={() => router.push('/help' as never)}
 						className="flex-row items-center justify-between border-b border-paper-300 px-4 py-3.5 active:bg-paper-200"
 					>

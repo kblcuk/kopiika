@@ -269,6 +269,9 @@ export async function updateTransactionNotificationId(
 		.where(eq(transactions.id, id));
 }
 
+// KII-132: N awaited round-trips, no transaction wrap. Replace with a
+// `CASE`-based bulk UPDATE or wrap the loop in `db.transaction(...)` so all
+// rows commit atomically.
 export async function updateTransactionNotificationIdsBatch(
 	updates: { id: string; notificationId: string | null }[]
 ): Promise<void> {

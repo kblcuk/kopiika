@@ -144,6 +144,8 @@ interface AppState {
 	deleteAllMarketValueSnapshots: (entityId: string) => Promise<void>;
 }
 
+// KII-132: module-level mutable promise — not reset by `useStore.setState(...)`
+// in tests, so a rejected initialize poisons later tests. Move into store state.
 let initializePromise: Promise<void> | null = null;
 
 function getActiveEntities(entities: Entity[]): Entity[] {
@@ -498,6 +500,8 @@ export const useStore = create<AppState>((set, get) => ({
 
 		// Reload entities to get updated positions
 		const updatedEntities = await db.getAllEntities();
+		// KII-132: `state` captured before await — non-functional set overwrites
+		// any concurrent `plans` mutation. Switch to functional updater.
 		set({
 			entities: updatedEntities,
 			plans: state.plans.filter((p) => p.entity_id !== id),
@@ -572,6 +576,9 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Transaction actions
 	addTransaction: async (transaction) => {
+		// KII-132: entities snapshot taken before await — a concurrent entity
+		// delete races into a DB write with stale validation. Re-validate after
+		// the write, or push validation into the DB write itself.
 		ensureValid(validateTransaction(transaction, get().entities));
 
 		const txWithConfirm = {
@@ -1022,6 +1029,7 @@ export const useStore = create<AppState>((set, get) => ({
 			timestamp: Date.now(),
 		};
 
+		// KII-132: same stale-entities-snapshot pattern as `addTransaction`.
 		ensureValid(validateTransaction(transaction, state.entities));
 
 		await db.createTransaction(transaction);
@@ -1095,6 +1103,9 @@ export function getEntitiesWithBalance(
 			? transactions
 			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
 
+		// KII-132: `is_confirmed === undefined` is treated as confirmed here
+		// (`!== false`) but as unconfirmed by the badge count (`=== false`).
+		// Normalize to a non-optional boolean at the DB read boundary.
 		// Split into confirmed past, unconfirmed past, and future
 		const pastConfirmed = relevantTransactions.filter(
 			(t) => t.timestamp <= now && t.is_confirmed !== false
@@ -1106,6 +1117,9 @@ export function getEntitiesWithBalance(
 			(t) => t.timestamp > now && t.timestamp <= end
 		);
 
+		// KII-132: `calcBalance` is redefined on every `.map()` iteration. Hoist
+		// to module scope (or just above this function) to dodge the per-row
+		// allocation.
 		function calcBalance(
 			txns: typeof relevantTransactions,
 			entityId: string,
