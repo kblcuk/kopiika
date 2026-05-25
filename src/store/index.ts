@@ -517,8 +517,7 @@ export const useStore = create<AppState>((set, get) => ({
 		// In DB: position = column index, row = row within that column
 		const updates: { id: string; row: number; position: number }[] = [];
 
-		for (let i = 0; i < orderedIds.length; i++) {
-			const id = orderedIds[i];
+		for (const [i, id] of orderedIds.entries()) {
 			const entity = state.entities.find((e) => e.id === id && !e.is_deleted);
 			if (!entity || entity.type !== type) continue;
 

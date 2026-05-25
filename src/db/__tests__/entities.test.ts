@@ -76,11 +76,11 @@ describe('entities.ts', () => {
 		test('should create entities of different types', async () => {
 			const types: EntityType[] = ['income', 'account', 'category', 'saving'];
 
-			for (let i = 0; i < types.length; i++) {
+			for (const [i, t] of types.entries()) {
 				const entity: Entity = {
 					id: `entity-${i}`,
-					type: types[i],
-					name: `Test ${types[i]}`,
+					type: t,
+					name: `Test ${t}`,
 					currency: 'USD',
 					order: i,
 					row: 0,
@@ -152,10 +152,10 @@ describe('entities.ts', () => {
 
 			// Should be ordered by type, then by order within type
 			// account (0, 1), category (0, 1)
-			expect(result[0].id).toBe('2'); // account, order 0
-			expect(result[1].id).toBe('4'); // account, order 1
-			expect(result[2].id).toBe('3'); // category, order 0
-			expect(result[3].id).toBe('1'); // category, order 1
+			expect(result[0]!.id).toBe('2'); // account, order 0
+			expect(result[1]!.id).toBe('4'); // account, order 1
+			expect(result[2]!.id).toBe('3'); // category, order 0
+			expect(result[3]!.id).toBe('1'); // category, order 1
 		});
 	});
 
@@ -231,8 +231,8 @@ describe('entities.ts', () => {
 
 		test('should return entities ordered by order field', async () => {
 			const categories = await getEntitiesByType('category');
-			expect(categories[0].id).toBe('5'); // order 0
-			expect(categories[1].id).toBe('4'); // order 1
+			expect(categories[0]!.id).toBe('5'); // order 0
+			expect(categories[1]!.id).toBe('4'); // order 1
 		});
 
 		test('should return empty array for type with no entities', async () => {

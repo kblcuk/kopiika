@@ -184,7 +184,7 @@ describe('transaction-builder', () => {
 				],
 			});
 			expect(rows).toHaveLength(1);
-			expect(rows[0].to_entity_id).toBe('cat-2');
+			expect(rows[0]!.to_entity_id).toBe('cat-2');
 		});
 
 		test('skips anchor when entity is not picked', () => {
@@ -199,8 +199,8 @@ describe('transaction-builder', () => {
 				],
 			});
 			expect(rows).toHaveLength(1);
-			expect(rows[0].to_entity_id).toBe('cat-2');
-			expect(rows[0].amount).toBe(30);
+			expect(rows[0]!.to_entity_id).toBe('cat-2');
+			expect(rows[0]!.amount).toBe(30);
 		});
 
 		test('skips non-anchor rows that lack entity or have non-positive amount', () => {
@@ -249,7 +249,7 @@ describe('transaction-builder', () => {
 					{ toEntityId: 'cat-3', amount: '33.33' },
 				],
 			});
-			expect(rows[0].amount).toBe(33.34);
+			expect(rows[0]!.amount).toBe(33.34);
 		});
 	});
 
@@ -288,7 +288,7 @@ describe('transaction-builder', () => {
 				],
 			});
 			expect(rows).toHaveLength(1);
-			expect(rows[0].from_entity_id).toBe('sav-4');
+			expect(rows[0]!.from_entity_id).toBe('sav-4');
 		});
 	});
 

@@ -183,7 +183,7 @@ describe('SettingsScreen reminders toggle', () => {
 				{ id: 'tx-1', notificationId: 'notif-123' },
 			]);
 			expect(registerBackgroundTask).toHaveBeenCalled();
-			expect(storeState.transactions[0].notification_id).toBe('notif-123');
+			expect(storeState.transactions[0]!.notification_id).toBe('notif-123');
 		});
 	});
 });

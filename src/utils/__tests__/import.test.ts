@@ -234,7 +234,7 @@ t1,nonexistent,e1,100,EUR,1706745600000,`;
 			kind: 'transaction',
 			id: 't1',
 		});
-		expect(result.droppable[0].reason).toContain('from_entity_id "nonexistent"');
+		expect(result.droppable[0]!.reason).toContain('from_entity_id "nonexistent"');
 	});
 
 	test('drops transaction referencing non-existent to entity', () => {
@@ -254,7 +254,7 @@ t1,e1,nonexistent,100,EUR,1706745600000,`;
 		if (!result.ok) return;
 		expect(result.data.transactions).toEqual([]);
 		expect(result.droppable).toHaveLength(1);
-		expect(result.droppable[0].reason).toContain('to_entity_id "nonexistent"');
+		expect(result.droppable[0]!.reason).toContain('to_entity_id "nonexistent"');
 	});
 
 	test('handles quoted fields with commas and escaped quotes in notes', () => {
@@ -274,9 +274,9 @@ t1,e1,e2,50,EUR,1706745600000,"Lunch at ""Joe's"", expensive"`;
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
-		expect(result.data.entities[0].name).toBe('My "Main" Account');
-		expect(result.data.entities[1].name).toBe('Food, Drinks');
-		expect(result.data.transactions[0].note).toBe('Lunch at "Joe\'s", expensive');
+		expect(result.data.entities[0]!.name).toBe('My "Main" Account');
+		expect(result.data.entities[1]!.name).toBe('Food, Drinks');
+		expect(result.data.transactions[0]!.note).toBe('Lunch at "Joe\'s", expensive');
 	});
 
 	test('auto-inserts system entity when missing', () => {
@@ -506,7 +506,7 @@ t1,__system_balance_adjustment__,e1,100,EUR,1706745600000,Correction`;
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.transactions).toHaveLength(1);
-		expect(result.data.transactions[0].from_entity_id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
+		expect(result.data.transactions[0]!.from_entity_id).toBe(BALANCE_ADJUSTMENT_ENTITY_ID);
 	});
 
 	test('parses recurrence_templates section', () => {
@@ -529,7 +529,7 @@ rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.recurrenceTemplates).toHaveLength(1);
-		const t = result.data.recurrenceTemplates[0];
+		const t = result.data.recurrenceTemplates[0]!;
 		expect(t.id).toBe('rt1');
 		expect(t.from_entity_id).toBe('e1');
 		expect(t.amount).toBe(50);
@@ -575,7 +575,7 @@ rt1,e1,e-gone,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,17067455
 			kind: 'recurrenceTemplate',
 			id: 'rt1',
 		});
-		expect(result.droppable[0].reason).toContain('to_entity_id "e-gone"');
+		expect(result.droppable[0]!.reason).toContain('to_entity_id "e-gone"');
 	});
 
 	test('drops recurrence_template referencing unknown from entity', () => {
@@ -602,7 +602,7 @@ rt1,e-gone,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,17067455
 			kind: 'recurrenceTemplate',
 			id: 'rt1',
 		});
-		expect(result.droppable[0].reason).toContain('from_entity_id "e-gone"');
+		expect(result.droppable[0]!.reason).toContain('from_entity_id "e-gone"');
 	});
 
 	test('happy-path parse returns empty droppable', () => {

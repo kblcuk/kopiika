@@ -85,7 +85,7 @@ function groupTransactionsByDay(transactions: Transaction[]): TransactionSection
 	return Array.from(groups.entries())
 		.sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
 		.map(([_, txs]) => ({
-			title: formatDayLabel(txs[0].timestamp),
+			title: formatDayLabel(txs[0]!.timestamp),
 			data: txs.sort((a, b) => b.timestamp - a.timestamp),
 		}));
 }

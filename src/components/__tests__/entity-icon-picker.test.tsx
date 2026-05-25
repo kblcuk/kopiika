@@ -15,7 +15,7 @@ describe('EntityIconPicker', () => {
 		const { getByTestId, getByText, queryByText, queryByTestId } = render(
 			<EntityIconPicker
 				icons={icons}
-				selectedIcon={icons[0]}
+				selectedIcon={icons[0]!}
 				onSelect={onSelect}
 				optionTestIDPrefix="entity-icon-option"
 			/>

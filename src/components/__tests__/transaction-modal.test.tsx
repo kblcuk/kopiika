@@ -1328,7 +1328,7 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('transaction-delete-button'));
 
 			// Simulate pressing "Delete" in the alert
-			const destructiveButton = alertSpy.mock.calls[0][2]?.find(
+			const destructiveButton = alertSpy.mock.calls[0]![2]?.find(
 				(btn: any) => btn.style === 'destructive'
 			);
 			destructiveButton?.onPress?.();

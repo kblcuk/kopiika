@@ -38,7 +38,7 @@ export async function getAmount(entityName: string): Promise<number> {
 	const attrs = await element(by.id(TestIDs.entityAmount(entityName))).getAttributes();
 	if ('elements' in attrs) {
 		console.warn(`Found multiple entities matching [${entityName}], using first one`);
-		return parseFloat(attrs.elements[0].label ?? '');
+		return parseFloat(attrs.elements[0]!.label ?? '');
 	}
 	return parseFloat(attrs.label ?? '');
 }

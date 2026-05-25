@@ -83,7 +83,7 @@ export function getCurrentPeriod(): string {
 
 // Helper to get period start/end timestamps
 export function getPeriodRange(period: string): { start: number; end: number } {
-	const [year, month] = period.split('-').map(Number);
+	const [year, month] = period.split('-').map(Number) as [number, number];
 	const start = new Date(year, month - 1, 1).getTime();
 	const end = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 	return { start, end };

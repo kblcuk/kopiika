@@ -52,14 +52,12 @@ export function pickHoveredSection(
 	maxOffsets: readonly number[]
 ): number {
 	'worklet';
-	const len = bounds.length;
-	for (let i = 0; i < len; i++) {
-		const b = bounds[i];
+	for (const [i, b] of bounds.entries()) {
 		const screenTop = b.top - scrollOffsetY;
 		const screenBottom = b.bot - scrollOffsetY;
 		if (screenBottom <= screenTop) continue;
 		if (touchY < screenTop || touchY > screenBottom) continue;
-		if (maxOffsets[i] <= 0) continue;
+		if ((maxOffsets[i] ?? 0) <= 0) continue;
 		return i;
 	}
 	return -1;

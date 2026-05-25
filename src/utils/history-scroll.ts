@@ -11,5 +11,5 @@ export interface InitialScrollSection {
 // Otherwise, default to the top.
 export function pickInitialScrollSectionIndex(sections: InitialScrollSection[]): number {
 	if (sections.length <= 1) return 0;
-	return sections[0].isUpcoming ? 1 : 0;
+	return sections[0]!.isUpcoming ? 1 : 0;
 }

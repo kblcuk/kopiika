@@ -91,7 +91,7 @@ describe('Store Data Integrity', () => {
 			expect(state.entities.find((e) => e.id === 'entity-temp')?.is_deleted).toBe(true);
 			// Should filter out orphaned plan
 			expect(state.plans).toHaveLength(1);
-			expect(state.plans[0].id).toBe('plan-1');
+			expect(state.plans[0]!.id).toBe('plan-1');
 		});
 
 		test('should load all data when no orphaned plans exist', async () => {
@@ -257,7 +257,7 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.plans).toHaveLength(1);
-			expect(state.plans[0].planned_amount).toBe(2000);
+			expect(state.plans[0]!.planned_amount).toBe(2000);
 
 			// Verify it was updated in database
 			const dbPlan = await db.getPlanForEntity('entity-1', '2026-01');
@@ -373,7 +373,7 @@ describe('Store Data Integrity', () => {
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
 			expect(state.transactions[0]).toMatchObject(transaction);
-			expect(state.transactions[0].is_confirmed).toBe(true);
+			expect(state.transactions[0]!.is_confirmed).toBe(true);
 
 			// Verify it was written to database
 			const dbTransactions = await db.getAllTransactions();
@@ -1112,7 +1112,7 @@ describe('Store Data Integrity', () => {
 			expect(state.entities.find((e) => e.id === 'entity-2')).toBeTruthy();
 			expect(state.entities.find((e) => e.id === 'entity-1')?.is_deleted).toBe(true);
 			expect(state.plans).toHaveLength(1);
-			expect(state.plans[0].id).toBe('plan-2');
+			expect(state.plans[0]!.id).toBe('plan-2');
 
 			// Verify it was soft-deleted in the database
 			const dbEntity = await db.getEntityById('entity-1');
@@ -1158,7 +1158,7 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0].to_entity_id).toBe(account.id);
+			expect(state.transactions[0]!.to_entity_id).toBe(account.id);
 			expect(state.entities.find((e) => e.id === account.id)?.is_deleted).toBe(true);
 		});
 	});
@@ -1290,7 +1290,7 @@ describe('Store Data Integrity', () => {
 					[t.from_entity_id, t.to_entity_id].includes('income-1')
 			);
 			expect(incomeTransactionsInPeriod).toHaveLength(1);
-			expect(incomeTransactionsInPeriod[0].amount).toBe(5000);
+			expect(incomeTransactionsInPeriod[0]!.amount).toBe(5000);
 
 			// Categories should only count current period transactions
 			const categoryTransactionsInPeriod = state.transactions.filter(
@@ -1300,7 +1300,7 @@ describe('Store Data Integrity', () => {
 					t.to_entity_id === 'category-1'
 			);
 			expect(categoryTransactionsInPeriod).toHaveLength(1);
-			expect(categoryTransactionsInPeriod[0].amount).toBe(300);
+			expect(categoryTransactionsInPeriod[0]!.amount).toBe(300);
 		});
 
 		test('should use all-time transactions for accounts and savings', async () => {
@@ -1916,7 +1916,7 @@ describe('Store Data Integrity', () => {
 
 			state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0].amount).toBe(750);
+			expect(state.transactions[0]!.amount).toBe(750);
 
 			// Balance should reflect updated amount
 			accountBalance = state.transactions.reduce(
@@ -2124,10 +2124,10 @@ describe('Store Data Integrity', () => {
 				'income'
 			);
 			expect(incomeEntities).toHaveLength(1);
-			expect(incomeEntities[0].id).toBe('income-1');
-			expect(incomeEntities[0].planned).toBe(5000);
-			expect(incomeEntities[0].actual).toBe(5000); // Money out from income
-			expect(incomeEntities[0].remaining).toBe(0);
+			expect(incomeEntities[0]!.id).toBe('income-1');
+			expect(incomeEntities[0]!.planned).toBe(5000);
+			expect(incomeEntities[0]!.actual).toBe(5000); // Money out from income
+			expect(incomeEntities[0]!.remaining).toBe(0);
 
 			// Test account entities (all-time balance, reserved derived from account->saving txns)
 			const accountEntities = getEntitiesWithBalance(
@@ -2138,11 +2138,11 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 			expect(accountEntities).toHaveLength(1);
-			expect(accountEntities[0].id).toBe('account-1');
-			expect(accountEntities[0].planned).toBe(0); // No plan
-			expect(accountEntities[0].actual).toBe(3800); // +5000 -200 -1000 (txns) = 3800 (full bank balance)
-			expect(accountEntities[0].reserved).toBe(1000); // derived from account->saving txns
-			expect(accountEntities[0].remaining).toBe(-3800);
+			expect(accountEntities[0]!.id).toBe('account-1');
+			expect(accountEntities[0]!.planned).toBe(0); // No plan
+			expect(accountEntities[0]!.actual).toBe(3800); // +5000 -200 -1000 (txns) = 3800 (full bank balance)
+			expect(accountEntities[0]!.reserved).toBe(1000); // derived from account->saving txns
+			expect(accountEntities[0]!.remaining).toBe(-3800);
 
 			// Test category entities (current period only)
 			const categoryEntities = getEntitiesWithBalance(
@@ -2153,10 +2153,10 @@ describe('Store Data Integrity', () => {
 				'category'
 			);
 			expect(categoryEntities).toHaveLength(1);
-			expect(categoryEntities[0].id).toBe('category-1');
-			expect(categoryEntities[0].planned).toBe(300);
-			expect(categoryEntities[0].actual).toBe(200);
-			expect(categoryEntities[0].remaining).toBe(100);
+			expect(categoryEntities[0]!.id).toBe('category-1');
+			expect(categoryEntities[0]!.planned).toBe(300);
+			expect(categoryEntities[0]!.actual).toBe(200);
+			expect(categoryEntities[0]!.remaining).toBe(100);
 
 			// Test saving entities (balance from account->saving transactions)
 			const savingEntities = getEntitiesWithBalance(
@@ -2167,10 +2167,10 @@ describe('Store Data Integrity', () => {
 				'saving'
 			);
 			expect(savingEntities).toHaveLength(1);
-			expect(savingEntities[0].id).toBe('saving-1');
-			expect(savingEntities[0].planned).toBe(10000);
-			expect(savingEntities[0].actual).toBe(1000);
-			expect(savingEntities[0].remaining).toBe(9000);
+			expect(savingEntities[0]!.id).toBe('saving-1');
+			expect(savingEntities[0]!.planned).toBe(10000);
+			expect(savingEntities[0]!.actual).toBe(1000);
+			expect(savingEntities[0]!.remaining).toBe(9000);
 		});
 
 		test('should use all-time transactions for accounts and savings, current period for income and categories', () => {
@@ -2281,7 +2281,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'income'
 			);
-			expect(incomeEntities[0].actual).toBe(5000); // Only Jan, not Dec
+			expect(incomeEntities[0]!.actual).toBe(5000); // Only Jan, not Dec
 
 			// Account: all txns (4000 - 300 + 5000 - 200 - 1500 = 7000), reserved derived from txns
 			const accountEntities = getEntitiesWithBalance(
@@ -2291,8 +2291,8 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'account'
 			);
-			expect(accountEntities[0].actual).toBe(7000); // All-time balance
-			expect(accountEntities[0].reserved).toBe(1500); // Derived from account->saving txns
+			expect(accountEntities[0]!.actual).toBe(7000); // All-time balance
+			expect(accountEntities[0]!.reserved).toBe(1500); // Derived from account->saving txns
 
 			// Category: only January transactions (200)
 			const categoryEntities = getEntitiesWithBalance(
@@ -2302,7 +2302,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0].actual).toBe(200); // Only Jan, not Dec
+			expect(categoryEntities[0]!.actual).toBe(200); // Only Jan, not Dec
 
 			// Saving: balance from account->saving transactions (1500)
 			const savingEntities = getEntitiesWithBalance(
@@ -2312,7 +2312,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'saving'
 			);
-			expect(savingEntities[0].actual).toBe(1500); // From transactions
+			expect(savingEntities[0]!.actual).toBe(1500); // From transactions
 		});
 
 		test('should look up plans with correct period type', () => {
@@ -2396,7 +2396,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0].planned).toBe(300);
+			expect(categoryEntities[0]!.planned).toBe(300);
 
 			// Saving should use all-time plan (10000), not monthly plan (500)
 			const savingEntities = getEntitiesWithBalance(
@@ -2406,7 +2406,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'saving'
 			);
-			expect(savingEntities[0].planned).toBe(10000);
+			expect(savingEntities[0]!.planned).toBe(10000);
 		});
 
 		test('should handle entities with no plans', () => {
@@ -2457,9 +2457,9 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'income'
 			);
-			expect(incomeEntities[0].planned).toBe(0);
-			expect(incomeEntities[0].actual).toBe(1000);
-			expect(incomeEntities[0].remaining).toBe(-1000);
+			expect(incomeEntities[0]!.planned).toBe(0);
+			expect(incomeEntities[0]!.actual).toBe(1000);
+			expect(incomeEntities[0]!.remaining).toBe(-1000);
 
 			const accountEntities = getEntitiesWithBalance(
 				state.entities,
@@ -2468,9 +2468,9 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'account'
 			);
-			expect(accountEntities[0].planned).toBe(0);
-			expect(accountEntities[0].actual).toBe(1000);
-			expect(accountEntities[0].remaining).toBe(-1000);
+			expect(accountEntities[0]!.planned).toBe(0);
+			expect(accountEntities[0]!.actual).toBe(1000);
+			expect(accountEntities[0]!.remaining).toBe(-1000);
 		});
 
 		test('should handle entities with no transactions', () => {
@@ -2510,9 +2510,9 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0].planned).toBe(500);
-			expect(categoryEntities[0].actual).toBe(0);
-			expect(categoryEntities[0].remaining).toBe(500);
+			expect(categoryEntities[0]!.planned).toBe(500);
+			expect(categoryEntities[0]!.actual).toBe(0);
+			expect(categoryEntities[0]!.remaining).toBe(500);
 		});
 
 		test('should handle multiple entities of the same type', () => {
@@ -2601,22 +2601,22 @@ describe('Store Data Integrity', () => {
 			expect(categories).toHaveLength(3);
 
 			// Check they're sorted by order
-			expect(categories[0].id).toBe('category-1');
-			expect(categories[1].id).toBe('category-2');
-			expect(categories[2].id).toBe('category-3');
+			expect(categories[0]!.id).toBe('category-1');
+			expect(categories[1]!.id).toBe('category-2');
+			expect(categories[2]!.id).toBe('category-3');
 
 			// Check balances
-			expect(categories[0].planned).toBe(300);
-			expect(categories[0].actual).toBe(200);
-			expect(categories[0].remaining).toBe(100);
+			expect(categories[0]!.planned).toBe(300);
+			expect(categories[0]!.actual).toBe(200);
+			expect(categories[0]!.remaining).toBe(100);
 
-			expect(categories[1].planned).toBe(150);
-			expect(categories[1].actual).toBe(100);
-			expect(categories[1].remaining).toBe(50);
+			expect(categories[1]!.planned).toBe(150);
+			expect(categories[1]!.actual).toBe(100);
+			expect(categories[1]!.remaining).toBe(50);
 
-			expect(categories[2].planned).toBe(0); // No plan
-			expect(categories[2].actual).toBe(0); // No transactions
-			expect(categories[2].remaining).toBe(0);
+			expect(categories[2]!.planned).toBe(0); // No plan
+			expect(categories[2]!.actual).toBe(0); // No transactions
+			expect(categories[2]!.remaining).toBe(0);
 		});
 
 		test('should calculate income balance correctly (money flowing out is positive)', () => {
@@ -2679,7 +2679,7 @@ describe('Store Data Integrity', () => {
 				'income'
 			);
 			// Income: +5000 (out) -100 (in) = 4900
-			expect(incomeEntities[0].actual).toBe(4900);
+			expect(incomeEntities[0]!.actual).toBe(4900);
 		});
 
 		test('should calculate account balance correctly (money in is positive, money out is negative)', () => {
@@ -2752,7 +2752,7 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 			// Account: +5000 (in) -1500 (out) = 3500
-			expect(accountEntities[0].actual).toBe(3500);
+			expect(accountEntities[0]!.actual).toBe(3500);
 		});
 
 		test('should only count incoming transactions for categories and savings', () => {
@@ -2835,7 +2835,7 @@ describe('Store Data Integrity', () => {
 				'category'
 			);
 			// Category: only incoming (300), not outgoing (50)
-			expect(categoryEntities[0].actual).toBe(300);
+			expect(categoryEntities[0]!.actual).toBe(300);
 
 			const savingEntities = getEntitiesWithBalance(
 				state.entities,
@@ -2845,7 +2845,7 @@ describe('Store Data Integrity', () => {
 				'saving'
 			);
 			// Saving: balance from account->saving transactions (net flow)
-			expect(savingEntities[0].actual).toBe(1000);
+			expect(savingEntities[0]!.actual).toBe(1000);
 		});
 	});
 
@@ -2889,7 +2889,7 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 			expect(accountEntities).toHaveLength(1);
-			expect(accountEntities[0].id).toBe('account-1');
+			expect(accountEntities[0]!.id).toBe('account-1');
 		});
 
 		test('should prevent deletion of system entity', async () => {
@@ -3111,7 +3111,7 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().addTransaction(adjustment);
 
 			expect(useStore.getState().transactions).toHaveLength(1);
-			expect(useStore.getState().transactions[0].amount).toBe(500);
+			expect(useStore.getState().transactions[0]!.amount).toBe(500);
 		});
 
 		test('should include adjustment transactions in account balance calculations via getEntitiesWithBalance', async () => {
@@ -3175,7 +3175,7 @@ describe('Store Data Integrity', () => {
 
 			// Account balance should include both regular and adjustment transactions
 			// +5000 (from income) +200 (adjustment) = 5200
-			expect(accountEntities[0].actual).toBe(5200);
+			expect(accountEntities[0]!.actual).toBe(5200);
 		});
 
 		test('should return upcoming: 0 when no future transactions exist', () => {
@@ -3222,8 +3222,8 @@ describe('Store Data Integrity', () => {
 				'2026-01',
 				'category'
 			);
-			expect(cats[0].upcoming).toBe(0);
-			expect(cats[0].actual).toBe(50);
+			expect(cats[0]!.upcoming).toBe(0);
+			expect(cats[0]!.actual).toBe(50);
 		});
 		test('should handle decimal amounts without floating point precision issues', async () => {
 			const account: Entity = {
@@ -3381,6 +3381,7 @@ describe('Store Data Integrity', () => {
 				incomeVisible: false,
 			});
 			const state = useStore.getState();
+			// `[0]!` is safe — every test seeds baseEntities with one of each type.
 			return {
 				income: getEntitiesWithBalance(
 					state.entities,
@@ -3388,28 +3389,28 @@ describe('Store Data Integrity', () => {
 					transactions,
 					'2026-01',
 					'income'
-				)[0],
+				)[0]!,
 				account: getEntitiesWithBalance(
 					state.entities,
 					state.plans,
 					transactions,
 					'2026-01',
 					'account'
-				)[0],
+				)[0]!,
 				category: getEntitiesWithBalance(
 					state.entities,
 					state.plans,
 					transactions,
 					'2026-01',
 					'category'
-				)[0],
+				)[0]!,
 				saving: getEntitiesWithBalance(
 					state.entities,
 					state.plans,
 					transactions,
 					'2026-01',
 					'saving'
-				)[0],
+				)[0]!,
 			};
 		}
 
@@ -3714,9 +3715,9 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0].from_entity_id).toBe('account-1');
-			expect(state.transactions[0].to_entity_id).toBe('saving-1');
-			expect(state.transactions[0].amount).toBe(500);
+			expect(state.transactions[0]!.from_entity_id).toBe('account-1');
+			expect(state.transactions[0]!.to_entity_id).toBe('saving-1');
+			expect(state.transactions[0]!.amount).toBe(500);
 		});
 
 		test('creates saving -> account transaction when desiredTotal < current net', async () => {
@@ -3731,7 +3732,7 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(2);
-			const releaseTx = state.transactions[0]; // newest first
+			const releaseTx = state.transactions[0]!; // newest first
 			expect(releaseTx.from_entity_id).toBe('saving-1');
 			expect(releaseTx.to_entity_id).toBe('account-1');
 			expect(releaseTx.amount).toBe(300);
@@ -3760,7 +3761,7 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(2);
-			const releaseTx = state.transactions[0]; // newest first
+			const releaseTx = state.transactions[0]!; // newest first
 			expect(releaseTx.from_entity_id).toBe('saving-1');
 			expect(releaseTx.to_entity_id).toBe('account-1');
 			expect(releaseTx.amount).toBe(800);
@@ -3813,9 +3814,9 @@ describe('Store Data Integrity', () => {
 			);
 
 			// actual = 5000 - 500 - 300 = 4200
-			expect(accountEntities[0].actual).toBe(4200);
+			expect(accountEntities[0]!.actual).toBe(4200);
 			// reserved = sum of net account->saving flows (800)
-			expect(accountEntities[0].reserved).toBe(800);
+			expect(accountEntities[0]!.reserved).toBe(800);
 
 			// Savings get their balance from transactions
 			const savingEntities = getEntitiesWithBalance(
@@ -3826,8 +3827,8 @@ describe('Store Data Integrity', () => {
 				'saving'
 			);
 
-			expect(savingEntities[0].actual).toBe(500); // saving-1
-			expect(savingEntities[1].actual).toBe(300); // saving-2
+			expect(savingEntities[0]!.actual).toBe(500); // saving-1
+			expect(savingEntities[1]!.actual).toBe(300); // saving-2
 		});
 
 		test('saving balance aggregates transactions from multiple accounts', () => {
@@ -3869,9 +3870,9 @@ describe('Store Data Integrity', () => {
 			);
 
 			// saving-1 should sum both accounts' transactions
-			expect(savingEntities[0].actual).toBe(700);
+			expect(savingEntities[0]!.actual).toBe(700);
 			// saving-2 has no transactions
-			expect(savingEntities[1].actual).toBe(0);
+			expect(savingEntities[1]!.actual).toBe(0);
 
 			// Each account's reserved field should only reflect its own savings txns
 			const accountEntities = getEntitiesWithBalance(
@@ -3882,8 +3883,8 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 
-			expect(accountEntities[0].reserved).toBe(500); // account-1
-			expect(accountEntities[1].reserved).toBe(200); // account-2
+			expect(accountEntities[0]!.reserved).toBe(500); // account-1
+			expect(accountEntities[1]!.reserved).toBe(200); // account-2
 		});
 	});
 
@@ -3942,7 +3943,7 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now() - 86400000,
 			});
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(true);
 		});
 
 		test('addTransaction: future-dated transaction is unconfirmed', async () => {
@@ -3955,7 +3956,7 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now() + 86400000,
 			});
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(false);
 		});
 
 		test('addTransaction: explicit is_confirmed is preserved', async () => {
@@ -3969,7 +3970,7 @@ describe('Store Data Integrity', () => {
 				is_confirmed: true,
 			});
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(true);
 		});
 
 		test('confirmTransaction: flips is_confirmed in store and DB', async () => {
@@ -3982,11 +3983,11 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now() + 86400000,
 			});
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(false);
 
 			await useStore.getState().confirmTransaction('tx-unconfirmed');
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(true);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(true);
 
 			const dbTxns = await db.getAllTransactions();
 			expect(dbTxns.find((t) => t.id === 'tx-unconfirmed')?.is_confirmed).toBe(true);
@@ -4072,9 +4073,9 @@ describe('Store Data Integrity', () => {
 			);
 
 			// Only the confirmed 200 should be in actual
-			expect(categories[0].actual).toBe(200);
+			expect(categories[0]!.actual).toBe(200);
 			// The unconfirmed 300 should be in unconfirmed
-			expect(categories[0].unconfirmed).toBe(300);
+			expect(categories[0]!.unconfirmed).toBe(300);
 		});
 
 		test('updateTransaction: editing future tx date to past keeps is_confirmed false', async () => {
@@ -4088,7 +4089,7 @@ describe('Store Data Integrity', () => {
 				timestamp: Date.now() + 86400000,
 			});
 
-			expect(useStore.getState().transactions[0].is_confirmed).toBe(false);
+			expect(useStore.getState().transactions[0]!.is_confirmed).toBe(false);
 
 			// Edit the date to the past — is_confirmed should stay false (needs manual confirm)
 			await useStore.getState().updateTransaction('tx-future-edit', {
@@ -4125,9 +4126,9 @@ describe('Store Data Integrity', () => {
 				'category'
 			);
 
-			expect(categories[0].actual).toBe(0);
-			expect(categories[0].upcoming).toBe(150);
-			expect(categories[0].unconfirmed).toBe(0);
+			expect(categories[0]!.actual).toBe(0);
+			expect(categories[0]!.upcoming).toBe(150);
+			expect(categories[0]!.unconfirmed).toBe(0);
 		});
 	});
 
@@ -4345,7 +4346,7 @@ describe('Store Data Integrity', () => {
 			]);
 			expect(state.plans).toEqual(importedPlans);
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0]).toMatchObject(importedTransactions[0]);
+			expect(state.transactions[0]).toMatchObject(importedTransactions[0]!);
 			expect(state.marketValueSnapshots).toEqual(importedSnapshots);
 			expect(state.recurrenceTemplates).toEqual([]);
 
@@ -4454,9 +4455,9 @@ describe('Store Data Integrity', () => {
 			expect(
 				useStore.getState().entities.find((entity) => entity.id === investment.id)?.name
 			).toBe('Updated investment');
-			expect(useStore.getState().marketValueSnapshots).toEqual([snapshots[1]]);
+			expect(useStore.getState().marketValueSnapshots).toEqual([snapshots[1]!]);
 			expect(await db.getMarketValueSnapshots(investment.id)).toEqual([]);
-			expect(await db.getMarketValueSnapshots(other.id)).toEqual([snapshots[1]]);
+			expect(await db.getMarketValueSnapshots(other.id)).toEqual([snapshots[1]!]);
 		});
 
 		test('setDefaultAccount keeps only one default account and can clear it', async () => {
@@ -4970,7 +4971,7 @@ describe('Store Data Integrity', () => {
 				[]
 			);
 
-			expect(result[0].latestMarketValue).toBeNull();
+			expect(result[0]!.latestMarketValue).toBeNull();
 		});
 
 		test('getEntitiesWithBalance ignores snapshots for non-investment accounts', () => {
@@ -4993,7 +4994,7 @@ describe('Store Data Integrity', () => {
 				snapshots
 			);
 
-			expect(result[0].latestMarketValue).toBeNull();
+			expect(result[0]!.latestMarketValue).toBeNull();
 		});
 
 		test('store actions manage market value snapshots', async () => {

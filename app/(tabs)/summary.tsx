@@ -20,7 +20,7 @@ import { colors } from '@/src/theme/colors';
 
 /** Returns the N months before `currentPeriod`, oldest first (e.g. ['2025-11','2025-12','2026-01']). */
 function getPriorPeriods(currentPeriod: string, count: number): string[] {
-	const [year, month] = currentPeriod.split('-').map(Number);
+	const [year, month] = currentPeriod.split('-').map(Number) as [number, number];
 	return Array.from({ length: count }, (_, i) => {
 		const offset = count - i; // count-1 months ago … 1 month ago
 		const d = new Date(year, month - 1 - offset, 1);

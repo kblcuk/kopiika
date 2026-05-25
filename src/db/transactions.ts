@@ -306,7 +306,7 @@ export async function replaceTransactionAtomic(
 					`replaceTransactionAtomic: recurrence template ${templateId} not found`
 				);
 			}
-			const current: number[] = JSON.parse(rows[0].exclusions ?? '[]');
+			const current: number[] = JSON.parse(rows[0]!.exclusions ?? '[]');
 			current.push(timestamp);
 			tx.update(recurrenceTemplates)
 				.set({ exclusions: JSON.stringify(current) })

@@ -71,8 +71,8 @@ describe('market-values.ts', () => {
 
 			const result = await getMarketValueSnapshots('entity-1');
 			expect(result).toHaveLength(2);
-			expect(result[0].id).toBe('snap-2');
-			expect(result[1].id).toBe('snap-1');
+			expect(result[0]!.id).toBe('snap-2');
+			expect(result[1]!.id).toBe('snap-1');
 		});
 
 		test('should return empty array when no snapshots exist', async () => {
@@ -241,8 +241,8 @@ describe('market-values.ts', () => {
 
 			const result = await getAllMarketValueSnapshots();
 			expect(result).toHaveLength(2);
-			expect(result[0].id).toBe('snap-2');
-			expect(result[1].id).toBe('snap-1');
+			expect(result[0]!.id).toBe('snap-2');
+			expect(result[1]!.id).toBe('snap-1');
 		});
 	});
 });

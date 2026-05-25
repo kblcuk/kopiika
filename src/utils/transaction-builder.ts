@@ -89,7 +89,7 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	}, 0);
 	const anchorAmount = roundMoney(args.splitTotal - otherSum);
 
-	const anchor = args.splits[0];
+	const anchor = args.splits[0]!;
 	if (anchor.toEntityId && anchorAmount > 0) {
 		rows.push(
 			buildTransaction(

@@ -108,9 +108,9 @@ export default function SetupScreen() {
 				);
 				let targetRow = 0;
 				for (let i = 1; i < maxRows; i++) {
-					if (rowCounts[i] < rowCounts[targetRow]) targetRow = i;
+					if (rowCounts[i]! < rowCounts[targetRow]!) targetRow = i;
 				}
-				const position = rowCounts[targetRow];
+				const position = rowCounts[targetRow]!;
 				const entityId = generateId();
 				customEntities.push({
 					id: entityId,

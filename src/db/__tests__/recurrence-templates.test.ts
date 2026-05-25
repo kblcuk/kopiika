@@ -57,7 +57,7 @@ describe('recurrence-templates.ts', () => {
 		await createRecurrenceTemplate({ ...baseTemplate, id: 'rec-2', is_deleted: true });
 		const all = await getAllRecurrenceTemplates();
 		expect(all.length).toBe(1);
-		expect(all[0].id).toBe('rec-1');
+		expect(all[0]!.id).toBe('rec-1');
 	});
 
 	test('updateRecurrenceTemplate', async () => {

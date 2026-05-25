@@ -198,7 +198,7 @@ export function useDragAutoScroll() {
 				];
 				const idx = pickHoveredSection(touchY.value, currentScrollY, bounds, maxOffsets);
 				if (idx >= 0) {
-					const maxH = maxOffsets[idx];
+					const maxH = maxOffsets[idx]!;
 					const currentH = getSectionOffset(idx);
 					const newH = Math.max(0, Math.min(maxH, currentH + hSpeed));
 					if (Math.abs(newH - currentH) >= 1) {
@@ -251,8 +251,8 @@ export function useDragAutoScroll() {
 	const updateSectionBounds = useCallback(
 		(index: number, screenY: number, height: number) => {
 			const contentY = screenY + scrollOffset.value;
-			boundSetters[index].top.value = contentY;
-			boundSetters[index].bot.value = contentY + height;
+			boundSetters[index]!.top.value = contentY;
+			boundSetters[index]!.bot.value = contentY + height;
 		},
 		// boundSetters is stable (refs don't change), scrollOffset is a SharedValue
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +263,7 @@ export function useDragAutoScroll() {
 
 	const updateSectionMaxOffset = useCallback(
 		(index: number, contentWidth: number, visibleWidth: number) => {
-			maxOffsetSetters[index].value = Math.max(0, contentWidth - visibleWidth);
+			maxOffsetSetters[index]!.value = Math.max(0, contentWidth - visibleWidth);
 		},
 		// maxOffsetSetters is stable (SharedValues don't change identity)
 		// eslint-disable-next-line react-hooks/exhaustive-deps

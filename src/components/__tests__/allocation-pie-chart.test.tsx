@@ -74,7 +74,7 @@ describe('AllocationPieChart', () => {
 
 		rerender(
 			<AllocationPieChart
-				slices={[slices[1]]}
+				slices={[slices[1]!]}
 				currency="EUR"
 				totalLabel="Categories"
 				onSlicePress={onSlicePress}

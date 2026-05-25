@@ -83,9 +83,9 @@ describe('plans.ts', () => {
 			const result = await getAllPlans();
 			expect(result).toHaveLength(3);
 			// Should be ordered by period_start DESC
-			expect(result[0].period_start).toBe('2025-03');
-			expect(result[1].period_start).toBe('2025-02');
-			expect(result[2].period_start).toBe('2025-01');
+			expect(result[0]!.period_start).toBe('2025-03');
+			expect(result[1]!.period_start).toBe('2025-02');
+			expect(result[2]!.period_start).toBe('2025-01');
 		});
 	});
 
@@ -186,8 +186,8 @@ describe('plans.ts', () => {
 
 			const all = await getAllPlans();
 			expect(all).toHaveLength(1);
-			expect(all[0].id).toBe('plan-upsert-dup-a'); // ON CONFLICT keeps the original row
-			expect(all[0].planned_amount).toBe(1500); // planned_amount is overwritten
+			expect(all[0]!.id).toBe('plan-upsert-dup-a'); // ON CONFLICT keeps the original row
+			expect(all[0]!.planned_amount).toBe(1500); // planned_amount is overwritten
 		});
 
 		test('should handle multiple upserts idempotently', async () => {

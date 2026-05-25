@@ -52,7 +52,7 @@ describe('theme tokens referenced in className strings', () => {
 		for (const file of files) {
 			const text = await readFile(file, 'utf8');
 			for (const match of text.matchAll(TOKEN_RE)) {
-				const [token, group, shade] = match;
+				const [token, group, shade] = match as unknown as [string, string, string];
 				const groupEntry = palette[group];
 				if (!groupEntry) continue; // not a known color group (e.g. `text-2xl` filtered by regex anyway)
 				if (!(shade in groupEntry)) {

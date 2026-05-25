@@ -183,9 +183,9 @@ describe('transactions.ts', () => {
 			const result = await getAllTransactions();
 			expect(result).toHaveLength(3);
 			// Should be ordered by timestamp DESC
-			expect(result[0].id).toBe('tx-2'); // Most recent
-			expect(result[1].id).toBe('tx-3');
-			expect(result[2].id).toBe('tx-1'); // Oldest
+			expect(result[0]!.id).toBe('tx-2'); // Most recent
+			expect(result[1]!.id).toBe('tx-3');
+			expect(result[2]!.id).toBe('tx-1'); // Oldest
 		});
 	});
 
@@ -233,7 +233,7 @@ describe('transactions.ts', () => {
 
 			const result = await getTransactionsByPeriod(febStart, febEnd);
 			expect(result).toHaveLength(1);
-			expect(result[0].id).toBe('tx-feb');
+			expect(result[0]!.id).toBe('tx-feb');
 		});
 
 		test('should include transactions at boundary timestamps', async () => {
@@ -318,7 +318,7 @@ describe('transactions.ts', () => {
 
 			const result = await getTransactionsForEntity('account-1', start, end);
 			expect(result).toHaveLength(1);
-			expect(result[0].id).toBe('tx-2');
+			expect(result[0]!.id).toBe('tx-2');
 		});
 
 		test('should return empty array for entity with no transactions', async () => {

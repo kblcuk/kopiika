@@ -11,7 +11,7 @@ interface PeriodPickerProps {
 }
 
 function adjustPeriod(period: string, delta: number): string {
-	const [year, month] = period.split('-').map(Number);
+	const [year, month] = period.split('-').map(Number) as [number, number];
 	const date = new Date(year, month - 1 + delta);
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }

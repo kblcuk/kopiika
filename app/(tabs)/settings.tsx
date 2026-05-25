@@ -212,7 +212,7 @@ export default function SettingsScreen() {
 
 			if (result.canceled) return;
 
-			const file = new File(result.assets[0].uri);
+			const file = new File(result.assets[0]!.uri);
 			const content = await file.text();
 
 			const parsed = parseImportCsv(content);

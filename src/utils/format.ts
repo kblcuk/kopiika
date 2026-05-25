@@ -41,7 +41,7 @@ export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY
 
 // Format period for display
 export function formatPeriod(period: string): string {
-	const [year, month] = period.split('-').map(Number);
+	const [year, month] = period.split('-').map(Number) as [number, number];
 	const date = new Date(year, month - 1);
 	return date.toLocaleDateString(void 0, { month: 'long', year: 'numeric' });
 }

@@ -27,14 +27,17 @@ export function evaluateExpression(input: string): number | null {
 		// Numeric literal
 		const start = pos;
 		if (pos < expr.length && expr[pos] === '-') pos++;
-		if (pos >= expr.length || (expr[pos] < '0' && expr[pos] !== '.') || expr[pos] > '9') {
+		if (pos >= expr.length || (expr[pos]! < '0' && expr[pos] !== '.') || expr[pos]! > '9') {
 			if (expr[pos] !== '.') {
 				pos = start;
 				return null;
 			}
 		}
 		let hasDot = false;
-		while (pos < expr.length && ((expr[pos] >= '0' && expr[pos] <= '9') || expr[pos] === '.')) {
+		while (
+			pos < expr.length &&
+			((expr[pos]! >= '0' && expr[pos]! <= '9') || expr[pos] === '.')
+		) {
 			if (expr[pos] === '.') {
 				if (hasDot) {
 					pos = start;
@@ -52,8 +55,8 @@ export function evaluateExpression(input: string): number | null {
 	function parseMulDivExpr(): number | null {
 		let left = parseAtom();
 		if (left === null) return null;
-		while (pos < expr.length && isMulDiv(expr[pos])) {
-			const op = expr[pos];
+		while (pos < expr.length && isMulDiv(expr[pos]!)) {
+			const op = expr[pos]!;
 			pos++;
 			const right = parseAtom();
 			if (right === null) return null;
@@ -66,8 +69,8 @@ export function evaluateExpression(input: string): number | null {
 	function parseAddSubExpr(): number | null {
 		let left = parseMulDivExpr();
 		if (left === null) return null;
-		while (pos < expr.length && isAddSub(expr[pos])) {
-			const op = expr[pos];
+		while (pos < expr.length && isAddSub(expr[pos]!)) {
+			const op = expr[pos]!;
 			pos++;
 			const right = parseMulDivExpr();
 			if (right === null) return null;

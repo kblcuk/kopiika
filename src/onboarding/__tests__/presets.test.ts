@@ -39,9 +39,9 @@ describe('createEntitiesFromPresets', () => {
 	test('preserves chip name + type + icon', () => {
 		const picked = [PRESET_CHIPS.find((c) => c.name === 'Salary')!];
 		const [entity] = createEntitiesFromPresets(picked);
-		expect(entity.name).toBe('Salary');
-		expect(entity.type).toBe('income');
-		expect(entity.icon).toBe('briefcase');
+		expect(entity!.name).toBe('Salary');
+		expect(entity!.type).toBe('income');
+		expect(entity!.icon).toBe('briefcase');
 	});
 
 	test('distributes categories across maxRows=3 (round-robin by index)', () => {
@@ -80,16 +80,16 @@ describe('createPlansForEntities', () => {
 	test('chips without suggestedPlan get planned_amount=0', () => {
 		const chip = PRESET_CHIPS.find((c) => c.suggestedPlan === undefined)!;
 		const entities = createEntitiesFromPresets([chip]);
-		const entityToPreset = new Map([[entities[0].id, chip]]);
+		const entityToPreset = new Map([[entities[0]!.id, chip]]);
 		const [plan] = createPlansForEntities(entities, entityToPreset);
-		expect(plan.planned_amount).toBe(0);
+		expect(plan!.planned_amount).toBe(0);
 	});
 
 	test('chips with suggestedPlan preserve the amount', () => {
 		const chip = PRESET_CHIPS.find((c) => c.suggestedPlan !== undefined)!;
 		const entities = createEntitiesFromPresets([chip]);
-		const entityToPreset = new Map([[entities[0].id, chip]]);
+		const entityToPreset = new Map([[entities[0]!.id, chip]]);
 		const [plan] = createPlansForEntities(entities, entityToPreset);
-		expect(plan.planned_amount).toBe(chip.suggestedPlan!);
+		expect(plan!.planned_amount).toBe(chip.suggestedPlan!);
 	});
 });

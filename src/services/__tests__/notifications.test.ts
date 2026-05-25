@@ -33,7 +33,7 @@ describe('getNotifiableTransactions', () => {
 		];
 		const result = getNotifiableTransactions(txs, now);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe('future-1');
+		expect(result[0]!.id).toBe('future-1');
 	});
 
 	test('excludes transactions that already have a notification_id', () => {
@@ -48,7 +48,7 @@ describe('getNotifiableTransactions', () => {
 		];
 		const result = getNotifiableTransactions(txs, now);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe('unscheduled');
+		expect(result[0]!.id).toBe('unscheduled');
 	});
 
 	test('sorts by timestamp ascending (soonest first)', () => {
@@ -69,7 +69,7 @@ describe('getNotifiableTransactions', () => {
 		);
 		const result = getNotifiableTransactions(txs, now);
 		expect(result).toHaveLength(60);
-		expect(result[0].id).toBe('tx-0');
-		expect(result[59].id).toBe('tx-59');
+		expect(result[0]!.id).toBe('tx-0');
+		expect(result[59]!.id).toBe('tx-59');
 	});
 });

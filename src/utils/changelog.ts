@@ -19,19 +19,19 @@ export function getLatestChangelog(): VersionChangelog | null {
 	const versionMatch = changelogRaw.match(/## \[(\d+\.\d+\.\d+)\].*?\((\d{4}-\d{2}-\d{2})\)/);
 	if (!versionMatch) return null;
 
-	const version = versionMatch[1];
-	const date = versionMatch[2];
+	const version = versionMatch[1]!;
+	const date = versionMatch[2]!;
 
 	// Grab everything between the first and second version headers
 	const blocks = changelogRaw.split(/^## \[/m);
 	if (blocks.length < 2) return null;
 
-	const content = blocks[1];
+	const content = blocks[1]!;
 	const sections: ChangelogSection[] = [];
 
 	for (const block of content.split(/^### /m).slice(1)) {
 		const lines = block.trim().split('\n');
-		const type = lines[0].trim();
+		const type = lines[0]!.trim();
 		const items = lines
 			.slice(1)
 			.filter((l) => /^[*-]\s/.test(l))

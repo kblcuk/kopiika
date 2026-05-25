@@ -8,7 +8,7 @@ import { useStore } from '@/src/store';
 export async function seedDefaultWorld(): Promise<void> {
 	const defaults = PRESET_CHIPS.filter((c) => c.defaultSelected);
 	const entities = createEntitiesFromPresets(defaults);
-	const entityToPreset = new Map(entities.map((e, i) => [e.id, defaults[i]]));
+	const entityToPreset = new Map(entities.map((e, i) => [e.id, defaults[i]!]));
 	const plans = createPlansForEntities(entities, entityToPreset);
 
 	const { addEntity, setPlan } = useStore.getState();

@@ -133,10 +133,11 @@ function parseSection(csv: string): Record<string, string>[] {
 	if (!csv) return [];
 
 	const lines = csv.split('\n').filter((l) => l.trim() !== '');
-	if (lines.length === 0) return [];
+	const [headerLine, ...dataLines] = lines;
+	if (!headerLine) return [];
 
-	const headers = parseCsvLine(lines[0]);
-	return lines.slice(1).map((line) => {
+	const headers = parseCsvLine(headerLine);
+	return dataLines.map((line) => {
 		const values = parseCsvLine(line);
 		const obj: Record<string, string> = {};
 		headers.forEach((h, i) => {
@@ -149,9 +150,8 @@ function parseSection(csv: string): Record<string, string>[] {
 function parseEntities(rows: Record<string, string>[], errors: string[]): Entity[] {
 	const result: Entity[] = [];
 
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const lineNum = i + 1;
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
 
 		if (!row.id) {
 			errors.push(`Entity row ${lineNum}: missing id`);
@@ -208,9 +208,8 @@ function parseMarketValueSnapshots(
 ): MarketValueSnapshot[] {
 	const result: MarketValueSnapshot[] = [];
 
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const lineNum = i + 1;
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
 
 		if (!row.id) {
 			errors.push(`Market value snapshot row ${lineNum}: missing id`);
@@ -267,9 +266,8 @@ function parsePlans(
 ): Plan[] {
 	const result: Plan[] = [];
 
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const lineNum = i + 1;
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
 
 		if (!row.id) {
 			errors.push(`Plan row ${lineNum}: missing id`);
@@ -323,9 +321,8 @@ function parseTransactions(
 ): Transaction[] {
 	const result: Transaction[] = [];
 
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const lineNum = i + 1;
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
 
 		if (!row.id) {
 			errors.push(`Transaction row ${lineNum}: missing id`);
@@ -420,9 +417,8 @@ function parseRecurrenceTemplates(
 ): RecurrenceTemplate[] {
 	const result: RecurrenceTemplate[] = [];
 
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const lineNum = i + 1;
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
 
 		const missing: string[] = [];
 		for (const field of [
@@ -444,6 +440,14 @@ function parseRecurrenceTemplates(
 			);
 			continue;
 		}
+
+		// All required fields verified present by the missing-check above; pull
+		// into typed locals so downstream code sees `string`, not `string | undefined`.
+		const id = row.id!;
+		const from_entity_id = row.from_entity_id!;
+		const to_entity_id = row.to_entity_id!;
+		const currency = row.currency!;
+		const rule = row.rule!;
 
 		const amount = Number(row.amount);
 		const start_date = Number(row.start_date);
@@ -477,7 +481,7 @@ function parseRecurrenceTemplates(
 		}
 
 		try {
-			const parsedRule = JSON.parse(row.rule);
+			const parsedRule = JSON.parse(rule);
 			if (!parsedRule || typeof parsedRule.type !== 'string') {
 				errors.push(
 					`Recurrence template row ${lineNum}: rule must be JSON with a "type" field`
@@ -485,7 +489,7 @@ function parseRecurrenceTemplates(
 				continue;
 			}
 		} catch {
-			errors.push(`Recurrence template row ${lineNum}: rule "${row.rule}" is not valid JSON`);
+			errors.push(`Recurrence template row ${lineNum}: rule "${rule}" is not valid JSON`);
 			continue;
 		}
 
@@ -506,29 +510,29 @@ function parseRecurrenceTemplates(
 			}
 		}
 
-		if (!entityIds.has(row.from_entity_id)) {
+		if (!entityIds.has(from_entity_id)) {
 			droppable.push({
 				kind: 'recurrenceTemplate',
-				id: row.id,
-				reason: `from_entity_id "${row.from_entity_id}" not present in this import`,
+				id,
+				reason: `from_entity_id "${from_entity_id}" not present in this import`,
 			});
 			continue;
 		}
-		if (!entityIds.has(row.to_entity_id)) {
+		if (!entityIds.has(to_entity_id)) {
 			droppable.push({
 				kind: 'recurrenceTemplate',
-				id: row.id,
-				reason: `to_entity_id "${row.to_entity_id}" not present in this import`,
+				id,
+				reason: `to_entity_id "${to_entity_id}" not present in this import`,
 			});
 			continue;
 		}
 
 		const validation = validateTransaction(
 			{
-				from_entity_id: row.from_entity_id,
-				to_entity_id: row.to_entity_id,
+				from_entity_id,
+				to_entity_id,
 				amount,
-				currency: row.currency,
+				currency,
 			},
 			entities,
 			{ allowDeletedEntities: true }
@@ -539,13 +543,13 @@ function parseRecurrenceTemplates(
 		}
 
 		result.push({
-			id: row.id,
-			from_entity_id: row.from_entity_id,
-			to_entity_id: row.to_entity_id,
+			id,
+			from_entity_id,
+			to_entity_id,
 			amount,
-			currency: row.currency,
+			currency,
 			note: row.note || null,
-			rule: row.rule,
+			rule,
 			start_date,
 			end_date,
 			end_count,
