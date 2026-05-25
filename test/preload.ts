@@ -35,6 +35,12 @@ void mock.module('expo-background-task', () => ({
 	BackgroundTaskResult: { Success: 1, Failed: 2 },
 }));
 
+// expo-crypto wraps the native UUID generator; in bun tests we delegate to
+// Node's crypto.randomUUID so generateId() produces a real UUID.
+void mock.module('expo-crypto', () => ({
+	randomUUID: () => crypto.randomUUID(),
+}));
+
 // expo-sharing is used by export.ts — provide no-op stubs.
 void mock.module('expo-sharing', () => ({
 	isAvailableAsync: async () => false,

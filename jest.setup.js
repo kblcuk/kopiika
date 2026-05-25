@@ -16,6 +16,10 @@ jest.mock('react-native-keyboard-controller', () => {
 	};
 });
 
+jest.mock('expo-crypto', () => ({
+	randomUUID: () => require('crypto').randomUUID(),
+}));
+
 jest.mock('expo-haptics', () => ({
 	impactAsync: jest.fn(),
 	notificationAsync: jest.fn(),

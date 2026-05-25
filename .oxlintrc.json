@@ -80,7 +80,14 @@
 		"expo/use-dom-exports": ["error"],
 		"expo/no-env-var-destructuring": ["error"],
 		"expo/no-dynamic-env-var": ["error"],
-		"typescript/no-unnecessary-boolean-literal-compare": "error"
+		"typescript/no-unnecessary-boolean-literal-compare": "error",
+		"no-restricted-globals": [
+			"error",
+			{
+				"name": "crypto",
+				"message": "RN/Hermes does not expose Web Crypto. Use `import * as Crypto from 'expo-crypto'` (see src/utils/ids.ts)."
+			}
+		]
 	},
 	"globals": {
 		"exports": "readonly",
@@ -111,9 +118,12 @@
 			}
 		},
 		{
-			"files": ["jest.setup.js", "**/__tests__/**", "**/*.test.{ts,tsx,js}"],
+			"files": ["jest.setup.js", "test/**", "**/__tests__/**", "**/*.test.{ts,tsx,js}"],
 			"env": {
 				"jest": true
+			},
+			"rules": {
+				"no-restricted-globals": "off"
 			}
 		},
 		{
