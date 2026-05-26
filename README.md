@@ -53,6 +53,9 @@ bundle install
 
 # Install mise-managed tools (gradle, java, ruby, etc.)
 mise install
+# If you've never installed hk before (git hooks manager) -- do it
+mise use -g hk
+hk install --global --mise
 
 # Start Expo dev server
 bun run start

@@ -3,12 +3,19 @@ fnox-env = "https://github.com/jdx/mise-env-fnox"
 
 [env]
 _.fnox-env = { tools = true }
+HK_MISE = 1
+HK_PKL_BACKEND = 'pklr'
+
+[hooks]
+# Automatically install/update hooks when tools are installed
+postinstall = "hk install --mise"
 
 [tools]
 age = "latest"
 bun = "latest"
 fnox = "latest"
 gradle = "9.5.1"
+hk = "latest"
 java = "temurin-21.0.11+10.0.LTS"
 node = "latest"
 ruby = "latest"
@@ -119,26 +126,29 @@ run = "bundle exec fastlane notify_telegram"
 
 [tasks."release:cleanup-builds"]
 description = "Clean up old TestFlight builds and stale Play track releases"
-run = ["bundle exec fastlane ios cleanup", "bundle exec fastlane android cleanup"]
+run = [
+  "bundle exec fastlane ios cleanup",
+  "bundle exec fastlane android cleanup",
+]
 
 [tasks."release:beta"]
 description = "Ship iOS + Android betas in parallel, then notify Telegram"
 run = [
-	"bundle exec fastlane sync_build_numbers",
-	{ tasks = [
-		"ios:beta",
-		"android:beta",
-	] },
-	"bundle exec fastlane notify_telegram platform:'iOS + Android (Beta)'",
+  "bundle exec fastlane sync_build_numbers",
+  { tasks = [
+    "ios:beta",
+    "android:beta",
+  ] },
+  "bundle exec fastlane notify_telegram platform:'iOS + Android (Beta)'",
 ]
 
 [tasks."release:production"]
 description = "Ship iOS beta + Android production in parallel, then notify Telegram"
 run = [
-	"bundle exec fastlane sync_build_numbers",
-	{ tasks = [
-		"ios:beta",
-		"android:production",
-	] },
-	"bundle exec fastlane notify_telegram platform:'iOS + Android (Production)'",
+  "bundle exec fastlane sync_build_numbers",
+  { tasks = [
+    "ios:beta",
+    "android:production",
+  ] },
+  "bundle exec fastlane notify_telegram platform:'iOS + Android (Production)'",
 ]

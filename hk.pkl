@@ -1,0 +1,99 @@
+amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+  ["oxlint"] = (Builtins.ox_lint) {
+    prefix = "bun run"
+  }
+
+  ["oxfmt"] {
+    prefix = "bun run"
+    // https://github.com/jdx/hk/blob/1656efee5cc82abb8d772df25ec7102e453a3fd4/pkl/builtins/oxfmt.pkl
+    // probably will be live in kh@1.46
+    glob =
+      List(
+        // JS/TS
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.cjs",
+        "**/*.ts",
+        "**/*.mts",
+        "**/*.cts",
+        // React
+        "**/*.jsx",
+        "**/*.tsx",
+        "**/*.mdx",
+        // Frontend Frameworks
+        "**/*.vue",
+        // JSON
+        "**/*.json",
+        "**/*.jsonc",
+        "**/*.json5",
+        // YAML
+        "**/*.yaml",
+        "**/*.yml",
+        // TOML
+        "**/*.toml",
+        // Markdown
+        "**/*.md",
+        "**/*.markdown",
+        // HTML
+        "**/*.html",
+        "**/*.htm",
+        // CSS
+        "**/*.css",
+        "**/*.scss",
+        "**/*.less",
+        // GraphQL
+        "**/*.graphql",
+        "**/*.gql",
+        // Handlebars
+        "**/*.handlebars",
+        "**/*.hbs",
+      )
+    // Mise has it's own formatter
+    exclude = List("**/mise.toml", "**/mise.local.toml")
+    check = "oxfmt --check {{ files }}"
+    check_list_files = "oxfmt --list-different {{ files }}"
+    fix = "oxfmt --write {{ files }}"
+  }
+
+  ["tsgo"] {
+    // Type checking doesn't need file locking
+    stomp = true
+    prefix = "bun run"
+    workspace_indicator = "tsconfig.json"
+    glob = List("**/*.ts", "**/*.tsx")
+    check = "tsgo --noEmit -p {{workspace_indicator}}"
+  }
+
+  ["pkl"] = Builtins.pkl
+}
+
+local shared = new Mapping<String, Step> {
+  ["mise"] = Builtins.mise
+}
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps {
+      ...linters
+      ...shared
+    }
+  }
+  ["fix"] {
+    fix = true
+    steps {
+      ...linters
+      ...shared
+    }
+  }
+  ["check"] {
+    steps {
+      ...linters
+      ...shared
+    }
+  }
+}
