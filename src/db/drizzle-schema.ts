@@ -1,5 +1,29 @@
 import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
+
+// Per-row write-time columns used by sync (KII-126, KII-96):
+// - `created_at` is set once on insert (SQL default) and never bumped.
+// - `updated_at` defaults on insert and is bumped on every UPDATE via
+//   Drizzle's `$onUpdate`. Write helpers also pass it explicitly as a
+//   belt-and-suspenders against code paths that bypass column-level updates
+//   (e.g. `onConflictDoUpdate`).
+//
+// Hard-delete caveat (KII-96 follow-up): `transactions`, `plans`, and
+// `market_value_snapshots` are hard-deleted (rows disappear). Sync replay
+// alone — comparing `updated_at` across devices — can't recover the
+// "this row was deleted" signal, since the row is gone. When the op-log
+// ships, deletes will need to flow as explicit operations (tombstones in
+// the op-log, not in the schema). `entities` and `recurrence_templates`
+// already use `is_deleted` soft-delete and are safe.
+const createdAt = () =>
+	integer('created_at')
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`);
+const updatedAt = () =>
+	integer('updated_at')
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`)
+		.$onUpdate(() => Date.now());
 
 // Entities table
 export const entities = sqliteTable(
@@ -20,6 +44,8 @@ export const entities = sqliteTable(
 		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 		is_default: integer('is_default', { mode: 'boolean' }).notNull().default(false),
 		is_investment: integer('is_investment', { mode: 'boolean' }).notNull().default(false),
+		created_at: createdAt(),
+		updated_at: updatedAt(),
 	},
 	(table) => [
 		index('idx_entities_type').on(table.type),
@@ -38,6 +64,8 @@ export const plans = sqliteTable(
 		period: text('period').notNull(),
 		period_start: text('period_start').notNull(),
 		planned_amount: real('planned_amount').notNull(),
+		created_at: createdAt(),
+		updated_at: updatedAt(),
 	},
 	(table) => [uniqueIndex('unq_plans_entity_period').on(table.entity_id, table.period_start)]
 );
@@ -65,6 +93,8 @@ export const transactions = sqliteTable(
 		series_id: text('series_id'),
 		is_confirmed: integer('is_confirmed', { mode: 'boolean' }).notNull().default(true),
 		notification_id: text('notification_id'),
+		created_at: createdAt(),
+		updated_at: updatedAt(),
 	},
 	(table) => [
 		index('idx_transactions_timestamp').on(table.timestamp),
@@ -96,7 +126,10 @@ export const recurrenceTemplates = sqliteTable(
 		horizon: integer('horizon').notNull(), // days ahead to generate
 		exclusions: text('exclusions'), // JSON array of skipped timestamps
 		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
+		// Pre-existing column (app-supplied). No SQL default — kept as-is to
+		// avoid migration churn. New tables use the shared `createdAt()` helper.
 		created_at: integer('created_at').notNull(),
+		updated_at: updatedAt(),
 	},
 	(table) => [index('idx_recurrence_templates_deleted').on(table.is_deleted)]
 );
@@ -112,6 +145,8 @@ export const marketValueSnapshots = sqliteTable(
 		amount: real('amount').notNull(),
 		currency: text('currency').notNull(),
 		date: integer('date').notNull(),
+		created_at: createdAt(),
+		updated_at: updatedAt(),
 	},
 	(table) => [index('idx_market_value_snapshots_entity').on(table.entity_id)]
 );

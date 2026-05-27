@@ -3,6 +3,17 @@ import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import { getDrizzleDb } from './drizzle-client';
 import { recurrenceTemplates } from './drizzle-schema';
 
+/**
+ * Update-input shape. Forbidding `id`, `created_at`, and `updated_at` at
+ * the type level (KII-126) prevents a spread-style caller from rewriting
+ * write-time metadata. `updated_at` is owned by the helper; `created_at`
+ * must never change after insert.
+ */
+export type RecurrenceTemplateUpdate = Omit<
+	Partial<RecurrenceTemplate>,
+	'id' | 'created_at' | 'updated_at'
+>;
+
 // KII-132: `is_deleted` alone is low-cardinality. Consider composite indexes
 // `(is_deleted, from_entity_id)` / `(is_deleted, to_entity_id)` to make
 // `getActiveTemplatesForEntity` queries cheap as the table grows.
@@ -24,60 +35,82 @@ export async function getRecurrenceTemplateById(id: string): Promise<RecurrenceT
 	return result[0] ?? null;
 }
 
-export async function createRecurrenceTemplate(template: RecurrenceTemplate): Promise<void> {
+export async function createRecurrenceTemplate(
+	template: RecurrenceTemplate
+): Promise<RecurrenceTemplate> {
 	const db = await getDrizzleDb();
-	await db.insert(recurrenceTemplates).values({
-		id: template.id,
-		from_entity_id: template.from_entity_id,
-		to_entity_id: template.to_entity_id,
-		amount: template.amount,
-		currency: template.currency,
-		note: template.note ?? null,
-		rule: template.rule,
-		start_date: template.start_date,
-		end_date: template.end_date ?? null,
-		end_count: template.end_count ?? null,
-		horizon: template.horizon,
-		exclusions: template.exclusions ?? null,
-		is_deleted: template.is_deleted ?? false,
-		created_at: template.created_at,
-	});
+	const [row] = await db
+		.insert(recurrenceTemplates)
+		.values({
+			id: template.id,
+			from_entity_id: template.from_entity_id,
+			to_entity_id: template.to_entity_id,
+			amount: template.amount,
+			currency: template.currency,
+			note: template.note ?? null,
+			rule: template.rule,
+			start_date: template.start_date,
+			end_date: template.end_date ?? null,
+			end_count: template.end_count ?? null,
+			horizon: template.horizon,
+			exclusions: template.exclusions ?? null,
+			is_deleted: template.is_deleted ?? false,
+			created_at: template.created_at,
+			updated_at: template.updated_at ?? template.created_at,
+		})
+		.returning();
+	return row!;
 }
 
 export async function updateRecurrenceTemplate(
 	id: string,
-	updates: Partial<Omit<RecurrenceTemplate, 'id'>>
-): Promise<void> {
+	updates: RecurrenceTemplateUpdate
+): Promise<RecurrenceTemplate | null> {
 	const db = await getDrizzleDb();
 	const updateData: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(updates)) {
-		if (value !== undefined) updateData[key] = value;
+		if (value === undefined) continue;
+		// Belt-and-suspenders against `any`-typed callers (KII-126).
+		if (key === 'created_at' || key === 'updated_at' || key === 'id') continue;
+		updateData[key] = value;
 	}
-	if (Object.keys(updateData).length > 0) {
-		await db.update(recurrenceTemplates).set(updateData).where(eq(recurrenceTemplates.id, id));
-	}
-}
-
-export async function softDeleteRecurrenceTemplate(id: string): Promise<void> {
-	const db = await getDrizzleDb();
-	await db
+	if (Object.keys(updateData).length === 0) return null;
+	updateData.updated_at = Date.now();
+	const [row] = await db
 		.update(recurrenceTemplates)
-		.set({ is_deleted: true })
-		.where(eq(recurrenceTemplates.id, id));
+		.set(updateData)
+		.where(eq(recurrenceTemplates.id, id))
+		.returning();
+	return row ?? null;
 }
 
-export async function addExclusion(templateId: string, timestamp: number): Promise<void> {
+export async function softDeleteRecurrenceTemplate(id: string): Promise<RecurrenceTemplate | null> {
+	const db = await getDrizzleDb();
+	const [row] = await db
+		.update(recurrenceTemplates)
+		.set({ is_deleted: true, updated_at: Date.now() })
+		.where(eq(recurrenceTemplates.id, id))
+		.returning();
+	return row ?? null;
+}
+
+export async function addExclusion(
+	templateId: string,
+	timestamp: number
+): Promise<RecurrenceTemplate | null> {
 	const template = await getRecurrenceTemplateById(templateId);
-	if (!template) return;
+	if (!template) return null;
 
 	const exclusions: number[] = JSON.parse(template.exclusions ?? '[]');
 	exclusions.push(timestamp);
 
 	const db = await getDrizzleDb();
-	await db
+	const [row] = await db
 		.update(recurrenceTemplates)
-		.set({ exclusions: JSON.stringify(exclusions) })
-		.where(eq(recurrenceTemplates.id, templateId));
+		.set({ exclusions: JSON.stringify(exclusions), updated_at: Date.now() })
+		.where(eq(recurrenceTemplates.id, templateId))
+		.returning();
+	return row ?? null;
 }
 
 export async function getActiveTemplatesForEntity(entityId: string): Promise<RecurrenceTemplate[]> {

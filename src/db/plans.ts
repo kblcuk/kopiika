@@ -21,15 +21,27 @@ export async function getPlanForEntity(
 	return result[0] ?? null;
 }
 
-export async function upsertPlan(plan: Plan): Promise<void> {
+/**
+ * Insert-or-update a plan. Returns the persisted row, including DB-stamped
+ * timestamps (KII-126). `onConflictDoUpdate` bypasses Drizzle's `$onUpdate`,
+ * so `updated_at` is set explicitly on both code paths.
+ */
+export async function upsertPlan(plan: Plan): Promise<Plan> {
 	const db = await getDrizzleDb();
-	await db
+	const now = Date.now();
+	const [row] = await db
 		.insert(plans)
-		.values(plan)
+		.values({
+			...plan,
+			created_at: plan.created_at ?? now,
+			updated_at: plan.updated_at ?? now,
+		})
 		.onConflictDoUpdate({
 			target: [plans.entity_id, plans.period_start],
-			set: { planned_amount: plan.planned_amount },
-		});
+			set: { planned_amount: plan.planned_amount, updated_at: now },
+		})
+		.returning();
+	return row!;
 }
 
 export async function deletePlan(id: string): Promise<void> {

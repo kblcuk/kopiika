@@ -39,7 +39,7 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			const result = await getEntityById('entity-1');
-			expect(result).toEqual({
+			expect(result).toMatchObject({
 				...entity,
 				include_in_total: true,
 				is_deleted: false,
@@ -62,7 +62,7 @@ describe('entities.ts', () => {
 			await createEntity(entity);
 
 			const result = await getEntityById('entity-2');
-			expect(result).toEqual({
+			expect(result).toMatchObject({
 				...entity,
 				icon: null,
 				color: null,
@@ -299,7 +299,7 @@ describe('entities.ts', () => {
 			await updateEntity(updated);
 
 			const result = await getEntityById('update-test');
-			expect(result).toEqual({
+			expect(result).toMatchObject({
 				...updated,
 				include_in_total: true,
 				is_deleted: false,
@@ -364,8 +364,8 @@ describe('entities.ts', () => {
 			expect(await getEntitiesByType('account')).toHaveLength(1); // system only
 		});
 
-		test('should not error when deleting non-existent entity', async () => {
-			await expect(deleteEntity('non-existent')).resolves.toBeUndefined();
+		test('should return null when deleting non-existent entity', async () => {
+			await expect(deleteEntity('non-existent')).resolves.toBeNull();
 		});
 
 		test('should remove plans for a deleted entity', async () => {
@@ -434,7 +434,8 @@ describe('entities.ts', () => {
 			await createEntity(account);
 			await createTransaction(transaction);
 
-			await expect(deleteEntity(account.id)).resolves.toBeUndefined();
+			const deleted = await deleteEntity(account.id);
+			expect(deleted?.is_deleted).toBe(true);
 
 			expect(await getEntityById(account.id)).toMatchObject({ is_deleted: true });
 			expect(await getAllTransactions()).toContainEqual(

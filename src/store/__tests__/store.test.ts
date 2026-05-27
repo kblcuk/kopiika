@@ -218,11 +218,11 @@ describe('Store Data Integrity', () => {
 
 			const state = useStore.getState();
 			expect(state.plans).toHaveLength(1);
-			expect(state.plans[0]).toEqual(plan);
+			expect(state.plans[0]).toMatchObject(plan);
 
 			// Verify it was written to database
 			const dbPlan = await db.getPlanForEntity('entity-1', '2026-01');
-			expect(dbPlan).toEqual(plan);
+			expect(dbPlan).toMatchObject(plan);
 		});
 
 		test('should update existing plan', async () => {
@@ -1010,12 +1010,14 @@ describe('Store Data Integrity', () => {
 			const exclusionsFromState: number[] = JSON.parse(tmplFromState!.exclusions ?? '[]');
 			expect(exclusionsFromState).toContain(occurrenceTs);
 
-			// Children should not inherit series_id
+			// Children should not inherit series_id (DB normalises to null;
+			// the action sets it to undefined before insert — either is "no
+			// series" semantically).
 			const newChildren = useStore
 				.getState()
 				.transactions.filter((t) => t.id === 'rs1' || t.id === 'rs2');
 			for (const c of newChildren) {
-				expect(c.series_id).toBeUndefined();
+				expect(c.series_id == null).toBe(true);
 			}
 		});
 
@@ -4344,10 +4346,10 @@ describe('Store Data Integrity', () => {
 				'import-account',
 				'import-category',
 			]);
-			expect(state.plans).toEqual(importedPlans);
+			expect(state.plans).toMatchObject(importedPlans);
 			expect(state.transactions).toHaveLength(1);
 			expect(state.transactions[0]).toMatchObject(importedTransactions[0]!);
-			expect(state.marketValueSnapshots).toEqual(importedSnapshots);
+			expect(state.marketValueSnapshots).toMatchObject(importedSnapshots);
 			expect(state.recurrenceTemplates).toEqual([]);
 
 			expect((await db.getAllEntities()).map((entity) => entity.id)).toEqual([
@@ -4455,9 +4457,9 @@ describe('Store Data Integrity', () => {
 			expect(
 				useStore.getState().entities.find((entity) => entity.id === investment.id)?.name
 			).toBe('Updated investment');
-			expect(useStore.getState().marketValueSnapshots).toEqual([snapshots[1]!]);
+			expect(useStore.getState().marketValueSnapshots).toMatchObject([snapshots[1]!]);
 			expect(await db.getMarketValueSnapshots(investment.id)).toEqual([]);
-			expect(await db.getMarketValueSnapshots(other.id)).toEqual([snapshots[1]!]);
+			expect(await db.getMarketValueSnapshots(other.id)).toMatchObject([snapshots[1]!]);
 		});
 
 		test('setDefaultAccount keeps only one default account and can clear it', async () => {
@@ -5010,7 +5012,9 @@ describe('Store Data Integrity', () => {
 			};
 
 			await useStore.getState().addMarketValueSnapshot(snapshot);
-			expect(useStore.getState().marketValueSnapshots).toContainEqual(snapshot);
+			expect(useStore.getState().marketValueSnapshots).toContainEqual(
+				expect.objectContaining(snapshot)
+			);
 
 			await useStore.getState().updateMarketValueSnapshot('snap-1', { amount: 3500 });
 			expect(

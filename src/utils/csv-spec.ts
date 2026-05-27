@@ -72,8 +72,21 @@ export const MARKET_VALUE_SNAPSHOT_HEADERS = [
 // Columns deliberately excluded from CSV export. Each entry MUST
 // have a comment explaining why — the csv-schema-coverage test
 // reads this map to know which columns are intentionally absent.
+//
+// `created_at` / `updated_at` (KII-126) are device-local write-time
+// metadata used by household sync (KII-96). CSV is the offline-backup
+// channel — sync travels via the encrypted op-log, not CSV — so we don't
+// round-trip these columns. On import, `replaceAllData` stamps fresh
+// values via `?? Date.now()`. Re-evaluate if/when CSV becomes a
+// cross-device transfer mechanism. The existing `recurrence_templates.
+// created_at` is kept exported (it's app-supplied scheduling metadata,
+// not the sync-style write-time stamp).
 export const EXPORT_EXCLUDED_COLUMNS: Record<string, readonly string[]> = {
 	// notification_id is a per-device OS notification handle; it
 	// is meaningless after re-import on another device.
-	transactions: ['notification_id'],
+	transactions: ['notification_id', 'created_at', 'updated_at'],
+	entities: ['created_at', 'updated_at'],
+	plans: ['created_at', 'updated_at'],
+	recurrence_templates: ['updated_at'],
+	market_value_snapshots: ['created_at', 'updated_at'],
 };

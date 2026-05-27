@@ -144,7 +144,7 @@ describe('plans.ts', () => {
 			await upsertPlan(plan);
 
 			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result).toEqual(plan);
+			expect(result).toMatchObject(plan);
 		});
 
 		test('should update planned_amount when a plan with the same (entity_id, period_start) exists', async () => {

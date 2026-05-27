@@ -45,7 +45,7 @@ describe('market-values.ts', () => {
 			};
 			await createMarketValueSnapshot(snapshot);
 			const result = await getLatestMarketValueSnapshot('entity-1');
-			expect(result).toEqual(snapshot);
+			expect(result).toMatchObject(snapshot);
 		});
 	});
 

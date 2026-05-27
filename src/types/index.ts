@@ -12,9 +12,22 @@ type DrizzleTransaction = InferSelectModel<typeof schema.transactions>;
 // forces `!== false` checks scattered throughout the codebase (e.g.
 // `utils/export.ts:33`). Default them at the DB read boundary instead and
 // keep these non-optional booleans on `Entity`.
+//
+// `created_at`/`updated_at` are also marked optional: callers don't supply
+// them (DB helpers stamp `Date.now()` on insert and bump on every update via
+// `$onUpdate`). Reads still see them as required because the DB columns are
+// NOT NULL, but TypeScript can't express "required on read, optional on
+// write" without two types — keeping them optional is the simpler trade-off.
 export type Entity = Omit<
 	DrizzleEntity,
-	'icon' | 'color' | 'include_in_total' | 'is_deleted' | 'is_default' | 'is_investment'
+	| 'icon'
+	| 'color'
+	| 'include_in_total'
+	| 'is_deleted'
+	| 'is_default'
+	| 'is_investment'
+	| 'created_at'
+	| 'updated_at'
 > & {
 	icon?: string | null;
 	color?: string | null;
@@ -22,18 +35,25 @@ export type Entity = Omit<
 	is_deleted?: boolean;
 	is_default?: boolean;
 	is_investment?: boolean;
+	created_at?: number;
+	updated_at?: number;
 };
 
-export type Plan = DrizzlePlan;
+export type Plan = Omit<DrizzlePlan, 'created_at' | 'updated_at'> & {
+	created_at?: number;
+	updated_at?: number;
+};
 
 export type Transaction = Omit<
 	DrizzleTransaction,
-	'note' | 'series_id' | 'is_confirmed' | 'notification_id'
+	'note' | 'series_id' | 'is_confirmed' | 'notification_id' | 'created_at' | 'updated_at'
 > & {
 	note?: string | null;
 	series_id?: string | null;
 	is_confirmed?: boolean;
 	notification_id?: string | null;
+	created_at?: number;
+	updated_at?: number;
 };
 
 export type MarketValueSnapshot = {
@@ -42,6 +62,8 @@ export type MarketValueSnapshot = {
 	amount: number;
 	currency: string;
 	date: number;
+	created_at?: number;
+	updated_at?: number;
 };
 
 // Extract EntityType from Drizzle schema

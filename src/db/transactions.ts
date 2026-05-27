@@ -3,6 +3,14 @@ import type { Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { transactions, recurrenceTemplates } from './drizzle-schema';
 
+/**
+ * Shape used by `update*` helpers. Forbidding `id`, `created_at`, and
+ * `updated_at` at the type level (KII-126) prevents a spread-style caller
+ * from accidentally rewriting write-time metadata. `updated_at` is owned
+ * by the helper; `created_at` must never change after insert.
+ */
+export type TransactionUpdate = Omit<Partial<Transaction>, 'id' | 'created_at' | 'updated_at'>;
+
 export async function getAllTransactions(): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	return await db.select().from(transactions).orderBy(desc(transactions.timestamp));
@@ -66,19 +74,26 @@ export async function getTransactionsBetweenEntities(
 		.orderBy(desc(transactions.timestamp));
 }
 
-export async function createTransaction(transaction: Transaction): Promise<void> {
+export async function createTransaction(transaction: Transaction): Promise<Transaction> {
 	const db = await getDrizzleDb();
-	await db.insert(transactions).values({
-		id: transaction.id,
-		from_entity_id: transaction.from_entity_id,
-		to_entity_id: transaction.to_entity_id,
-		amount: transaction.amount,
-		currency: transaction.currency,
-		timestamp: transaction.timestamp,
-		note: transaction.note ?? null,
-		series_id: transaction.series_id ?? null,
-		is_confirmed: transaction.is_confirmed ?? true,
-	});
+	const now = Date.now();
+	const [row] = await db
+		.insert(transactions)
+		.values({
+			id: transaction.id,
+			from_entity_id: transaction.from_entity_id,
+			to_entity_id: transaction.to_entity_id,
+			amount: transaction.amount,
+			currency: transaction.currency,
+			timestamp: transaction.timestamp,
+			note: transaction.note ?? null,
+			series_id: transaction.series_id ?? null,
+			is_confirmed: transaction.is_confirmed ?? true,
+			created_at: transaction.created_at ?? now,
+			updated_at: transaction.updated_at ?? now,
+		})
+		.returning();
+	return row!;
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -88,18 +103,28 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 export async function updateTransaction(
 	id: string,
-	updates: Omit<Partial<Transaction>, 'id'>
-): Promise<void> {
+	updates: TransactionUpdate
+): Promise<Transaction | null> {
 	const db = await getDrizzleDb();
 
-	// Purge undefined values from updates
-	const updateData: Partial<typeof transactions.$inferInsert> = Object.fromEntries(
-		Object.entries(updates).filter(([, value]) => value !== undefined)
-	);
-
-	if (Object.keys(updateData).length > 0) {
-		await db.update(transactions).set(updateData).where(eq(transactions.id, id));
+	const updateData: Partial<typeof transactions.$inferInsert> = {};
+	for (const [key, value] of Object.entries(updates)) {
+		if (value === undefined) continue;
+		// Belt-and-suspenders against `any`-typed callers bypassing the type
+		// guard (KII-126).
+		if (key === 'created_at' || key === 'updated_at' || key === 'id') continue;
+		(updateData as Record<string, unknown>)[key] = value;
 	}
+
+	if (Object.keys(updateData).length === 0) return null;
+
+	updateData.updated_at = Date.now();
+	const [row] = await db
+		.update(transactions)
+		.set(updateData)
+		.where(eq(transactions.id, id))
+		.returning();
+	return row ?? null;
 }
 
 export async function getBatchEntityActuals(
@@ -198,32 +223,35 @@ export async function deleteTransactionsBySeriesFuture(
 export async function updateTransactionsBySeriesFuture(
 	seriesId: string,
 	fromTimestamp: number,
-	updates: Omit<Partial<Transaction>, 'id'>
-): Promise<void> {
+	updates: TransactionUpdate
+): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	const updateData: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(updates)) {
-		if (value !== undefined) updateData[key] = value;
+		if (value === undefined) continue;
+		if (key === 'created_at' || key === 'updated_at' || key === 'id') continue;
+		updateData[key] = value;
 	}
-	if (Object.keys(updateData).length > 0) {
-		await db
-			.update(transactions)
-			.set(updateData)
-			.where(
-				and(
-					eq(transactions.series_id, seriesId),
-					gte(transactions.timestamp, fromTimestamp)
-				)
-			);
-	}
+	if (Object.keys(updateData).length === 0) return [];
+	updateData.updated_at = Date.now();
+	return await db
+		.update(transactions)
+		.set(updateData)
+		.where(
+			and(eq(transactions.series_id, seriesId), gte(transactions.timestamp, fromTimestamp))
+		)
+		.returning();
 }
 
-export async function createTransactionBatch(txns: Transaction[]): Promise<void> {
-	if (txns.length === 0) return;
+export async function createTransactionBatch(txns: Transaction[]): Promise<Transaction[]> {
+	if (txns.length === 0) return [];
 	const db = await getDrizzleDb();
-	await db.transaction((tx) => {
+	const now = Date.now();
+	return await db.transaction((tx) => {
+		const rows: Transaction[] = [];
 		for (const txn of txns) {
-			tx.insert(transactions)
+			const [row] = tx
+				.insert(transactions)
 				.values({
 					id: txn.id,
 					from_entity_id: txn.from_entity_id,
@@ -235,38 +263,48 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<void>
 					series_id: txn.series_id ?? null,
 					is_confirmed: txn.is_confirmed ?? true,
 					notification_id: txn.notification_id ?? null,
+					created_at: txn.created_at ?? now,
+					updated_at: txn.updated_at ?? now,
 				})
-				.run();
+				.returning()
+				.all();
+			if (row) rows.push(row);
 		}
+		return rows;
 	});
 }
 
-export async function confirmTransaction(id: string): Promise<void> {
+export async function confirmTransaction(id: string): Promise<Transaction | null> {
 	const db = await getDrizzleDb();
-	await db
+	const [row] = await db
 		.update(transactions)
-		.set({ is_confirmed: true, notification_id: null })
-		.where(eq(transactions.id, id));
+		.set({ is_confirmed: true, notification_id: null, updated_at: Date.now() })
+		.where(eq(transactions.id, id))
+		.returning();
+	return row ?? null;
 }
 
-export async function confirmTransactionsBatch(ids: string[]): Promise<void> {
-	if (ids.length === 0) return;
+export async function confirmTransactionsBatch(ids: string[]): Promise<Transaction[]> {
+	if (ids.length === 0) return [];
 	const db = await getDrizzleDb();
-	await db
+	return await db
 		.update(transactions)
-		.set({ is_confirmed: true, notification_id: null })
-		.where(inArray(transactions.id, ids));
+		.set({ is_confirmed: true, notification_id: null, updated_at: Date.now() })
+		.where(inArray(transactions.id, ids))
+		.returning();
 }
 
 export async function updateTransactionNotificationId(
 	id: string,
 	notificationId: string | null
-): Promise<void> {
+): Promise<Transaction | null> {
 	const db = await getDrizzleDb();
-	await db
+	const [row] = await db
 		.update(transactions)
-		.set({ notification_id: notificationId })
-		.where(eq(transactions.id, id));
+		.set({ notification_id: notificationId, updated_at: Date.now() })
+		.where(eq(transactions.id, id))
+		.returning();
+	return row ?? null;
 }
 
 // KII-132: N awaited round-trips, no transaction wrap. Replace with a
@@ -274,24 +312,30 @@ export async function updateTransactionNotificationId(
 // rows commit atomically.
 export async function updateTransactionNotificationIdsBatch(
 	updates: { id: string; notificationId: string | null }[]
-): Promise<void> {
-	if (updates.length === 0) return;
+): Promise<Transaction[]> {
+	if (updates.length === 0) return [];
 	const db = await getDrizzleDb();
+	const now = Date.now();
+	const rows: Transaction[] = [];
 	for (const { id, notificationId } of updates) {
-		await db
+		const [row] = await db
 			.update(transactions)
-			.set({ notification_id: notificationId })
-			.where(eq(transactions.id, id));
+			.set({ notification_id: notificationId, updated_at: now })
+			.where(eq(transactions.id, id))
+			.returning();
+		if (row) rows.push(row);
 	}
+	return rows;
 }
 
 export async function replaceTransactionAtomic(
 	idToDelete: string,
 	txns: Transaction[],
 	options?: { seriesExclusion?: { templateId: string; timestamp: number } }
-): Promise<void> {
+): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
-	await db.transaction((tx) => {
+	const now = Date.now();
+	return await db.transaction((tx) => {
 		tx.delete(transactions).where(eq(transactions.id, idToDelete)).run();
 
 		if (options?.seriesExclusion) {
@@ -309,13 +353,15 @@ export async function replaceTransactionAtomic(
 			const current: number[] = JSON.parse(rows[0]!.exclusions ?? '[]');
 			current.push(timestamp);
 			tx.update(recurrenceTemplates)
-				.set({ exclusions: JSON.stringify(current) })
+				.set({ exclusions: JSON.stringify(current), updated_at: now })
 				.where(eq(recurrenceTemplates.id, templateId))
 				.run();
 		}
 
+		const inserted: Transaction[] = [];
 		for (const txn of txns) {
-			tx.insert(transactions)
+			const [row] = tx
+				.insert(transactions)
 				.values({
 					id: txn.id,
 					from_entity_id: txn.from_entity_id,
@@ -327,8 +373,13 @@ export async function replaceTransactionAtomic(
 					series_id: txn.series_id ?? null,
 					is_confirmed: txn.is_confirmed ?? true,
 					notification_id: txn.notification_id ?? null,
+					created_at: txn.created_at ?? now,
+					updated_at: txn.updated_at ?? now,
 				})
-				.run();
+				.returning()
+				.all();
+			if (row) inserted.push(row);
 		}
+		return inserted;
 	});
 }

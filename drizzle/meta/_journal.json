@@ -127,6 +127,13 @@
 			"when": 1779110520613,
 			"tag": "0017_cleanup_market_value_snapshot_orphans",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "6",
+			"when": 1779874116021,
+			"tag": "0018_add_updated_at",
+			"breakpoints": true
 		}
 	]
 }

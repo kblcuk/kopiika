@@ -188,12 +188,10 @@ async function scheduleNotificationsForTransactions(
 	}
 
 	if (updates.length > 0) {
-		await db.updateTransactionNotificationIdsBatch(updates);
-		const updateMap = new Map(updates.map((u) => [u.id, u.notificationId]));
+		const stamped = await db.updateTransactionNotificationIdsBatch(updates);
+		const stampedMap = new Map(stamped.map((row) => [row.id, row]));
 		set((state) => ({
-			transactions: state.transactions.map((t) =>
-				updateMap.has(t.id) ? { ...t, notification_id: updateMap.get(t.id) } : t
-			),
+			transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 		}));
 	}
 }
@@ -279,12 +277,12 @@ async function backfillRecurrences(
 	}
 
 	if (newTransactions.length > 0) {
-		await db.createTransactionBatch(newTransactions);
+		const stamped = await db.createTransactionBatch(newTransactions);
 		set((state) => ({
-			transactions: [...newTransactions, ...state.transactions],
+			transactions: [...stamped, ...state.transactions],
 		}));
 		// Schedule notifications for future unconfirmed transactions
-		await scheduleNotificationsForTransactions(newTransactions, entities, set);
+		await scheduleNotificationsForTransactions(stamped, entities, set);
 	}
 }
 
@@ -372,6 +370,7 @@ export const useStore = create<AppState>((set, get) => ({
 		const drizzleDb = await db.getDrizzleDb();
 
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
+		const now = Date.now();
 		await drizzleDb.transaction((tx) => {
 			// Delete in FK-safe order: snapshots → transactions → recurrenceTemplates → plans → entities
 			tx.delete(schema.marketValueSnapshots).run();
@@ -380,7 +379,9 @@ export const useStore = create<AppState>((set, get) => ({
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
 
-			// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots
+			// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots.
+			// `created_at`/`updated_at` come from CSV when present (round-trip
+			// preserves write-time across export/import); otherwise stamp now.
 			for (const entity of newEntities) {
 				tx.insert(schema.entities)
 					.values({
@@ -397,11 +398,19 @@ export const useStore = create<AppState>((set, get) => ({
 						is_deleted: entity.is_deleted ?? false,
 						is_default: entity.is_default ?? false,
 						is_investment: entity.is_investment ?? false,
+						created_at: entity.created_at ?? now,
+						updated_at: entity.updated_at ?? now,
 					})
 					.run();
 			}
 			for (const plan of newPlans) {
-				tx.insert(schema.plans).values(plan).run();
+				tx.insert(schema.plans)
+					.values({
+						...plan,
+						created_at: plan.created_at ?? now,
+						updated_at: plan.updated_at ?? now,
+					})
+					.run();
 			}
 			for (const template of newRecurrenceTemplates) {
 				tx.insert(schema.recurrenceTemplates)
@@ -420,6 +429,7 @@ export const useStore = create<AppState>((set, get) => ({
 						exclusions: template.exclusions ?? null,
 						is_deleted: template.is_deleted ?? false,
 						created_at: template.created_at,
+						updated_at: template.updated_at ?? template.created_at,
 					})
 					.run();
 			}
@@ -435,11 +445,19 @@ export const useStore = create<AppState>((set, get) => ({
 						note: txn.note ?? null,
 						series_id: txn.series_id ?? null,
 						is_confirmed: txn.is_confirmed ?? true,
+						created_at: txn.created_at ?? now,
+						updated_at: txn.updated_at ?? now,
 					})
 					.run();
 			}
 			for (const snapshot of newMarketValueSnapshots) {
-				tx.insert(schema.marketValueSnapshots).values(snapshot).run();
+				tx.insert(schema.marketValueSnapshots)
+					.values({
+						...snapshot,
+						created_at: snapshot.created_at ?? now,
+						updated_at: snapshot.updated_at ?? now,
+					})
+					.run();
 			}
 		});
 
@@ -461,21 +479,21 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Entity actions
 	addEntity: async (entity) => {
-		await db.createEntity(entity);
-		set((state) => ({ entities: [...state.entities, entity] }));
+		const stamped = await db.createEntity(entity);
+		set((state) => ({ entities: [...state.entities, stamped] }));
 	},
 
 	updateEntity: async (entity) => {
-		await db.updateEntity(entity);
+		const stamped = await db.updateEntity(entity);
 		set((state) => ({
-			entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+			entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
 		}));
 	},
 
 	updateEntityWithOptions: async (entity, options) => {
-		await db.updateEntity(entity, options);
+		const stamped = await db.updateEntity(entity, options);
 		set((state) => ({
-			entities: state.entities.map((e) => (e.id === entity.id ? entity : e)),
+			entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
 			marketValueSnapshots: options?.deleteMarketValueSnapshots
 				? state.marketValueSnapshots.filter((s) => s.entity_id !== entity.id)
 				: state.marketValueSnapshots,
@@ -498,7 +516,9 @@ export const useStore = create<AppState>((set, get) => ({
 		// Use deleteEntityAndReindex to close gaps
 		await db.deleteEntityAndReindex(id);
 
-		// Reload entities to get updated positions
+		// Reload entities to get updated positions (deleteEntityAndReindex
+		// returns the touched rows, but we use the full select to keep ordering
+		// consistent with how `initialize` hydrates the store).
 		const updatedEntities = await db.getAllEntities();
 		// KII-132: `state` captured before await — non-functional set overwrites
 		// any concurrent `plans` mutation. Switch to functional updater.
@@ -532,15 +552,11 @@ export const useStore = create<AppState>((set, get) => ({
 
 		if (updates.length === 0) return;
 
-		// Batch update all positions
-		await db.updateEntityPositions(updates);
-
-		// Optimistically update local state immediately (no DB reload)
+		// Batch update all positions, then mirror DB-stamped rows into state.
+		const stamped = await db.updateEntityPositions(updates);
+		const stampedMap = new Map(stamped.map((row) => [row.id, row]));
 		set((state) => ({
-			entities: state.entities.map((e) => {
-				const update = updates.find((u) => u.id === e.id);
-				return update ? { ...e, row: update.row, position: update.position } : e;
-			}),
+			entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
 		}));
 	},
 
@@ -554,15 +570,15 @@ export const useStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		await db.upsertPlan(plan);
+		const stamped = await db.upsertPlan(plan);
 		set((state) => {
-			const existingIndex = state.plans.findIndex((p) => p.id === plan.id);
+			const existingIndex = state.plans.findIndex((p) => p.id === stamped.id);
 			if (existingIndex >= 0) {
 				const newPlans = [...state.plans];
-				newPlans[existingIndex] = plan;
+				newPlans[existingIndex] = stamped;
 				return { plans: newPlans };
 			}
-			return { plans: [...state.plans, plan] };
+			return { plans: [...state.plans, stamped] };
 		});
 	},
 
@@ -584,8 +600,8 @@ export const useStore = create<AppState>((set, get) => ({
 			...transaction,
 			is_confirmed: transaction.is_confirmed ?? defaultIsConfirmed(transaction.timestamp),
 		};
-		await db.createTransaction(txWithConfirm);
-		set((state) => ({ transactions: [txWithConfirm, ...state.transactions] }));
+		const stamped = await db.createTransaction(txWithConfirm);
+		set((state) => ({ transactions: [stamped, ...state.transactions] }));
 	},
 
 	createTransactionBatch: async (transactions) => {
@@ -602,10 +618,10 @@ export const useStore = create<AppState>((set, get) => ({
 			};
 		});
 
-		await db.createTransactionBatch(prepared);
-		set((state) => ({ transactions: [...prepared, ...state.transactions] }));
+		const stamped = await db.createTransactionBatch(prepared);
+		set((state) => ({ transactions: [...stamped, ...state.transactions] }));
 
-		await scheduleNotificationsForTransactions(prepared, entities, set);
+		await scheduleNotificationsForTransactions(stamped, entities, set);
 	},
 
 	updateTransaction: async (id, updates) => {
@@ -618,9 +634,10 @@ export const useStore = create<AppState>((set, get) => ({
 
 		ensureValid(validateUpdate(transaction, updates, state.entities));
 
-		await db.updateTransaction(id, updates);
+		const stamped = await db.updateTransaction(id, updates);
+		if (!stamped) return;
 		set((state) => ({
-			transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+			transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
 		}));
 	},
 
@@ -676,11 +693,13 @@ export const useStore = create<AppState>((set, get) => ({
 			? { templateId: original.series_id, timestamp: original.timestamp }
 			: undefined;
 
-		await db.replaceTransactionAtomic(originalId, prepared, { seriesExclusion });
+		const stamped = await db.replaceTransactionAtomic(originalId, prepared, {
+			seriesExclusion,
+		});
 
 		set((s) => {
 			const transactionsNext = [
-				...prepared,
+				...stamped,
 				...s.transactions.filter((t) => t.id !== originalId),
 			];
 			let recurrenceTemplatesNext = s.recurrenceTemplates;
@@ -689,7 +708,7 @@ export const useStore = create<AppState>((set, get) => ({
 					if (t.id !== seriesExclusion.templateId) return t;
 					const existing: number[] = JSON.parse(t.exclusions ?? '[]');
 					existing.push(seriesExclusion.timestamp);
-					return { ...t, exclusions: JSON.stringify(existing) };
+					return { ...t, exclusions: JSON.stringify(existing), updated_at: Date.now() };
 				});
 			}
 			return {
@@ -698,7 +717,7 @@ export const useStore = create<AppState>((set, get) => ({
 			};
 		});
 
-		await scheduleNotificationsForTransactions(prepared, get().entities, set);
+		await scheduleNotificationsForTransactions(stamped, get().entities, set);
 	},
 
 	// Recurrence actions
@@ -720,7 +739,7 @@ export const useStore = create<AppState>((set, get) => ({
 		});
 		const templateId = template.id;
 
-		await db.createRecurrenceTemplate(template);
+		const stampedTemplate = await db.createRecurrenceTemplate(template);
 
 		const occurrences = generateOccurrences({
 			rule: recurrence.rule,
@@ -747,12 +766,13 @@ export const useStore = create<AppState>((set, get) => ({
 			)
 		);
 
-		if (txns.length > 0) {
-			await db.createTransactionBatch(txns);
-		}
+		const stampedTxns = txns.length > 0 ? await db.createTransactionBatch(txns) : [];
 		set((state) => ({
-			recurrenceTemplates: [...state.recurrenceTemplates, template],
-			transactions: txns.length > 0 ? [...txns, ...state.transactions] : state.transactions,
+			recurrenceTemplates: [...state.recurrenceTemplates, stampedTemplate],
+			transactions:
+				stampedTxns.length > 0
+					? [...stampedTxns, ...state.transactions]
+					: state.transactions,
 		}));
 
 		// Request permission on first recurring transaction (contextual ask)
@@ -767,8 +787,8 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 
 		// Schedule notifications for future occurrences
-		if (txns.length > 0) {
-			await scheduleNotificationsForTransactions(txns, get().entities, set);
+		if (stampedTxns.length > 0) {
+			await scheduleNotificationsForTransactions(stampedTxns, get().entities, set);
 		}
 	},
 
@@ -797,19 +817,18 @@ export const useStore = create<AppState>((set, get) => ({
 				templateUpdates.to_entity_id = updates.to_entity_id;
 			if (updates.note !== undefined) templateUpdates.note = updates.note;
 
-			await db.updateRecurrenceTemplate(seriesId, templateUpdates);
-			await db.updateTransactionsBySeriesFuture(seriesId, transaction.timestamp, updates);
-
-			const updatedTemplate = { ...template, ...templateUpdates };
+			const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, templateUpdates);
+			const stampedTxns = await db.updateTransactionsBySeriesFuture(
+				seriesId,
+				transaction.timestamp,
+				updates
+			);
+			const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
 			set((state) => ({
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					t.id === seriesId ? updatedTemplate : t
+					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
 				),
-				transactions: state.transactions.map((t) =>
-					t.series_id === seriesId && t.timestamp >= transaction.timestamp
-						? { ...t, ...updates }
-						: t
-				),
+				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
 			}));
 		}
 	},
@@ -829,17 +848,15 @@ export const useStore = create<AppState>((set, get) => ({
 			}
 			await db.deleteTransaction(id);
 			if (transaction.series_id) {
-				await db.addExclusion(transaction.series_id, transaction.timestamp);
-				const seriesId = transaction.series_id;
-				const ts = transaction.timestamp;
+				const stampedTemplate = await db.addExclusion(
+					transaction.series_id,
+					transaction.timestamp
+				);
 				set((state) => ({
 					transactions: state.transactions.filter((t) => t.id !== id),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
-						if (t.id !== seriesId) return t;
-						const exclusions: number[] = JSON.parse(t.exclusions ?? '[]');
-						exclusions.push(ts);
-						return { ...t, exclusions: JSON.stringify(exclusions) };
-					}),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+						stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
+					),
 				}));
 			} else {
 				set((state) => ({
@@ -874,24 +891,26 @@ export const useStore = create<AppState>((set, get) => ({
 		);
 
 		if (remaining.length === 0) {
-			await db.softDeleteRecurrenceTemplate(seriesId);
+			const stampedTemplate = await db.softDeleteRecurrenceTemplate(seriesId);
 			set((state) => ({
 				transactions: state.transactions.filter(
 					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
 				),
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					t.id === seriesId ? { ...t, is_deleted: true } : t
+					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
 				),
 			}));
 		} else {
 			const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
-			await db.updateRecurrenceTemplate(seriesId, { end_date: lastRemaining });
+			const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, {
+				end_date: lastRemaining,
+			});
 			set((state) => ({
 				transactions: state.transactions.filter(
 					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
 				),
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					t.id === seriesId ? { ...t, end_date: lastRemaining } : t
+					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
 				),
 			}));
 		}
@@ -923,19 +942,22 @@ export const useStore = create<AppState>((set, get) => ({
 			}
 		}
 
+		const stampedTemplates: RecurrenceTemplate[] = [];
 		for (const template of templates) {
 			await db.deleteTransactionsBySeriesFuture(template.id, now);
-			await db.softDeleteRecurrenceTemplate(template.id);
+			const stamped = await db.softDeleteRecurrenceTemplate(template.id);
+			if (stamped) stampedTemplates.push(stamped);
 		}
 
 		if (templates.length > 0) {
 			const templateIds = new Set(templates.map((t) => t.id));
+			const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
 			set((state) => ({
 				transactions: state.transactions.filter(
 					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
 				),
-				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					templateIds.has(t.id) ? { ...t, is_deleted: true } : t
+				recurrenceTemplates: state.recurrenceTemplates.map(
+					(t) => stampedMap.get(t.id) ?? t
 				),
 			}));
 		}
@@ -951,12 +973,12 @@ export const useStore = create<AppState>((set, get) => ({
 				console.warn('Failed to cancel notification', e);
 			}
 		}
-		await db.confirmTransaction(id);
-		set((state) => ({
-			transactions: state.transactions.map((t) =>
-				t.id === id ? { ...t, is_confirmed: true, notification_id: undefined } : t
-			),
-		}));
+		const stamped = await db.confirmTransaction(id);
+		if (stamped) {
+			set((state) => ({
+				transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
+			}));
+		}
 		await syncBadgeCount(get);
 	},
 
@@ -979,23 +1001,20 @@ export const useStore = create<AppState>((set, get) => ({
 		}
 
 		const dueIds = dueTxs.map((t) => t.id);
-		await db.confirmTransactionsBatch(dueIds);
-		const dueSet = new Set(dueIds);
+		const stamped = await db.confirmTransactionsBatch(dueIds);
+		const stampedMap = new Map(stamped.map((t) => [t.id, t]));
 		set((state) => ({
-			transactions: state.transactions.map((t) =>
-				dueSet.has(t.id) ? { ...t, is_confirmed: true, notification_id: undefined } : t
-			),
+			transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 		}));
 		await syncBadgeCount(get);
 	},
 
 	// Default account — atomic clear-and-set in a single DB transaction (KII-113).
 	setDefaultAccount: async (accountId) => {
-		await db.setDefaultAccount(accountId);
+		const stamped = await db.setDefaultAccount(accountId);
+		const stampedMap = new Map(stamped.map((e) => [e.id, e]));
 		set((state) => ({
-			entities: state.entities.map((e) =>
-				e.type === 'account' ? { ...e, is_default: e.id === accountId } : e
-			),
+			entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
 		}));
 	},
 
@@ -1031,23 +1050,24 @@ export const useStore = create<AppState>((set, get) => ({
 		// KII-132: same stale-entities-snapshot pattern as `addTransaction`.
 		ensureValid(validateTransaction(transaction, state.entities));
 
-		await db.createTransaction(transaction);
-		set((s) => ({ transactions: [transaction, ...s.transactions] }));
+		const stamped = await db.createTransaction(transaction);
+		set((s) => ({ transactions: [stamped, ...s.transactions] }));
 	},
 
 	// Market value snapshot actions
 	addMarketValueSnapshot: async (snapshot) => {
-		await db.createMarketValueSnapshot(snapshot);
+		const stamped = await db.createMarketValueSnapshot(snapshot);
 		set((state) => ({
-			marketValueSnapshots: [snapshot, ...state.marketValueSnapshots],
+			marketValueSnapshots: [stamped, ...state.marketValueSnapshots],
 		}));
 	},
 
 	updateMarketValueSnapshot: async (id, updates) => {
-		await db.updateMarketValueSnapshot(id, updates);
+		const stamped = await db.updateMarketValueSnapshot(id, updates);
+		if (!stamped) return;
 		set((state) => ({
 			marketValueSnapshots: state.marketValueSnapshots.map((s) =>
-				s.id === id ? { ...s, ...updates } : s
+				s.id === stamped.id ? stamped : s
 			),
 		}));
 	},

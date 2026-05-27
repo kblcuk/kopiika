@@ -23,11 +23,12 @@ type DrizzleRecurrenceTemplate = InferSelectModel<typeof schema.recurrenceTempla
 
 export type RecurrenceTemplate = Omit<
 	DrizzleRecurrenceTemplate,
-	'note' | 'end_date' | 'end_count' | 'exclusions' | 'is_deleted'
+	'note' | 'end_date' | 'end_count' | 'exclusions' | 'is_deleted' | 'updated_at'
 > & {
 	note?: string | null;
 	end_date?: number | null;
 	end_count?: number | null;
 	exclusions?: string | null;
 	is_deleted?: boolean;
+	updated_at?: number;
 };
