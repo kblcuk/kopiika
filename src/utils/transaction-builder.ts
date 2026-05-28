@@ -2,6 +2,7 @@ import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
 import { generateId } from './ids';
 import { reverseFormatCurrency, roundMoney } from './format';
+import { getCurrencyDecimalPlaces } from './currency-precision';
 import type { MutationInput } from './transaction-validation';
 
 /**
@@ -87,7 +88,10 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 		const n = reverseFormatCurrency(sp.amount);
 		return sum + (Number.isFinite(n) ? n : 0);
 	}, 0);
-	const anchorAmount = roundMoney(args.splitTotal - otherSum);
+	const anchorAmount = roundMoney(
+		args.splitTotal - otherSum,
+		getCurrencyDecimalPlaces(args.currency)
+	);
 
 	const anchor = args.splits[0]!;
 	if (anchor.toEntityId && anchorAmount > 0) {

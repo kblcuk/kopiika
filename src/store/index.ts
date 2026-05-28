@@ -15,6 +15,8 @@ import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { generateOccurrences } from '@/src/utils/recurrence';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
+import { roundMoney } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -1042,7 +1044,7 @@ export const useStore = create<AppState>((set, get) => ({
 			id: generateId(),
 			from_entity_id: delta > 0 ? accountEntityId : savingEntityId,
 			to_entity_id: delta > 0 ? savingEntityId : accountEntityId,
-			amount: Math.abs(delta),
+			amount: roundMoney(Math.abs(delta), getCurrencyDecimalPlaces(account.currency)),
 			currency: account.currency,
 			timestamp: Date.now(),
 		};
