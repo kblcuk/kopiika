@@ -48,7 +48,7 @@ describe('evaluateExpression', () => {
 
 	test('decimals', () => {
 		expect(evaluateExpression('1.5+2.5')).toBe(4);
-		expect(evaluateExpression('0.1+0.2')).toBe(0.3);
+		expect(evaluateExpression('0.1+0.2')).toBeCloseTo(0.3, 10);
 	});
 
 	test('single number passthrough', () => {
@@ -88,8 +88,14 @@ describe('evaluateExpression', () => {
 		expect(evaluateExpression(' 10 + 5 ')).toBe(15);
 	});
 
-	test('floating-point precision via roundMoney', () => {
-		expect(evaluateExpression('0.01+0.02')).toBe(0.03);
+	test('floating-point precision (caller rounds, not evaluator)', () => {
+		expect(evaluateExpression('0.01+0.02')).toBeCloseTo(0.03, 10);
+	});
+
+	test('returns raw result without rounding (caller rounds)', () => {
+		// 0.1 + 0.2 = 0.30000000000000004 in IEEE 754 — old code rounded to 0.3.
+		expect(evaluateExpression('0.1+0.2')).toBeCloseTo(0.3, 10);
+		expect(evaluateExpression('0.1+0.2')).not.toBe(0.3);
 	});
 
 	test('parentheses override precedence', () => {

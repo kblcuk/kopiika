@@ -1,5 +1,3 @@
-import { roundMoney } from './format';
-
 function isMulDiv(ch: string): boolean {
 	return ch === '\u00D7' || ch === '*' || ch === '\u00F7' || ch === '/';
 }
@@ -81,5 +79,5 @@ export function evaluateExpression(input: string): number | null {
 
 	const result = parseAddSubExpr();
 	if (result === null || pos !== expr.length) return null;
-	return roundMoney(result);
+	return result;
 }
