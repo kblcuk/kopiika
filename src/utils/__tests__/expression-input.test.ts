@@ -1,4 +1,8 @@
-import { tryInsertOperator, normalizeDecimalSeparator } from '../expression-input';
+import {
+	tryInsertOperator,
+	normalizeDecimalSeparator,
+	enforceSingleSeparator,
+} from '../expression-input';
 
 // Helper: insert at end of string
 function insertAtEnd(value: string, op: string) {
@@ -163,5 +167,61 @@ describe('normalizeDecimalSeparator', () => {
 
 	test('no-op on plain numbers', () => {
 		expect(normalizeDecimalSeparator('42')).toBe('42');
+	});
+});
+
+describe('enforceSingleSeparator', () => {
+	test('passes through empty input', () => {
+		expect(enforceSingleSeparator('')).toBe('');
+	});
+
+	test('passes through plain integer', () => {
+		expect(enforceSingleSeparator('100')).toBe('100');
+	});
+
+	test('passes through a single decimal with period', () => {
+		expect(enforceSingleSeparator('100.5')).toBe('100.5');
+	});
+
+	test('passes through a single decimal with comma', () => {
+		expect(enforceSingleSeparator('100,5')).toBe('100,5');
+	});
+
+	test('drops a second separator of the same kind', () => {
+		expect(enforceSingleSeparator('100,5,3')).toBe('100,53');
+		expect(enforceSingleSeparator('100.5.3')).toBe('100.53');
+	});
+
+	test('drops a second separator of a different kind', () => {
+		expect(enforceSingleSeparator('100,5.3')).toBe('100,53');
+		expect(enforceSingleSeparator('100.5,3')).toBe('100.53');
+	});
+
+	test('allows one separator per operand in an expression', () => {
+		expect(enforceSingleSeparator('100,5+50,3')).toBe('100,5+50,3');
+		expect(enforceSingleSeparator('100.5+50.3')).toBe('100.5+50.3');
+	});
+
+	test('drops the second separator within a single operand of an expression', () => {
+		expect(enforceSingleSeparator('100,5,3+50')).toBe('100,53+50');
+	});
+
+	test('preserves a leading sign', () => {
+		expect(enforceSingleSeparator('-5,3')).toBe('-5,3');
+	});
+
+	test('preserves a leading separator', () => {
+		expect(enforceSingleSeparator(',5')).toBe(',5');
+		expect(enforceSingleSeparator('.5')).toBe('.5');
+	});
+
+	test('handles a parenthesised sub-expression', () => {
+		expect(enforceSingleSeparator('(5,3)')).toBe('(5,3)');
+		expect(enforceSingleSeparator('(5,3+2,1)')).toBe('(5,3+2,1)');
+	});
+
+	test('handles unicode operators × and ÷', () => {
+		expect(enforceSingleSeparator('5,3×2')).toBe('5,3×2');
+		expect(enforceSingleSeparator('5,3÷2,1')).toBe('5,3÷2,1');
 	});
 });

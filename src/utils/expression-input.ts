@@ -73,3 +73,38 @@ export function tryInsertOperator(
 export function normalizeDecimalSeparator(v: string): string {
 	return v.replace(/,/g, '.');
 }
+
+/**
+ * Walks the candidate input and, for each operand chunk (delimited by the
+ * arithmetic operator characters), allows at most one decimal separator
+ * (either `,` or `.`). A second separator typed within the same operand is
+ * dropped. Operator characters themselves are preserved verbatim, including
+ * a leading `-` which is treated as a sign on the following operand.
+ *
+ * Used by the amount input pipeline so the user can type either separator
+ * without it being silently converted on every keystroke, while still
+ * preventing nonsense like `100,5,3` or `100,5.3` from accumulating.
+ */
+const OPERATOR_CHARS = new Set<string>(['+', '-', '−', '×', '÷', '(', ')']);
+const OPERATOR_SPLIT_RE = /([+\-−×÷()])/;
+
+export function enforceSingleSeparator(value: string): string {
+	if (!value) return value;
+	return value
+		.split(OPERATOR_SPLIT_RE)
+		.map((part) => {
+			// Operator chars come through as standalone 1-char segments after split.
+			if (part.length === 1 && OPERATOR_CHARS.has(part)) return part;
+			let seenSep = false;
+			let out = '';
+			for (const ch of part) {
+				if (ch === '.' || ch === ',') {
+					if (seenSep) continue;
+					seenSep = true;
+				}
+				out += ch;
+			}
+			return out;
+		})
+		.join('');
+}
