@@ -10,7 +10,7 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { InfoPin } from '@/src/components/info-pin';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { transformAmountInput } from '@/src/utils/expression-input';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
 interface FundingRow {
@@ -121,7 +121,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		const handleAmountChange = (index: number, value: string) => {
 			setRows((prev) =>
 				prev.map((r, i) =>
-					i === index ? { ...r, amount: normalizeNumericInput(value) } : r
+					i === index ? { ...r, amount: transformAmountInput(value) } : r
 				)
 			);
 		};

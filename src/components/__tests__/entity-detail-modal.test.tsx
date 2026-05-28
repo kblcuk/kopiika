@@ -1416,6 +1416,24 @@ describe('EntityDetailModal', () => {
 			expect(getByTestId('entity-detail-market-value-input')).toBeTruthy();
 		});
 
+		it('market value input enforces the single-separator rule', () => {
+			// Regression: this input used to bypass the amount-input pipeline
+			// because its TextInput spread `marketValueExpr.inputProps` but
+			// then overrode `onChangeText` with a raw `setMarketValueAmount`.
+			// After wiring through `transformAmountInput`, multi-separator
+			// pastes/typings get filtered like every other amount field.
+			const { getByTestId } = render(
+				<EntityDetailModal
+					visible={true}
+					entity={mockInvestmentAccount}
+					onClose={mockOnClose}
+				/>
+			);
+			const input = getByTestId('entity-detail-market-value-input');
+			fireEvent.changeText(input, '24.24.24.24.24.24');
+			expect(input.props.value).toBe('24.2424242424');
+		});
+
 		it('hides market value input when investment mode is disabled', () => {
 			const { queryByTestId } = render(
 				<EntityDetailModal

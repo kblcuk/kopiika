@@ -32,6 +32,7 @@ import {
 import { isEntityDeleted } from '@/src/utils/entity-display';
 import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
+import { transformAmountInput } from '@/src/utils/expression-input';
 import { colors } from '@/src/theme/colors';
 import {
 	sharedNumericTextInputProps,
@@ -687,7 +688,9 @@ export default function HistoryScreen() {
 									{...sharedNumericTextInputProps}
 									keyboardType="number-pad"
 									value={editingSnapshotAmount}
-									onChangeText={setEditingSnapshotAmount}
+									onChangeText={(v) =>
+										setEditingSnapshotAmount(transformAmountInput(v))
+									}
 									placeholder="0"
 									className={textInputClassNames.primaryAmountInput}
 									style={styles.input}

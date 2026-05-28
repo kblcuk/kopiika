@@ -37,6 +37,7 @@ import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { ReservationModal } from '@/src/components/reservation-modal';
 import { AllocationPieChart, type AllocationPieSlice } from '@/src/components/allocation-pie-chart';
 import { assignSliceColors } from '@/src/utils/chart-slice-colors';
+import { transformAmountInput } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import {
 	getReservationsForSaving,
@@ -701,7 +702,9 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 											{...sharedNumericTextInputProps}
 											{...marketValueExpr.inputProps}
 											value={marketValueAmount}
-											onChangeText={setMarketValueAmount}
+											onChangeText={(v) =>
+												setMarketValueAmount(transformAmountInput(v))
+											}
 											placeholder="0"
 											className={textInputClassNames.primaryAmountInput}
 											style={styles.input}
