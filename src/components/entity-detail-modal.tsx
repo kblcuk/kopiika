@@ -13,6 +13,7 @@ import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types
 import { getCurrentPeriod } from '@/src/types';
 import {
 	formatAmount,
+	formatAmountForInput,
 	reverseFormatCurrency,
 	roundMoney,
 	getCurrencySymbol,
@@ -171,10 +172,10 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
 			setPlannedAmount(
 				existingPlan?.planned_amount != null && existingPlan.planned_amount > 0
-					? roundMoney(existingPlan.planned_amount).toString()
+					? formatAmountForInput(existingPlan.planned_amount)
 					: ''
 			);
-			setActualAmount(roundMoney(entity.actual).toString());
+			setActualAmount(formatAmountForInput(entity.actual));
 			setIsEditingActual(false);
 			setIncludeInTotal(entity.include_in_total !== false);
 			setIsDefault(entity.is_default === true);

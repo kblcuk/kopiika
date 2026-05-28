@@ -25,8 +25,8 @@ import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import {
 	formatAmount,
+	formatAmountForInput,
 	reverseFormatCurrency,
-	roundMoney,
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
@@ -345,7 +345,7 @@ export default function HistoryScreen() {
 
 	const handleEditSnapshot = useCallback((snapshot: MarketValueSnapshot) => {
 		setEditingSnapshot(snapshot);
-		setEditingSnapshotAmount(roundMoney(snapshot.amount).toString());
+		setEditingSnapshotAmount(formatAmountForInput(snapshot.amount));
 		setEditingSnapshotDate(formatSnapshotDateInput(snapshot.date));
 	}, []);
 

@@ -3,7 +3,12 @@ import { View, TextInput, Pressable } from 'react-native';
 import { Text } from './text';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
-import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
+import {
+	formatAmount,
+	formatAmountForInput,
+	reverseFormatCurrency,
+	roundMoney,
+} from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
@@ -112,7 +117,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 					return {
 						...r,
 						enabled: willEnable,
-						amount: willEnable ? roundMoney(defaultAmount).toString() : '',
+						amount: willEnable ? formatAmountForInput(defaultAmount) : '',
 					};
 				})
 			);

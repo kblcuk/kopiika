@@ -220,7 +220,7 @@ export function TransactionModal({
 	useEffect(() => {
 		if (visible) {
 			if (existingTransaction) {
-				setAmount(roundMoney(existingTransaction.amount).toString());
+				setAmount(formatAmountForInput(existingTransaction.amount));
 				setNote(existingTransaction.note ?? '');
 				setSelectedDate(new Date(existingTransaction.timestamp));
 				setSelectedFromId(existingTransaction.from_entity_id);
@@ -330,7 +330,7 @@ export function TransactionModal({
 		// Restore the string the user actually typed in split mode (preserves
 		// locale-specific separators they entered). Falls back to the numeric
 		// `splitTotal` if for some reason the string state is empty.
-		setAmount(splitMainAmount || (splitTotal > 0 ? roundMoney(splitTotal).toString() : ''));
+		setAmount(splitMainAmount || (splitTotal > 0 ? formatAmountForInput(splitTotal) : ''));
 		setSplitTotal(0);
 		setSplitMainAmount('');
 		setTimeout(() => amountExpr.inputRef.current?.focus(), 50);
@@ -821,7 +821,7 @@ export function TransactionModal({
 						)}
 						{!isEditing && suggestedAmount && (
 							<Pressable
-								onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
+								onPress={() => setAmount(formatAmountForInput(suggestedAmount))}
 								className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
 								testID="transaction-suggested-amount-button"
 							>
