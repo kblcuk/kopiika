@@ -155,6 +155,26 @@ describe('getCurrencySymbol', () => {
 	});
 });
 
+describe('roundMoney with decimal places', () => {
+	test('default 2 dp preserved (back-compat)', () => {
+		expect(roundMoney(1.235)).toBe(1.24);
+	});
+
+	test('explicit 2 dp', () => {
+		expect(roundMoney(1.235, 2)).toBe(1.24);
+	});
+
+	test('0 dp (JPY)', () => {
+		expect(roundMoney(1.235, 0)).toBe(1);
+		expect(roundMoney(1.5, 0)).toBe(2);
+	});
+
+	test('3 dp (BHD)', () => {
+		expect(roundMoney(1.2355, 3)).toBe(1.236);
+		expect(roundMoney(1.2354, 3)).toBe(1.235);
+	});
+});
+
 describe('reverseFormatCurrency', () => {
 	test('should parse amounts with dot as decimal separator', () => {
 		expect(reverseFormatCurrency('1.15')).toBe(1.15);

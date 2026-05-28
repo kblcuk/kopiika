@@ -21,9 +21,10 @@ export function getCurrencySymbol(currency: string): string {
 	return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
 }
 
-// Round monetary value to 2 decimal places to avoid floating point precision issues
-export function roundMoney(amount: number): number {
-	return Math.round(amount * 100) / 100;
+// Round monetary value to N decimal places (default 2) to avoid float drift.
+export function roundMoney(amount: number, decimalPlaces = 2): number {
+	const factor = 10 ** decimalPlaces;
+	return Math.round(amount * factor) / factor;
 }
 
 // Format currency amounts
