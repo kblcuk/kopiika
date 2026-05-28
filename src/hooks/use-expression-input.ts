@@ -33,7 +33,7 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 
 	const preview = useMemo(() => {
 		if (!isExpression) return null;
-		const result = evaluateExpression(value);
+		const result = evaluateExpression(normalizeDecimalSeparator(value));
 		if (result === null) return null;
 		return `= ${formatAmount(result)}`;
 	}, [value, isExpression]);
@@ -48,7 +48,7 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 
 	const resolve = useCallback((): string => {
 		if (!isExpression) return value;
-		const evaluated = evaluateExpression(value);
+		const evaluated = evaluateExpression(normalizeDecimalSeparator(value));
 		if (evaluated === null) return value;
 		const resolved = evaluated.toString();
 		onChange(resolved);

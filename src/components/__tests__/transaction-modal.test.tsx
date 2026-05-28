@@ -1033,6 +1033,26 @@ describe('TransactionModal', () => {
 				expect(input.props.value).toBe('100.5');
 			});
 
+			it('main field: expression with comma operands evaluates correctly', () => {
+				// User types "100,5+50,3" — both operands keep their commas (Task 2),
+				// and the calculator preview / resolved value still uses the .-only
+				// evaluator under the hood by normalizing at the boundary.
+				const { getByTestId, queryByText } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100,5+50,3');
+				expect(input.props.value).toBe('100,5+50,3');
+				// useExpressionInput exposes `preview` for the resolved value via
+				// formatAmount — in en-US that renders as "150.80".
+				expect(queryByText('= 150.80')).toBeTruthy();
+			});
+
 			it('SYMPTOM 2 — main field: blur does NOT mutate a trailing decimal', () => {
 				const { getByTestId } = render(
 					<TransactionModal
