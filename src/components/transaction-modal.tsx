@@ -15,6 +15,7 @@ import { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from '@/src/types/recurrence';
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
 	formatAmount,
+	formatAmountForInput,
 	reverseFormatCurrency,
 	roundMoney,
 	DEFAULT_CURRENCY,
@@ -1024,8 +1025,7 @@ export function TransactionModal({
 																					.DEFAULT,
 																}}
 															>
-																{anchorAmount < 0 ? '-' : ''}
-																{roundMoney(Math.abs(anchorAmount))}
+																{formatAmount(anchorAmount)}
 															</Text>
 															<Text className="ml-1 font-sans text-xs text-ink-muted">
 																auto
@@ -1039,9 +1039,9 @@ export function TransactionModal({
 																	onPress={() =>
 																		handleSplitAmountChange(
 																			index,
-																			roundMoney(
+																			formatAmountForInput(
 																				anchorAmount
-																			).toString()
+																			)
 																		)
 																	}
 																	className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"

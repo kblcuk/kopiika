@@ -1,6 +1,7 @@
 import {
 	roundMoney,
 	formatAmount,
+	formatAmountForInput,
 	getProgressPercent,
 	isOverspent,
 	reverseFormatCurrency,
@@ -58,6 +59,47 @@ describe('formatAmount', () => {
 		expect(formatAmount(-0.0000001)).toBe('0.00');
 		// JS negative zero
 		expect(formatAmount(-0)).toBe('0.00');
+	});
+});
+
+describe('formatAmountForInput', () => {
+	// Locale-aware separator, no thousands grouping, no forced trailing zeros —
+	// suitable for putting back into an editable amount input so the value the
+	// user sees from a chip tap or edit-mode initial load matches what they
+	// would have typed themselves.
+
+	test('preserves integer shape (no forced .00)', () => {
+		// en-US test locale
+		expect(formatAmountForInput(100)).toBe('100');
+		expect(formatAmountForInput(50)).toBe('50');
+		expect(formatAmountForInput(2500)).toBe('2500');
+	});
+
+	test('keeps decimals up to two places', () => {
+		expect(formatAmountForInput(1.15)).toBe('1.15');
+		expect(formatAmountForInput(81.7)).toBe('81.7');
+	});
+
+	test('rounds beyond two decimals', () => {
+		expect(formatAmountForInput(1.155)).toBe('1.16');
+		expect(formatAmountForInput(1.1500000000091)).toBe('1.15');
+	});
+
+	test('drops thousands grouping so the input stays clean', () => {
+		// formatAmount produces "1,234.50"; the input variant must not group.
+		expect(formatAmountForInput(1234.5)).toBe('1234.5');
+		expect(formatAmountForInput(10000)).toBe('10000');
+	});
+
+	test('handles zero and tiny negatives', () => {
+		expect(formatAmountForInput(0)).toBe('0');
+		// Tiny floating-point negatives normalize to 0 like formatAmount.
+		expect(formatAmountForInput(-0.001)).toBe('0');
+	});
+
+	test('handles negative amounts', () => {
+		expect(formatAmountForInput(-100)).toBe('-100');
+		expect(formatAmountForInput(-1.15)).toBe('-1.15');
 	});
 });
 

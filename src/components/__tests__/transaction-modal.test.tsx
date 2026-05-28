@@ -5,6 +5,7 @@ import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
 import type { Entity, EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
+import { formatAmount, formatAmountForInput } from '@/src/utils/format';
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: jest.fn() }),
@@ -857,6 +858,30 @@ describe('TransactionModal', () => {
 			expect(getByTestId('split-anchor-amount')).toBeTruthy();
 		});
 
+		it('anchor amount renders via formatAmount, not raw Number.toString', () => {
+			// Regression: with total=100 and one split=18.3, anchor=81.7 was rendered
+			// as the bare JS number string "81.7" via roundMoney().toString(), while
+			// user-typed rows respect the device locale separator. The two formats
+			// could appear side-by-side on the same screen (e.g. "81.7" vs "18,3").
+			// Anchor must go through formatAmount so both sides agree.
+			const { getByTestId, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+			fireEvent.press(getByTestId('split-toggle-button'));
+			fireEvent.changeText(getByTestId('split-amount-1'), '18.3');
+
+			// Expected: anchor rendered as the same formatter used everywhere else.
+			expect(queryByText(formatAmount(81.7))).toBeTruthy();
+			// And NOT the raw Number.toString form that bypassed the formatter.
+			expect(queryByText('81.7')).toBeNull();
+		});
+
 		it('anchor has no editable amount input', () => {
 			const { getByTestId, queryByTestId } = render(
 				<TransactionModal
@@ -919,6 +944,142 @@ describe('TransactionModal', () => {
 
 			// Row 1 amount should now be 50
 			expect(getByTestId('split-amount-1').props.value).toBe('50');
+		});
+
+		it('chip fill on a non-integer anchor routes through formatAmountForInput', () => {
+			// Pins the contract that the "use remaining" chip writes the locale-aware
+			// helper output into the split input, not a raw JS Number.toString that
+			// would emit a period regardless of locale and disagree with user-typed
+			// values on comma-decimal locales. See formatAmountForInput unit tests
+			// for the separator coverage.
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+			fireEvent.press(getByTestId('split-toggle-button'));
+			fireEvent.changeText(getByTestId('split-amount-1'), '18.3');
+			// Add a third row; its chip should now offer the remaining 81.7.
+			fireEvent.press(getByTestId('split-add-button'));
+			fireEvent.press(getByTestId('split-remaining-chip-2'));
+
+			expect(getByTestId('split-amount-2').props.value).toBe(formatAmountForInput(81.7));
+		});
+
+		// Interaction tests that were missing — they reproduce each symptom the
+		// user reported after PR #67. The goal here is not to fix anything yet;
+		// it's to nail down current behavior so we know what's pre-existing vs
+		// what the formatAmountForInput sweep actually changed.
+		describe('Amount input pipeline (interaction)', () => {
+			it('SYMPTOM 1 — main field: typing a single comma displays as period', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, ',');
+				// Pre-existing: useExpressionInput.setValue runs
+				// normalizeDecimalSeparator (',' → '.') before storing.
+				expect(input.props.value).toBe('.');
+			});
+
+			it('SYMPTOM 1 — main field: typing "100,5" stored as "100.5"', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100,5');
+				expect(input.props.value).toBe('100.5');
+			});
+
+			it('SYMPTOM 2 — main field: blur does NOT mutate a trailing decimal', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100.');
+				fireEvent(input, 'blur');
+				// onBlur in useExpressionInput only sets focused=false — there is
+				// no value mutation. If this passes, the "blur removes the dot"
+				// behavior is native iOS, not our JS code.
+				expect(input.props.value).toBe('100.');
+			});
+
+			it('SYMPTOM 3 — split row: typing comma is NOT normalized (asymmetry vs main)', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('split-toggle-button'));
+				const splitInput = getByTestId('split-amount-1');
+				fireEvent.changeText(splitInput, '5,3');
+				// Split rows use handleSplitAmountChange → normalizeNumericInput
+				// only (NO normalizeDecimalSeparator). Comma persists.
+				expect(splitInput.props.value).toBe('5,3');
+			});
+
+			it('split-mode main field: partial decimal "5," cannot be represented (data-flow lossy)', () => {
+				// In split mode the main field is bound to a NUMBER (splitTotal),
+				// not a string. Typing a trailing separator can't round-trip:
+				// "5," → normalize → "5." → reverseFormatCurrency → 5
+				// → setSplitTotal(5) → next render formatAmountForInput(5) → "5".
+				// The trailing separator is silently dropped. Same pre and post #67.
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('split-toggle-button'));
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '5,');
+				expect(input.props.value).toBe('5');
+			});
+
+			it('split-mode main field: full "5,3" round-trips correctly', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('split-toggle-button'));
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '5,3');
+				// formatAmountForInput(5.3) in en-US test locale is "5.3".
+				// On a comma-locale device this would render "5,3" — agreeing
+				// with the user's typed input visually.
+				expect(input.props.value).toBe('5.3');
+			});
 		});
 
 		it('add split button creates a new row', () => {

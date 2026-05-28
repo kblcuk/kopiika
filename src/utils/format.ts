@@ -39,6 +39,21 @@ export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY
 	return `${sign}${formatted}`;
 }
 
+// Format a numeric amount for assignment to an editable amount input. Same locale
+// decimal separator as formatAmount (so chip-fills agree with user-typed values),
+// but no thousands grouping and no forced trailing zeros — the input keeps the
+// shape the user would have typed themselves. Replaces raw `Number.toString()`
+// at programmatic input-write sites, which always emits a period regardless of
+// locale and so disagreed visibly with user input on comma-decimal locales.
+export function formatAmountForInput(amount: number): string {
+	const rounded = roundMoney(amount) || 0;
+	return new Intl.NumberFormat(void 0, {
+		minimumFractionDigits: 0,
+		maximumFractionDigits: 2,
+		useGrouping: false,
+	}).format(rounded);
+}
+
 // Format period for display
 export function formatPeriod(period: string): string {
 	const [year, month] = period.split('-').map(Number) as [number, number];
