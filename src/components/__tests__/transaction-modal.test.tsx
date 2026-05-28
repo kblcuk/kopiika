@@ -970,10 +970,11 @@ describe('TransactionModal', () => {
 			expect(getByTestId('split-amount-2').props.value).toBe(formatAmountForInput(81.7));
 		});
 
-		// Interaction tests that were missing — they reproduce each symptom the
-		// user reported after PR #67. The goal here is not to fix anything yet;
-		// it's to nail down current behavior so we know what's pre-existing vs
-		// what the formatAmountForInput sweep actually changed.
+		// Interaction tests for the amount-input pipeline. The `main field:` cases
+		// assert the single-separator policy: a comma stays a comma, a period stays
+		// a period, and a second separator typed within the same operand is dropped.
+		// The remaining `SYMPTOM` cases pin pre-existing behavior we have not
+		// changed yet — they're regression guards, not assertions of intent.
 		describe('Amount input pipeline (interaction)', () => {
 			it('main field: typing a single comma preserves the comma', () => {
 				const { getByTestId } = render(
