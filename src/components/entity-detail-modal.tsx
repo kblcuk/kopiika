@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { View, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
 import { Text } from './text';
 import {
@@ -16,6 +17,7 @@ import {
 	reverseFormatCurrency,
 	roundMoney,
 	getCurrencySymbol,
+	DEFAULT_CURRENCY,
 } from '@/src/utils/format';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 
@@ -70,12 +72,23 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
 	const insets = useSafeAreaInsets();
-	const actualExpr = useExpressionInput(actualAmount, (v) => {
-		setActualAmount(v);
-		setIsEditingActual(true);
+	const maxDecimalPlaces = useMemo(
+		() => getCurrencyDecimalPlaces(entity?.currency ?? DEFAULT_CURRENCY),
+		[entity?.currency]
+	);
+
+	const actualExpr = useExpressionInput(
+		actualAmount,
+		(v) => {
+			setActualAmount(v);
+			setIsEditingActual(true);
+		},
+		{ maxDecimalPlaces }
+	);
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
+	const marketValueExpr = useExpressionInput(marketValueAmount, setMarketValueAmount, {
+		maxDecimalPlaces,
 	});
-	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
-	const marketValueExpr = useExpressionInput(marketValueAmount, setMarketValueAmount);
 	// Show toolbar when either amount input is focused
 	const showExprToolbar = actualExpr.focused || plannedExpr.focused;
 

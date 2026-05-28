@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { Alert, View, TextInput, Pressable, Modal, Platform, Switch } from 'react-native';
 import { Text } from './text';
 import {
@@ -60,7 +61,8 @@ export function EntityCreateModal({
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
 	const insets = useSafeAreaInsets();
-	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount);
+	const maxDecimalPlaces = getCurrencyDecimalPlaces(DEFAULT_CURRENCY);
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
 
 	const { entities, addEntity, setPlan, currentPeriod } = useStore(
 		useShallow((state) => ({

@@ -2,9 +2,10 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { TextInput } from 'react-native';
 
 import { evaluateExpression } from '@/src/utils/evaluate-expression';
-import { formatAmount } from '@/src/utils/format';
+import { formatAmount, roundMoney } from '@/src/utils/format';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { tryInsertOperator } from '@/src/utils/expression-input';
+import { sanitizeExpressionInput } from '@/src/utils/sanitize-amount';
 import { OPERATORS, type Operator } from '@/src/components/operator-toolbar';
 
 const EXPR_CHAR_RE = new RegExp(`[${OPERATORS.map((c) => `\\${c}`).join('')}]`);
@@ -15,7 +16,11 @@ const EXPR_CHAR_RE = new RegExp(`[${OPERATORS.map((c) => `\\${c}`).join('')}]`);
  * Returns props to spread onto the TextInput, the operator toolbar callbacks,
  * focus state for KeyboardExtender gating, and a resolve function for submit.
  */
-export function useExpressionInput(value: string, onChange: (v: string) => void) {
+export function useExpressionInput(
+	value: string,
+	onChange: (v: string) => void,
+	opts: { maxDecimalPlaces: number }
+) {
 	const inputRef = useRef<TextInput>(null);
 	const selectionRef = useRef({ start: 0, end: 0 });
 	const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
@@ -31,27 +36,28 @@ export function useExpressionInput(value: string, onChange: (v: string) => void)
 		if (!isExpression) return null;
 		const result = evaluateExpression(value);
 		if (result === null) return null;
-		return `= ${formatAmount(result)}`;
-	}, [value, isExpression]);
+		return `= ${formatAmount(roundMoney(result, opts.maxDecimalPlaces))}`;
+	}, [value, isExpression, opts.maxDecimalPlaces]);
 
 	const setValue = useCallback(
 		(v: string) => {
-			const normalized = v.replace(/,/g, '.'); // TODO Task 8: replace with sanitizeExpressionInput
-			onChange(
-				EXPR_CHAR_RE.test(normalized) ? normalized : normalizeNumericInput(normalized)
-			);
+			const sanitized = sanitizeExpressionInput(v, {
+				maxDecimalPlaces: opts.maxDecimalPlaces,
+			});
+			onChange(EXPR_CHAR_RE.test(sanitized) ? sanitized : normalizeNumericInput(sanitized));
 		},
-		[onChange]
+		[onChange, opts.maxDecimalPlaces]
 	);
 
 	const resolve = useCallback((): string => {
 		if (!isExpression) return value;
 		const evaluated = evaluateExpression(value);
 		if (evaluated === null) return value;
-		const resolved = evaluated.toString();
+		const rounded = roundMoney(evaluated, opts.maxDecimalPlaces);
+		const resolved = rounded.toString();
 		onChange(resolved);
 		return resolved;
-	}, [value, isExpression, onChange]);
+	}, [value, isExpression, onChange, opts.maxDecimalPlaces]);
 
 	const insertOperator = useCallback(
 		(op: Operator) => {

@@ -11,6 +11,7 @@ import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { InfoPin } from '@/src/components/info-pin';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
 interface FundingRow {
@@ -36,13 +37,14 @@ interface SavingsFundingSectionProps {
 	enteredAmount: number;
 	/** Called whenever the total funded amount changes (toggle or amount edit) */
 	onFundingChange: (totalFunded: number) => void;
+	maxDecimalPlaces: number;
 }
 
 const VISIBLE_CAP = 3;
 
 export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFundingSectionProps>(
 	function SavingsFundingSection(
-		{ accountEntityId, currency, enteredAmount, onFundingChange },
+		{ accountEntityId, currency, enteredAmount, onFundingChange, maxDecimalPlaces },
 		ref
 	) {
 		const [rows, setRows] = useState<FundingRow[]>([]);
@@ -121,7 +123,14 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		const handleAmountChange = (index: number, value: string) => {
 			setRows((prev) =>
 				prev.map((r, i) =>
-					i === index ? { ...r, amount: normalizeNumericInput(value) } : r
+					i === index
+						? {
+								...r,
+								amount: normalizeNumericInput(
+									sanitizeAmountInput(value, { maxDecimalPlaces })
+								),
+							}
+						: r
 				)
 			);
 		};

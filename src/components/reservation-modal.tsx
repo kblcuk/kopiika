@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, TextInput, Pressable, Modal, Platform, Alert } from 'react-native';
 import { Text } from './text';
 import {
@@ -15,7 +15,9 @@ import {
 	reverseFormatCurrency,
 	roundMoney,
 	getCurrencySymbol,
+	DEFAULT_CURRENCY,
 } from '@/src/utils/format';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { useStore } from '@/src/store';
 import { TransactionValidationError } from '@/src/utils/transaction-validation';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
@@ -37,7 +39,11 @@ interface ReservationModalProps {
 export function ReservationModal({ visible, account, saving, onClose }: ReservationModalProps) {
 	const [amount, setAmount] = useState('');
 	const insets = useSafeAreaInsets();
-	const amountExpr = useExpressionInput(amount, setAmount);
+	const maxDecimalPlaces = useMemo(
+		() => getCurrencyDecimalPlaces(account?.currency ?? DEFAULT_CURRENCY),
+		[account?.currency]
+	);
+	const amountExpr = useExpressionInput(amount, setAmount, { maxDecimalPlaces });
 
 	const reserveToSaving = useStore((s) => s.reserveToSaving);
 	const transactions = useStore((s) => s.transactions);

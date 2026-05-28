@@ -50,6 +50,8 @@ import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
+import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { InfoPin } from '@/src/components/info-pin';
 import { showSeriesScopeAlert } from './series-action-sheet';
 
@@ -130,21 +132,6 @@ export function TransactionModal({
 		[accounts, categories, income, savings]
 	);
 
-	const amountExpr = useExpressionInput(
-		isSplitMode ? splitTotal.toString() : amount,
-		useCallback(
-			(v: string) => {
-				if (isSplitMode) {
-					const n = reverseFormatCurrency(v.replace(/,/g, '.')); // TODO Task 8: replace with sanitizeExpressionInput
-					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
-				} else {
-					setAmount(v);
-				}
-			},
-			[isSplitMode]
-		)
-	);
-
 	const isEditing = !!existingTransaction;
 
 	const selectedFromEntity = useMemo(
@@ -163,6 +150,24 @@ export function TransactionModal({
 		selectedFromEntity?.currency ??
 		fromEntity?.currency ??
 		DEFAULT_CURRENCY;
+
+	const maxDecimalPlaces = useMemo(() => getCurrencyDecimalPlaces(currency), [currency]);
+
+	const amountExpr = useExpressionInput(
+		isSplitMode ? splitTotal.toString() : amount,
+		useCallback(
+			(v: string) => {
+				if (isSplitMode) {
+					const n = reverseFormatCurrency(sanitizeAmountInput(v, { maxDecimalPlaces }));
+					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
+				} else {
+					setAmount(v);
+				}
+			},
+			[isSplitMode, maxDecimalPlaces]
+		),
+		{ maxDecimalPlaces }
+	);
 
 	const validFromEntities = useMemo(() => {
 		if (!selectedToEntity) return [];
@@ -329,7 +334,16 @@ export function TransactionModal({
 	const handleSplitAmountChange = (index: number, value: string) => {
 		if (index === 0) return;
 		setSplits((prev) =>
-			prev.map((s, i) => (i === index ? { ...s, amount: normalizeNumericInput(value) } : s))
+			prev.map((s, i) =>
+				i === index
+					? {
+							...s,
+							amount: normalizeNumericInput(
+								sanitizeAmountInput(value, { maxDecimalPlaces })
+							),
+						}
+					: s
+			)
 		);
 	};
 
@@ -894,6 +908,7 @@ export function TransactionModal({
 								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
 							}
 							onFundingChange={setTotalFunded}
+							maxDecimalPlaces={maxDecimalPlaces}
 						/>
 					)}
 
