@@ -975,7 +975,7 @@ describe('TransactionModal', () => {
 		// it's to nail down current behavior so we know what's pre-existing vs
 		// what the formatAmountForInput sweep actually changed.
 		describe('Amount input pipeline (interaction)', () => {
-			it('SYMPTOM 1 — main field: typing a single comma displays as period', () => {
+			it('main field: typing a single comma preserves the comma', () => {
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -986,12 +986,11 @@ describe('TransactionModal', () => {
 				);
 				const input = getByTestId('transaction-amount-input');
 				fireEvent.changeText(input, ',');
-				// Pre-existing: useExpressionInput.setValue runs
-				// normalizeDecimalSeparator (',' → '.') before storing.
-				expect(input.props.value).toBe('.');
+				// New policy: no eager normalization; user's typed character is preserved.
+				expect(input.props.value).toBe(',');
 			});
 
-			it('SYMPTOM 1 — main field: typing "100,5" stored as "100.5"', () => {
+			it('main field: typing "100,5" preserves the comma', () => {
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -1002,6 +1001,34 @@ describe('TransactionModal', () => {
 				);
 				const input = getByTestId('transaction-amount-input');
 				fireEvent.changeText(input, '100,5');
+				expect(input.props.value).toBe('100,5');
+			});
+
+			it('main field: typing "100,5." drops the trailing period (single separator rule)', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100,5.');
+				expect(input.props.value).toBe('100,5');
+			});
+
+			it('main field: typing "100.5," drops the trailing comma (single separator rule)', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100.5,');
 				expect(input.props.value).toBe('100.5');
 			});
 
