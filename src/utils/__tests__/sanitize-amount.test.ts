@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { sanitizeAmountInput } from '../sanitize-amount';
+import { sanitizeAmountInput, sanitizeExpressionInput } from '../sanitize-amount';
 
 describe('sanitizeAmountInput', () => {
 	const dp2 = { maxDecimalPlaces: 2 };
@@ -36,6 +36,35 @@ describe('sanitizeAmountInput', () => {
 		for (const [input, opts] of cases) {
 			const once = sanitizeAmountInput(input, opts);
 			expect(sanitizeAmountInput(once, opts)).toBe(once);
+		}
+	});
+});
+
+describe('sanitizeExpressionInput', () => {
+	const dp2 = { maxDecimalPlaces: 2 };
+
+	test.each([
+		['12.5+3.2', dp2, '12.5+3.2'],
+		['12.5.5+3', dp2, '12.55+3'],
+		['12.505+3.2', dp2, '12.50+3.2'],
+		['12abc+3', dp2, '12+3'],
+		['  12 + 3  ', dp2, '  12 + 3  '],
+		['(12+3)*2', dp2, '(12+3)*2'],
+		['12,5+3,2', dp2, '12.5+3.2'],
+		['1/3', dp2, '1/3'],
+		['-12+3', dp2, '-12+3'],
+		// Unicode operators from the toolbar must survive.
+		['12−×3', dp2, '12−×3'],
+		['(5÷2)+1.5', dp2, '(5÷2)+1.5'],
+	])('expression(%j, dp=%o) → %j', (input, opts, expected) => {
+		expect(sanitizeExpressionInput(input, opts)).toBe(expected);
+	});
+
+	test('idempotent', () => {
+		const cases = ['12.5.5+3', '12abc+3', '12,5+3,2'];
+		for (const input of cases) {
+			const once = sanitizeExpressionInput(input, dp2);
+			expect(sanitizeExpressionInput(once, dp2)).toBe(once);
 		}
 	});
 });

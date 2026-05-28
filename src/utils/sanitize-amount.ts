@@ -13,3 +13,18 @@ export function sanitizeAmountInput(value: string, opts: { maxDecimalPlaces: num
 	const fraction = rest.join('').slice(0, opts.maxDecimalPlaces);
 	return rest.length ? `${whole}.${fraction}` : whole;
 }
+
+// Operator chars include both ASCII (`-`, `*`, `/`) and Unicode (`−` U+2212,
+// `×` U+00D7, `÷` U+00F7) variants because evaluate-expression accepts both
+// and the operator toolbar inserts the Unicode forms.
+const ALLOWED_CHARS_RE = /[^\d.,+\-−*×/÷() ]/g;
+const OPERAND_CHUNK_RE = /[\d.,]+/g;
+
+/**
+ * Sanitize an arithmetic expression input. Splits on operator boundaries and
+ * runs `sanitizeAmountInput` per operand; preserves operators and whitespace.
+ */
+export function sanitizeExpressionInput(value: string, opts: { maxDecimalPlaces: number }): string {
+	const cleaned = value.replace(ALLOWED_CHARS_RE, '');
+	return cleaned.replace(OPERAND_CHUNK_RE, (operand) => sanitizeAmountInput(operand, opts));
+}
