@@ -1105,7 +1105,7 @@ describe('TransactionModal', () => {
 				expect(input.props.value).toBe('100.');
 			});
 
-			it('SYMPTOM 3 — split row: typing comma is NOT normalized (asymmetry vs main)', () => {
+			it('split row: typing "5,3" preserves the comma (same rule as main field)', () => {
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -1118,8 +1118,22 @@ describe('TransactionModal', () => {
 				fireEvent.press(getByTestId('split-toggle-button'));
 				const splitInput = getByTestId('split-amount-1');
 				fireEvent.changeText(splitInput, '5,3');
-				// Split rows use handleSplitAmountChange → normalizeNumericInput
-				// only (NO normalizeDecimalSeparator). Comma persists.
+				expect(splitInput.props.value).toBe('5,3');
+			});
+
+			it('split row: typing "5,3." drops the trailing period (single separator rule)', () => {
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('split-toggle-button'));
+				const splitInput = getByTestId('split-amount-1');
+				fireEvent.changeText(splitInput, '5,3.');
 				expect(splitInput.props.value).toBe('5,3');
 			});
 

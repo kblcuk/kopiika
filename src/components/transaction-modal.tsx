@@ -49,7 +49,7 @@ import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { normalizeDecimalSeparator } from '@/src/utils/expression-input';
+import { enforceSingleSeparator, normalizeDecimalSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { InfoPin } from '@/src/components/info-pin';
 import { showSeriesScopeAlert } from './series-action-sheet';
@@ -330,7 +330,11 @@ export function TransactionModal({
 	const handleSplitAmountChange = (index: number, value: string) => {
 		if (index === 0) return;
 		setSplits((prev) =>
-			prev.map((s, i) => (i === index ? { ...s, amount: normalizeNumericInput(value) } : s))
+			prev.map((s, i) =>
+				i === index
+					? { ...s, amount: normalizeNumericInput(enforceSingleSeparator(value)) }
+					: s
+			)
 		);
 	};
 
