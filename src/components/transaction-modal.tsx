@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
 import type { RecurrenceFrequency } from '@/src/types/recurrence';
-import { HORIZON_OPTIONS, DEFAULT_HORIZON_DAYS } from '@/src/types/recurrence';
+import { horizonForFrequency } from '@/src/utils/recurrence';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
@@ -116,7 +116,6 @@ export function TransactionModal({
 	const [repeatEndDate, setRepeatEndDate] = useState<Date | null>(null);
 	const [showRepeatEndDatePicker, setShowRepeatEndDatePicker] = useState(false);
 	const [repeatEndCount, setRepeatEndCount] = useState('');
-	const [repeatHorizon, setRepeatHorizon] = useState(DEFAULT_HORIZON_DAYS);
 
 	const createTransactionBatch = useStore((state) => state.createTransactionBatch);
 	const updateTransaction = useStore((state) => state.updateTransaction);
@@ -254,7 +253,6 @@ export function TransactionModal({
 			setRepeatEndDate(null);
 			setShowRepeatEndDatePicker(false);
 			setRepeatEndCount('');
-			setRepeatHorizon(DEFAULT_HORIZON_DAYS);
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
@@ -569,7 +567,7 @@ export function TransactionModal({
 								repeatEndMode === 'count' && repeatEndCount
 									? parseInt(repeatEndCount, 10)
 									: null,
-							horizon: repeatHorizon,
+							horizon: horizonForFrequency(repeatFrequency),
 						}
 					);
 
@@ -1320,35 +1318,6 @@ export function TransactionModal({
 											/>
 										</View>
 									)}
-
-									{/* Horizon */}
-									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-										Generate ahead
-									</Text>
-									<View className="flex-row gap-2">
-										{HORIZON_OPTIONS.map((opt) => (
-											<Pressable
-												key={opt.days}
-												onPress={() => setRepeatHorizon(opt.days)}
-												className={`flex-1 items-center rounded-lg py-2 ${
-													repeatHorizon === opt.days
-														? 'bg-accent'
-														: 'bg-paper-200'
-												}`}
-												testID={`repeat-horizon-${opt.days}`}
-											>
-												<Text
-													className={`font-sans text-xs ${
-														repeatHorizon === opt.days
-															? 'text-on-color'
-															: 'text-ink-muted'
-													}`}
-												>
-													{opt.label}
-												</Text>
-											</Pressable>
-										))}
-									</View>
 								</View>
 							)}
 						</View>

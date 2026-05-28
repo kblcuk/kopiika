@@ -1,10 +1,42 @@
 import { describe, expect, test } from 'bun:test';
-import { generateOccurrences, nextOccurrence } from '../recurrence';
+import { generateOccurrences, horizonForFrequency, nextOccurrence } from '../recurrence';
 
 // Helper: create a local-time timestamp for a specific date
 function localTs(year: number, month: number, day: number, hour = 9): number {
 	return new Date(year, month - 1, day, hour).getTime();
 }
+
+describe('horizonForFrequency', () => {
+	test('daily → 90 days', () => {
+		expect(horizonForFrequency('daily')).toBe(90);
+	});
+
+	test('weekly → 90 days', () => {
+		expect(horizonForFrequency('weekly')).toBe(90);
+	});
+
+	test('monthly → 180 days', () => {
+		expect(horizonForFrequency('monthly')).toBe(180);
+	});
+
+	test('yearly → 400 days', () => {
+		// Just over one cycle so the next occurrence is always pre-generated.
+		expect(horizonForFrequency('yearly')).toBe(400);
+	});
+
+	test('yearly horizon pre-generates the next occurrence', () => {
+		// Sanity check: a yearly template should produce at least 2
+		// occurrences (today + next year) within the derived horizon.
+		const start = new Date(2026, 0, 15, 9).getTime();
+		const result = generateOccurrences({
+			rule: { type: 'yearly' },
+			startDate: start,
+			horizonDays: horizonForFrequency('yearly'),
+			now: start,
+		});
+		expect(result.length).toBeGreaterThanOrEqual(2);
+	});
+});
 
 describe('nextOccurrence', () => {
 	test('daily: advances by 1 day', () => {

@@ -174,6 +174,34 @@ describe('TransactionModal', () => {
 		});
 	});
 
+	describe('Recurrence UI', () => {
+		it('does not render a "Generate ahead" horizon picker after enabling repeat', () => {
+			const { getByTestId, queryByTestId, queryByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Sanity: horizon picker not present before toggling repeat.
+			expect(queryByText('Generate ahead')).toBeNull();
+
+			// Enable repeat — frequency / end-mode UI should appear.
+			fireEvent.press(getByTestId('repeat-toggle'));
+			expect(getByTestId('repeat-freq-monthly')).toBeTruthy();
+			expect(getByTestId('repeat-end-never')).toBeTruthy();
+
+			// Horizon UI must remain absent — it is now derived automatically.
+			expect(queryByText('Generate ahead')).toBeNull();
+			expect(queryByTestId('repeat-horizon-30')).toBeNull();
+			expect(queryByTestId('repeat-horizon-90')).toBeNull();
+			expect(queryByTestId('repeat-horizon-180')).toBeNull();
+			expect(queryByTestId('repeat-horizon-365')).toBeNull();
+		});
+	});
+
 	describe('Transaction Creation', () => {
 		it('does not create transaction when amount is empty', () => {
 			const batchSpy = jest.fn();

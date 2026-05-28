@@ -1,4 +1,35 @@
-import type { RecurrenceRule } from '@/src/types/recurrence';
+import type { RecurrenceFrequency, RecurrenceRule } from '@/src/types/recurrence';
+
+/**
+ * Auto-derive how far ahead occurrences should be precomputed for a given
+ * frequency. This used to be a user-facing picker ("Generate ahead: 1 month /
+ * 3 months / 6 months / 1 year") — database plumbing leaking into the UI.
+ *
+ * Mapping is calibrated so the next occurrence is always pre-generated:
+ * - daily   →  90 days  (~3 months of buffer)
+ * - weekly  →  90 days  (~13 weeks of buffer)
+ * - monthly → 180 days  (~6 months of buffer)
+ * - yearly  → 400 days  (just over one cycle)
+ *
+ * Existing DB rows keep whatever `horizon` they were stored with; this helper
+ * is only used for templates created after the picker was removed.
+ */
+export function horizonForFrequency(freq: RecurrenceFrequency): number {
+	switch (freq) {
+		case 'daily':
+			return 90;
+		case 'weekly':
+			return 90;
+		case 'monthly':
+			return 180;
+		case 'yearly':
+			return 400;
+		default: {
+			const _exhaustive: never = freq;
+			throw new Error(`Unsupported recurrence frequency: ${_exhaustive as string}`);
+		}
+	}
+}
 
 /**
  * Compute the next occurrence timestamp from a given timestamp using the rule.
