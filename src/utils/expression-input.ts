@@ -68,8 +68,3 @@ export function tryInsertOperator(
 	const next = before + op + after;
 	return { value: next, cursor: before.length + op.length };
 }
-
-/** Normalize comma decimal separators to dots. */
-export function normalizeDecimalSeparator(v: string): string {
-	return v.replace(/,/g, '.');
-}

@@ -1,4 +1,4 @@
-import { tryInsertOperator, normalizeDecimalSeparator } from '../expression-input';
+import { tryInsertOperator } from '../expression-input';
 
 // Helper: insert at end of string
 function insertAtEnd(value: string, op: string) {
@@ -145,23 +145,5 @@ describe('tryInsertOperator', () => {
 		test('rejects unbalanced close', () => {
 			expect(insertAtEnd('(5)+3', ')')).toBeNull();
 		});
-	});
-});
-
-describe('normalizeDecimalSeparator', () => {
-	test('replaces comma with dot', () => {
-		expect(normalizeDecimalSeparator('1,5')).toBe('1.5');
-	});
-
-	test('replaces multiple commas', () => {
-		expect(normalizeDecimalSeparator('1,5+2,5')).toBe('1.5+2.5');
-	});
-
-	test('leaves dots unchanged', () => {
-		expect(normalizeDecimalSeparator('1.5')).toBe('1.5');
-	});
-
-	test('no-op on plain numbers', () => {
-		expect(normalizeDecimalSeparator('42')).toBe('42');
 	});
 });
