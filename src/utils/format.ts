@@ -1,3 +1,5 @@
+import { getCurrencyDecimalPlaces } from './currency-precision';
+
 export const DEFAULT_CURRENCY = 'EUR';
 
 // Map ISO currency codes to their symbols
@@ -27,13 +29,14 @@ export function roundMoney(amount: number, decimalPlaces = 2): number {
 	return Math.round(amount * factor) / factor;
 }
 
-// Format currency amounts
+// Format currency amounts (number only — symbol is composed by callers).
 export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY): string {
-	amount = roundMoney(amount) || 0; // Normalize tiny negatives and -0 to 0
+	const dp = getCurrencyDecimalPlaces(currency);
+	amount = roundMoney(amount, dp) || 0; // Normalize tiny negatives and -0 to 0
 	const absAmount = Math.abs(amount);
 	const formatted = new Intl.NumberFormat(void 0, {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
+		minimumFractionDigits: dp,
+		maximumFractionDigits: dp,
 	}).format(absAmount);
 
 	const sign = amount < 0 ? '-' : '';
@@ -46,11 +49,12 @@ export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY
 // shape the user would have typed themselves. Replaces raw `Number.toString()`
 // at programmatic input-write sites, which always emits a period regardless of
 // locale and so disagreed visibly with user input on comma-decimal locales.
-export function formatAmountForInput(amount: number): string {
-	const rounded = roundMoney(amount) || 0;
+export function formatAmountForInput(amount: number, currency: string = DEFAULT_CURRENCY): string {
+	const dp = getCurrencyDecimalPlaces(currency);
+	const rounded = roundMoney(amount, dp) || 0;
 	return new Intl.NumberFormat(void 0, {
 		minimumFractionDigits: 0,
-		maximumFractionDigits: 2,
+		maximumFractionDigits: dp,
 		useGrouping: false,
 	}).format(rounded);
 }

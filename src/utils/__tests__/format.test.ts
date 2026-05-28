@@ -175,6 +175,39 @@ describe('roundMoney with decimal places', () => {
 	});
 });
 
+describe('formatAmount with currency precision', () => {
+	test('USD → 2 decimals', () => {
+		// Use a fixed locale to avoid CI flakiness; assert digit count not exact string.
+		const out = formatAmount(1234.5, 'USD');
+		expect(out).toMatch(/\.50$/);
+	});
+
+	test('JPY → 0 decimals', () => {
+		const out = formatAmount(1234.5, 'JPY');
+		expect(out).not.toMatch(/\./);
+		expect(out).toMatch(/1[.,  ]?23[45]/); // rounded to whole
+	});
+
+	test('BHD → 3 decimals', () => {
+		const out = formatAmount(1234.5, 'BHD');
+		expect(out).toMatch(/\.500$/);
+	});
+});
+
+describe('formatAmountForInput with currency precision', () => {
+	test('USD keeps 2-dp ceiling', () => {
+		expect(formatAmountForInput(12.345, 'USD')).toMatch(/^12[.,]35$/);
+	});
+
+	test('JPY drops fractional digits', () => {
+		expect(formatAmountForInput(12.5, 'JPY')).toMatch(/^13$/);
+	});
+
+	test('BHD keeps 3 dp', () => {
+		expect(formatAmountForInput(12.3456, 'BHD')).toMatch(/^12[.,]346$/);
+	});
+});
+
 describe('reverseFormatCurrency', () => {
 	test('should parse amounts with dot as decimal separator', () => {
 		expect(reverseFormatCurrency('1.15')).toBe(1.15);
