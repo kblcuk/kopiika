@@ -1053,6 +1053,40 @@ describe('TransactionModal', () => {
 				expect(queryByText('= 150.80')).toBeTruthy();
 			});
 
+			it('main field: comma expression resolves to the right number on submit', async () => {
+				// Covers the resolve() path: amountExpr.resolve() at submit time
+				// must evaluate "100,5+50,3" to 150.8 (not NaN) and that number
+				// must land in the batch payload that hits the store.
+				const batchSpy = jest.fn();
+				useStore.setState({ createTransactionBatch: batchSpy });
+
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100,5+50,3');
+				fireEvent.press(getByTestId('transaction-save-button'));
+
+				await waitFor(() => {
+					expect(batchSpy).toHaveBeenCalledTimes(1);
+					const batch = batchSpy.mock.calls[0][0] as unknown[];
+					expect(batch).toHaveLength(1);
+					expect(batch[0]).toMatchObject({
+						from_entity_id: 'account-1',
+						to_entity_id: 'category-1',
+						currency: 'USD',
+					});
+					expect((batch[0] as { amount: number }).amount).toBeCloseTo(150.8, 2);
+				});
+
+				expect(mockOnClose).toHaveBeenCalled();
+			});
+
 			it('SYMPTOM 2 — main field: blur does NOT mutate a trailing decimal', () => {
 				const { getByTestId } = render(
 					<TransactionModal
