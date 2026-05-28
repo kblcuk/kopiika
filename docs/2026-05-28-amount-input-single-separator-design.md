@@ -31,7 +31,7 @@ Underlying ugliness: display labels render locale-aware (`120,00`) while inputs 
 In `src/hooks/use-expression-input.ts`, `setValue` (line 37):
 
 - Remove the unconditional `normalizeDecimalSeparator(v)` call.
-- Replace with a new `enforceSingleSeparator(prev, next)` step that walks the candidate value, splitting on `OPERATOR_AND_PAREN_RE = /[+\-−×÷()]/` so the input is partitioned into operand chunks (the operator characters between them are preserved verbatim). In each chunk, allows at most one decimal-separator character (either `.` or `,`). A second separator typed in the same chunk is dropped; the rest of the value survives. The minus character is treated as a sign at the start of a chunk, not as an operator (a chunk like `-5,3` has one separator).
+- Replace with a new `enforceSingleSeparator(value)` step that walks the candidate value, splitting on `OPERATOR_SPLIT_RE = /([+\-−×÷()])/` so the input is partitioned into operand chunks (the operator characters between them are preserved verbatim). In each chunk, allows at most one decimal-separator character (either `.` or `,`). A second separator typed in the same chunk is dropped; the rest of the value survives. The minus character is treated as a sign at the start of a chunk, not as an operator (a chunk like `-5,3` has one separator). Signature is single-arg (not `(prev, next)`); left-to-right scanning of `value` naturally keeps the first separator seen, which is equivalent to "preserve the existing separator and drop newly typed extras" for the cases that arise from incremental keystrokes.
 - The result of `enforceSingleSeparator` is then passed through the existing branching: expression characters → keep as-is, else → `normalizeNumericInput`.
 
 ### 2. Unify split rows with the main pipeline
@@ -89,9 +89,9 @@ New tests:
 
 | File                                                  | Change                                                                                          |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `src/utils/expression-input.ts`                       | + `enforceSingleSeparator(prev, next)`, + `transformAmountInput(prev, next)` shared composer    |
+| `src/utils/expression-input.ts`                       | + `enforceSingleSeparator(value)` — drops extra separators per operand                          |
 | `src/hooks/use-expression-input.ts`                   | `setValue` uses new helper; `evaluateExpression` calls wrapped with `normalizeDecimalSeparator` |
-| `src/components/transaction-modal.tsx`                | `handleSplitAmountChange` uses the same shared composer                                         |
+| `src/components/transaction-modal.tsx`                | `handleSplitAmountChange` composes `enforceSingleSeparator` with `normalizeNumericInput`        |
 | `src/utils/__tests__/expression-input.test.ts`        | + unit tests for `enforceSingleSeparator`                                                       |
 | `src/components/__tests__/transaction-modal.test.tsx` | Flip 3 interaction tests, add 4 new ones                                                        |
 

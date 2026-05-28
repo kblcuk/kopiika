@@ -22,7 +22,7 @@
 | `src/utils/__tests__/expression-input.test.ts`        | Modify | Unit tests for the new helper                                                                                       |
 | `src/hooks/use-expression-input.ts`                   | Modify | Replace `normalizeDecimalSeparator` in `setValue`; wrap `evaluateExpression` calls with `normalizeDecimalSeparator` |
 | `src/components/transaction-modal.tsx`                | Modify | `handleSplitAmountChange` composes `enforceSingleSeparator` with `normalizeNumericInput`                            |
-| `src/components/__tests__/transaction-modal.test.tsx` | Modify | Flip 3 interaction tests, add 3 new ones                                                                            |
+| `src/components/__tests__/transaction-modal.test.tsx` | Modify | Flip 3 interaction tests, add 4 new ones (the `resolve()`-path test was added during code review)                   |
 
 No new files. No dependencies. No native changes.
 
