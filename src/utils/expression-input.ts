@@ -6,6 +6,8 @@
  * paren, close paren, start-of-input).
  */
 
+import { normalizeNumericInput } from './numeric-input';
+
 const ARITHMETIC_OPS = new Set(['+', '\u2212', '\u00D7', '\u00F7']);
 
 type CharClass = 'digit' | 'op' | 'open' | 'close' | 'start';
@@ -107,4 +109,16 @@ export function enforceSingleSeparator(value: string): string {
 			return out;
 		})
 		.join('');
+}
+
+/**
+ * Shared transform for plain numeric `onChangeText` handlers across the app.
+ * Composes `enforceSingleSeparator` (drops second `.` or `,` per operand) with
+ * `normalizeNumericInput` (strips leading zeros, normalises the sign). Use this
+ * at every plain amount-input site that isn't already routed through
+ * `useExpressionInput` — keeps the single-separator policy consistent
+ * everywhere a user can type a number.
+ */
+export function transformAmountInput(value: string): string {
+	return normalizeNumericInput(enforceSingleSeparator(value));
 }

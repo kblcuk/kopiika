@@ -2,6 +2,7 @@ import {
 	tryInsertOperator,
 	normalizeDecimalSeparator,
 	enforceSingleSeparator,
+	transformAmountInput,
 } from '../expression-input';
 
 // Helper: insert at end of string
@@ -223,5 +224,42 @@ describe('enforceSingleSeparator', () => {
 	test('handles unicode operators × and ÷', () => {
 		expect(enforceSingleSeparator('5,3×2')).toBe('5,3×2');
 		expect(enforceSingleSeparator('5,3÷2,1')).toBe('5,3÷2,1');
+	});
+});
+
+describe('transformAmountInput', () => {
+	// Shared input-pipeline composer: enforce single separator, then normalize
+	// numeric input (strip leading zeros, handle negative prefix). Use this at
+	// every plain numeric `onChangeText` site that isn't already going through
+	// `useExpressionInput` — keeps the rule consistent across the app.
+
+	test('drops second decimal separator', () => {
+		expect(transformAmountInput('24.24.24.24.24.24')).toBe('24.2424242424');
+		expect(transformAmountInput('24,24,24,24,24,24')).toBe('24,2424242424');
+	});
+
+	test('preserves a single decimal separator of either kind', () => {
+		expect(transformAmountInput('100.5')).toBe('100.5');
+		expect(transformAmountInput('100,5')).toBe('100,5');
+	});
+
+	test('strips leading zeros via normalizeNumericInput', () => {
+		expect(transformAmountInput('0042')).toBe('42');
+		expect(transformAmountInput('-007')).toBe('-7');
+	});
+
+	test('preserves "0," and "0." for in-progress decimal entry', () => {
+		expect(transformAmountInput('0,')).toBe('0,');
+		expect(transformAmountInput('0.')).toBe('0.');
+	});
+
+	test('passes through empty input', () => {
+		expect(transformAmountInput('')).toBe('');
+	});
+
+	test('order matters: separator filter runs before zero stripping', () => {
+		// "00.0.5" → enforceSingleSeparator → "00.05" → normalizeNumericInput
+		// shouldn't strip the leading zero because "0." is preserved.
+		expect(transformAmountInput('00.0.5')).toBe('0.05');
 	});
 });
