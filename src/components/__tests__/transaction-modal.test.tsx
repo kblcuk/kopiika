@@ -2390,4 +2390,51 @@ describe('TransactionModal', () => {
 			expect(queryByText('Fund from savings')).toBeTruthy();
 		});
 	});
+
+	describe('amount sanitization (USD entity)', () => {
+		it('typing "24.24.24" yields "24.24"', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const input = getByTestId('transaction-amount-input');
+			fireEvent.changeText(input, '24.24.24');
+			expect(input.props.value).toBe('24.24');
+		});
+
+		it('typing "24,24.24" yields "24.24"', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const input = getByTestId('transaction-amount-input');
+			fireEvent.changeText(input, '24,24.24');
+			expect(input.props.value).toBe('24.24');
+		});
+
+		it('typing "24.4204300034" yields "24.42"', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			const input = getByTestId('transaction-amount-input');
+			fireEvent.changeText(input, '24.4204300034');
+			expect(input.props.value).toBe('24.42');
+		});
+	});
 });
