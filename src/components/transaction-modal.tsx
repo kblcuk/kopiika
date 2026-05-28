@@ -49,7 +49,7 @@ import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { enforceSingleSeparator, normalizeDecimalSeparator } from '@/src/utils/expression-input';
+import { enforceSingleSeparator } from '@/src/utils/expression-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { InfoPin } from '@/src/components/info-pin';
 import { showSeriesScopeAlert } from './series-action-sheet';
@@ -99,6 +99,10 @@ export function TransactionModal({
 	const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
 	// Snapshot of amount when split mode was entered — drives the anchor calculation
 	const [splitTotal, setSplitTotal] = useState(0);
+	// Raw string the user sees in the main amount field while in split mode.
+	// Decoupled from `splitTotal` (a number) so partial decimals like "5,"
+	// survive mid-typing instead of round-tripping through a Number.toString().
+	const [splitMainAmount, setSplitMainAmount] = useState('');
 
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
@@ -132,11 +136,16 @@ export function TransactionModal({
 	);
 
 	const amountExpr = useExpressionInput(
-		isSplitMode ? splitTotal.toString() : amount,
+		isSplitMode ? splitMainAmount : amount,
 		useCallback(
 			(v: string) => {
 				if (isSplitMode) {
-					const n = reverseFormatCurrency(normalizeDecimalSeparator(v));
+					// Preserve the user's typed string verbatim so trailing separators
+					// (e.g. "5,") survive between renders. Derive the numeric
+					// `splitTotal` from it for the anchor calculation; `reverseFormatCurrency`
+					// already handles both `,` and `.` so no extra normalisation is needed.
+					setSplitMainAmount(v);
+					const n = reverseFormatCurrency(v);
 					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
 				} else {
 					setAmount(v);
@@ -236,6 +245,7 @@ export function TransactionModal({
 			setIsSplitMode(false);
 			setSplits([]);
 			setSplitTotal(0);
+			setSplitMainAmount('');
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
 			setIsSubmitting(false);
@@ -299,6 +309,11 @@ export function TransactionModal({
 		const resolved = amountExpr.resolve();
 		const total = reverseFormatCurrency(resolved) || 0;
 		setSplitTotal(total);
+		// Seed the split-mode display string with whatever the user resolved to
+		// (or the typed amount before entering split mode). Keeps the input
+		// visually identical across the mode toggle instead of snapping to a
+		// `Number.toString()` form.
+		setSplitMainAmount(resolved);
 		setIsSplitMode(true);
 		setSplits([
 			// Row 0: anchor — follows current selection (handles edit and post-picker create)
@@ -312,9 +327,12 @@ export function TransactionModal({
 	const handleMerge = () => {
 		setIsSplitMode(false);
 		setSplits([]);
-		// Restore the amount the user had typed before entering split mode
-		setAmount(splitTotal > 0 ? roundMoney(splitTotal).toString() : '');
+		// Restore the string the user actually typed in split mode (preserves
+		// locale-specific separators they entered). Falls back to the numeric
+		// `splitTotal` if for some reason the string state is empty.
+		setAmount(splitMainAmount || (splitTotal > 0 ? roundMoney(splitTotal).toString() : ''));
 		setSplitTotal(0);
+		setSplitMainAmount('');
 		setTimeout(() => amountExpr.inputRef.current?.focus(), 50);
 	};
 

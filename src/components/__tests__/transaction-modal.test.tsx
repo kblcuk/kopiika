@@ -1137,12 +1137,10 @@ describe('TransactionModal', () => {
 				expect(splitInput.props.value).toBe('5,3');
 			});
 
-			it('split-mode main field: partial decimal "5," cannot be represented (data-flow lossy)', () => {
-				// In split mode the main field is bound to a NUMBER (splitTotal),
-				// not a string. Typing a trailing separator can't round-trip:
-				// "5," → normalize → "5." → reverseFormatCurrency → 5
-				// → setSplitTotal(5) → next render formatAmountForInput(5) → "5".
-				// The trailing separator is silently dropped. Same pre and post #67.
+			it('split-mode main field: partial decimal "5," persists (no number round-trip)', () => {
+				// The split-mode main field now holds its own string state
+				// (splitMainAmount) instead of stringifying splitTotal on every
+				// render. A trailing separator survives mid-typing.
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -1155,7 +1153,7 @@ describe('TransactionModal', () => {
 				fireEvent.press(getByTestId('split-toggle-button'));
 				const input = getByTestId('transaction-amount-input');
 				fireEvent.changeText(input, '5,');
-				expect(input.props.value).toBe('5');
+				expect(input.props.value).toBe('5,');
 			});
 
 			it('split-mode main field: full "5,3" round-trips correctly', () => {
@@ -1171,10 +1169,8 @@ describe('TransactionModal', () => {
 				fireEvent.press(getByTestId('split-toggle-button'));
 				const input = getByTestId('transaction-amount-input');
 				fireEvent.changeText(input, '5,3');
-				// formatAmountForInput(5.3) in en-US test locale is "5.3".
-				// On a comma-locale device this would render "5,3" — agreeing
-				// with the user's typed input visually.
-				expect(input.props.value).toBe('5.3');
+				// The string state preserves the user's typed character.
+				expect(input.props.value).toBe('5,3');
 			});
 		});
 
