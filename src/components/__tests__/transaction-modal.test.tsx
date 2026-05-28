@@ -1023,7 +1023,7 @@ describe('TransactionModal', () => {
 				expect(input.props.value).toBe('100.');
 			});
 
-			it('SYMPTOM 3 — split row: typing comma is NOT normalized (asymmetry vs main)', () => {
+			it('split row: typing comma is normalized to dot (symmetric with main)', () => {
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -1036,9 +1036,7 @@ describe('TransactionModal', () => {
 				fireEvent.press(getByTestId('split-toggle-button'));
 				const splitInput = getByTestId('split-amount-1');
 				fireEvent.changeText(splitInput, '5,3');
-				// Split rows use handleSplitAmountChange → normalizeNumericInput
-				// only (NO normalizeDecimalSeparator). Comma persists.
-				expect(splitInput.props.value).toBe('5,3');
+				expect(splitInput.props.value).toBe('5.3');
 			});
 
 			it('split-mode main field: partial decimal "5," cannot be represented (data-flow lossy)', () => {
