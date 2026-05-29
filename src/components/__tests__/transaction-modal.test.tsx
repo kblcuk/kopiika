@@ -1039,12 +1039,9 @@ describe('TransactionModal', () => {
 				expect(splitInput.props.value).toBe('5.3');
 			});
 
-			it('split-mode main field: partial decimal "5," cannot be represented (data-flow lossy)', () => {
-				// In split mode the main field is bound to a NUMBER (splitTotal),
-				// not a string. Typing a trailing separator can't round-trip:
-				// "5," → normalize → "5." → reverseFormatCurrency → 5
-				// → setSplitTotal(5) → next render formatAmountForInput(5) → "5".
-				// The trailing separator is silently dropped. Same pre and post #67.
+			it('split-mode main field: partial decimal "5," is preserved as "5."', () => {
+				// Split mode keeps a draft string so trailing separators round-trip
+				// while typing — splitTotal (number) is still updated in parallel.
 				const { getByTestId } = render(
 					<TransactionModal
 						visible={true}
@@ -1057,7 +1054,27 @@ describe('TransactionModal', () => {
 				fireEvent.press(getByTestId('split-toggle-button'));
 				const input = getByTestId('transaction-amount-input');
 				fireEvent.changeText(input, '5,');
-				expect(input.props.value).toBe('5');
+				expect(input.props.value).toBe('5.');
+			});
+
+			it('split-mode main field: typing "." after a whole number is preserved', () => {
+				// Regression: previously the input was bound to splitTotal.toString(),
+				// so "100." → parseFloat → 100 → "100" silently dropped the dot.
+				const { getByTestId } = render(
+					<TransactionModal
+						visible={true}
+						fromEntity={mockFromEntity}
+						toEntity={mockToEntity}
+						onClose={mockOnClose}
+					/>
+				);
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '100');
+				fireEvent.press(getByTestId('split-toggle-button'));
+				const input = getByTestId('transaction-amount-input');
+				fireEvent.changeText(input, '100.');
+				expect(input.props.value).toBe('100.');
+				fireEvent.changeText(input, '100.5');
+				expect(input.props.value).toBe('100.5');
 			});
 
 			it('split-mode main field: full "5,3" round-trips correctly', () => {

@@ -100,6 +100,9 @@ export function TransactionModal({
 	const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
 	// Snapshot of amount when split mode was entered — drives the anchor calculation
 	const [splitTotal, setSplitTotal] = useState(0);
+	// Raw input string while editing splitTotal — preserves trailing/leading
+	// separators that the numeric `splitTotal` cannot round-trip (e.g. "5.").
+	const [splitTotalDraft, setSplitTotalDraft] = useState('');
 
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
@@ -154,10 +157,11 @@ export function TransactionModal({
 	const maxDecimalPlaces = useMemo(() => getCurrencyDecimalPlaces(currency), [currency]);
 
 	const amountExpr = useExpressionInput(
-		isSplitMode ? splitTotal.toString() : amount,
+		isSplitMode ? splitTotalDraft : amount,
 		useCallback(
 			(v: string) => {
 				if (isSplitMode) {
+					setSplitTotalDraft(v);
 					const n = reverseFormatCurrency(sanitizeAmountInput(v, { maxDecimalPlaces }));
 					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
 				} else {
@@ -240,6 +244,7 @@ export function TransactionModal({
 			setIsSplitMode(false);
 			setSplits([]);
 			setSplitTotal(0);
+			setSplitTotalDraft('');
 			setActiveSplitIndex(null);
 			setTotalFunded(0);
 			setIsSubmitting(false);
@@ -303,6 +308,7 @@ export function TransactionModal({
 		const resolved = amountExpr.resolve();
 		const total = reverseFormatCurrency(resolved) || 0;
 		setSplitTotal(total);
+		setSplitTotalDraft(resolved);
 		setIsSplitMode(true);
 		setSplits([
 			// Row 0: anchor — follows current selection (handles edit and post-picker create)
@@ -319,6 +325,7 @@ export function TransactionModal({
 		// Restore the amount the user had typed before entering split mode
 		setAmount(splitTotal > 0 ? roundMoney(splitTotal).toString() : '');
 		setSplitTotal(0);
+		setSplitTotalDraft('');
 		setTimeout(() => amountExpr.inputRef.current?.focus(), 50);
 	};
 
