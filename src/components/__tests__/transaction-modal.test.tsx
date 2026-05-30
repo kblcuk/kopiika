@@ -200,6 +200,66 @@ describe('TransactionModal', () => {
 			expect(queryByTestId('repeat-horizon-180')).toBeNull();
 			expect(queryByTestId('repeat-horizon-365')).toBeNull();
 		});
+
+		it('seeds a default end count when switching to "After N"', () => {
+			const addRecurringSpy = jest.fn();
+			useStore.setState({ addRecurringTransaction: addRecurringSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '20');
+			fireEvent.press(getByTestId('repeat-toggle'));
+			fireEvent.press(getByTestId('repeat-end-count'));
+
+			// Visible value in the input matches what save will persist — no silent "forever".
+			expect(getByTestId('repeat-end-count-input').props.value).toBe('12');
+
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			expect(addRecurringSpy).toHaveBeenCalledWith(
+				expect.any(Object),
+				expect.objectContaining({ endCount: 12, endDate: null })
+			);
+		});
+
+		it('seeds a default end date when switching to "Until date"', () => {
+			const addRecurringSpy = jest.fn();
+			useStore.setState({ addRecurringTransaction: addRecurringSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '20');
+			fireEvent.press(getByTestId('repeat-toggle'));
+			fireEvent.press(getByTestId('repeat-end-until'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			// Default seed is selectedDate + 1 year. With fixedNow = 2026-01-15, that's
+			// approximately 2027-01-15.
+			const oneYearOut = new Date(fixedNow);
+			oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+
+			expect(addRecurringSpy).toHaveBeenCalledWith(
+				expect.any(Object),
+				expect.objectContaining({
+					endDate: oneYearOut.getTime(),
+					endCount: null,
+				})
+			);
+		});
 	});
 
 	describe('Transaction Creation', () => {

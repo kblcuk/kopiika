@@ -287,6 +287,20 @@ export function TransactionModal({
 		if (date) setSelectedDate(date);
 	};
 
+	// Switching to a finite end mode without a value used to silently save as
+	// "Never" (endDate/endCount both null). Seed a visible default so the value
+	// rendered in the picker / input is also the value the save path uses.
+	const handleSelectRepeatEndMode = (mode: 'never' | 'until' | 'count') => {
+		setRepeatEndMode(mode);
+		if (mode === 'until' && !repeatEndDate) {
+			const seeded = new Date(selectedDate);
+			seeded.setFullYear(seeded.getFullYear() + 1);
+			setRepeatEndDate(seeded);
+		} else if (mode === 'count' && !repeatEndCount) {
+			setRepeatEndCount('12');
+		}
+	};
+
 	const formatDateDisplay = (date: Date): string => {
 		const today = new Date();
 		const yesterday = new Date(today);
@@ -1221,7 +1235,7 @@ export function TransactionModal({
 										{(['never', 'until', 'count'] as const).map((mode) => (
 											<Pressable
 												key={mode}
-												onPress={() => setRepeatEndMode(mode)}
+												onPress={() => handleSelectRepeatEndMode(mode)}
 												className={`flex-1 items-center rounded-lg py-2 ${
 													repeatEndMode === mode
 														? 'bg-accent'
