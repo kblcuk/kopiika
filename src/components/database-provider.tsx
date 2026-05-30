@@ -1,4 +1,4 @@
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { Text } from './text';
 import { useEffect, useState } from 'react';
 import { getDrizzleDb } from '../db';
@@ -32,6 +32,7 @@ function runWhenIdle(callback: () => void): () => void {
 
 export default function DatabaseProvider({ children }: { children: React.ReactNode }) {
 	const initialize = useStore((state) => state.initialize);
+	const backfillRecurringIfStale = useStore((state) => state.backfillRecurringIfStale);
 	const [isReady, setIsReady] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -99,6 +100,20 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 			}
 		};
 	}, [isReady]);
+
+	// Roll the recurrence horizon forward when the user returns to the app.
+	// `initialize` only runs once on cold start, so a long-lived warm process
+	// would otherwise stop materializing "Never"-ending recurrences past the
+	// horizon. The store action self-throttles to once per day.
+	useEffect(() => {
+		if (!isReady) return;
+		const sub = AppState.addEventListener('change', (next) => {
+			if (next === 'active') {
+				void backfillRecurringIfStale();
+			}
+		});
+		return () => sub.remove();
+	}, [isReady, backfillRecurringIfStale]);
 
 	if (!isReady) {
 		return (

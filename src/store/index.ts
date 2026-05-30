@@ -114,6 +114,7 @@ interface AppState {
 			horizon: number;
 		}
 	) => Promise<void>;
+	backfillRecurringIfStale: () => Promise<void>;
 	updateTransactionWithScope: (
 		id: string,
 		updates: Omit<Partial<Transaction>, 'id'>,
@@ -149,6 +150,17 @@ interface AppState {
 // KII-132: module-level mutable promise — not reset by `useStore.setState(...)`
 // in tests, so a rejected initialize poisons later tests. Move into store state.
 let initializePromise: Promise<void> | null = null;
+
+// Tracks the wall-clock time of the most recent recurrence backfill. Used by
+// `backfillRecurringIfStale` to avoid re-running on every app foreground; the
+// shortest supported recurrence period is daily, so once a day is sufficient.
+let lastBackfillAt = 0;
+const BACKFILL_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+// Test-only: lets the test file reset the throttle between cases.
+export function _resetBackfillTimestampForTests(): void {
+	lastBackfillAt = 0;
+}
 
 function getActiveEntities(entities: Entity[]): Entity[] {
 	return entities.filter(isEntityActive);
@@ -341,6 +353,7 @@ export const useStore = create<AppState>((set, get) => ({
 
 				// Backfill any missing occurrences within the horizon window
 				await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
+				lastBackfillAt = Date.now();
 			} catch (error) {
 				console.error('Failed to initialize store:', error);
 				set({ isLoading: false });
@@ -792,6 +805,24 @@ export const useStore = create<AppState>((set, get) => ({
 		if (stampedTxns.length > 0) {
 			await scheduleNotificationsForTransactions(stampedTxns, get().entities, set);
 		}
+	},
+
+	// Roll the horizon window forward on app foreground. `generateOccurrences`
+	// only materializes up to `now + horizonDays`, so without periodic re-runs
+	// an "until further notice" recurrence silently stops producing rows after
+	// the horizon elapses. Throttled to once per day (the smallest supported
+	// frequency) so a foreground bounce doesn't thrash the DB.
+	backfillRecurringIfStale: async () => {
+		const now = Date.now();
+		if (now - lastBackfillAt < BACKFILL_MIN_INTERVAL_MS) return;
+		const state = get();
+		await backfillRecurrences(
+			state.recurrenceTemplates,
+			state.transactions,
+			state.entities,
+			set
+		);
+		lastBackfillAt = now;
 	},
 
 	updateTransactionWithScope: async (id, updates, scope) => {

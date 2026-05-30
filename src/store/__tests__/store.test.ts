@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
-import { useStore, getEntitiesWithBalance } from '../index';
+import { useStore, getEntitiesWithBalance, _resetBackfillTimestampForTests } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -5025,6 +5025,97 @@ describe('Store Data Integrity', () => {
 			expect(
 				useStore.getState().marketValueSnapshots.find((s) => s.id === 'snap-1')
 			).toBeUndefined();
+		});
+	});
+
+	describe('backfillRecurringIfStale', () => {
+		const account: Entity = {
+			id: 'bf-acct',
+			type: 'account',
+			name: 'Bank',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const category: Entity = {
+			id: 'bf-cat',
+			type: 'category',
+			name: 'Bills',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 0,
+		};
+
+		const seedTemplate = async (): Promise<RecurrenceTemplate> => {
+			await db.createEntity(account);
+			await db.createEntity(category);
+			const template: RecurrenceTemplate = {
+				id: 'bf-tmpl',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 50,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: Date.now() - 10 * 24 * 60 * 60 * 1000, // 10 days ago
+				end_date: null,
+				end_count: null,
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [account, category],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+			return template;
+		};
+
+		beforeEach(() => {
+			_resetBackfillTimestampForTests();
+		});
+
+		test('materializes missing occurrences when throttle is cold', async () => {
+			await seedTemplate();
+			// `lastBackfillAt` was reset to 0, so the freshness check passes.
+			await useStore.getState().backfillRecurringIfStale();
+			const count = useStore.getState().transactions.length;
+			// 10 days back + 90-day horizon ≈ 100 daily rows; assert "many" instead
+			// of an exact figure to avoid DST/timezone brittleness on the boundary.
+			expect(count).toBeGreaterThan(50);
+		});
+
+		test('is throttled within 24h of the previous run', async () => {
+			await seedTemplate();
+			await useStore.getState().backfillRecurringIfStale();
+			const afterFirst = useStore.getState().transactions.length;
+			expect(afterFirst).toBeGreaterThan(0);
+
+			// Drop one row so a real second backfill would visibly repopulate it.
+			useStore.setState((state) => ({
+				transactions: state.transactions.slice(0, -1),
+			}));
+
+			// Same wall-clock instant → throttle skips.
+			await useStore.getState().backfillRecurringIfStale();
+			expect(useStore.getState().transactions.length).toBe(afterFirst - 1);
+		});
+
+		test('resumes generating once the throttle expires', async () => {
+			await seedTemplate();
+			await useStore.getState().backfillRecurringIfStale();
+			const afterFirst = useStore.getState().transactions.length;
+
+			// Wipe in-memory transactions to simulate a fresh window with new gaps.
+			useStore.setState({ transactions: [] });
+
+			// Simulate 24h+ elapsed by resetting the throttle.
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+
+			expect(useStore.getState().transactions.length).toBe(afterFirst);
 		});
 	});
 });

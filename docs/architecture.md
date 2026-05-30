@@ -151,7 +151,7 @@ Avoid adding these without a clear product decision:
 
 ## Recurrence and Series
 
-Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair) and a generation horizon (how many days ahead to pre-generate). On app init, a backfill pass extends the horizon by creating real transaction rows linked via `series_id`.
+Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair) and a generation horizon (how many days ahead to pre-generate). The horizon is auto-derived from frequency (daily/weekly → 90d, monthly → 180d, yearly → 400d) so the next occurrence is always materialized. Backfill runs on app init and again when the app returns to the foreground (throttled to once every 24 hours), so "Never"-ending recurrences keep producing rows as long as the user opens the app at least once per horizon window.
 
 Series scope rules:
 

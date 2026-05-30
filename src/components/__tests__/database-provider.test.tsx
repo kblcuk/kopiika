@@ -15,15 +15,20 @@ jest.mock('@/src/store', () => ({
 
 describe('DatabaseProvider', () => {
 	const mockInitialize = jest.fn();
+	const mockBackfillRecurringIfStale = jest.fn();
 	let consoleErrorSpy: jest.SpyInstance;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 		mockInitialize.mockResolvedValue(undefined);
+		mockBackfillRecurringIfStale.mockResolvedValue(undefined);
 		jest.mocked(getDrizzleDb).mockResolvedValue({} as never);
 		jest.mocked(useStore).mockImplementation((selector) =>
-			selector({ initialize: mockInitialize } as never)
+			selector({
+				initialize: mockInitialize,
+				backfillRecurringIfStale: mockBackfillRecurringIfStale,
+			} as never)
 		);
 	});
 
