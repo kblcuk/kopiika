@@ -779,6 +779,61 @@ describe('TransactionModal', () => {
 			expect(getByTestId('split-toggle-button')).toBeTruthy();
 		});
 
+		it('edit-future with unchanged date does not include timestamp in updates (would clobber future occurrences)', async () => {
+			const account2: EntityWithBalance = {
+				id: 'account-2',
+				type: 'account',
+				name: 'Savings',
+				currency: 'USD',
+				order: 1,
+				row: 0,
+				position: 1,
+				actual: 500,
+				planned: 1000,
+				remaining: 500,
+				upcoming: 0,
+			};
+			useStore.setState({ entities: [mockFromEntity, account2, mockToEntity] });
+
+			const updateScopeSpy = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({ updateTransactionWithScope: updateScopeSpy });
+
+			const existingTransaction = {
+				id: 'series-tx-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 100,
+				currency: 'USD',
+				timestamp: new Date('2026-01-15T12:00:00Z').getTime(),
+				series_id: 'series-1',
+			};
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+					seriesScope="future"
+				/>
+			);
+
+			// User changes only the from-entity, NOT the date.
+			fireEvent.press(getByTestId('transaction-from-button'));
+			fireEvent.press(getByTestId(`from-option-${account2.name}`));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(updateScopeSpy).toHaveBeenCalledTimes(1);
+			});
+			const [, updates] = updateScopeSpy.mock.calls[0];
+			// `timestamp` in a future-scope update is broadcast by SQL to every future
+			// row, collapsing them onto the edited date. Only send it when changed.
+			expect(updates).not.toHaveProperty('timestamp');
+			expect(updates).toMatchObject({ from_entity_id: 'account-2' });
+		});
+
 		it('hides split toggle in edit mode when editing all future of a series', () => {
 			const existingTransaction = {
 				id: 'txn-2',

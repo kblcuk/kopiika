@@ -533,7 +533,12 @@ export function TransactionModal({
 					timestamp?: number;
 					from_entity_id?: string;
 					to_entity_id?: string;
-				} = { amount: numAmount, note: note.trim() || undefined, timestamp };
+				} = { amount: numAmount, note: note.trim() || undefined };
+				// Only forward `timestamp` if the user actually changed the date.
+				// In scope='future' updates this column is broadcast via SQL UPDATE …
+				// WHERE timestamp >= ?, so sending the edited row's timestamp would
+				// collapse every future occurrence onto that single date.
+				if (timestamp !== existingTransaction.timestamp) updates.timestamp = timestamp;
 				if (selectedFromId && selectedFromId !== existingTransaction.from_entity_id)
 					updates.from_entity_id = selectedFromId;
 				if (selectedToId && selectedToId !== existingTransaction.to_entity_id)
