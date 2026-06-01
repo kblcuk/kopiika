@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.19](https://codeberg.org/kblcuk/kopiika/compare/v0.3.18...v0.3.19) (2026-06-01)
+
+
+### Features
+
+* **currency:** add Intl-based per-currency decimal precision helper ([8d0f340](https://codeberg.org/kblcuk/kopiika/commit/8d0f340eff49d0dcf4cf46ecca4b066a532cb41e))
+* **db:** add created_at + updated_at columns for sync ordering (KII-126) ([dc54e0a](https://codeberg.org/kblcuk/kopiika/commit/dc54e0aa4933c18e9e94934119e2598c17e9b87d))
+* **dx:** use hk for pre-commit hooks ([db61f28](https://codeberg.org/kblcuk/kopiika/commit/db61f2851e977f8c487e76b0a3aeeb4b2b2b7288))
+* **format:** make formatAmount + formatAmountForInput currency-aware ([ab0ee7c](https://codeberg.org/kblcuk/kopiika/commit/ab0ee7c20285de4a6fb00945bfd58c99db7fd24f))
+* **format:** parameterize roundMoney by decimal places ([76f550a](https://codeberg.org/kblcuk/kopiika/commit/76f550a16cdae03c8fae9d578bdc2c0962a88ee8))
+* **input:** add sanitizeAmountInput for plain monetary inputs ([92f22a6](https://codeberg.org/kblcuk/kopiika/commit/92f22a6af4dcd3e9018844ce459b53ae6a1fe9b2))
+* **input:** add sanitizeExpressionInput for arithmetic expressions ([87b0283](https://codeberg.org/kblcuk/kopiika/commit/87b028339a83dbbe0acc97d47d5660f822ea9eb0))
+* **input:** apply sanitizeAmountInput at all amount input sites ([53f721e](https://codeberg.org/kblcuk/kopiika/commit/53f721e6d5d10d352cfc5865a5b6c9cc19e10b28))
+* **recurrence:** auto-derive horizon from frequency; remove picker UI ([692da37](https://codeberg.org/kblcuk/kopiika/commit/692da37b34254e6bb7fc6e2c86f0a63fc4789eec))
+* **recurrence:** re-backfill horizon on app foreground ([82ea3a6](https://codeberg.org/kblcuk/kopiika/commit/82ea3a69babdc34cf0b65fcd44439caafb6d26d6))
+* **store:** round save-path amounts to per-currency precision ([76ac129](https://codeberg.org/kblcuk/kopiika/commit/76ac12966ab81e36a2ee5c5333fe8640de2fdd92))
+
+
+### Bug Fixes
+
+* **history:** retry scroll against current sections, not stale closure ([04f70a1](https://codeberg.org/kblcuk/kopiika/commit/04f70a169985e6a55e0c3f58db263618d9005c8b))
+* **summary:** raise progress-bar contrast and enforce min visible fill ([1787914](https://codeberg.org/kblcuk/kopiika/commit/178791411009d4f14e376070dbf335c1e7a7bc63)), closes [#D4C8B3](https://codeberg.org/kblcuk/kopiika/issues/D4C8B3) [#F8F4](https://codeberg.org/kblcuk/kopiika/issues/F8F4)
+* **transaction-modal:** auto-seed end-date / end-count for finite recurrences ([560090f](https://codeberg.org/kblcuk/kopiika/commit/560090f0458ee34f4c1a55c8659a1af527e406c7))
+* **transaction-modal:** format split anchor + split row chip via locale-aware helpers ([e742ef2](https://codeberg.org/kblcuk/kopiika/commit/e742ef29ae7f0350c70f897f8da2f4d74aa69f84))
+* **transaction-modal:** only forward timestamp when user changed the date ([3ad38bc](https://codeberg.org/kblcuk/kopiika/commit/3ad38bc5b6df860c2dfe2139392b23028ef96809))
+* **transaction-modal:** preserve typed separators in split-mode main input ([aaff083](https://codeberg.org/kblcuk/kopiika/commit/aaff083901acf9eb4002eb9ed32a5a1b47bb1dee))
+
 ## [0.3.18](https://codeberg.org/kblcuk/kopiika/compare/v0.3.17...v0.3.18) (2026-05-24)
 
 
