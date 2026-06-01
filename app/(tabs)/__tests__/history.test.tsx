@@ -1078,6 +1078,72 @@ describe('HistoryScreen search params', () => {
 			expect(scrollSpy).not.toHaveBeenCalled();
 		});
 
+		it('does not scroll to a stale sectionIndex when the retry fires after sections shrink', async () => {
+			// Regression: tapping a Summary row for a category/month with no
+			// transactions used to crash with "scrollToIndex out of range".
+			// The buggy retry captured `sections` in a closure at failure
+			// time; once the filter shrank `sections`, the retry still asked
+			// for sectionIndex=1 — out of range for the now-tiny list.
+			useStore.setState({
+				entities: [mockAccount, mockCategory],
+				plans: [],
+				transactions: [pastTx, upcomingTx],
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+			setPendingHistoryFilter({ period: '2026-01' });
+
+			const utils = render(<HistoryScreen />);
+			const { getByTestId } = utils;
+
+			await waitFor(() => {
+				expect(getByTestId('row-tx-past')).toBeTruthy();
+			});
+			await waitFor(() => {
+				expect(scrollSpy).toHaveBeenCalledWith(
+					expect.objectContaining({ sectionIndex: 1, itemIndex: 0 })
+				);
+			});
+
+			// Grab the failure handler while sections is still [Upcoming, Day].
+			const list = utils.UNSAFE_root.findByType(SectionList);
+			const onFail = list.props.onScrollToIndexFailed as (info: {
+				index: number;
+				highestMeasuredFrameIndex: number;
+				averageItemLength: number;
+			}) => void;
+			expect(onFail).toBeDefined();
+
+			// Schedule the retry. Bug: setTimeout closes over the current
+			// (large) sections list.
+			act(() => {
+				onFail({ index: 1, highestMeasuredFrameIndex: 0, averageItemLength: 50 });
+			});
+
+			// Now navigate to a (period, entity) that has no matches —
+			// sections becomes empty.
+			act(() => {
+				setPendingHistoryFilter({ period: '2025-08', entityId: 'category-1' });
+				triggerFocus?.();
+			});
+
+			await waitFor(() => {
+				expect(getByTestId('period-picker').props.children).toBe('2025-08');
+				expect(getByTestId('entity-filter').props.children).toBe('category-1');
+			});
+
+			scrollSpy.mockClear();
+
+			// Fire the pending retry. With the bug, the stale closure still
+			// calls scrollToLocation({ sectionIndex: 1 }) — which maps to an
+			// out-of-range flat index on the now-empty list.
+			act(() => {
+				jest.advanceTimersByTime(150);
+			});
+
+			expect(scrollSpy).not.toHaveBeenCalled();
+		});
+
 		it('re-applies scroll when the search query changes', async () => {
 			// Both past and upcoming match "rent", so the section composition
 			// stays Upcoming + past — target stays 1 but the user-input key

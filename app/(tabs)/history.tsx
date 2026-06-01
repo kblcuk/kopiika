@@ -236,6 +236,12 @@ export default function HistoryScreen() {
 		return [...upcomingSection, ...unconfirmedSection, ...pastSections];
 	}, [filteredTransactions, upcomingTransactions, unconfirmedTransactions]);
 
+	// Kept in a ref so the deferred onScrollToIndexFailed retry below always
+	// reads the current sections, not the (possibly stale) value captured in
+	// its closure at the time the failure fired.
+	const sectionsRef = useRef(sections);
+	sectionsRef.current = sections;
+
 	useEffect(() => {
 		const inputKey = `${deferredPeriod}|${selectedEntityId ?? ''}|${deferredSearch}`;
 		if (lastScrollInputKey.current === inputKey) return;
@@ -253,10 +259,13 @@ export default function HistoryScreen() {
 	}, [sections, deferredPeriod, selectedEntityId, deferredSearch]);
 
 	// VirtualizedList can fail to resolve a target offset when items haven't
-	// been measured yet; retrying after a tick lets layout catch up.
+	// been measured yet; retrying after a tick lets layout catch up. Reads
+	// from sectionsRef so a retry that fires after the user has navigated
+	// (shrinking sections) doesn't ask for an out-of-range sectionIndex.
 	const handleScrollToIndexFailed = useCallback(() => {
 		setTimeout(() => {
-			const target = pickInitialScrollSectionIndex(sections);
+			const currentSections = sectionsRef.current;
+			const target = pickInitialScrollSectionIndex(currentSections);
 			if (target <= 0) return;
 			listRef.current?.scrollToLocation({
 				sectionIndex: target,
@@ -265,7 +274,7 @@ export default function HistoryScreen() {
 				animated: false,
 			});
 		}, 100);
-	}, [sections]);
+	}, []);
 
 	const entityMap = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
 
@@ -598,6 +607,7 @@ export default function HistoryScreen() {
 			<View className="flex-1">
 				<SectionList
 					ref={listRef}
+					testID="history-transaction-list"
 					sections={sections}
 					renderItem={renderItem}
 					renderSectionHeader={renderSectionHeader}
