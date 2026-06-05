@@ -36,7 +36,6 @@ import {
 } from '../transactions';
 import { getPlanForEntity, upsertPlan } from '../plans';
 import {
-	addExclusion,
 	createRecurrenceTemplate,
 	getRecurrenceTemplateById,
 	softDeleteRecurrenceTemplate,
@@ -240,19 +239,23 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			expect(b?.updated_at).toBeGreaterThanOrEqual(before);
 		});
 
-		test('replaceTransactionAtomic stamps new rows and bumps template updated_at', async () => {
+		test('replaceTransactionAtomic stamps new rows and writes the exclusion', async () => {
+			// KII-123: the exclusion side-effect now writes to the normalized
+			// `recurrence_exclusions` table instead of mutating the template's
+			// JSON column. The template's `updated_at` is intentionally NOT
+			// bumped — the exclusion row's own existence is the change-tracked
+			// unit (sync replay relies on it).
+			const { getExclusionsForTemplate } = await import('../recurrence-exclusions');
 			await createRecurrenceTemplate(baseTemplate('tpl-1'));
 			await createTransaction(baseTransaction('t1', { series_id: 'tpl-1' }));
-			const tplBefore = await getRecurrenceTemplateById('tpl-1');
 			const txTime = Date.now();
 			await sleep(2);
 			await replaceTransactionAtomic('t1', [baseTransaction('t2', { amount: 99 })], {
 				seriesExclusion: { templateId: 'tpl-1', timestamp: txTime },
 			});
-			const tplAfter = await getRecurrenceTemplateById('tpl-1');
 			const t2 = await readTxn('t2');
-			expect(tplAfter?.updated_at).toBeGreaterThan(tplBefore!.updated_at as number);
 			expect(t2?.updated_at).toBeGreaterThanOrEqual(txTime);
+			expect(await getExclusionsForTemplate('tpl-1')).toContain(txTime);
 		});
 	});
 
@@ -313,14 +316,11 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 		});
 
-		test('addExclusion bumps updated_at', async () => {
-			await createRecurrenceTemplate(baseTemplate('tpl-1'));
-			const before = await getRecurrenceTemplateById('tpl-1');
-			await sleep(2);
-			await addExclusion('tpl-1', Date.now());
-			const after = await getRecurrenceTemplateById('tpl-1');
-			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
-		});
+		// KII-123: `addExclusion` writes to the normalized `recurrence_exclusions`
+		// table — it deliberately does NOT bump the template's `updated_at`. The
+		// new exclusion's own row is the change-tracked unit for sync replay
+		// (KII-96); double-stamping the template would mean every concurrent
+		// addExclusion still has a read-modify-write contention point.
 	});
 
 	describe('created_at is immutable on update (KII-126)', () => {

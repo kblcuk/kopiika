@@ -1,4 +1,12 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	index,
+	uniqueIndex,
+	primaryKey,
+} from 'drizzle-orm/sqlite-core';
 import { relations, sql } from 'drizzle-orm';
 
 // Per-row write-time columns used by sync (KII-126, KII-96):
@@ -124,7 +132,6 @@ export const recurrenceTemplates = sqliteTable(
 		end_date: integer('end_date'),
 		end_count: integer('end_count'),
 		horizon: integer('horizon').notNull(), // days ahead to generate
-		exclusions: text('exclusions'), // JSON array of skipped timestamps
 		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 		// Pre-existing column (app-supplied). No SQL default — kept as-is to
 		// avoid migration churn. New tables use the shared `createdAt()` helper.
@@ -132,6 +139,25 @@ export const recurrenceTemplates = sqliteTable(
 		updated_at: updatedAt(),
 	},
 	(table) => [index('idx_recurrence_templates_deleted').on(table.is_deleted)]
+);
+
+// KII-123: Exclusions live in their own table so:
+//   1. Adding an exclusion is a single INSERT (no JSON read-modify-write race
+//      between background notification confirms and foreground user actions).
+//   2. Concurrent inserts on multiple devices produce a clean set-union
+//      (composite PK + INSERT OR IGNORE) for op-log replay (KII-96).
+export const recurrenceExclusions = sqliteTable(
+	'recurrence_exclusions',
+	{
+		template_id: text('template_id')
+			.notNull()
+			.references(() => recurrenceTemplates.id, { onDelete: 'cascade' }),
+		timestamp: integer('timestamp').notNull(),
+	},
+	// No secondary index on `template_id`: the composite PK already physically
+	// orders rows by `(template_id, timestamp)`, so a leftmost-prefix scan on
+	// `template_id` alone is served directly by the PK B-tree.
+	(table) => [primaryKey({ columns: [table.template_id, table.timestamp] })]
 );
 
 // Market value snapshots table (for investment accounts)
@@ -209,5 +235,16 @@ export const recurrenceTemplatesRelations = relations(recurrenceTemplates, ({ on
 	}),
 	transactions: many(transactions, {
 		relationName: 'recurrence_transactions',
+	}),
+	exclusions: many(recurrenceExclusions, {
+		relationName: 'template_exclusions',
+	}),
+}));
+
+export const recurrenceExclusionsRelations = relations(recurrenceExclusions, ({ one }) => ({
+	template: one(recurrenceTemplates, {
+		fields: [recurrenceExclusions.template_id],
+		references: [recurrenceTemplates.id],
+		relationName: 'template_exclusions',
 	}),
 }));

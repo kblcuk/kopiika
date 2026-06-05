@@ -1313,11 +1313,8 @@ describe('transactions.ts', () => {
 				seriesExclusion: { templateId, timestamp: 1500 },
 			});
 
-			const { getRecurrenceTemplateById } = await import('../recurrence-templates');
-			const tmpl = await getRecurrenceTemplateById(templateId);
-			expect(tmpl).toBeTruthy();
-			const exclusions: number[] = JSON.parse(tmpl!.exclusions ?? '[]');
-			expect(exclusions).toContain(1500);
+			const { getExclusionsForTemplate } = await import('../recurrence-exclusions');
+			expect(await getExclusionsForTemplate(templateId)).toContain(1500);
 		});
 
 		test('rolls back when seriesExclusion references a non-existent template', async () => {
@@ -1363,6 +1360,80 @@ describe('transactions.ts', () => {
 			expect(ids.has('orig-no-tmpl')).toBe(true);
 			expect(ids.has('child-rb-1')).toBe(false);
 			expect(ids.has('child-rb-2')).toBe(false);
+		});
+	});
+
+	// KII-123: deleting a recurrence occurrence must atomically (a) remove the
+	// transaction row and (b) record the exclusion, otherwise a crash between
+	// the two steps would let backfill resurrect the deleted occurrence.
+	describe('deleteTransaction with seriesExclusion', () => {
+		test('atomically deletes the row and inserts the exclusion', async () => {
+			const { createRecurrenceTemplate } = await import('../recurrence-templates');
+			const { getExclusionsForTemplate } = await import('../recurrence-exclusions');
+			await createRecurrenceTemplate({
+				id: 'tmpl-del-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 25,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: 500,
+				horizon: 90,
+				created_at: 0,
+			});
+			await createTransaction({
+				id: 'occ-del-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 25,
+				currency: 'USD',
+				timestamp: 7000,
+				series_id: 'tmpl-del-1',
+			});
+
+			await deleteTransaction('occ-del-1', {
+				seriesExclusion: { templateId: 'tmpl-del-1', timestamp: 7000 },
+			});
+
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'occ-del-1')).toBeUndefined();
+			expect(await getExclusionsForTemplate('tmpl-del-1')).toEqual([7000]);
+		});
+
+		test('rolls back the delete when the seriesExclusion template is missing', async () => {
+			await createTransaction({
+				id: 'occ-del-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 25,
+				currency: 'USD',
+				timestamp: 8000,
+				series_id: 'tmpl-gone',
+			});
+
+			await expect(
+				deleteTransaction('occ-del-2', {
+					seriesExclusion: { templateId: 'tmpl-gone', timestamp: 8000 },
+				})
+			).rejects.toThrow(/recurrence template tmpl-gone not found/);
+
+			// The delete must have rolled back together with the failed insert.
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'occ-del-2')).toBeDefined();
+		});
+
+		test('plain deleteTransaction (no series) still works', async () => {
+			await createTransaction({
+				id: 'plain-del',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount: 5,
+				currency: 'USD',
+				timestamp: 9000,
+			});
+			await deleteTransaction('plain-del');
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'plain-del')).toBeUndefined();
 		});
 	});
 });

@@ -32,7 +32,8 @@ The authoritative model is:
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
 - `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` links to a recurrence template; `is_confirmed` gates whether future-dated/past-due scheduled transactions are applied to balances; `notification_id` stores the scheduled local reminder id when reminders are enabled
 - `market_value_snapshots`: optional manual valuation history for investment accounts; purchased price still comes from transactions, while market value comes from the latest snapshot
-- `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon, and exclusions for skipped occurrences
+- `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon
+- `recurrence_exclusions`: normalized list of skipped occurrence timestamps per template, with a composite `(template_id, timestamp)` primary key so concurrent edits union cleanly (KII-123, sync-friendly)
 
 Derived values belong in selectors, not persisted state:
 
@@ -155,7 +156,7 @@ Recurring transactions are template-driven. A `recurrence_template` stores the r
 
 Series scope rules:
 
-- **Edit/delete single**: modifies or soft-deletes one occurrence; adds its timestamp to the template's exclusion list
+- **Edit/delete single**: modifies or soft-deletes one occurrence; inserts a row into `recurrence_exclusions` so the backfill skips that timestamp on the next pass
 - **Edit/delete all future**: updates the template itself and regenerates from the current date forward; past occurrences are untouched
 - **Month-end handling**: monthly recurrences on the 29th–31st clamp to the last day of shorter months (Feb 28/29, Apr 30, etc.)
 - **First occurrence**: occurrences dated today or earlier are confirmed immediately; future occurrences start unconfirmed

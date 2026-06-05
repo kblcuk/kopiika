@@ -20,6 +20,7 @@ import m0015 from './0015_market_value_snapshots_fk.sql';
 import m0016 from './0016_unique_plan_per_entity_period.sql';
 import m0017 from './0017_cleanup_market_value_snapshot_orphans.sql';
 import m0018 from './0018_add_updated_at.sql';
+import m0019 from './0019_recurrence_exclusions_table.sql';
 
 export default {
 	journal,
@@ -43,5 +44,6 @@ export default {
 		m0016,
 		m0017,
 		m0018,
+		m0019,
 	},
 };

@@ -79,35 +79,49 @@ function splitSections(content: string): {
 	plans: string;
 	transactions: string;
 	recurrenceTemplates: string;
+	recurrenceExclusions: string;
 	marketValueSnapshots: string;
 } | null {
 	const entitiesIdx = content.indexOf('# ENTITIES');
 	const plansIdx = content.indexOf('# PLANS');
 	const transactionsIdx = content.indexOf('# TRANSACTIONS');
 	const recurrenceTemplatesIdx = content.indexOf('# RECURRENCE_TEMPLATES');
+	// KII-123: optional section. Older exports (pre-KII-123) put exclusions
+	// inline on the templates rows; new ones use a dedicated section.
+	const recurrenceExclusionsIdx = content.indexOf('# RECURRENCE_EXCLUSIONS');
 	const marketValueSnapshotsIdx = content.indexOf('# MARKET_VALUE_SNAPSHOTS');
 
 	if (entitiesIdx === -1 || plansIdx === -1 || transactionsIdx === -1) {
 		return null;
 	}
 
-	// Transactions end at recurrence_templates if present, else market_value_snapshots if present, else EOF.
-	const transactionsEndIdx =
-		recurrenceTemplatesIdx !== -1
-			? recurrenceTemplatesIdx
-			: marketValueSnapshotsIdx !== -1
-				? marketValueSnapshotsIdx
-				: undefined;
-
-	// Recurrence templates end at market_value_snapshots if present, else EOF.
-	const recurrenceTemplatesEndIdx =
-		marketValueSnapshotsIdx !== -1 ? marketValueSnapshotsIdx : undefined;
+	// Pick the earliest downstream marker after each section to bound its slice.
+	const firstAfter = (start: number, candidates: number[]): number | undefined => {
+		const later = candidates.filter((c) => c > start);
+		return later.length > 0 ? Math.min(...later) : undefined;
+	};
+	const downstreamFromTransactions = firstAfter(transactionsIdx, [
+		recurrenceTemplatesIdx,
+		recurrenceExclusionsIdx,
+		marketValueSnapshotsIdx,
+	]);
+	const downstreamFromTemplates =
+		recurrenceTemplatesIdx === -1
+			? undefined
+			: firstAfter(recurrenceTemplatesIdx, [
+					recurrenceExclusionsIdx,
+					marketValueSnapshotsIdx,
+				]);
+	const downstreamFromExclusions =
+		recurrenceExclusionsIdx === -1
+			? undefined
+			: firstAfter(recurrenceExclusionsIdx, [marketValueSnapshotsIdx]);
 
 	return {
 		entities: content.slice(entitiesIdx + '# ENTITIES'.length, plansIdx).trim(),
 		plans: content.slice(plansIdx + '# PLANS'.length, transactionsIdx).trim(),
 		transactions: content
-			.slice(transactionsIdx + '# TRANSACTIONS'.length, transactionsEndIdx)
+			.slice(transactionsIdx + '# TRANSACTIONS'.length, downstreamFromTransactions)
 			.trim(),
 		recurrenceTemplates:
 			recurrenceTemplatesIdx === -1
@@ -115,7 +129,16 @@ function splitSections(content: string): {
 				: content
 						.slice(
 							recurrenceTemplatesIdx + '# RECURRENCE_TEMPLATES'.length,
-							recurrenceTemplatesEndIdx
+							downstreamFromTemplates
+						)
+						.trim(),
+		recurrenceExclusions:
+			recurrenceExclusionsIdx === -1
+				? ''
+				: content
+						.slice(
+							recurrenceExclusionsIdx + '# RECURRENCE_EXCLUSIONS'.length,
+							downstreamFromExclusions
 						)
 						.trim(),
 		marketValueSnapshots:
@@ -493,15 +516,21 @@ function parseRecurrenceTemplates(
 			continue;
 		}
 
+		// KII-123: back-compat for older CSV exports that embedded exclusions
+		// as a JSON array on the template row. The current schema stores them
+		// in a separate `# RECURRENCE_EXCLUSIONS` section. We parse the legacy
+		// shape here and merge with the dedicated section in the caller.
+		let legacyExclusions: number[] | undefined;
 		if (row.exclusions) {
 			try {
 				const parsed = JSON.parse(row.exclusions);
-				if (!Array.isArray(parsed)) {
+				if (!Array.isArray(parsed) || !parsed.every((v) => typeof v === 'number')) {
 					errors.push(
-						`Recurrence template row ${lineNum}: exclusions must be a JSON array`
+						`Recurrence template row ${lineNum}: exclusions must be a JSON array of numbers`
 					);
 					continue;
 				}
+				legacyExclusions = parsed;
 			} catch {
 				errors.push(
 					`Recurrence template row ${lineNum}: exclusions "${row.exclusions}" is not valid JSON`
@@ -554,12 +583,47 @@ function parseRecurrenceTemplates(
 			end_date,
 			end_count,
 			horizon,
-			exclusions: row.exclusions || null,
+			exclusions: legacyExclusions,
 			is_deleted: row.is_deleted === 'true',
 			created_at,
 		});
 	}
 
+	return result;
+}
+
+/**
+ * Parse the dedicated `# RECURRENCE_EXCLUSIONS` section into a map of
+ * `templateId → number[]`. Rows whose `template_id` does not appear in the
+ * parsed templates are silently dropped — they would orphan in the FK-enforced
+ * DB anyway, and surfacing them as a hard error would be too strict for a
+ * forgiving CSV importer.
+ */
+function parseRecurrenceExclusions(
+	rows: Record<string, string>[],
+	templateIds: Set<string>,
+	errors: string[]
+): Map<string, number[]> {
+	const result = new Map<string, number[]>();
+	for (const [idx, row] of rows.entries()) {
+		const lineNum = idx + 1;
+		const templateId = row.template_id;
+		if (!templateId) {
+			errors.push(`Recurrence exclusion row ${lineNum}: missing template_id`);
+			continue;
+		}
+		const ts = Number(row.timestamp);
+		if (!row.timestamp || isNaN(ts)) {
+			errors.push(
+				`Recurrence exclusion row ${lineNum}: timestamp "${row.timestamp}" is not a valid number`
+			);
+			continue;
+		}
+		if (!templateIds.has(templateId)) continue;
+		const list = result.get(templateId);
+		if (list) list.push(ts);
+		else result.set(templateId, [ts]);
+	}
 	return result;
 }
 
@@ -606,6 +670,20 @@ export function parseImportCsv(content: string): ParseResult {
 		errors,
 		droppable
 	);
+
+	// KII-123: Merge exclusions from the dedicated section into each template's
+	// in-memory `exclusions` array, deduplicating against any legacy inline
+	// values (back-compat). New exports never produce both, but a hand-edited
+	// or partial-merge CSV could — `Set` collapses duplicates.
+	const templateIds = new Set(recurrenceTemplates.map((t) => t.id));
+	const exclusionRows = parseSection(sections.recurrenceExclusions);
+	const exclusionsByTemplate = parseRecurrenceExclusions(exclusionRows, templateIds, errors);
+	for (const template of recurrenceTemplates) {
+		const fromSection = exclusionsByTemplate.get(template.id) ?? [];
+		const merged = new Set<number>(template.exclusions ?? []);
+		for (const ts of fromSection) merged.add(ts);
+		template.exclusions = merged.size > 0 ? [...merged].sort((a, b) => a - b) : undefined;
+	}
 
 	const marketValueSnapshotRows = parseSection(sections.marketValueSnapshots);
 	const marketValueSnapshots = parseMarketValueSnapshots(

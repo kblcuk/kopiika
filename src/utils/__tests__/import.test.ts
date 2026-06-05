@@ -539,7 +539,9 @@ rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"
 		expect(t.end_date).toBeNull();
 		expect(t.end_count).toBeNull();
 		expect(t.horizon).toBe(90);
-		expect(t.exclusions).toBe('[1706832000000]');
+		// KII-123: legacy inline `exclusions` JSON column is parsed into the
+		// in-memory `number[]` representation for forward-compat.
+		expect(t.exclusions).toEqual([1706832000000]);
 		expect(t.is_deleted).toBe(false);
 		expect(t.created_at).toBe(1706745500000);
 	});

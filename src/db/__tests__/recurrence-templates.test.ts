@@ -7,9 +7,13 @@ import {
 	getRecurrenceTemplateById,
 	updateRecurrenceTemplate,
 	softDeleteRecurrenceTemplate,
-	addExclusion,
 	getActiveTemplatesForEntity,
 } from '../recurrence-templates';
+import {
+	addExclusion,
+	getExclusionsForTemplate,
+	getAllExclusionsByTemplate,
+} from '../recurrence-exclusions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
 
@@ -77,15 +81,53 @@ describe('recurrence-templates.ts', () => {
 		expect(all.length).toBe(0);
 	});
 
-	test('addExclusion appends to exclusions array', async () => {
+	test('addExclusion writes one row per (template_id, timestamp)', async () => {
 		await createRecurrenceTemplate(baseTemplate);
 		const ts1 = 1000;
 		const ts2 = 2000;
 		await addExclusion('rec-1', ts1);
 		await addExclusion('rec-1', ts2);
-		const result = await getRecurrenceTemplateById('rec-1');
-		const exclusions = JSON.parse(result!.exclusions ?? '[]');
-		expect(exclusions).toEqual([ts1, ts2]);
+		expect(await getExclusionsForTemplate('rec-1')).toEqual([ts1, ts2]);
+	});
+
+	test('addExclusion is idempotent — same (template_id, timestamp) twice is a no-op', async () => {
+		await createRecurrenceTemplate(baseTemplate);
+		await addExclusion('rec-1', 1000);
+		await addExclusion('rec-1', 1000);
+		expect(await getExclusionsForTemplate('rec-1')).toEqual([1000]);
+	});
+
+	test('concurrent addExclusion calls produce the set-union of all timestamps (KII-123)', async () => {
+		// Regression for the pre-KII-123 race: two read-modify-write callers
+		// could each parse the same JSON snapshot, append, and stringify back —
+		// the second writer would clobber the first's addition. With the
+		// normalized table + composite PK, the DB merges concurrent inserts as
+		// a set-union.
+		await createRecurrenceTemplate(baseTemplate);
+		const timestamps = [1000, 2000, 3000, 4000, 5000];
+		await Promise.all(timestamps.map((ts) => addExclusion('rec-1', ts)));
+		const exclusions = await getExclusionsForTemplate('rec-1');
+		expect(exclusions.sort((a, b) => a - b)).toEqual(timestamps);
+	});
+
+	test('getAllExclusionsByTemplate groups by template_id', async () => {
+		await createRecurrenceTemplate(baseTemplate);
+		await createRecurrenceTemplate({ ...baseTemplate, id: 'rec-2' });
+		await addExclusion('rec-1', 1000);
+		await addExclusion('rec-1', 2000);
+		await addExclusion('rec-2', 3000);
+		const grouped = await getAllExclusionsByTemplate();
+		expect(grouped.get('rec-1')).toEqual([1000, 2000]);
+		expect(grouped.get('rec-2')).toEqual([3000]);
+	});
+
+	test('softDeleteRecurrenceTemplate does not cascade-delete exclusions (template still present)', async () => {
+		// Soft-delete keeps the template row, so its exclusions stick around too.
+		// Hard-delete via FK CASCADE is exercised by the migration test instead.
+		await createRecurrenceTemplate(baseTemplate);
+		await addExclusion('rec-1', 1000);
+		await softDeleteRecurrenceTemplate('rec-1');
+		expect(await getExclusionsForTemplate('rec-1')).toEqual([1000]);
 	});
 
 	test('getActiveTemplatesForEntity returns templates referencing entity', async () => {

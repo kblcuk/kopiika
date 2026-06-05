@@ -8,6 +8,7 @@ import {
 	PLAN_HEADERS,
 	TRANSACTION_HEADERS,
 	RECURRENCE_TEMPLATE_HEADERS,
+	RECURRENCE_EXCLUSION_HEADERS,
 	MARKET_VALUE_SNAPSHOT_HEADERS,
 	EXPORT_EXCLUDED_COLUMNS,
 } from '../csv-spec';
@@ -23,6 +24,11 @@ const TABLE_REGISTRY = [
 		name: 'recurrence_templates',
 		table: schema.recurrenceTemplates,
 		header: RECURRENCE_TEMPLATE_HEADERS,
+	},
+	{
+		name: 'recurrence_exclusions',
+		table: schema.recurrenceExclusions,
+		header: RECURRENCE_EXCLUSION_HEADERS,
 	},
 	{
 		name: 'market_value_snapshots',

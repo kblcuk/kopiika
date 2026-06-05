@@ -253,7 +253,7 @@ async function backfillRecurrences(
 		}
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
-		const exclusions: number[] = JSON.parse(template.exclusions ?? '[]');
+		const exclusions = template.exclusions ?? [];
 
 		const expectedTimestamps = generateOccurrences({
 			rule,
@@ -322,14 +322,28 @@ export const useStore = create<AppState>((set, get) => ({
 			set({ isLoading: true });
 			try {
 				console.info('Hydrating store from database');
-				const [entities, plans, transactions, recurrenceTemplates, marketValueSnapshots] =
-					await Promise.all([
-						db.getAllEntities(),
-						db.getAllPlans(),
-						db.getAllTransactions(),
-						db.getAllRecurrenceTemplates(),
-						db.getAllMarketValueSnapshots(),
-					]);
+				const [
+					entities,
+					plans,
+					transactions,
+					rawTemplates,
+					marketValueSnapshots,
+					exclusionsByTemplate,
+				] = await Promise.all([
+					db.getAllEntities(),
+					db.getAllPlans(),
+					db.getAllTransactions(),
+					db.getAllRecurrenceTemplates(),
+					db.getAllMarketValueSnapshots(),
+					db.getAllExclusionsByTemplate(),
+				]);
+				// KII-123: attach exclusions from the normalized table. Templates
+				// without any exclusions get an empty array so consumers never
+				// need to null-check.
+				const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+					...t,
+					exclusions: exclusionsByTemplate.get(t.id) ?? [],
+				}));
 
 				// Ensure balance adjustment system entity exists (may be missing after data reset)
 				if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
@@ -387,9 +401,11 @@ export const useStore = create<AppState>((set, get) => ({
 		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 		const now = Date.now();
 		await drizzleDb.transaction((tx) => {
-			// Delete in FK-safe order: snapshots → transactions → recurrenceTemplates → plans → entities
+			// Delete in FK-safe order: snapshots → transactions → exclusions →
+			// recurrenceTemplates → plans → entities (KII-123 added exclusions).
 			tx.delete(schema.marketValueSnapshots).run();
 			tx.delete(schema.transactions).run();
+			tx.delete(schema.recurrenceExclusions).run();
 			tx.delete(schema.recurrenceTemplates).run();
 			tx.delete(schema.plans).run();
 			tx.delete(schema.entities).run();
@@ -441,12 +457,20 @@ export const useStore = create<AppState>((set, get) => ({
 						end_date: template.end_date ?? null,
 						end_count: template.end_count ?? null,
 						horizon: template.horizon,
-						exclusions: template.exclusions ?? null,
 						is_deleted: template.is_deleted ?? false,
 						created_at: template.created_at,
 						updated_at: template.updated_at ?? template.created_at,
 					})
 					.run();
+				// KII-123: write exclusions into the normalized table. We do this
+				// inside the FK-safe insert window (templates already inserted in
+				// the loop above, so each exclusion's FK target exists).
+				for (const ts of template.exclusions ?? []) {
+					tx.insert(schema.recurrenceExclusions)
+						.values({ template_id: template.id, timestamp: ts })
+						.onConflictDoNothing()
+						.run();
+				}
 			}
 			for (const txn of newTransactions) {
 				tx.insert(schema.transactions)
@@ -477,14 +501,25 @@ export const useStore = create<AppState>((set, get) => ({
 		});
 
 		// Re-read all data from DB into store state
-		const [entities, plans, transactions, recurrenceTemplates, marketValueSnapshots] =
-			await Promise.all([
-				db.getAllEntities(),
-				db.getAllPlans(),
-				db.getAllTransactions(),
-				db.getAllRecurrenceTemplates(),
-				db.getAllMarketValueSnapshots(),
-			]);
+		const [
+			entities,
+			plans,
+			transactions,
+			rawTemplates,
+			marketValueSnapshots,
+			exclusionsByTemplate,
+		] = await Promise.all([
+			db.getAllEntities(),
+			db.getAllPlans(),
+			db.getAllTransactions(),
+			db.getAllRecurrenceTemplates(),
+			db.getAllMarketValueSnapshots(),
+			db.getAllExclusionsByTemplate(),
+		]);
+		const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+			...t,
+			exclusions: exclusionsByTemplate.get(t.id) ?? [],
+		}));
 		set({ entities, plans, transactions, recurrenceTemplates, marketValueSnapshots });
 	},
 
@@ -721,9 +756,10 @@ export const useStore = create<AppState>((set, get) => ({
 			if (seriesExclusion) {
 				recurrenceTemplatesNext = s.recurrenceTemplates.map((t) => {
 					if (t.id !== seriesExclusion.templateId) return t;
-					const existing: number[] = JSON.parse(t.exclusions ?? '[]');
-					existing.push(seriesExclusion.timestamp);
-					return { ...t, exclusions: JSON.stringify(existing), updated_at: Date.now() };
+					const existing = t.exclusions ?? [];
+					// Idempotent merge — mirrors the DB's INSERT OR IGNORE.
+					if (existing.includes(seriesExclusion.timestamp)) return t;
+					return { ...t, exclusions: [...existing, seriesExclusion.timestamp] };
 				});
 			}
 			return {
@@ -859,7 +895,9 @@ export const useStore = create<AppState>((set, get) => ({
 			const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
 			set((state) => ({
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
+					stampedTemplate && t.id === stampedTemplate.id
+						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+						: t
 				),
 				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
 			}));
@@ -879,19 +917,27 @@ export const useStore = create<AppState>((set, get) => ({
 					console.warn('Failed to cancel notification', e);
 				}
 			}
-			await db.deleteTransaction(id);
 			if (transaction.series_id) {
-				const stampedTemplate = await db.addExclusion(
-					transaction.series_id,
-					transaction.timestamp
-				);
+				// KII-123: delete + exclusion-insert in a single SQLite tx so a
+				// crash between them can't strand the row (deleted) and the
+				// exclusion (missing) — which would let backfillRecurrences
+				// silently resurrect the occurrence on the next launch.
+				const seriesId = transaction.series_id;
+				const exclusionTs = transaction.timestamp;
+				await db.deleteTransaction(id, {
+					seriesExclusion: { templateId: seriesId, timestamp: exclusionTs },
+				});
 				set((state) => ({
 					transactions: state.transactions.filter((t) => t.id !== id),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-						stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
-					),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+						if (t.id !== seriesId) return t;
+						const existing = t.exclusions ?? [];
+						if (existing.includes(exclusionTs)) return t;
+						return { ...t, exclusions: [...existing, exclusionTs] };
+					}),
 				}));
 			} else {
+				await db.deleteTransaction(id);
 				set((state) => ({
 					transactions: state.transactions.filter((t) => t.id !== id),
 				}));
@@ -930,7 +976,9 @@ export const useStore = create<AppState>((set, get) => ({
 					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
 				),
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
+					stampedTemplate && t.id === stampedTemplate.id
+						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+						: t
 				),
 			}));
 		} else {
@@ -943,7 +991,9 @@ export const useStore = create<AppState>((set, get) => ({
 					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
 				),
 				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id ? stampedTemplate : t
+					stampedTemplate && t.id === stampedTemplate.id
+						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+						: t
 				),
 			}));
 		}
@@ -989,9 +1039,10 @@ export const useStore = create<AppState>((set, get) => ({
 				transactions: state.transactions.filter(
 					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
 				),
-				recurrenceTemplates: state.recurrenceTemplates.map(
-					(t) => stampedMap.get(t.id) ?? t
-				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+					const stamped = stampedMap.get(t.id);
+					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
+				}),
 			}));
 		}
 	},

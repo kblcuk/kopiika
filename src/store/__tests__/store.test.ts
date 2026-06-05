@@ -964,7 +964,7 @@ describe('Store Data Integrity', () => {
 			};
 			await db.createRecurrenceTemplate(template);
 			useStore.setState({
-				recurrenceTemplates: [{ ...template, exclusions: null, is_deleted: false }],
+				recurrenceTemplates: [{ ...template, exclusions: [], is_deleted: false }],
 			});
 
 			const occurrenceTs = 1_500_000;
@@ -1007,8 +1007,7 @@ describe('Store Data Integrity', () => {
 				.getState()
 				.recurrenceTemplates.find((t) => t.id === templateId);
 			expect(tmplFromState).toBeTruthy();
-			const exclusionsFromState: number[] = JSON.parse(tmplFromState!.exclusions ?? '[]');
-			expect(exclusionsFromState).toContain(occurrenceTs);
+			expect(tmplFromState!.exclusions ?? []).toContain(occurrenceTs);
 
 			// Children should not inherit series_id (DB normalises to null;
 			// the action sets it to undefined before insert — either is "no
@@ -4628,6 +4627,68 @@ describe('Store Data Integrity', () => {
 			expect(updatedTemplate).toMatchObject({ amount: 250, note: 'Updated future' });
 		});
 
+		test('updateTransactionWithScope future preserves existing in-memory exclusions', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const excludedTimestamp = new Date('2026-02-01').getTime();
+			const template: RecurrenceTemplate = {
+				id: 'series-future-edit-preserve-exclusions',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'preserve-edit-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'preserve-edit-tx-3',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-03-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.addExclusion(template.id, excludedTimestamp);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [{ ...template, exclusions: [excludedTimestamp] }],
+				marketValueSnapshots: [],
+			});
+
+			await useStore
+				.getState()
+				.updateTransactionWithScope('preserve-edit-tx-3', { amount: 250 }, 'future');
+
+			expect(
+				useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
+					?.exclusions
+			).toEqual([excludedTimestamp]);
+		});
+
 		test('deleteTransactionWithScope future truncates the series from the selected occurrence', async () => {
 			const account = makeEntity('account-1', 'account');
 			const category = makeEntity('category-1', 'category');
@@ -4696,6 +4757,66 @@ describe('Store Data Integrity', () => {
 				end_date: new Date('2026-01-01').getTime(),
 				is_deleted: false,
 			});
+		});
+
+		test('deleteTransactionWithScope future preserves existing in-memory exclusions when truncating', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			const excludedTimestamp = new Date('2026-02-01').getTime();
+			const template: RecurrenceTemplate = {
+				id: 'series-future-delete-preserve-exclusions',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount: 100,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				horizon: 90,
+				created_at: Date.now(),
+			};
+			const transactions: Transaction[] = [
+				{
+					id: 'preserve-delete-tx-1',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-01-01').getTime(),
+					series_id: template.id,
+				},
+				{
+					id: 'preserve-delete-tx-3',
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount: 100,
+					currency: 'USD',
+					timestamp: new Date('2026-03-01').getTime(),
+					series_id: template.id,
+				},
+			];
+
+			await db.createRecurrenceTemplate(template);
+			await db.addExclusion(template.id, excludedTimestamp);
+			await db.createTransactionBatch(transactions);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions,
+				recurrenceTemplates: [{ ...template, exclusions: [excludedTimestamp] }],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deleteTransactionWithScope('preserve-delete-tx-3', 'future');
+
+			expect(
+				useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
+					?.exclusions
+			).toEqual([excludedTimestamp]);
 		});
 
 		test('deleteTransactionWithScope single removes one occurrence and appends an exclusion', async () => {
@@ -4769,13 +4890,12 @@ describe('Store Data Integrity', () => {
 				'single-delete-tx-3',
 			]);
 
-			const updatedTemplate = await db.getRecurrenceTemplateById(template.id);
-			expect(JSON.parse(updatedTemplate?.exclusions ?? '[]')).toEqual([deletedTimestamp]);
+			// DB-side: read from the normalized exclusions table (KII-123).
+			expect(await db.getExclusionsForTemplate(template.id)).toEqual([deletedTimestamp]);
+			// In-memory: the store keeps exclusions on each template as number[].
 			expect(
-				JSON.parse(
-					useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
-						?.exclusions ?? '[]'
-				)
+				useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
+					?.exclusions ?? []
 			).toEqual([deletedTimestamp]);
 		});
 

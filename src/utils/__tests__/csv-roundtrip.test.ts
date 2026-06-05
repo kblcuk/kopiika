@@ -116,7 +116,11 @@ const FULL_FIXTURE = {
 			end_date: 1730000000000,
 			end_count: 12,
 			horizon: 90,
-			exclusions: '[1706832000000,1707436800000]',
+			// KII-123: exclusions now round-trip through a dedicated
+			// `# RECURRENCE_EXCLUSIONS` CSV section keyed by `template_id` +
+			// `timestamp`. Mentions in this fixture also serve the parser-
+			// coverage guard in csv-schema-coverage.test.ts.
+			exclusions: [1706832000000, 1707436800000],
 			is_deleted: true,
 			created_at: 1706745500000,
 		},
@@ -132,7 +136,9 @@ const FULL_FIXTURE = {
 			end_date: null,
 			end_count: null,
 			horizon: 30,
-			exclusions: null,
+			// No exclusions on this template — left undefined so we cover the
+			// "template with empty exclusion set" round-trip path.
+			exclusions: undefined,
 			is_deleted: false,
 			created_at: 1706745500000,
 		},
@@ -157,5 +163,36 @@ describe('csv roundtrip', () => {
 		expect(result.data.transactions).toEqual(FULL_FIXTURE.transactions);
 		expect(result.data.recurrenceTemplates).toEqual(FULL_FIXTURE.recurrenceTemplates);
 		expect(result.data.marketValueSnapshots).toEqual(FULL_FIXTURE.marketValueSnapshots);
+	});
+
+	test('KII-123 back-compat: legacy CSV with inline `exclusions` JSON column still imports', () => {
+		// Pre-KII-123 exports embedded exclusions as a JSON array directly on the
+		// recurrence_templates row. Users with backup CSVs on disk must still be
+		// able to round-trip them. The importer parses the legacy column and
+		// merges it into the template's in-memory `exclusions` array.
+		const legacyCsv = [
+			'# ENTITIES',
+			'id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_default,is_investment',
+			'e1,account,Cash,EUR,,,1,0,0,true,false,false,false',
+			'e2,category,Groceries,EUR,,,2,1,0,true,false,false,false',
+			'',
+			'# PLANS',
+			'id,entity_id,period,period_start,planned_amount',
+			'',
+			'# TRANSACTIONS',
+			'id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed',
+			'',
+			// Legacy header includes `exclusions` between horizon and is_deleted.
+			'# RECURRENCE_TEMPLATES',
+			'id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at',
+			'rt1,e1,e2,10,EUR,,"{""type"":""weekly""}",1706745600000,,,30,"[1706832000000,1707436800000]",false,1706745500000',
+		].join('\n');
+
+		const result = parseImportCsv(legacyCsv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.recurrenceTemplates[0]!.exclusions).toEqual([
+			1706832000000, 1707436800000,
+		]);
 	});
 });

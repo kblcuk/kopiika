@@ -7,6 +7,7 @@ import {
 	PLAN_HEADERS,
 	TRANSACTION_HEADERS,
 	RECURRENCE_TEMPLATE_HEADERS,
+	RECURRENCE_EXCLUSION_HEADERS,
 	MARKET_VALUE_SNAPSHOT_HEADERS,
 } from './csv-spec';
 
@@ -72,12 +73,33 @@ function recurrenceTemplatesToCsv(templates: RecurrenceTemplate[]): string {
 			t.end_date ?? '',
 			t.end_count ?? '',
 			t.horizon,
-			t.exclusions ? `"${t.exclusions.replace(/"/g, '""')}"` : '',
 			t.is_deleted === true,
 			t.created_at,
 		].join(',')
 	);
 	return [RECURRENCE_TEMPLATE_HEADERS.join(','), ...rows].join('\n');
+}
+
+// KII-123: Each template's `exclusions: number[]` is flattened to one row per
+// timestamp here. Sort by (template_id, timestamp) with a numeric comparator
+// on `timestamp` — a plain `Array.sort()` on the joined string would order
+// lexicographically, which happens to coincide with numeric order today
+// (uniform-width UUIDs + 13-digit ms epochs) but breaks the moment a
+// timestamp has a different digit count or a `template_id` contains anything
+// that re-orders byte-wise. Be explicit instead of fragile-by-accident.
+function recurrenceExclusionsToCsv(templates: RecurrenceTemplate[]): string {
+	const rows: { templateId: string; timestamp: number }[] = [];
+	for (const t of templates) {
+		for (const ts of t.exclusions ?? []) {
+			rows.push({ templateId: t.id, timestamp: ts });
+		}
+	}
+	rows.sort((a, b) => {
+		if (a.templateId !== b.templateId) return a.templateId < b.templateId ? -1 : 1;
+		return a.timestamp - b.timestamp;
+	});
+	const lines = rows.map((r) => `${r.templateId},${r.timestamp}`);
+	return [RECURRENCE_EXCLUSION_HEADERS.join(','), ...lines].join('\n');
 }
 
 function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
@@ -110,6 +132,9 @@ export function buildCombinedCsv(data: CombinedCsvInput): string {
 		'',
 		'# RECURRENCE_TEMPLATES',
 		recurrenceTemplatesToCsv(data.recurrenceTemplates),
+		'',
+		'# RECURRENCE_EXCLUSIONS',
+		recurrenceExclusionsToCsv(data.recurrenceTemplates),
 		'',
 		'# MARKET_VALUE_SNAPSHOTS',
 		marketValueSnapshotsToCsv(data.marketValueSnapshots),

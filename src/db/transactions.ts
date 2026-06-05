@@ -1,7 +1,7 @@
 import { eq, and, between, or, desc, sum, inArray, gte } from 'drizzle-orm';
 import type { Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
-import { transactions, recurrenceTemplates } from './drizzle-schema';
+import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizzle-schema';
 
 /**
  * Shape used by `update*` helpers. Forbidding `id`, `created_at`, and
@@ -96,9 +96,41 @@ export async function createTransaction(transaction: Transaction): Promise<Trans
 	return row!;
 }
 
-export async function deleteTransaction(id: string): Promise<void> {
+export async function deleteTransaction(
+	id: string,
+	options?: { seriesExclusion?: { templateId: string; timestamp: number } }
+): Promise<void> {
 	const db = await getDrizzleDb();
-	await db.delete(transactions).where(eq(transactions.id, id));
+
+	if (!options?.seriesExclusion) {
+		await db.delete(transactions).where(eq(transactions.id, id));
+		return;
+	}
+
+	// KII-123: When deleting one occurrence of a recurring series, the delete
+	// AND the exclusion insert must be atomic. Two separate awaited calls
+	// would let a crash between them strand state — transaction row gone,
+	// exclusion never written — and the next `backfillRecurrences` would
+	// silently resurrect the occurrence.
+	const { templateId, timestamp } = options.seriesExclusion;
+	await db.transaction((tx) => {
+		tx.delete(transactions).where(eq(transactions.id, id)).run();
+		// Mirrors replaceTransactionAtomic: verify the template exists so a
+		// missing FK target produces a specific error rather than a raw
+		// constraint failure on the INSERT.
+		const existing = tx
+			.select({ id: recurrenceTemplates.id })
+			.from(recurrenceTemplates)
+			.where(eq(recurrenceTemplates.id, templateId))
+			.all();
+		if (existing.length === 0) {
+			throw new Error(`deleteTransaction: recurrence template ${templateId} not found`);
+		}
+		tx.insert(recurrenceExclusions)
+			.values({ template_id: templateId, timestamp })
+			.onConflictDoNothing()
+			.run();
+	});
 }
 
 export async function updateTransaction(
@@ -340,21 +372,24 @@ export async function replaceTransactionAtomic(
 
 		if (options?.seriesExclusion) {
 			const { templateId, timestamp } = options.seriesExclusion;
-			const rows = tx
-				.select({ exclusions: recurrenceTemplates.exclusions })
+			// Verify the template still exists so a missing FK target triggers a
+			// rollback here rather than as a constraint error on the INSERT —
+			// keeps the error message specific (KII-123).
+			const existingTemplate = tx
+				.select({ id: recurrenceTemplates.id })
 				.from(recurrenceTemplates)
 				.where(eq(recurrenceTemplates.id, templateId))
 				.all();
-			if (rows.length === 0) {
+			if (existingTemplate.length === 0) {
 				throw new Error(
 					`replaceTransactionAtomic: recurrence template ${templateId} not found`
 				);
 			}
-			const current: number[] = JSON.parse(rows[0]!.exclusions ?? '[]');
-			current.push(timestamp);
-			tx.update(recurrenceTemplates)
-				.set({ exclusions: JSON.stringify(current), updated_at: now })
-				.where(eq(recurrenceTemplates.id, templateId))
+			// Single INSERT, idempotent via the composite PK — no read-modify-write
+			// race with concurrent confirm/delete flows (KII-123).
+			tx.insert(recurrenceExclusions)
+				.values({ template_id: templateId, timestamp })
+				.onConflictDoNothing()
 				.run();
 		}
 

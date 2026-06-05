@@ -56,10 +56,15 @@ export const RECURRENCE_TEMPLATE_HEADERS = [
 	'end_date',
 	'end_count',
 	'horizon',
-	'exclusions',
 	'is_deleted',
 	'created_at',
 ] as const;
+
+// KII-123: Exclusions live in their own table now. Each row is one skipped
+// occurrence for a given template. Old CSV exports embedded these as a JSON
+// array in `recurrence_templates.exclusions`; the importer still accepts that
+// shape for back-compat (see `parseRecurrenceTemplates`).
+export const RECURRENCE_EXCLUSION_HEADERS = ['template_id', 'timestamp'] as const;
 
 export const MARKET_VALUE_SNAPSHOT_HEADERS = [
 	'id',
@@ -88,5 +93,8 @@ export const EXPORT_EXCLUDED_COLUMNS: Record<string, readonly string[]> = {
 	entities: ['created_at', 'updated_at'],
 	plans: ['created_at', 'updated_at'],
 	recurrence_templates: ['updated_at'],
+	// `recurrence_exclusions` has no write-time columns to exclude — both
+	// `template_id` and `timestamp` are part of the composite PK and round-trip.
+	recurrence_exclusions: [],
 	market_value_snapshots: ['created_at', 'updated_at'],
 };
