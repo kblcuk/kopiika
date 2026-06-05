@@ -67,3 +67,8 @@ fastlane/*.dSYM.zip
 
 # test artifacts
 .coverage
+
+# Local-only signing keys & service-account credentials. Anything under
+# keys/ is per-developer and must never reach git history.
+keys/
+
