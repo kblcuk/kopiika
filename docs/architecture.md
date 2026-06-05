@@ -73,7 +73,7 @@ The Summary tab uses the same derived balance path as the dashboard. Categories 
 
 The History tab applies period, entity, and search filters consistently across confirmed, upcoming, and past-due unconfirmed transactions. It shows:
 
-- `Upcoming` for future-dated transactions in the selected period
+- `Upcoming` for future-dated transactions in the selected period, sorted distant future to near future so today's/past transactions sit below the nearest upcoming item
 - `Needs Confirmation` for past-due unconfirmed transactions, with per-row confirm and bulk confirm actions
 - confirmed transactions grouped by day
 - period totals and entity-specific inflow/outflow totals

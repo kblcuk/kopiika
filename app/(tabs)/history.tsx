@@ -207,7 +207,7 @@ export default function HistoryScreen() {
 			}
 		}
 
-		upcoming.sort((a, b) => a.timestamp - b.timestamp);
+		upcoming.sort((a, b) => b.timestamp - a.timestamp);
 		unconfirmed.sort((a, b) => a.timestamp - b.timestamp);
 
 		return {

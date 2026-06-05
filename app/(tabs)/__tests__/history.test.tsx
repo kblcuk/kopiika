@@ -370,6 +370,81 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
+	it('sorts upcoming distant-to-near and confirmed transactions newest-to-oldest (KII-133)', async () => {
+		const futureNear: Transaction = {
+			id: 'tx-future-near',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 200,
+			currency: 'USD',
+			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
+		};
+		const futureFar: Transaction = {
+			id: 'tx-future-far',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 300,
+			currency: 'USD',
+			timestamp: new Date('2026-01-30T12:00:00Z').getTime(),
+		};
+		const todayTransaction: Transaction = {
+			id: 'tx-today',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 100,
+			currency: 'USD',
+			timestamp: new Date('2026-01-15T10:00:00Z').getTime(),
+		};
+		const todayLaterTransaction: Transaction = {
+			id: 'tx-today-later',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 125,
+			currency: 'USD',
+			timestamp: new Date('2026-01-15T11:00:00Z').getTime(),
+		};
+		const pastTransaction: Transaction = {
+			id: 'tx-past',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount: 50,
+			currency: 'USD',
+			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [
+				futureNear,
+				todayLaterTransaction,
+				pastTransaction,
+				futureFar,
+				todayTransaction,
+			],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		setPendingHistoryFilter({ period: '2026-01' });
+
+		const utils = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(utils.getByTestId('row-tx-future-far')).toBeTruthy();
+			expect(utils.getByTestId('row-tx-past')).toBeTruthy();
+		});
+
+		const list = utils.UNSAFE_root.findByType(SectionList);
+		const sections = list.props.sections as { data: Transaction[] }[];
+
+		expect(sections.map((section) => section.data.map((tx) => tx.id))).toEqual([
+			['tx-future-far', 'tx-future-near'],
+			['tx-today-later', 'tx-today'],
+			['tx-past'],
+		]);
+	});
+
 	it('classifies a just-created transaction as past, not upcoming (KII-73)', async () => {
 		// Transaction created at exactly "now" — the common case when a user
 		// creates a transaction and immediately views History.
