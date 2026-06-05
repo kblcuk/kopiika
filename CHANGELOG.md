@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.20](https://codeberg.org/kblcuk/kopiika/compare/v0.3.19...v0.3.20) (2026-06-05)
+
+
+### Features
+
+* **db:** normalize recurrence exclusions into a separate table (KII-123) ([a4c24c7](https://codeberg.org/kblcuk/kopiika/commit/a4c24c7612aa6181cf20048499b04533fe2e425f))
+
+
+### Bug Fixes
+
+* **history:** sort upcoming transactions farthest first ([4df1971](https://codeberg.org/kblcuk/kopiika/commit/4df197153b1cfe6f3a2e3f5bd3d3d0fd3704368b))
+
 ## [0.3.19](https://codeberg.org/kblcuk/kopiika/compare/v0.3.18...v0.3.19) (2026-06-01)
 
 
