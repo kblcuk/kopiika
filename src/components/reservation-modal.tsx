@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, TextInput, Pressable, Modal, Platform, Alert } from 'react-native';
+import { View, TextInput, Pressable, Platform, Alert } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
@@ -28,6 +28,7 @@ import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { OperatorToolbar } from './operator-toolbar';
 import { getReservationForPair } from '@/src/utils/savings-transactions';
 import { InfoPin } from '@/src/components/info-pin';
+import { PageSheetModal } from './page-sheet-modal';
 
 interface ReservationModalProps {
 	visible: boolean;
@@ -133,145 +134,130 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	};
 
 	return (
-		<Modal
-			visible={visible}
-			animationType="slide"
-			presentationStyle="pageSheet"
-			onRequestClose={handleCancel}
-		>
-			<View
-				testID="reservation-modal"
-				className="flex-1 bg-paper-50"
-				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
-			>
-				{/* Header */}
-				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable
-						onPress={handleCancel}
-						hitSlop={20}
-						testID="reservation-cancel-button"
-					>
-						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-					</Pressable>
-					<View className="flex-row items-center">
-						<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
-						<InfoPin articleId="reservations" />
-					</View>
-					<View style={{ width: 48 }} />
+		<PageSheetModal visible={visible} onRequestClose={handleCancel} testID="reservation-modal">
+			{/* Header */}
+			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+				<Pressable onPress={handleCancel} hitSlop={20} testID="reservation-cancel-button">
+					<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+				</Pressable>
+				<View className="flex-row items-center">
+					<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
+					<InfoPin articleId="reservations" />
 				</View>
-				<KeyboardAwareScrollView
-					bottomOffset={50}
-					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-					keyboardShouldPersistTaps="handled"
-					className="flex-1 px-6"
-					contentContainerStyle={{
-						paddingBottom: Math.max(insets.bottom, 16),
-					}}
-				>
-					{/* Header: account → saving */}
-					<View className="mb-6 mt-4 flex-row items-center justify-center">
-						{renderBubble(account)}
-						<ArrowRight
-							size={20}
-							color={colors.ink.muted}
-							style={{ marginHorizontal: 16 }}
-						/>
-						{renderBubble(saving)}
-					</View>
+				<View style={{ width: 48 }} />
+			</View>
+			<KeyboardAwareScrollView
+				bottomOffset={50}
+				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+				keyboardShouldPersistTaps="handled"
+				className="flex-1 px-6"
+				contentContainerStyle={{
+					paddingBottom: Math.max(insets.bottom, 16),
+				}}
+			>
+				{/* Header: account → saving */}
+				<View className="mb-6 mt-4 flex-row items-center justify-center">
+					{renderBubble(account)}
+					<ArrowRight
+						size={20}
+						color={colors.ink.muted}
+						style={{ marginHorizontal: 16 }}
+					/>
+					{renderBubble(saving)}
+				</View>
 
-					{/* Amount input */}
-					<View className="mb-4 items-center">
+				{/* Amount input */}
+				<View className="mb-4 items-center">
+					<Text
+						className="mb-1 font-sans text-sm text-ink-muted"
+						style={{ letterSpacing: 0.48 }}
+					>
+						Reserve from {account.name}
+					</Text>
+					<View className="flex-row items-baseline">
 						<Text
-							className="mb-1 font-sans text-sm text-ink-muted"
-							style={{ letterSpacing: 0.48 }}
+							className="text-ink-faint font-sans-semibold"
+							style={{ fontSize: 24 }}
 						>
-							Reserve from {account.name}
+							{getCurrencySymbol(currency)}
 						</Text>
-						<View className="flex-row items-baseline">
-							<Text
-								className="text-ink-faint font-sans-semibold"
-								style={{ fontSize: 24 }}
-							>
-								{getCurrencySymbol(currency)}
-							</Text>
-							<TextInput
-								{...sharedNumericTextInputProps}
-								{...amountExpr.inputProps}
-								placeholder="0"
-								className={textInputClassNames.heroAmountInput}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-							/>
-						</View>
-						{amountExpr.preview && (
-							<Text className="mt-1 font-sans text-xs text-ink-muted">
-								{amountExpr.preview}
-							</Text>
-						)}
-						{hasExisting && (
-							<Text className="text-ink-faint mt-1 font-sans text-xs">
-								Currently reserved: {formatAmount(currentNet, currency)}
-							</Text>
-						)}
+						<TextInput
+							{...sharedNumericTextInputProps}
+							{...amountExpr.inputProps}
+							placeholder="0"
+							className={textInputClassNames.heroAmountInput}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+						/>
 					</View>
+					{amountExpr.preview && (
+						<Text className="mt-1 font-sans text-xs text-ink-muted">
+							{amountExpr.preview}
+						</Text>
+					)}
+					{hasExisting && (
+						<Text className="text-ink-faint mt-1 font-sans text-xs">
+							Currently reserved: {formatAmount(currentNet, currency)}
+						</Text>
+					)}
+				</View>
 
-					{/* Saving goal context */}
-					<View className="mb-6 rounded-xl bg-paper-100 px-4 py-3">
-						<View className="flex-row justify-between">
-							<Text className="font-sans text-sm text-ink-muted">Saved so far</Text>
+				{/* Saving goal context */}
+				<View className="mb-6 rounded-xl bg-paper-100 px-4 py-3">
+					<View className="flex-row justify-between">
+						<Text className="font-sans text-sm text-ink-muted">Saved so far</Text>
+						<Text className="font-sans-semibold text-sm text-ink">
+							{formatAmount(saving.actual, currency)}
+						</Text>
+					</View>
+					{saving.planned > 0 && (
+						<View className="mt-1 flex-row justify-between">
+							<Text className="font-sans text-sm text-ink-muted">Goal</Text>
 							<Text className="font-sans-semibold text-sm text-ink">
-								{formatAmount(saving.actual, currency)}
+								{formatAmount(saving.planned, currency)}
 							</Text>
 						</View>
-						{saving.planned > 0 && (
-							<View className="mt-1 flex-row justify-between">
-								<Text className="font-sans text-sm text-ink-muted">Goal</Text>
-								<Text className="font-sans-semibold text-sm text-ink">
-									{formatAmount(saving.planned, currency)}
-								</Text>
-							</View>
-						)}
-					</View>
+					)}
+				</View>
 
-					{/* Actions */}
-					<View className="flex-row gap-3">
-						{hasExisting && (
-							<Pressable
-								onPress={() => {
-									void handleClear();
-								}}
-								testID="reservation-clear-button"
-								className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
-							>
-								<Text className="font-sans-semibold text-base text-negative">
-									Clear
-								</Text>
-							</Pressable>
-						)}
+				{/* Actions */}
+				<View className="flex-row gap-3">
+					{hasExisting && (
 						<Pressable
 							onPress={() => {
-								void handleSubmit();
+								void handleClear();
 							}}
-							disabled={!canSubmit}
-							testID="reservation-submit-button"
-							className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}
+							testID="reservation-clear-button"
+							className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
 						>
-							<Text
-								className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
-							>
-								Reserve
+							<Text className="font-sans-semibold text-base text-negative">
+								Clear
 							</Text>
 						</Pressable>
-					</View>
-				</KeyboardAwareScrollView>
+					)}
+					<Pressable
+						onPress={() => {
+							void handleSubmit();
+						}}
+						disabled={!canSubmit}
+						testID="reservation-submit-button"
+						className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}
+					>
+						<Text
+							className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
+						>
+							Reserve
+						</Text>
+					</Pressable>
+				</View>
+			</KeyboardAwareScrollView>
 
-				<KeyboardExtender enabled={amountExpr.focused}>
-					<OperatorToolbar
-						onOperator={amountExpr.insertOperator}
-						onEquals={amountExpr.resolve}
-					/>
-				</KeyboardExtender>
-			</View>
-		</Modal>
+			<KeyboardExtender enabled={amountExpr.focused}>
+				<OperatorToolbar
+					onOperator={amountExpr.insertOperator}
+					onEquals={amountExpr.resolve}
+				/>
+			</KeyboardExtender>
+		</PageSheetModal>
 	);
 }
