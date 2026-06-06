@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, TextInput, Pressable, Modal, Platform, Alert } from 'react-native';
+import { View, TextInput, Pressable, Platform, Alert } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
 	KeyboardController,
 	KeyboardExtender,
 } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { PageSheetModal } from './page-sheet-modal';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
 import type { RecurrenceFrequency } from '@/src/types/recurrence';
 import { horizonForFrequency } from '@/src/utils/recurrence';
@@ -107,7 +107,6 @@ export function TransactionModal({
 	// Savings funding — portion of typed amount sourced from savings reservations
 	const [totalFunded, setTotalFunded] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const insets = useSafeAreaInsets();
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
 	const [isRepeat, setIsRepeat] = useState(false);
@@ -725,632 +724,600 @@ export function TransactionModal({
 	// ── Render ────────────────────────────────────────────────────────────────
 
 	return (
-		<Modal
-			visible={visible}
-			animationType="slide"
-			presentationStyle="pageSheet"
-			onRequestClose={handleCancel}
-		>
-			<View
-				className="flex-1 bg-paper-50"
-				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
-			>
-				{/* Header */}
-				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable
-						onPress={handleCancel}
-						hitSlop={20}
-						testID="transaction-cancel-button"
+		<PageSheetModal visible={visible} onRequestClose={handleCancel}>
+			{/* Header */}
+			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+				<Pressable onPress={handleCancel} hitSlop={20} testID="transaction-cancel-button">
+					<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+				</Pressable>
+				<Text className="font-sans-semibold text-base text-ink">
+					{isEditing
+						? 'Edit Transaction'
+						: quickAdd
+							? 'Add Transaction'
+							: 'New Transaction'}
+				</Text>
+				<Pressable
+					onPress={() => {
+						void handleSubmit();
+					}}
+					disabled={!canSave || isSubmitting}
+					hitSlop={20}
+					testID="transaction-save-button"
+				>
+					<Text
+						className={`font-sans-semibold text-base ${canSave && !isSubmitting ? 'text-accent' : 'text-ink-muted'}`}
 					>
-						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">
-						{isEditing
-							? 'Edit Transaction'
-							: quickAdd
-								? 'Add Transaction'
-								: 'New Transaction'}
+						{isSubmitting ? 'Saving…' : 'Save'}
 					</Text>
-					<Pressable
-						onPress={() => {
-							void handleSubmit();
-						}}
-						disabled={!canSave || isSubmitting}
-						hitSlop={20}
-						testID="transaction-save-button"
-					>
-						<Text
-							className={`font-sans-semibold text-base ${canSave && !isSubmitting ? 'text-accent' : 'text-ink-muted'}`}
-						>
-							{isSubmitting ? 'Saving…' : 'Save'}
-						</Text>
-					</Pressable>
+				</Pressable>
+			</View>
+
+			<KeyboardAwareScrollView
+				bottomOffset={50}
+				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+				keyboardShouldPersistTaps="handled"
+				className="flex-1 px-5 pt-6"
+				testID="transaction-form-scroll"
+			>
+				{/* From → To */}
+				<View className="mb-8 flex-row items-start">
+					{renderEntityBubble(
+						displayFromEntity,
+						() => setShowFromSheet(true),
+						quickAdd ? 'From' : undefined,
+						'transaction-from-button'
+					)}
+					<View className="items-center px-2 py-3">
+						<ArrowRight size={24} color={colors.ink.DEFAULT} />
+					</View>
+					{renderEntityBubble(
+						displayToEntity,
+						() => setShowToSheet(true),
+						quickAdd ? 'To' : undefined,
+						'transaction-to-button'
+					)}
 				</View>
 
-				<KeyboardAwareScrollView
-					bottomOffset={50}
-					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-					keyboardShouldPersistTaps="handled"
-					className="flex-1 px-5 pt-6"
-					testID="transaction-form-scroll"
-				>
-					{/* From → To */}
-					<View className="mb-8 flex-row items-start">
-						{renderEntityBubble(
-							displayFromEntity,
-							() => setShowFromSheet(true),
-							quickAdd ? 'From' : undefined,
-							'transaction-from-button'
-						)}
-						<View className="items-center px-2 py-3">
-							<ArrowRight size={24} color={colors.ink.DEFAULT} />
-						</View>
-						{renderEntityBubble(
-							displayToEntity,
-							() => setShowToSheet(true),
-							quickAdd ? 'To' : undefined,
-							'transaction-to-button'
+				{/* Series indicator */}
+				{isEditing && existingTransaction?.series_id && (
+					<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
+						<Text className="font-sans text-sm text-info">
+							Part of a recurring series
+							{seriesScope === 'future'
+								? ' — editing all future'
+								: ' — editing this one'}
+						</Text>
+					</View>
+				)}
+
+				{/* Amount / Total Paid */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Amount
+					</Text>
+					<View className={textInputClassNames.inlineContainer}>
+						<TextInput
+							{...sharedNumericTextInputProps}
+							{...amountExpr.inputProps}
+							placeholder="0"
+							className={textInputClassNames.heroAmountInput}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+							testID="transaction-amount-input"
+						/>
+						<Text className={textInputClassNames.suffixLarge}>
+							{getCurrencySymbol(currency)}
+						</Text>
+					</View>
+					{amountExpr.preview && (
+						<Text className="mt-1 font-sans text-base text-ink-muted">
+							{amountExpr.preview}
+						</Text>
+					)}
+					{!canSave && amount !== '' && reverseFormatCurrency(amount) <= 0 && (
+						<Text className="mt-1 font-sans text-xs text-ink-muted">
+							Amount must be greater than 0
+						</Text>
+					)}
+					{!isEditing && suggestedAmount && (
+						<Pressable
+							onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
+							className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
+							testID="transaction-suggested-amount-button"
+						>
+							<Text className="font-sans text-sm text-ink-muted">
+								Use remaining: {formatAmount(suggestedAmount)}
+							</Text>
+						</Pressable>
+					)}
+					{/* Show note when part of the amount is sourced from savings */}
+					{totalFunded > 0 && (
+						<Text className="mt-2 font-sans text-sm text-ink-muted">
+							{formatAmount(totalFunded, currency)} from savings
+						</Text>
+					)}
+				</View>
+
+				{/* Note */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Note (optional)
+					</Text>
+					<View className={textInputClassNames.container}>
+						<TextInput
+							{...sharedTextInputProps}
+							ref={inputRef}
+							value={note}
+							onChangeText={setNote}
+							placeholder="Add a note..."
+							className={textInputClassNames.input}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+							testID="transaction-note-input"
+						/>
+					</View>
+				</View>
+
+				{/* Date */}
+				<View className="mb-6">
+					<View className="mb-2 flex-row items-center">
+						<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Date
+						</Text>
+						{selectedDate > new Date(new Date().setHours(23, 59, 59, 999)) && (
+							<Text className="ml-2 font-sans text-xs text-info">Scheduled</Text>
 						)}
 					</View>
-
-					{/* Series indicator */}
-					{isEditing && existingTransaction?.series_id && (
-						<View className="mb-4 rounded-lg bg-info/10 px-3 py-2">
-							<Text className="font-sans text-sm text-info">
-								Part of a recurring series
-								{seriesScope === 'future'
-									? ' — editing all future'
-									: ' — editing this one'}
-							</Text>
-						</View>
-					)}
-
-					{/* Amount / Total Paid */}
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Amount
-						</Text>
-						<View className={textInputClassNames.inlineContainer}>
-							<TextInput
-								{...sharedNumericTextInputProps}
-								{...amountExpr.inputProps}
-								placeholder="0"
-								className={textInputClassNames.heroAmountInput}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="transaction-amount-input"
+					{Platform.OS === 'ios' ? (
+						<View className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100">
+							<View className="flex-1 flex-row items-center px-4 py-2">
+								<Calendar size={20} color={colors.ink.muted} />
+								<Text className="ml-3 font-sans text-base text-ink">
+									{formatDateDisplay(selectedDate)}
+								</Text>
+							</View>
+							<DateTimePicker
+								value={selectedDate}
+								mode="date"
+								display="compact"
+								onChange={handleDateChange}
+								accentColor={colors.accent.deeper}
 							/>
-							<Text className={textInputClassNames.suffixLarge}>
-								{getCurrencySymbol(currency)}
-							</Text>
 						</View>
-						{amountExpr.preview && (
-							<Text className="mt-1 font-sans text-base text-ink-muted">
-								{amountExpr.preview}
-							</Text>
-						)}
-						{!canSave && amount !== '' && reverseFormatCurrency(amount) <= 0 && (
-							<Text className="mt-1 font-sans text-xs text-ink-muted">
-								Amount must be greater than 0
-							</Text>
-						)}
-						{!isEditing && suggestedAmount && (
+					) : (
+						<>
 							<Pressable
-								onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
-								className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
-								testID="transaction-suggested-amount-button"
+								onPress={() => setShowDatePicker(true)}
+								className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-3"
 							>
-								<Text className="font-sans text-sm text-ink-muted">
-									Use remaining: {formatAmount(suggestedAmount)}
+								<Calendar size={20} color={colors.ink.muted} />
+								<Text className="ml-3 font-sans text-base text-ink">
+									{formatDateDisplay(selectedDate)}
 								</Text>
 							</Pressable>
-						)}
-						{/* Show note when part of the amount is sourced from savings */}
-						{totalFunded > 0 && (
-							<Text className="mt-2 font-sans text-sm text-ink-muted">
-								{formatAmount(totalFunded, currency)} from savings
-							</Text>
-						)}
-					</View>
-
-					{/* Note */}
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Note (optional)
-						</Text>
-						<View className={textInputClassNames.container}>
-							<TextInput
-								{...sharedTextInputProps}
-								ref={inputRef}
-								value={note}
-								onChangeText={setNote}
-								placeholder="Add a note..."
-								className={textInputClassNames.input}
-								style={styles.input}
-								placeholderTextColor={colors.ink.placeholder}
-								testID="transaction-note-input"
-							/>
-						</View>
-					</View>
-
-					{/* Date */}
-					<View className="mb-6">
-						<View className="mb-2 flex-row items-center">
-							<Text className="font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Date
-							</Text>
-							{selectedDate > new Date(new Date().setHours(23, 59, 59, 999)) && (
-								<Text className="ml-2 font-sans text-xs text-info">Scheduled</Text>
-							)}
-						</View>
-						{Platform.OS === 'ios' ? (
-							<View className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100">
-								<View className="flex-1 flex-row items-center px-4 py-2">
-									<Calendar size={20} color={colors.ink.muted} />
-									<Text className="ml-3 font-sans text-base text-ink">
-										{formatDateDisplay(selectedDate)}
-									</Text>
-								</View>
+							{showDatePicker && (
 								<DateTimePicker
 									value={selectedDate}
 									mode="date"
-									display="compact"
+									display="default"
 									onChange={handleDateChange}
-									accentColor={colors.accent.deeper}
 								/>
-							</View>
-						) : (
-							<>
-								<Pressable
-									onPress={() => setShowDatePicker(true)}
-									className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-3"
-								>
-									<Calendar size={20} color={colors.ink.muted} />
-									<Text className="ml-3 font-sans text-base text-ink">
-										{formatDateDisplay(selectedDate)}
-									</Text>
-								</Pressable>
-								{showDatePicker && (
-									<DateTimePicker
-										value={selectedDate}
-										mode="date"
-										display="default"
-										onChange={handleDateChange}
-									/>
-								)}
-							</>
-						)}
-					</View>
-
-					{/* Fund from savings — show when source is an account with reservations */}
-					{!isEditing && displayFromEntity?.type === 'account' && (
-						<SavingsFundingSection
-							ref={fundingRef}
-							accountEntityId={displayFromEntity.id}
-							currency={currency}
-							enteredAmount={
-								isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
-							}
-							onFundingChange={setTotalFunded}
-							maxDecimalPlaces={maxDecimalPlaces}
-						/>
+							)}
+						</>
 					)}
+				</View>
 
-					{/* Split — only for account → category; hidden when editing "all future" of a series */}
-					{!quickAdd &&
-						displayFromEntity?.type === 'account' &&
-						displayToEntity?.type === 'category' &&
-						(!seriesScope || seriesScope === 'single') && (
-							<View className="mb-6">
-								<Pressable
-									onPress={isSplitMode ? handleMerge : handleEnterSplitMode}
-									className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
-									style={{
-										borderWidth: 1,
-										borderColor: isSplitMode
-											? colors.accent.DEFAULT
-											: colors.border.dashed,
-										borderStyle: isSplitMode ? 'solid' : 'dashed',
-									}}
-									testID="split-toggle-button"
-								>
-									<Split
-										size={14}
-										color={
-											isSplitMode ? colors.accent.DEFAULT : colors.ink.muted
-										}
-									/>
-									<Text
-										className={`ml-2 font-sans text-sm ${isSplitMode ? 'text-accent' : 'text-ink-muted'}`}
-									>
-										Split
-									</Text>
-									<InfoPin articleId="splits" />
-								</Pressable>
+				{/* Fund from savings — show when source is an account with reservations */}
+				{!isEditing && displayFromEntity?.type === 'account' && (
+					<SavingsFundingSection
+						ref={fundingRef}
+						accountEntityId={displayFromEntity.id}
+						currency={currency}
+						enteredAmount={
+							isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+						}
+						onFundingChange={setTotalFunded}
+						maxDecimalPlaces={maxDecimalPlaces}
+					/>
+				)}
 
-								{isSplitMode && (
-									<View className="mt-3 overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
-										{splits.map((split, index) => {
-											const splitEntity = split.toEntityId
-												? entities.find((e) => e.id === split.toEntityId)
-												: null;
-											const typeColors = splitEntity
-												? getEntityColors(
-														splitEntity.type,
-														splitEntity.color
-													)
-												: null;
-											const IconComponent = splitEntity
-												? getIcon(splitEntity.icon || 'circle')
-												: null;
-											const isAnchor = index === 0;
-
-											return (
-												<View
-													key={split.id}
-													className="flex-row items-center px-3 py-2.5"
-													style={
-														index > 0
-															? {
-																	borderTopWidth: 1,
-																	borderTopColor:
-																		colors.border.light,
-																}
-															: undefined
-													}
-													testID={`split-row-${index}`}
-												>
-													{/* Entity chip */}
-													<Pressable
-														onPress={() => setActiveSplitIndex(index)}
-														className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
-														style={{ maxWidth: 140 }}
-														testID={`split-entity-${index}`}
-													>
-														{splitEntity &&
-														typeColors &&
-														IconComponent ? (
-															<>
-																<View
-																	className="mr-1.5 h-5 w-5 items-center justify-center rounded-full"
-																	style={{
-																		backgroundColor:
-																			typeColors.bgColor,
-																	}}
-																>
-																	<IconComponent
-																		size={11}
-																		color={typeColors.iconColor}
-																	/>
-																</View>
-																<Text
-																	className="font-sans text-sm text-ink"
-																	numberOfLines={1}
-																	style={{ flexShrink: 1 }}
-																>
-																	{splitEntity.name}
-																</Text>
-															</>
-														) : (
-															<Text className="font-sans text-sm text-ink-muted">
-																Pick category
-															</Text>
-														)}
-														<Pencil
-															size={9}
-															color={colors.ink.placeholder}
-															style={{
-																marginLeft: 4,
-																flexShrink: 0,
-															}}
-														/>
-													</Pressable>
-
-													{/* Amount area */}
-													{isAnchor ? (
-														// Anchor: auto-computed, read-only
-														<View
-															className="flex-1 flex-row items-center justify-end"
-															testID="split-anchor-amount"
-														>
-															<Text
-																className="font-sans-semibold text-lg"
-																style={{
-																	color:
-																		anchorAmount >= 0
-																			? colors.ink.light
-																			: colors.negative
-																					.DEFAULT,
-																}}
-															>
-																{formatAmount(anchorAmount)}
-															</Text>
-															<Text className="ml-1 font-sans text-xs text-ink-muted">
-																auto
-															</Text>
-														</View>
-													) : (
-														// Non-anchor: editable + "use remaining" chip
-														<View className="flex-1 flex-row items-center justify-end">
-															{!split.amount && anchorAmount > 0 && (
-																<Pressable
-																	onPress={() =>
-																		handleSplitAmountChange(
-																			index,
-																			formatAmountForInput(
-																				anchorAmount
-																			)
-																		)
-																	}
-																	className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
-																	testID={`split-remaining-chip-${index}`}
-																>
-																	<Text className="font-sans text-xs text-positive">
-																		→{' '}
-																		{formatAmount(anchorAmount)}
-																	</Text>
-																</Pressable>
-															)}
-															<TextInput
-																{...sharedNumericTextInputProps}
-																value={split.amount}
-																onChangeText={(v) =>
-																	handleSplitAmountChange(
-																		index,
-																		v
-																	)
-																}
-																placeholder="0"
-																keyboardType="numeric"
-																className={
-																	textInputClassNames.inlineAmountInput
-																}
-																style={[
-																	styles.input,
-																	{
-																		textAlign: 'right',
-																		minWidth: 48,
-																	},
-																]}
-																placeholderTextColor={
-																	colors.ink.placeholder
-																}
-																testID={`split-amount-${index}`}
-															/>
-														</View>
-													)}
-
-													<Text className="ml-1 font-sans text-sm text-ink-muted">
-														{getCurrencySymbol(currency)}
-													</Text>
-
-													{/* Remove (non-anchor only, disabled at minimum) */}
-													{!isAnchor && (
-														<Pressable
-															onPress={() => handleRemoveSplit(index)}
-															disabled={splits.length <= 2}
-															hitSlop={12}
-															className="ml-2"
-															testID={`split-remove-${index}`}
-														>
-															<X
-																size={16}
-																color={
-																	splits.length <= 2
-																		? colors.border.DEFAULT
-																		: colors.ink.placeholder
-																}
-															/>
-														</Pressable>
-													)}
-												</View>
-											);
-										})}
-
-										{/* Add split */}
-										<Pressable
-											onPress={handleAddSplit}
-											className="flex-row items-center px-3 py-2.5"
-											style={{
-												borderTopWidth: 1,
-												borderTopColor: colors.border.light,
-											}}
-											testID="split-add-button"
-										>
-											<Plus size={14} color={colors.ink.muted} />
-											<Text className="ml-2 font-sans text-sm text-ink-muted">
-												Add split
-											</Text>
-										</Pressable>
-									</View>
-								)}
-							</View>
-						)}
-
-					{/* Repeat — create mode only */}
-					{!isEditing && (
+				{/* Split — only for account → category; hidden when editing "all future" of a series */}
+				{!quickAdd &&
+					displayFromEntity?.type === 'account' &&
+					displayToEntity?.type === 'category' &&
+					(!seriesScope || seriesScope === 'single') && (
 						<View className="mb-6">
 							<Pressable
-								onPress={() => setIsRepeat((v) => !v)}
+								onPress={isSplitMode ? handleMerge : handleEnterSplitMode}
 								className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
 								style={{
 									borderWidth: 1,
-									borderColor: isRepeat
+									borderColor: isSplitMode
 										? colors.accent.DEFAULT
 										: colors.border.dashed,
-									borderStyle: isRepeat ? 'solid' : 'dashed',
+									borderStyle: isSplitMode ? 'solid' : 'dashed',
 								}}
-								testID="repeat-toggle"
+								testID="split-toggle-button"
 							>
-								<Repeat
+								<Split
 									size={14}
-									color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted}
+									color={isSplitMode ? colors.accent.DEFAULT : colors.ink.muted}
 								/>
 								<Text
-									className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+									className={`ml-2 font-sans text-sm ${isSplitMode ? 'text-accent' : 'text-ink-muted'}`}
 								>
-									Repeat
+									Split
 								</Text>
-								<InfoPin articleId="recurring" />
+								<InfoPin articleId="splits" />
 							</Pressable>
 
-							{isRepeat && (
-								<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
-									{/* Frequency */}
-									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-										Frequency
-									</Text>
-									<View className="mb-4 flex-row gap-2">
-										{(['daily', 'weekly', 'monthly', 'yearly'] as const).map(
-											(freq) => (
-												<Pressable
-													key={freq}
-													onPress={() => setRepeatFrequency(freq)}
-													className={`flex-1 items-center rounded-lg py-2 ${
-														repeatFrequency === freq
-															? 'bg-accent'
-															: 'bg-paper-200'
-													}`}
-													testID={`repeat-freq-${freq}`}
-												>
-													<Text
-														className={`font-sans text-sm capitalize ${
-															repeatFrequency === freq
-																? 'text-on-color'
-																: 'text-ink-muted'
-														}`}
-													>
-														{freq}
-													</Text>
-												</Pressable>
-											)
-										)}
-									</View>
+							{isSplitMode && (
+								<View className="mt-3 overflow-hidden rounded-lg border border-paper-300 bg-paper-100">
+									{splits.map((split, index) => {
+										const splitEntity = split.toEntityId
+											? entities.find((e) => e.id === split.toEntityId)
+											: null;
+										const typeColors = splitEntity
+											? getEntityColors(splitEntity.type, splitEntity.color)
+											: null;
+										const IconComponent = splitEntity
+											? getIcon(splitEntity.icon || 'circle')
+											: null;
+										const isAnchor = index === 0;
 
-									{/* End condition */}
-									<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
-										Ends
-									</Text>
-									<View className="mb-4 flex-row gap-2">
-										{(['never', 'until', 'count'] as const).map((mode) => (
+										return (
+											<View
+												key={split.id}
+												className="flex-row items-center px-3 py-2.5"
+												style={
+													index > 0
+														? {
+																borderTopWidth: 1,
+																borderTopColor: colors.border.light,
+															}
+														: undefined
+												}
+												testID={`split-row-${index}`}
+											>
+												{/* Entity chip */}
+												<Pressable
+													onPress={() => setActiveSplitIndex(index)}
+													className="mr-3 flex-row items-center rounded-full bg-paper-200 px-2 py-1"
+													style={{ maxWidth: 140 }}
+													testID={`split-entity-${index}`}
+												>
+													{splitEntity && typeColors && IconComponent ? (
+														<>
+															<View
+																className="mr-1.5 h-5 w-5 items-center justify-center rounded-full"
+																style={{
+																	backgroundColor:
+																		typeColors.bgColor,
+																}}
+															>
+																<IconComponent
+																	size={11}
+																	color={typeColors.iconColor}
+																/>
+															</View>
+															<Text
+																className="font-sans text-sm text-ink"
+																numberOfLines={1}
+																style={{ flexShrink: 1 }}
+															>
+																{splitEntity.name}
+															</Text>
+														</>
+													) : (
+														<Text className="font-sans text-sm text-ink-muted">
+															Pick category
+														</Text>
+													)}
+													<Pencil
+														size={9}
+														color={colors.ink.placeholder}
+														style={{
+															marginLeft: 4,
+															flexShrink: 0,
+														}}
+													/>
+												</Pressable>
+
+												{/* Amount area */}
+												{isAnchor ? (
+													// Anchor: auto-computed, read-only
+													<View
+														className="flex-1 flex-row items-center justify-end"
+														testID="split-anchor-amount"
+													>
+														<Text
+															className="font-sans-semibold text-lg"
+															style={{
+																color:
+																	anchorAmount >= 0
+																		? colors.ink.light
+																		: colors.negative.DEFAULT,
+															}}
+														>
+															{formatAmount(anchorAmount)}
+														</Text>
+														<Text className="ml-1 font-sans text-xs text-ink-muted">
+															auto
+														</Text>
+													</View>
+												) : (
+													// Non-anchor: editable + "use remaining" chip
+													<View className="flex-1 flex-row items-center justify-end">
+														{!split.amount && anchorAmount > 0 && (
+															<Pressable
+																onPress={() =>
+																	handleSplitAmountChange(
+																		index,
+																		formatAmountForInput(
+																			anchorAmount
+																		)
+																	)
+																}
+																className="mr-2 rounded-full bg-paper-200 px-2 py-0.5"
+																testID={`split-remaining-chip-${index}`}
+															>
+																<Text className="font-sans text-xs text-positive">
+																	→ {formatAmount(anchorAmount)}
+																</Text>
+															</Pressable>
+														)}
+														<TextInput
+															{...sharedNumericTextInputProps}
+															value={split.amount}
+															onChangeText={(v) =>
+																handleSplitAmountChange(index, v)
+															}
+															placeholder="0"
+															keyboardType="numeric"
+															className={
+																textInputClassNames.inlineAmountInput
+															}
+															style={[
+																styles.input,
+																{
+																	textAlign: 'right',
+																	minWidth: 48,
+																},
+															]}
+															placeholderTextColor={
+																colors.ink.placeholder
+															}
+															testID={`split-amount-${index}`}
+														/>
+													</View>
+												)}
+
+												<Text className="ml-1 font-sans text-sm text-ink-muted">
+													{getCurrencySymbol(currency)}
+												</Text>
+
+												{/* Remove (non-anchor only, disabled at minimum) */}
+												{!isAnchor && (
+													<Pressable
+														onPress={() => handleRemoveSplit(index)}
+														disabled={splits.length <= 2}
+														hitSlop={12}
+														className="ml-2"
+														testID={`split-remove-${index}`}
+													>
+														<X
+															size={16}
+															color={
+																splits.length <= 2
+																	? colors.border.DEFAULT
+																	: colors.ink.placeholder
+															}
+														/>
+													</Pressable>
+												)}
+											</View>
+										);
+									})}
+
+									{/* Add split */}
+									<Pressable
+										onPress={handleAddSplit}
+										className="flex-row items-center px-3 py-2.5"
+										style={{
+											borderTopWidth: 1,
+											borderTopColor: colors.border.light,
+										}}
+										testID="split-add-button"
+									>
+										<Plus size={14} color={colors.ink.muted} />
+										<Text className="ml-2 font-sans text-sm text-ink-muted">
+											Add split
+										</Text>
+									</Pressable>
+								</View>
+							)}
+						</View>
+					)}
+
+				{/* Repeat — create mode only */}
+				{!isEditing && (
+					<View className="mb-6">
+						<Pressable
+							onPress={() => setIsRepeat((v) => !v)}
+							className="flex-row items-center rounded-lg bg-paper-100 px-3 py-2.5"
+							style={{
+								borderWidth: 1,
+								borderColor: isRepeat
+									? colors.accent.DEFAULT
+									: colors.border.dashed,
+								borderStyle: isRepeat ? 'solid' : 'dashed',
+							}}
+							testID="repeat-toggle"
+						>
+							<Repeat
+								size={14}
+								color={isRepeat ? colors.accent.DEFAULT : colors.ink.muted}
+							/>
+							<Text
+								className={`ml-2 font-sans text-sm ${isRepeat ? 'text-accent' : 'text-ink-muted'}`}
+							>
+								Repeat
+							</Text>
+							<InfoPin articleId="recurring" />
+						</Pressable>
+
+						{isRepeat && (
+							<View className="mt-3 rounded-lg border border-paper-300 bg-paper-100 p-3">
+								{/* Frequency */}
+								<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+									Frequency
+								</Text>
+								<View className="mb-4 flex-row gap-2">
+									{(['daily', 'weekly', 'monthly', 'yearly'] as const).map(
+										(freq) => (
 											<Pressable
-												key={mode}
-												onPress={() => handleSelectRepeatEndMode(mode)}
+												key={freq}
+												onPress={() => setRepeatFrequency(freq)}
 												className={`flex-1 items-center rounded-lg py-2 ${
-													repeatEndMode === mode
+													repeatFrequency === freq
 														? 'bg-accent'
 														: 'bg-paper-200'
 												}`}
-												testID={`repeat-end-${mode}`}
+												testID={`repeat-freq-${freq}`}
 											>
 												<Text
-													className={`font-sans text-sm ${
-														repeatEndMode === mode
+													className={`font-sans text-sm capitalize ${
+														repeatFrequency === freq
 															? 'text-on-color'
 															: 'text-ink-muted'
 													}`}
 												>
-													{mode === 'never'
-														? 'Never'
-														: mode === 'until'
-															? 'Until date'
-															: 'After N'}
+													{freq}
 												</Text>
 											</Pressable>
-										))}
-									</View>
-
-									{repeatEndMode === 'until' && (
-										<View className="mb-4">
-											{Platform.OS === 'ios' ? (
-												<DateTimePicker
-													value={repeatEndDate ?? new Date()}
-													mode="date"
-													display="compact"
-													onChange={(_, date) =>
-														date && setRepeatEndDate(date)
-													}
-													minimumDate={selectedDate}
-													accentColor={colors.accent.deeper}
-												/>
-											) : (
-												<>
-													<Pressable
-														onPress={() =>
-															setShowRepeatEndDatePicker(true)
-														}
-														className="flex-row items-center rounded-lg border border-paper-300 bg-paper-200 px-3 py-2"
-													>
-														<Calendar
-															size={16}
-															color={colors.ink.muted}
-														/>
-														<Text className="ml-2 font-sans text-sm text-ink">
-															{repeatEndDate
-																? repeatEndDate.toLocaleDateString(
-																		undefined,
-																		{
-																			month: 'short',
-																			day: 'numeric',
-																			year: 'numeric',
-																		}
-																	)
-																: 'Pick end date'}
-														</Text>
-													</Pressable>
-													{showRepeatEndDatePicker && (
-														<DateTimePicker
-															value={repeatEndDate ?? new Date()}
-															mode="date"
-															display="default"
-															onChange={(event, date) => {
-																setShowRepeatEndDatePicker(false);
-																if (event.type === 'set' && date) {
-																	setRepeatEndDate(date);
-																}
-															}}
-															minimumDate={selectedDate}
-														/>
-													)}
-												</>
-											)}
-										</View>
-									)}
-
-									{repeatEndMode === 'count' && (
-										<View className="mb-4">
-											<TextInput
-												{...sharedNumericTextInputProps}
-												value={repeatEndCount}
-												onChangeText={setRepeatEndCount}
-												placeholder="Number of times"
-												keyboardType="number-pad"
-												className={textInputClassNames.input}
-												style={styles.input}
-												placeholderTextColor={colors.ink.placeholder}
-												testID="repeat-end-count-input"
-											/>
-										</View>
+										)
 									)}
 								</View>
-							)}
-						</View>
-					)}
 
-					{/* Delete — edit mode only */}
-					{isEditing && (
-						<Pressable
-							onPress={handleDelete}
-							className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
-							testID="transaction-delete-button"
-						>
-							<Text className="font-sans-semibold text-base text-negative">
-								Delete Transaction
-							</Text>
-						</Pressable>
-					)}
-				</KeyboardAwareScrollView>
-			</View>
+								{/* End condition */}
+								<Text className="mb-2 font-sans text-xs uppercase tracking-wider text-ink-muted">
+									Ends
+								</Text>
+								<View className="mb-4 flex-row gap-2">
+									{(['never', 'until', 'count'] as const).map((mode) => (
+										<Pressable
+											key={mode}
+											onPress={() => handleSelectRepeatEndMode(mode)}
+											className={`flex-1 items-center rounded-lg py-2 ${
+												repeatEndMode === mode
+													? 'bg-accent'
+													: 'bg-paper-200'
+											}`}
+											testID={`repeat-end-${mode}`}
+										>
+											<Text
+												className={`font-sans text-sm ${
+													repeatEndMode === mode
+														? 'text-on-color'
+														: 'text-ink-muted'
+												}`}
+											>
+												{mode === 'never'
+													? 'Never'
+													: mode === 'until'
+														? 'Until date'
+														: 'After N'}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+
+								{repeatEndMode === 'until' && (
+									<View className="mb-4">
+										{Platform.OS === 'ios' ? (
+											<DateTimePicker
+												value={repeatEndDate ?? new Date()}
+												mode="date"
+												display="compact"
+												onChange={(_, date) =>
+													date && setRepeatEndDate(date)
+												}
+												minimumDate={selectedDate}
+												accentColor={colors.accent.deeper}
+											/>
+										) : (
+											<>
+												<Pressable
+													onPress={() => setShowRepeatEndDatePicker(true)}
+													className="flex-row items-center rounded-lg border border-paper-300 bg-paper-200 px-3 py-2"
+												>
+													<Calendar size={16} color={colors.ink.muted} />
+													<Text className="ml-2 font-sans text-sm text-ink">
+														{repeatEndDate
+															? repeatEndDate.toLocaleDateString(
+																	undefined,
+																	{
+																		month: 'short',
+																		day: 'numeric',
+																		year: 'numeric',
+																	}
+																)
+															: 'Pick end date'}
+													</Text>
+												</Pressable>
+												{showRepeatEndDatePicker && (
+													<DateTimePicker
+														value={repeatEndDate ?? new Date()}
+														mode="date"
+														display="default"
+														onChange={(event, date) => {
+															setShowRepeatEndDatePicker(false);
+															if (event.type === 'set' && date) {
+																setRepeatEndDate(date);
+															}
+														}}
+														minimumDate={selectedDate}
+													/>
+												)}
+											</>
+										)}
+									</View>
+								)}
+
+								{repeatEndMode === 'count' && (
+									<View className="mb-4">
+										<TextInput
+											{...sharedNumericTextInputProps}
+											value={repeatEndCount}
+											onChangeText={setRepeatEndCount}
+											placeholder="Number of times"
+											keyboardType="number-pad"
+											className={textInputClassNames.input}
+											style={styles.input}
+											placeholderTextColor={colors.ink.placeholder}
+											testID="repeat-end-count-input"
+										/>
+									</View>
+								)}
+							</View>
+						)}
+					</View>
+				)}
+
+				{/* Delete — edit mode only */}
+				{isEditing && (
+					<Pressable
+						onPress={handleDelete}
+						className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
+						testID="transaction-delete-button"
+					>
+						<Text className="font-sans-semibold text-base text-negative">
+							Delete Transaction
+						</Text>
+					</Pressable>
+				)}
+			</KeyboardAwareScrollView>
 
 			<KeyboardExtender enabled={amountExpr.focused}>
 				<OperatorToolbar
@@ -1394,6 +1361,6 @@ export function TransactionModal({
 				onSelect={handleSplitEntitySelect}
 				onClose={() => setActiveSplitIndex(null)}
 			/>
-		</Modal>
+		</PageSheetModal>
 	);
 }
