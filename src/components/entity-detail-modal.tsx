@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
-import { View, TextInput, Pressable, Modal, Platform, Alert, Switch } from 'react-native';
+import { View, TextInput, Pressable, Platform, Alert, Switch } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
 	KeyboardController,
 	KeyboardExtender,
 } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
+import { PageSheetModal } from './page-sheet-modal';
 
 import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
@@ -71,7 +71,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 	// Reservation modal state
 	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
 	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
-	const insets = useSafeAreaInsets();
 	const maxDecimalPlaces = useMemo(
 		() => getCurrencyDecimalPlaces(entity?.currency ?? DEFAULT_CURRENCY),
 		[entity?.currency]
@@ -434,501 +433,464 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 		entity.type !== 'account' && entity.type !== 'income' && entity.planned > 0;
 
 	return (
-		<Modal
-			visible={visible}
-			animationType="slide"
-			presentationStyle="pageSheet"
-			onRequestClose={handleCancel}
-		>
-			<View
-				className="flex-1 bg-paper-50"
-				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+		<PageSheetModal visible={visible} onRequestClose={handleCancel}>
+			{/* Header */}
+			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+				<Pressable onPress={handleCancel} hitSlop={20} testID="entity-detail-cancel-button">
+					<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+				</Pressable>
+				<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
+				<Pressable
+					onPress={() => {
+						void handleSave();
+					}}
+					disabled={!canSave}
+					hitSlop={20}
+					testID="entity-detail-save-button"
+				>
+					<Text
+						className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
+					>
+						Save
+					</Text>
+				</Pressable>
+			</View>
+
+			{/* Content */}
+			<KeyboardAwareScrollView
+				bottomOffset={50}
+				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+				keyboardShouldPersistTaps="handled"
+				className="flex-1 px-5 pt-6"
 			>
-				{/* Header */}
-				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+				{/* Entity icon with edit indicator */}
+				<View className="mb-6 items-center">
 					<Pressable
-						onPress={handleCancel}
-						hitSlop={20}
-						testID="entity-detail-cancel-button"
+						onPress={() => setShowIconPicker(!showIconPicker)}
+						className="mb-3"
+						testID="entity-detail-icon-picker-toggle"
 					>
-						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
-					<Pressable
-						onPress={() => {
-							void handleSave();
-						}}
-						disabled={!canSave}
-						hitSlop={20}
-						testID="entity-detail-save-button"
-					>
-						<Text
-							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
+						<View
+							className="relative h-20 w-20 items-center justify-center rounded-full"
+							style={{
+								backgroundColor: getEntityColors(entity.type, selectedColor)
+									.bgColor,
+							}}
 						>
-							Save
-						</Text>
+							<IconComponent
+								size={36}
+								color={getEntityColors(entity.type, selectedColor).iconColor}
+							/>
+							{/* Pencil edit indicator */}
+							<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
+								<PencilIcon size={14} color={colors.ink.muted} />
+							</View>
+						</View>
 					</Pressable>
+					<Text className="font-sans text-sm text-ink-muted">{typeLabel}</Text>
 				</View>
 
-				{/* Content */}
-				<KeyboardAwareScrollView
-					bottomOffset={50}
-					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-					keyboardShouldPersistTaps="handled"
-					className="flex-1 px-5 pt-6"
-				>
-					{/* Entity icon with edit indicator */}
-					<View className="mb-6 items-center">
-						<Pressable
-							onPress={() => setShowIconPicker(!showIconPicker)}
-							className="mb-3"
-							testID="entity-detail-icon-picker-toggle"
-						>
-							<View
-								className="relative h-20 w-20 items-center justify-center rounded-full"
-								style={{
-									backgroundColor: getEntityColors(entity.type, selectedColor)
-										.bgColor,
-								}}
-							>
-								<IconComponent
-									size={36}
-									color={getEntityColors(entity.type, selectedColor).iconColor}
-								/>
-								{/* Pencil edit indicator */}
-								<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
-									<PencilIcon size={14} color={colors.ink.muted} />
-								</View>
-							</View>
-						</Pressable>
-						<Text className="font-sans text-sm text-ink-muted">{typeLabel}</Text>
-					</View>
-
-					{/* Icon picker (expandable) */}
-					{showIconPicker && (
-						<View className="mb-6">
-							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Choose Icon
-							</Text>
-							<EntityIconPicker
-								key={`${entity.id}-${showIconPicker ? 'open' : 'closed'}`}
-								icons={ICON_OPTIONS[entity.type]}
-								selectedIcon={selectedIcon}
-								onSelect={(icon) => {
-									setSelectedIcon(icon);
-									setShowIconPicker(false);
-								}}
-								optionTestIDPrefix="entity-detail-icon-option"
-							/>
-						</View>
-					)}
-
-					{/* Color picker */}
+				{/* Icon picker (expandable) */}
+				{showIconPicker && (
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Color
+							Choose Icon
 						</Text>
-						<EntityColorPicker
-							entityType={entity.type}
-							selectedColor={selectedColor}
-							onSelect={setSelectedColor}
+						<EntityIconPicker
+							key={`${entity.id}-${showIconPicker ? 'open' : 'closed'}`}
+							icons={ICON_OPTIONS[entity.type]}
+							selectedIcon={selectedIcon}
+							onSelect={(icon) => {
+								setSelectedIcon(icon);
+								setShowIconPicker(false);
+							}}
+							optionTestIDPrefix="entity-detail-icon-option"
 						/>
 					</View>
+				)}
 
-					{/* Name input */}
+				{/* Color picker */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Color
+					</Text>
+					<EntityColorPicker
+						entityType={entity.type}
+						selectedColor={selectedColor}
+						onSelect={setSelectedColor}
+					/>
+				</View>
+
+				{/* Name input */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Name
+					</Text>
+					<View
+						className={[textInputClassNames.container, nameError && 'border-negative']
+							.filter(Boolean)
+							.join(' ')}
+					>
+						<TextInput
+							{...sharedTextInputProps}
+							value={name}
+							onChangeText={handleNameChange}
+							placeholder="Enter entity name"
+							className={textInputClassNames.input}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+							maxLength={MAX_NAME_LENGTH}
+							testID="entity-detail-name-input"
+						/>
+					</View>
+					{nameError && (
+						<Text className="mt-1 font-sans text-xs text-negative">{nameError}</Text>
+					)}
+				</View>
+
+				{/* Current status - editable for accounts */}
+				{entity.type === 'account' ? (
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Name
+							Current Balance
 						</Text>
-						<View
-							className={[
-								textInputClassNames.container,
-								nameError && 'border-negative',
-							]
-								.filter(Boolean)
-								.join(' ')}
-						>
+						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
-								{...sharedTextInputProps}
-								value={name}
-								onChangeText={handleNameChange}
-								placeholder="Enter entity name"
-								className={textInputClassNames.input}
+								{...sharedNumericTextInputProps}
+								{...actualExpr.inputProps}
+								placeholder="0"
+								className={textInputClassNames.primaryAmountInput}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								maxLength={MAX_NAME_LENGTH}
-								testID="entity-detail-name-input"
+								testID="entity-detail-actual-input"
+							/>
+							<Text className={textInputClassNames.suffixLarge}>
+								{getCurrencySymbol(entity.currency)}
+							</Text>
+						</View>
+						<Text className="mt-1 font-sans text-xs text-ink-muted">
+							Correct your account balance. An adjustment transaction will be created.
+						</Text>
+
+						{!!entity.reserved && entity.reserved > 0 && (
+							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
+								<Text className="font-sans text-xs text-ink-muted">
+									Total (incl. savings)
+								</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.actual + entity.reserved)}
+								</Text>
+							</View>
+						)}
+
+						{/* Include in total toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<View className="flex-row items-center">
+									<Text className="font-sans text-base text-ink">
+										Include in total balance
+									</Text>
+									<InfoPin articleId="entity-types" />
+								</View>
+								<Text className="font-sans text-xs text-ink-muted">
+									Turn off to exclude from summary header
+								</Text>
+							</View>
+							<Switch
+								value={includeInTotal}
+								onValueChange={setIncludeInTotal}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-include-in-total-switch"
 							/>
 						</View>
-						{nameError && (
-							<Text className="mt-1 font-sans text-xs text-negative">
-								{nameError}
+
+						{/* Default account toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<Text className="font-sans text-base text-ink">
+									Default account
+								</Text>
+								<Text className="font-sans text-xs text-ink-muted">
+									Pre-selected when adding transactions
+								</Text>
+							</View>
+							<Switch
+								value={isDefault}
+								onValueChange={setIsDefault}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-is-default-switch"
+							/>
+						</View>
+
+						{/* Investment account toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<View className="flex-row items-center">
+									<Text className="font-sans text-base text-ink">
+										Investment account
+									</Text>
+									<InfoPin articleId="investment-accounts" />
+								</View>
+								<Text className="font-sans text-xs text-ink-muted">
+									Track purchase value and market value
+								</Text>
+							</View>
+							<Switch
+								value={isInvestment}
+								onValueChange={(value) => {
+									const hasSnapshots = marketValueSnapshots.some(
+										(s) => s.entity_id === entity.id
+									);
+									if (!value && hasSnapshots) {
+										Alert.alert(
+											'Turn Off Investment Account?',
+											'Turning this off will remove all saved market value snapshots when you save.',
+											[
+												{
+													text: 'Cancel',
+													style: 'cancel',
+													onPress: () => {},
+												},
+												{
+													text: 'Confirm',
+													style: 'destructive',
+													onPress: () => {
+														setIsInvestment(false);
+													},
+												},
+											]
+										);
+									} else {
+										setIsInvestment(value);
+									}
+								}}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-investment-switch"
+							/>
+						</View>
+
+						{/* Market value input — visible only for investment accounts */}
+						{isInvestment && (
+							<View className="mt-4">
+								<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+									Market Value
+								</Text>
+								<View className={textInputClassNames.inlineContainer}>
+									<TextInput
+										{...sharedNumericTextInputProps}
+										{...marketValueExpr.inputProps}
+										value={marketValueAmount}
+										onChangeText={setMarketValueAmount}
+										placeholder="0"
+										className={textInputClassNames.primaryAmountInput}
+										style={styles.input}
+										placeholderTextColor={colors.ink.placeholder}
+										testID="entity-detail-market-value-input"
+									/>
+									<Text className={textInputClassNames.suffixLarge}>
+										{getCurrencySymbol(entity.currency)}
+									</Text>
+								</View>
+								<Text className="mt-1 font-sans text-xs text-ink-muted">
+									Enter today&apos;s market value to save a new snapshot.
+								</Text>
+							</View>
+						)}
+
+						{/* Reserved for — per-saving breakdown */}
+						<View className="mt-4" testID="account-reservations-section">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Reserved for
+							</Text>
+							{accountReservations.length > 0 ? (
+								<>
+									<AllocationPieChart
+										slices={accountReservationChartSlices}
+										currency={entity.currency}
+										totalLabel="Reserved"
+										onSlicePress={(slice) => {
+											const reservation = accountReservations.find(
+												(r) => r.saving.id === slice.id
+											);
+											if (reservation) {
+												setReservationSaving(reservation.saving);
+											}
+										}}
+										containerClassName="pb-4"
+										testID="account-reservations-pie-chart"
+									/>
+									<View className="rounded-lg bg-paper-100">
+										{accountReservations.map(({ amount, saving }, index) => {
+											const SavingIcon = getIcon(saving.icon || 'circle');
+											const savingColors = getEntityColors(
+												'saving',
+												saving.color
+											);
+											return (
+												<Pressable
+													key={saving.id}
+													onPress={() => setReservationSaving(saving)}
+													className={`flex-row items-center px-4 py-3 ${
+														index > 0 ? 'border-t border-paper-300' : ''
+													}`}
+													testID={`account-reservation-row-${saving.id}`}
+												>
+													<View
+														className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+														style={{
+															backgroundColor: savingColors.bgColor,
+														}}
+													>
+														<SavingIcon
+															size={16}
+															color={savingColors.iconColor}
+														/>
+													</View>
+													<Text className="flex-1 font-sans text-base text-ink">
+														{saving.name}
+													</Text>
+													<Text
+														className="font-sans-semibold text-base text-ink"
+														style={{
+															fontVariant: ['tabular-nums'],
+														}}
+													>
+														{formatAmount(amount, entity.currency)}
+													</Text>
+												</Pressable>
+											);
+										})}
+									</View>
+								</>
+							) : (
+								<Text className="text-ink-faint font-sans text-sm">
+									Drag a savings goal onto this account to reserve funds
+								</Text>
+							)}
+						</View>
+					</View>
+				) : (
+					/* Original read-only status for other entity types */
+					<View className="mb-6 flex-row justify-around rounded-lg bg-paper-100 px-4 py-4">
+						<View className="items-center">
+							<Text className="font-sans text-xs text-ink-muted">Actual</Text>
+							<Text className="font-sans-semibold text-lg text-ink">
+								{formatAmount(entity.actual)}
+							</Text>
+						</View>
+						{shouldShowRemaining && (
+							<View className="items-center">
+								<Text className="font-sans text-xs text-ink-muted">Remaining</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.remaining)}
+								</Text>
+							</View>
+						)}
+					</View>
+				)}
+
+				{/* Planned amount input — not applicable for accounts */}
+				{entity.type !== 'account' && (
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Planned Amount ({getCurrentPeriod()})
+						</Text>
+						<View className={textInputClassNames.inlineContainer}>
+							<TextInput
+								{...sharedNumericTextInputProps}
+								{...plannedExpr.inputProps}
+								placeholder="0"
+								className={textInputClassNames.primaryAmountInput}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="entity-detail-amount-input"
+							/>
+							<Text className={textInputClassNames.suffixLarge}>
+								{getCurrencySymbol(entity.currency)}
+							</Text>
+						</View>
+					</View>
+				)}
+
+				{/* Reservations section — saving entities only */}
+				{entity.type === 'saving' && (
+					<View className="mb-6" testID="saving-reservations-section">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Reserved from
+						</Text>
+						{savingReservations.length > 0 ? (
+							<View className="rounded-lg bg-paper-100">
+								{savingReservations.map(({ amount, account }, index) => {
+									const AccountIcon = getIcon(account.icon || 'circle');
+									const accountColors = getEntityColors('account', account.color);
+									return (
+										<Pressable
+											key={account.id}
+											onPress={() => setReservationAccount(account)}
+											className={`flex-row items-center px-4 py-3 ${
+												index > 0 ? 'border-t border-paper-300' : ''
+											}`}
+											testID={`saving-reservation-row-${account.id}`}
+										>
+											<View
+												className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+												style={{
+													backgroundColor: accountColors.bgColor,
+												}}
+											>
+												<AccountIcon
+													size={16}
+													color={accountColors.iconColor}
+												/>
+											</View>
+											<Text className="flex-1 font-sans text-base text-ink">
+												{account.name}
+											</Text>
+											<Text
+												className="font-sans-semibold text-base text-ink"
+												style={{ fontVariant: ['tabular-nums'] }}
+											>
+												{formatAmount(amount, entity.currency)}
+											</Text>
+										</Pressable>
+									);
+								})}
+							</View>
+						) : (
+							<Text className="text-ink-faint font-sans text-sm">
+								Drag an account onto this saving to reserve funds
 							</Text>
 						)}
 					</View>
+				)}
 
-					{/* Current status - editable for accounts */}
-					{entity.type === 'account' ? (
-						<View className="mb-6">
-							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Current Balance
-							</Text>
-							<View className={textInputClassNames.inlineContainer}>
-								<TextInput
-									{...sharedNumericTextInputProps}
-									{...actualExpr.inputProps}
-									placeholder="0"
-									className={textInputClassNames.primaryAmountInput}
-									style={styles.input}
-									placeholderTextColor={colors.ink.placeholder}
-									testID="entity-detail-actual-input"
-								/>
-								<Text className={textInputClassNames.suffixLarge}>
-									{getCurrencySymbol(entity.currency)}
-								</Text>
-							</View>
-							<Text className="mt-1 font-sans text-xs text-ink-muted">
-								Correct your account balance. An adjustment transaction will be
-								created.
-							</Text>
-
-							{!!entity.reserved && entity.reserved > 0 && (
-								<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
-									<Text className="font-sans text-xs text-ink-muted">
-										Total (incl. savings)
-									</Text>
-									<Text
-										className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
-									>
-										{formatAmount(entity.actual + entity.reserved)}
-									</Text>
-								</View>
-							)}
-
-							{/* Include in total toggle */}
-							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
-								<View className="flex-1 pr-4">
-									<View className="flex-row items-center">
-										<Text className="font-sans text-base text-ink">
-											Include in total balance
-										</Text>
-										<InfoPin articleId="entity-types" />
-									</View>
-									<Text className="font-sans text-xs text-ink-muted">
-										Turn off to exclude from summary header
-									</Text>
-								</View>
-								<Switch
-									value={includeInTotal}
-									onValueChange={setIncludeInTotal}
-									trackColor={{
-										false: colors.border.DEFAULT,
-										true: colors.accent.DEFAULT,
-									}}
-									thumbColor={colors.paper.warm}
-									testID="entity-detail-include-in-total-switch"
-								/>
-							</View>
-
-							{/* Default account toggle */}
-							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
-								<View className="flex-1 pr-4">
-									<Text className="font-sans text-base text-ink">
-										Default account
-									</Text>
-									<Text className="font-sans text-xs text-ink-muted">
-										Pre-selected when adding transactions
-									</Text>
-								</View>
-								<Switch
-									value={isDefault}
-									onValueChange={setIsDefault}
-									trackColor={{
-										false: colors.border.DEFAULT,
-										true: colors.accent.DEFAULT,
-									}}
-									thumbColor={colors.paper.warm}
-									testID="entity-detail-is-default-switch"
-								/>
-							</View>
-
-							{/* Investment account toggle */}
-							<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
-								<View className="flex-1 pr-4">
-									<View className="flex-row items-center">
-										<Text className="font-sans text-base text-ink">
-											Investment account
-										</Text>
-										<InfoPin articleId="investment-accounts" />
-									</View>
-									<Text className="font-sans text-xs text-ink-muted">
-										Track purchase value and market value
-									</Text>
-								</View>
-								<Switch
-									value={isInvestment}
-									onValueChange={(value) => {
-										const hasSnapshots = marketValueSnapshots.some(
-											(s) => s.entity_id === entity.id
-										);
-										if (!value && hasSnapshots) {
-											Alert.alert(
-												'Turn Off Investment Account?',
-												'Turning this off will remove all saved market value snapshots when you save.',
-												[
-													{
-														text: 'Cancel',
-														style: 'cancel',
-														onPress: () => {},
-													},
-													{
-														text: 'Confirm',
-														style: 'destructive',
-														onPress: () => {
-															setIsInvestment(false);
-														},
-													},
-												]
-											);
-										} else {
-											setIsInvestment(value);
-										}
-									}}
-									trackColor={{
-										false: colors.border.DEFAULT,
-										true: colors.accent.DEFAULT,
-									}}
-									thumbColor={colors.paper.warm}
-									testID="entity-detail-investment-switch"
-								/>
-							</View>
-
-							{/* Market value input — visible only for investment accounts */}
-							{isInvestment && (
-								<View className="mt-4">
-									<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-										Market Value
-									</Text>
-									<View className={textInputClassNames.inlineContainer}>
-										<TextInput
-											{...sharedNumericTextInputProps}
-											{...marketValueExpr.inputProps}
-											value={marketValueAmount}
-											onChangeText={setMarketValueAmount}
-											placeholder="0"
-											className={textInputClassNames.primaryAmountInput}
-											style={styles.input}
-											placeholderTextColor={colors.ink.placeholder}
-											testID="entity-detail-market-value-input"
-										/>
-										<Text className={textInputClassNames.suffixLarge}>
-											{getCurrencySymbol(entity.currency)}
-										</Text>
-									</View>
-									<Text className="mt-1 font-sans text-xs text-ink-muted">
-										Enter today&apos;s market value to save a new snapshot.
-									</Text>
-								</View>
-							)}
-
-							{/* Reserved for — per-saving breakdown */}
-							<View className="mt-4" testID="account-reservations-section">
-								<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-									Reserved for
-								</Text>
-								{accountReservations.length > 0 ? (
-									<>
-										<AllocationPieChart
-											slices={accountReservationChartSlices}
-											currency={entity.currency}
-											totalLabel="Reserved"
-											onSlicePress={(slice) => {
-												const reservation = accountReservations.find(
-													(r) => r.saving.id === slice.id
-												);
-												if (reservation) {
-													setReservationSaving(reservation.saving);
-												}
-											}}
-											containerClassName="pb-4"
-											testID="account-reservations-pie-chart"
-										/>
-										<View className="rounded-lg bg-paper-100">
-											{accountReservations.map(
-												({ amount, saving }, index) => {
-													const SavingIcon = getIcon(
-														saving.icon || 'circle'
-													);
-													const savingColors = getEntityColors(
-														'saving',
-														saving.color
-													);
-													return (
-														<Pressable
-															key={saving.id}
-															onPress={() =>
-																setReservationSaving(saving)
-															}
-															className={`flex-row items-center px-4 py-3 ${
-																index > 0
-																	? 'border-t border-paper-300'
-																	: ''
-															}`}
-															testID={`account-reservation-row-${saving.id}`}
-														>
-															<View
-																className="mr-3 h-8 w-8 items-center justify-center rounded-full"
-																style={{
-																	backgroundColor:
-																		savingColors.bgColor,
-																}}
-															>
-																<SavingIcon
-																	size={16}
-																	color={savingColors.iconColor}
-																/>
-															</View>
-															<Text className="flex-1 font-sans text-base text-ink">
-																{saving.name}
-															</Text>
-															<Text
-																className="font-sans-semibold text-base text-ink"
-																style={{
-																	fontVariant: ['tabular-nums'],
-																}}
-															>
-																{formatAmount(
-																	amount,
-																	entity.currency
-																)}
-															</Text>
-														</Pressable>
-													);
-												}
-											)}
-										</View>
-									</>
-								) : (
-									<Text className="text-ink-faint font-sans text-sm">
-										Drag a savings goal onto this account to reserve funds
-									</Text>
-								)}
-							</View>
-						</View>
-					) : (
-						/* Original read-only status for other entity types */
-						<View className="mb-6 flex-row justify-around rounded-lg bg-paper-100 px-4 py-4">
-							<View className="items-center">
-								<Text className="font-sans text-xs text-ink-muted">Actual</Text>
-								<Text className="font-sans-semibold text-lg text-ink">
-									{formatAmount(entity.actual)}
-								</Text>
-							</View>
-							{shouldShowRemaining && (
-								<View className="items-center">
-									<Text className="font-sans text-xs text-ink-muted">
-										Remaining
-									</Text>
-									<Text
-										className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
-									>
-										{formatAmount(entity.remaining)}
-									</Text>
-								</View>
-							)}
-						</View>
-					)}
-
-					{/* Planned amount input — not applicable for accounts */}
-					{entity.type !== 'account' && (
-						<View className="mb-6">
-							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Planned Amount ({getCurrentPeriod()})
-							</Text>
-							<View className={textInputClassNames.inlineContainer}>
-								<TextInput
-									{...sharedNumericTextInputProps}
-									{...plannedExpr.inputProps}
-									placeholder="0"
-									className={textInputClassNames.primaryAmountInput}
-									style={styles.input}
-									placeholderTextColor={colors.ink.placeholder}
-									testID="entity-detail-amount-input"
-								/>
-								<Text className={textInputClassNames.suffixLarge}>
-									{getCurrencySymbol(entity.currency)}
-								</Text>
-							</View>
-						</View>
-					)}
-
-					{/* Reservations section — saving entities only */}
-					{entity.type === 'saving' && (
-						<View className="mb-6" testID="saving-reservations-section">
-							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Reserved from
-							</Text>
-							{savingReservations.length > 0 ? (
-								<View className="rounded-lg bg-paper-100">
-									{savingReservations.map(({ amount, account }, index) => {
-										const AccountIcon = getIcon(account.icon || 'circle');
-										const accountColors = getEntityColors(
-											'account',
-											account.color
-										);
-										return (
-											<Pressable
-												key={account.id}
-												onPress={() => setReservationAccount(account)}
-												className={`flex-row items-center px-4 py-3 ${
-													index > 0 ? 'border-t border-paper-300' : ''
-												}`}
-												testID={`saving-reservation-row-${account.id}`}
-											>
-												<View
-													className="mr-3 h-8 w-8 items-center justify-center rounded-full"
-													style={{
-														backgroundColor: accountColors.bgColor,
-													}}
-												>
-													<AccountIcon
-														size={16}
-														color={accountColors.iconColor}
-													/>
-												</View>
-												<Text className="flex-1 font-sans text-base text-ink">
-													{account.name}
-												</Text>
-												<Text
-													className="font-sans-semibold text-base text-ink"
-													style={{ fontVariant: ['tabular-nums'] }}
-												>
-													{formatAmount(amount, entity.currency)}
-												</Text>
-											</Pressable>
-										);
-									})}
-								</View>
-							) : (
-								<Text className="text-ink-faint font-sans text-sm">
-									Drag an account onto this saving to reserve funds
-								</Text>
-							)}
-						</View>
-					)}
-
-					{/* Delete button */}
-					<Pressable
-						onPress={handleDelete}
-						className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
-						testID="entity-detail-delete-button"
-					>
-						<Text className="font-sans-semibold text-base text-negative">
-							Delete Entity
-						</Text>
-					</Pressable>
-				</KeyboardAwareScrollView>
-			</View>
+				{/* Delete button */}
+				<Pressable
+					onPress={handleDelete}
+					className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
+					testID="entity-detail-delete-button"
+				>
+					<Text className="font-sans-semibold text-base text-negative">
+						Delete Entity
+					</Text>
+				</Pressable>
+			</KeyboardAwareScrollView>
 
 			{/* Reservation edit modal — opens from saving detail when tapping a reservation row */}
 			{entity.type === 'saving' && (
@@ -956,6 +918,6 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					onEquals={actualExpr.focused ? actualExpr.resolve : plannedExpr.resolve}
 				/>
 			</KeyboardExtender>
-		</Modal>
+		</PageSheetModal>
 	);
 }
