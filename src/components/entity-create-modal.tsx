@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
-import { Alert, View, TextInput, Pressable, Modal, Platform, Switch } from 'react-native';
+import { Alert, View, TextInput, Pressable, Platform, Switch } from 'react-native';
 import { Text } from './text';
 import {
 	KeyboardAwareScrollView,
 	KeyboardController,
 	KeyboardExtender,
 } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
+
+import { PageSheetModal } from './page-sheet-modal';
 
 import type { EntityType, EntityColorKey } from '@/src/types';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
@@ -60,7 +61,6 @@ export function EntityCreateModal({
 	const [isInvestment, setIsInvestment] = useState(false);
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
-	const insets = useSafeAreaInsets();
 	const maxDecimalPlaces = getCurrencyDecimalPlaces(DEFAULT_CURRENCY);
 	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
 
@@ -220,147 +220,133 @@ export function EntityCreateModal({
 	const isValid = name.trim().length > 0;
 
 	return (
-		<Modal
-			visible={visible}
-			animationType="slide"
-			presentationStyle="pageSheet"
-			onRequestClose={handleCancel}
-		>
-			<View
-				className="flex-1 bg-paper-50"
-				style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
+		<PageSheetModal visible={visible} onRequestClose={handleCancel}>
+			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
+				<Pressable onPress={handleCancel} hitSlop={20} testID="entity-create-cancel-button">
+					<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+				</Pressable>
+				<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
+				<Pressable
+					onPressIn={() => {
+						void handleCreatePress();
+					}}
+					onPress={() => {
+						void handleCreatePress();
+					}}
+					disabled={!isValid}
+					hitSlop={20}
+					testID="entity-create-save-button"
+				>
+					<Text
+						className={`font-sans-semibold text-base ${isValid ? 'text-accent' : 'text-ink-muted'}`}
+					>
+						Create
+					</Text>
+				</Pressable>
+			</View>
+
+			<KeyboardAwareScrollView
+				bottomOffset={50}
+				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+				keyboardShouldPersistTaps="handled"
+				className="flex-1 px-5 pt-6"
 			>
-				<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-					<Pressable
-						onPress={handleCancel}
-						hitSlop={20}
-						testID="entity-create-cancel-button"
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Name
+					</Text>
+					<View
+						className={textInputClassNames.container}
+						testID="entity-create-name-input-container"
 					>
-						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-					</Pressable>
-					<Text className="font-sans-semibold text-base text-ink">New {typeLabel}</Text>
-					<Pressable
-						onPressIn={() => {
-							void handleCreatePress();
-						}}
-						onPress={() => {
-							void handleCreatePress();
-						}}
-						disabled={!isValid}
-						hitSlop={20}
-						testID="entity-create-save-button"
-					>
-						<Text
-							className={`font-sans-semibold text-base ${isValid ? 'text-accent' : 'text-ink-muted'}`}
-						>
-							Create
-						</Text>
-					</Pressable>
+						<TextInput
+							{...sharedTextInputProps}
+							ref={nameInputRef}
+							value={name}
+							onChangeText={setName}
+							placeholder={`Enter ${typeLabel.toLowerCase()} name`}
+							className={textInputClassNames.input}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+							testID="entity-create-name-input"
+						/>
+					</View>
 				</View>
 
-				<KeyboardAwareScrollView
-					bottomOffset={50}
-					keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-					keyboardShouldPersistTaps="handled"
-					className="flex-1 px-5 pt-6"
-				>
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Icon & Color
+					</Text>
+					<EntityIconPicker
+						key={`${entityType}-${visible ? 'open' : 'closed'}`}
+						icons={iconOptions}
+						selectedIcon={selectedIcon}
+						onSelect={setSelectedIcon}
+						optionTestIDPrefix="entity-create-icon-option"
+					/>
+					<EntityColorPicker
+						entityType={entityType}
+						selectedColor={selectedColor}
+						onSelect={setSelectedColor}
+					/>
+				</View>
+
+				{entityType === 'account' && (
+					<View className="mb-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+						<View className="flex-1 pr-4">
+							<View className="flex-row items-center">
+								<Text className="font-sans text-base text-ink">
+									Investment account
+								</Text>
+								<InfoPin articleId="investment-accounts" />
+							</View>
+							<Text className="font-sans text-xs text-ink-muted">
+								Track purchase value and market value
+							</Text>
+						</View>
+						<Switch
+							value={isInvestment}
+							onValueChange={setIsInvestment}
+							trackColor={{
+								false: colors.border.DEFAULT,
+								true: colors.accent.DEFAULT,
+							}}
+							thumbColor={colors.paper.warm}
+							testID="entity-create-investment-switch"
+						/>
+					</View>
+				)}
+
+				{entityType !== 'account' && (
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Name
+							Planned Amount (optional)
 						</Text>
 						<View
-							className={textInputClassNames.container}
-							testID="entity-create-name-input-container"
+							className={textInputClassNames.inlineContainer}
+							testID="entity-create-amount-input-container"
 						>
 							<TextInput
-								{...sharedTextInputProps}
-								ref={nameInputRef}
-								value={name}
-								onChangeText={setName}
-								placeholder={`Enter ${typeLabel.toLowerCase()} name`}
-								className={textInputClassNames.input}
+								{...sharedNumericTextInputProps}
+								{...plannedExpr.inputProps}
+								placeholder="0"
+								className={`flex-1 ${textInputClassNames.input}`}
 								style={styles.input}
 								placeholderTextColor={colors.ink.placeholder}
-								testID="entity-create-name-input"
+								testID="entity-create-amount-input"
 							/>
-						</View>
-					</View>
-
-					<View className="mb-6">
-						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Icon & Color
-						</Text>
-						<EntityIconPicker
-							key={`${entityType}-${visible ? 'open' : 'closed'}`}
-							icons={iconOptions}
-							selectedIcon={selectedIcon}
-							onSelect={setSelectedIcon}
-							optionTestIDPrefix="entity-create-icon-option"
-						/>
-						<EntityColorPicker
-							entityType={entityType}
-							selectedColor={selectedColor}
-							onSelect={setSelectedColor}
-						/>
-					</View>
-
-					{entityType === 'account' && (
-						<View className="mb-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
-							<View className="flex-1 pr-4">
-								<View className="flex-row items-center">
-									<Text className="font-sans text-base text-ink">
-										Investment account
-									</Text>
-									<InfoPin articleId="investment-accounts" />
-								</View>
-								<Text className="font-sans text-xs text-ink-muted">
-									Track purchase value and market value
-								</Text>
-							</View>
-							<Switch
-								value={isInvestment}
-								onValueChange={setIsInvestment}
-								trackColor={{
-									false: colors.border.DEFAULT,
-									true: colors.accent.DEFAULT,
-								}}
-								thumbColor={colors.paper.warm}
-								testID="entity-create-investment-switch"
-							/>
-						</View>
-					)}
-
-					{entityType !== 'account' && (
-						<View className="mb-6">
-							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-								Planned Amount (optional)
+							<Text className={textInputClassNames.suffix}>
+								{getCurrencySymbol(DEFAULT_CURRENCY)}
 							</Text>
-							<View
-								className={textInputClassNames.inlineContainer}
-								testID="entity-create-amount-input-container"
-							>
-								<TextInput
-									{...sharedNumericTextInputProps}
-									{...plannedExpr.inputProps}
-									placeholder="0"
-									className={`flex-1 ${textInputClassNames.input}`}
-									style={styles.input}
-									placeholderTextColor={colors.ink.placeholder}
-									testID="entity-create-amount-input"
-								/>
-								<Text className={textInputClassNames.suffix}>
-									{getCurrencySymbol(DEFAULT_CURRENCY)}
-								</Text>
-							</View>
-							{plannedExpr.preview && (
-								<Text className="mt-1 font-sans text-sm text-ink-muted">
-									{plannedExpr.preview}
-								</Text>
-							)}
 						</View>
-					)}
-				</KeyboardAwareScrollView>
-			</View>
+						{plannedExpr.preview && (
+							<Text className="mt-1 font-sans text-sm text-ink-muted">
+								{plannedExpr.preview}
+							</Text>
+						)}
+					</View>
+				)}
+			</KeyboardAwareScrollView>
 
 			{entityType !== 'account' && (
 				<KeyboardExtender enabled={plannedExpr.focused}>
@@ -370,6 +356,6 @@ export function EntityCreateModal({
 					/>
 				</KeyboardExtender>
 			)}
-		</Modal>
+		</PageSheetModal>
 	);
 }
