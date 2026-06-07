@@ -190,7 +190,7 @@ export function RefundPickerModal({
 									{/* Amount + date */}
 									<View className="items-end">
 										<Text className="font-sans-semibold text-base text-ink">
-											{formatAmount(tx.amount, tx.currency)}{' '}
+											{formatAmount(tx.amount_minor, tx.currency)}{' '}
 											<Text className="font-sans text-sm text-ink-muted">
 												{getCurrencySymbol(tx.currency)}
 											</Text>

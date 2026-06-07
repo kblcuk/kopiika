@@ -39,7 +39,7 @@ describe('market-values.ts', () => {
 			const snapshot: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1500.5,
+				amount_minor: 150050,
 				currency: 'USD',
 				date: Date.now(),
 			};
@@ -55,14 +55,14 @@ describe('market-values.ts', () => {
 			const snapshot1: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: new Date('2026-01-01').getTime(),
 			};
 			const snapshot2: MarketValueSnapshot = {
 				id: 'snap-2',
 				entity_id: 'entity-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				date: new Date('2026-02-01').getTime(),
 			};
@@ -88,14 +88,14 @@ describe('market-values.ts', () => {
 			const snapshot1: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: new Date('2026-01-01').getTime(),
 			};
 			const snapshot2: MarketValueSnapshot = {
 				id: 'snap-2',
 				entity_id: 'entity-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				date: new Date('2026-02-01').getTime(),
 			};
@@ -104,7 +104,7 @@ describe('market-values.ts', () => {
 
 			const result = await getLatestMarketValueSnapshot('entity-1');
 			expect(result?.id).toBe('snap-2');
-			expect(result?.amount).toBe(2000);
+			expect(result?.amount_minor).toBe(200000);
 		});
 
 		test('should return null when no snapshots exist', async () => {
@@ -120,18 +120,18 @@ describe('market-values.ts', () => {
 			const snapshot: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: new Date('2026-01-01').getTime(),
 			};
 			await createMarketValueSnapshot(snapshot);
 			await updateMarketValueSnapshot('snap-1', {
-				amount: 2500,
+				amount_minor: 250000,
 				date: new Date('2026-03-01').getTime(),
 			});
 
 			const result = await getLatestMarketValueSnapshot('entity-1');
-			expect(result?.amount).toBe(2500);
+			expect(result?.amount_minor).toBe(250000);
 			expect(result?.date).toBe(new Date('2026-03-01').getTime());
 		});
 	});
@@ -142,7 +142,7 @@ describe('market-values.ts', () => {
 			const snapshot: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: Date.now(),
 			};
@@ -161,21 +161,21 @@ describe('market-values.ts', () => {
 			const snapshot1: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: Date.now(),
 			};
 			const snapshot2: MarketValueSnapshot = {
 				id: 'snap-2',
 				entity_id: 'entity-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				date: Date.now() - 86400000,
 			};
 			const snapshot3: MarketValueSnapshot = {
 				id: 'snap-3',
 				entity_id: 'entity-2',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				date: Date.now(),
 			};
@@ -204,7 +204,7 @@ describe('market-values.ts', () => {
 			const snapshot: MarketValueSnapshot = {
 				id: 'cascade-snap',
 				entity_id: 'cascade-entity',
-				amount: 1234,
+				amount_minor: 123400,
 				currency: 'USD',
 				date: Date.now(),
 			};
@@ -225,14 +225,14 @@ describe('market-values.ts', () => {
 			const snapshot1: MarketValueSnapshot = {
 				id: 'snap-1',
 				entity_id: 'entity-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: new Date('2026-01-01').getTime(),
 			};
 			const snapshot2: MarketValueSnapshot = {
 				id: 'snap-2',
 				entity_id: 'entity-2',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				date: new Date('2026-02-01').getTime(),
 			};

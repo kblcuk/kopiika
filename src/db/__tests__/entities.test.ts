@@ -387,7 +387,7 @@ describe('entities.ts', () => {
 				entity_id: 'cascade-test',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			});
 
 			// Verify plan exists
@@ -425,7 +425,7 @@ describe('entities.ts', () => {
 				id: 'tx-delete-test',
 				from_entity_id: income.id,
 				to_entity_id: account.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -470,13 +470,13 @@ describe('entities.ts', () => {
 				entity_id: category.id,
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 500,
+				planned_amount_minor: 50000,
 			});
 			await createTransaction({
 				id: 'tx-combo',
 				from_entity_id: income.id,
 				to_entity_id: category.id,
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			});
@@ -526,7 +526,7 @@ describe('entities.ts', () => {
 				id: 'tx-res',
 				from_entity_id: income.id,
 				to_entity_id: account.id,
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			});
@@ -554,7 +554,7 @@ describe('entities.ts', () => {
 			await createMarketValueSnapshot({
 				id: 'snapshot-1',
 				entity_id: account.id,
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				date: Date.now(),
 			});
@@ -591,7 +591,7 @@ describe('entities.ts', () => {
 				id: 'tx-sav',
 				from_entity_id: account.id,
 				to_entity_id: saving.id,
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			});

@@ -79,7 +79,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'January salary',
@@ -97,7 +97,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -118,7 +118,7 @@ describe('transactions.ts', () => {
 					id: 'tx-1',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 5000,
+					amount_minor: 500000,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -126,7 +126,7 @@ describe('transactions.ts', () => {
 					id: 'tx-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -154,7 +154,7 @@ describe('transactions.ts', () => {
 					id: 'tx-1',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: now - 2000,
 				},
@@ -162,7 +162,7 @@ describe('transactions.ts', () => {
 					id: 'tx-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 50,
+					amount_minor: 5000,
 					currency: 'USD',
 					timestamp: now,
 				},
@@ -170,7 +170,7 @@ describe('transactions.ts', () => {
 					id: 'tx-3',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 25,
+					amount_minor: 2500,
 					currency: 'USD',
 					timestamp: now - 1000,
 				},
@@ -200,7 +200,7 @@ describe('transactions.ts', () => {
 					id: 'tx-jan',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: jan1,
 				},
@@ -208,7 +208,7 @@ describe('transactions.ts', () => {
 					id: 'tx-feb',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 200,
+					amount_minor: 20000,
 					currency: 'USD',
 					timestamp: feb1,
 				},
@@ -216,7 +216,7 @@ describe('transactions.ts', () => {
 					id: 'tx-mar',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'USD',
 					timestamp: mar1,
 				},
@@ -259,7 +259,7 @@ describe('transactions.ts', () => {
 					id: 'tx-1',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 1000,
+					amount_minor: 100000,
 					currency: 'USD',
 					timestamp: now - 5000,
 				},
@@ -267,7 +267,7 @@ describe('transactions.ts', () => {
 					id: 'tx-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: now - 3000,
 				},
@@ -275,7 +275,7 @@ describe('transactions.ts', () => {
 					id: 'tx-3',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 200,
+					amount_minor: 20000,
 					currency: 'USD',
 					timestamp: now - 1000,
 				},
@@ -283,7 +283,7 @@ describe('transactions.ts', () => {
 					id: 'tx-4',
 					from_entity_id: 'income-1',
 					to_entity_id: 'category-1',
-					amount: 50,
+					amount_minor: 5000,
 					currency: 'USD',
 					timestamp: now,
 				},
@@ -345,7 +345,7 @@ describe('transactions.ts', () => {
 				id: 'pair-old',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 40,
+				amount_minor: 4000,
 				currency: 'USD',
 				timestamp: now - 2000,
 			});
@@ -353,7 +353,7 @@ describe('transactions.ts', () => {
 				id: 'reverse',
 				from_entity_id: 'category-1',
 				to_entity_id: 'account-1',
-				amount: 15,
+				amount_minor: 1500,
 				currency: 'USD',
 				timestamp: now - 1000,
 			});
@@ -361,7 +361,7 @@ describe('transactions.ts', () => {
 				id: 'pair-new',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				timestamp: now,
 			});
@@ -378,7 +378,7 @@ describe('transactions.ts', () => {
 				id: 'tx-delete',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -407,7 +407,7 @@ describe('transactions.ts', () => {
 				id: 'tx-update',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'Original note',
@@ -416,11 +416,11 @@ describe('transactions.ts', () => {
 		});
 
 		test('should update amount', async () => {
-			await updateTransaction('tx-update', { amount: 200 });
+			await updateTransaction('tx-update', { amount_minor: 20000 });
 
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-update');
-			expect(result?.amount).toBe(200);
+			expect(result?.amount_minor).toBe(20000);
 			expect(result?.note).toBe('Original note');
 		});
 
@@ -430,7 +430,7 @@ describe('transactions.ts', () => {
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-update');
 			expect(result?.note).toBe('Updated note');
-			expect(result?.amount).toBe(100);
+			expect(result?.amount_minor).toBe(10000);
 		});
 
 		test('should update timestamp', async () => {
@@ -445,14 +445,14 @@ describe('transactions.ts', () => {
 		test('should update multiple fields at once', async () => {
 			const newTimestamp = Date.now() + 10000;
 			await updateTransaction('tx-update', {
-				amount: 500,
+				amount_minor: 50000,
 				note: 'Multi update',
 				timestamp: newTimestamp,
 			});
 
 			const allTx = await getAllTransactions();
 			const result = allTx.find((tx) => tx.id === 'tx-update');
-			expect(result?.amount).toBe(500);
+			expect(result?.amount_minor).toBe(50000);
 			expect(result?.note).toBe('Multi update');
 			expect(result?.timestamp).toBe(newTimestamp);
 		});
@@ -484,7 +484,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -494,7 +494,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
@@ -504,14 +504,14 @@ describe('transactions.ts', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-25').getTime(),
 			});
 
 			const actual = await getEntityActual('account-1', jan2025Start, jan2025End);
 			// 1000 (in) - 300 (out) = 700
-			expect(actual).toBe(700);
+			expect(actual).toBe(70000);
 		});
 
 		test('should calculate inflow for category (money received)', async () => {
@@ -520,7 +520,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -530,14 +530,14 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
 
 			const actual = await getEntityActual('category-1', jan2025Start, jan2025End);
 			// Categories only receive money, so actual = inflow
-			expect(actual).toBe(150);
+			expect(actual).toBe(15000);
 		});
 
 		test('should calculate outflow for income (money distributed)', async () => {
@@ -546,7 +546,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -556,14 +556,14 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'income-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
 
 			const actual = await getEntityActual('income-1', jan2025Start, jan2025End);
 			// Income distributes money, so actual = -outflow
-			expect(actual).toBe(-1500);
+			expect(actual).toBe(-150000);
 		});
 
 		test('should only include transactions within period', async () => {
@@ -572,7 +572,7 @@ describe('transactions.ts', () => {
 				id: 'tx-jan',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -582,13 +582,13 @@ describe('transactions.ts', () => {
 				id: 'tx-feb',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				timestamp: new Date('2025-02-15').getTime(),
 			});
 
 			const actual = await getEntityActual('account-1', jan2025Start, jan2025End);
-			expect(actual).toBe(1000); // Only January transaction
+			expect(actual).toBe(100000); // Only January transaction
 		});
 
 		test('should return 0 when no transactions exist for entity in period', async () => {
@@ -602,7 +602,7 @@ describe('transactions.ts', () => {
 				id: 'tx-start',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: jan2025Start,
 			});
@@ -612,13 +612,13 @@ describe('transactions.ts', () => {
 				id: 'tx-end',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: jan2025End,
 			});
 
 			const actual = await getEntityActual('account-1', jan2025Start, jan2025End);
-			expect(actual).toBe(300);
+			expect(actual).toBe(30000);
 		});
 
 		test('should handle negative balance (overspending)', async () => {
@@ -627,7 +627,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -637,13 +637,13 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
 
 			const actual = await getEntityActual('account-1', jan2025Start, jan2025End);
-			expect(actual).toBe(-400); // Overspent by 400
+			expect(actual).toBe(-40000); // Overspent by 400
 		});
 	});
 
@@ -663,7 +663,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -672,7 +672,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
@@ -681,7 +681,7 @@ describe('transactions.ts', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-25').getTime(),
 			});
@@ -693,10 +693,10 @@ describe('transactions.ts', () => {
 			);
 
 			expect(results.size).toBe(4);
-			expect(results.get('income-1')).toBe(-1000); // Outflow
-			expect(results.get('account-1')).toBe(500); // 1000 in - 500 out
-			expect(results.get('category-1')).toBe(200); // Inflow only
-			expect(results.get('saving-1')).toBe(300); // Inflow only
+			expect(results.get('income-1')).toBe(-100000); // Outflow
+			expect(results.get('account-1')).toBe(50000); // 1000 in - 500 out
+			expect(results.get('category-1')).toBe(20000); // Inflow only
+			expect(results.get('saving-1')).toBe(30000); // Inflow only
 		});
 
 		test('should return 0 for entities with no transactions', async () => {
@@ -704,7 +704,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -726,7 +726,7 @@ describe('transactions.ts', () => {
 				id: 'tx-jan',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -736,14 +736,14 @@ describe('transactions.ts', () => {
 				id: 'tx-feb',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				timestamp: new Date('2025-02-15').getTime(),
 			});
 
 			const results = await getBatchEntityActuals(['account-1'], jan2025Start, jan2025End);
 
-			expect(results.get('account-1')).toBe(1000); // Only January transaction
+			expect(results.get('account-1')).toBe(100000); // Only January transaction
 		});
 
 		test('should be consistent with getEntityActual', async () => {
@@ -752,7 +752,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-05').getTime(),
 			});
@@ -761,7 +761,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 150,
+				amount_minor: 15000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-10').getTime(),
 			});
@@ -770,7 +770,7 @@ describe('transactions.ts', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 250,
+				amount_minor: 25000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -793,7 +793,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-01').getTime(),
 			});
@@ -802,7 +802,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-05').getTime(),
 			});
@@ -811,7 +811,7 @@ describe('transactions.ts', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-10').getTime(),
 			});
@@ -820,7 +820,7 @@ describe('transactions.ts', () => {
 				id: 'tx-4',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -829,7 +829,7 @@ describe('transactions.ts', () => {
 				id: 'tx-5',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 150,
+				amount_minor: 15000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
@@ -840,10 +840,10 @@ describe('transactions.ts', () => {
 				jan2025End
 			);
 
-			expect(results.get('income-1')).toBe(-5000);
-			expect(results.get('account-1')).toBe(4500); // 5000 in - 500 out
-			expect(results.get('category-1')).toBe(150); // 100 + 50
-			expect(results.get('saving-1')).toBe(350); // 200 + 150
+			expect(results.get('income-1')).toBe(-500000);
+			expect(results.get('account-1')).toBe(450000); // 5000 in - 500 out
+			expect(results.get('category-1')).toBe(15000); // 100 + 50
+			expect(results.get('saving-1')).toBe(35000); // 200 + 150
 		});
 
 		test('should handle subset of entities', async () => {
@@ -851,7 +851,7 @@ describe('transactions.ts', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-15').getTime(),
 			});
@@ -860,7 +860,7 @@ describe('transactions.ts', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2025-01-20').getTime(),
 			});
@@ -873,8 +873,8 @@ describe('transactions.ts', () => {
 			);
 
 			expect(results.size).toBe(2);
-			expect(results.get('account-1')).toBe(900); // 1000 in - 100 out
-			expect(results.get('category-1')).toBe(100);
+			expect(results.get('account-1')).toBe(90000); // 1000 in - 100 out
+			expect(results.get('category-1')).toBe(10000);
 			expect(results.has('income-1')).toBe(false);
 			expect(results.has('saving-1')).toBe(false);
 		});
@@ -892,7 +892,7 @@ describe('transactions.ts', () => {
 					id: `series-tx-${i}`,
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 50,
+					amount_minor: 5000,
 					currency: 'USD',
 					timestamp: seriesBaseTime + i * 86400000,
 					series_id: seriesId,
@@ -903,7 +903,7 @@ describe('transactions.ts', () => {
 				id: 'standalone-tx',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: seriesBaseTime,
 			});
@@ -925,12 +925,12 @@ describe('transactions.ts', () => {
 
 		test('updateTransactionsBySeriesFuture updates from cutoff onward', async () => {
 			const cutoff = seriesBaseTime + 2 * 86400000;
-			await updateTransactionsBySeriesFuture(seriesId, cutoff, { amount: 999 });
+			await updateTransactionsBySeriesFuture(seriesId, cutoff, { amount_minor: 99900 });
 			const all = await getTransactionsBySeriesId(seriesId);
 			const updated = all.filter((t) => t.timestamp >= cutoff);
 			const unchanged = all.filter((t) => t.timestamp < cutoff);
-			expect(updated.every((t) => t.amount === 999)).toBe(true);
-			expect(unchanged.every((t) => t.amount === 50)).toBe(true);
+			expect(updated.every((t) => t.amount_minor === 99900)).toBe(true);
+			expect(unchanged.every((t) => t.amount_minor === 5000)).toBe(true);
 		});
 
 		test('createTransactionBatch inserts multiple transactions', async () => {
@@ -939,7 +939,7 @@ describe('transactions.ts', () => {
 					id: 'batch-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: Date.now(),
 					series_id: 'series-2',
@@ -948,7 +948,7 @@ describe('transactions.ts', () => {
 					id: 'batch-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 20,
+					amount_minor: 2000,
 					currency: 'USD',
 					timestamp: Date.now() + 86400000,
 					series_id: 'series-2',
@@ -966,7 +966,7 @@ describe('transactions.ts', () => {
 					id: dupId,
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -974,7 +974,7 @@ describe('transactions.ts', () => {
 					id: dupId,
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 6,
+					amount_minor: 600,
 					currency: 'USD',
 					timestamp: Date.now() + 1,
 				},
@@ -999,7 +999,7 @@ describe('transactions.ts', () => {
 				id: 'tx-confirm-default',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			});
@@ -1013,7 +1013,7 @@ describe('transactions.ts', () => {
 				id: 'tx-unconfirmed',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now() + 86400000,
 				is_confirmed: false,
@@ -1028,7 +1028,7 @@ describe('transactions.ts', () => {
 				id: 'tx-to-confirm',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				is_confirmed: false,
@@ -1044,7 +1044,7 @@ describe('transactions.ts', () => {
 				id: 'tx-batch-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 10,
+				amount_minor: 1000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				is_confirmed: false,
@@ -1053,7 +1053,7 @@ describe('transactions.ts', () => {
 				id: 'tx-batch-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 20,
+				amount_minor: 2000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				is_confirmed: false,
@@ -1062,7 +1062,7 @@ describe('transactions.ts', () => {
 				id: 'tx-batch-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 30,
+				amount_minor: 3000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				is_confirmed: true,
@@ -1087,7 +1087,7 @@ describe('transactions.ts', () => {
 					id: 'batch-c-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: Date.now(),
 					is_confirmed: false,
@@ -1096,7 +1096,7 @@ describe('transactions.ts', () => {
 					id: 'batch-c-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 20,
+					amount_minor: 2000,
 					currency: 'USD',
 					timestamp: Date.now(),
 					is_confirmed: true,
@@ -1114,7 +1114,7 @@ describe('transactions.ts', () => {
 				id: 'notif-single',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			});
@@ -1136,7 +1136,7 @@ describe('transactions.ts', () => {
 					id: 'notif-batch-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -1144,7 +1144,7 @@ describe('transactions.ts', () => {
 					id: 'notif-batch-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 20,
+					amount_minor: 2000,
 					currency: 'USD',
 					timestamp: Date.now() + 1,
 				},
@@ -1173,7 +1173,7 @@ describe('transactions.ts', () => {
 				id: 'orig-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 20,
+				amount_minor: 2000,
 				currency: 'USD',
 				timestamp: 1000,
 				note: 'Sandwich + sparkling',
@@ -1185,7 +1185,7 @@ describe('transactions.ts', () => {
 					id: 'child-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 12,
+					amount_minor: 1200,
 					currency: 'USD',
 					timestamp: 1000,
 					note: 'Sandwich + sparkling',
@@ -1194,7 +1194,7 @@ describe('transactions.ts', () => {
 					id: 'child-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 8,
+					amount_minor: 800,
 					currency: 'USD',
 					timestamp: 1000,
 					note: 'Sandwich + sparkling',
@@ -1215,7 +1215,7 @@ describe('transactions.ts', () => {
 				id: 'orig-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 10,
+				amount_minor: 1000,
 				currency: 'USD',
 				timestamp: 2000,
 			};
@@ -1226,7 +1226,7 @@ describe('transactions.ts', () => {
 				id: 'sibling',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 3000,
 			};
@@ -1237,7 +1237,7 @@ describe('transactions.ts', () => {
 					id: 'child-x',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: 2000,
 				},
@@ -1246,7 +1246,7 @@ describe('transactions.ts', () => {
 					id: 'sibling',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: 2000,
 				},
@@ -1269,7 +1269,7 @@ describe('transactions.ts', () => {
 				id: templateId,
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: 500,
@@ -1283,7 +1283,7 @@ describe('transactions.ts', () => {
 				id: 'occ-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: 1500,
 				series_id: templateId,
@@ -1295,7 +1295,7 @@ describe('transactions.ts', () => {
 					id: 'split-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 30,
+					amount_minor: 3000,
 					currency: 'USD',
 					timestamp: 1500,
 				},
@@ -1303,7 +1303,7 @@ describe('transactions.ts', () => {
 					id: 'split-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 20,
+					amount_minor: 2000,
 					currency: 'USD',
 					timestamp: 1500,
 				},
@@ -1322,7 +1322,7 @@ describe('transactions.ts', () => {
 				id: 'orig-no-tmpl',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 15,
+				amount_minor: 1500,
 				currency: 'USD',
 				timestamp: 4000,
 				series_id: 'tmpl-missing',
@@ -1334,7 +1334,7 @@ describe('transactions.ts', () => {
 					id: 'child-rb-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: 4000,
 				},
@@ -1342,7 +1342,7 @@ describe('transactions.ts', () => {
 					id: 'child-rb-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: 4000,
 				},
@@ -1374,7 +1374,7 @@ describe('transactions.ts', () => {
 				id: 'tmpl-del-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: 500,
@@ -1385,7 +1385,7 @@ describe('transactions.ts', () => {
 				id: 'occ-del-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				timestamp: 7000,
 				series_id: 'tmpl-del-1',
@@ -1405,7 +1405,7 @@ describe('transactions.ts', () => {
 				id: 'occ-del-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				timestamp: 8000,
 				series_id: 'tmpl-gone',
@@ -1427,7 +1427,7 @@ describe('transactions.ts', () => {
 				id: 'plain-del',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 5,
+				amount_minor: 500,
 				currency: 'USD',
 				timestamp: 9000,
 			});

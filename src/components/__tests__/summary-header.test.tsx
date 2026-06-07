@@ -65,7 +65,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 5000,
+			amount_minor: 500000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -77,8 +77,8 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Balance should be 5000 (money received from income)
-		expect(result.current.balance).toBe(5000);
+		// Balance should be 500000 minor units ($5000 received).
+		expect(result.current.balance).toBe(500000);
 	});
 
 	it('should calculate balance as sum of all account actuals', () => {
@@ -86,7 +86,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 3000,
+			amount_minor: 300000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -95,7 +95,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-2',
-			amount: 2000,
+			amount_minor: 200000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -107,8 +107,8 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Balance should be 3000 + 2000 = 5000
-		expect(result.current.balance).toBe(5000);
+		// Balance: 300000 + 200000 = 500000 minor units ($5000).
+		expect(result.current.balance).toBe(500000);
 	});
 
 	it('should subtract outgoing transactions from balance', () => {
@@ -116,7 +116,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 5000,
+			amount_minor: 500000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -125,7 +125,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 1500,
+			amount_minor: 150000,
 			currency: 'USD',
 			timestamp: periodStart + 1000,
 		};
@@ -137,10 +137,10 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Balance should be 5000 - 1500 = 3500
-		expect(result.current.balance).toBe(3500);
-		// Expenses should be 1500
-		expect(result.current.expenses).toBe(1500);
+		// Balance: 500000 - 150000 = 350000 minor units ($3500).
+		expect(result.current.balance).toBe(350000);
+		// Expenses: 150000 minor units ($1500).
+		expect(result.current.expenses).toBe(150000);
 	});
 
 	it('should calculate expenses as sum of category actuals', () => {
@@ -158,7 +158,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -167,7 +167,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-2',
-			amount: 150,
+			amount_minor: 15000,
 			currency: 'USD',
 			timestamp: periodStart + 1000,
 		};
@@ -179,8 +179,8 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Expenses should be 200 + 150 = 350
-		expect(result.current.expenses).toBe(350);
+		// Expenses: 20000 + 15000 = 35000 minor units ($350).
+		expect(result.current.expenses).toBe(35000);
 	});
 
 	it('should calculate remaining as planned minus expenses', () => {
@@ -199,7 +199,7 @@ describe('useSummary', () => {
 			entity_id: 'category-1',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 500,
+			planned_amount_minor: 50000,
 		};
 
 		const plan2: Plan = {
@@ -207,14 +207,14 @@ describe('useSummary', () => {
 			entity_id: 'category-2',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 300,
+			planned_amount_minor: 30000,
 		};
 
 		const tx1: Transaction = {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -228,7 +228,7 @@ describe('useSummary', () => {
 		const { result } = renderHook(() => useSummary());
 
 		// Remaining should be (500 + 300) - 200 = 600
-		expect(result.current.remaining).toBe(600);
+		expect(result.current.remaining).toBe(60000);
 	});
 
 	it('should return zero remaining when a category is overspent', () => {
@@ -237,14 +237,14 @@ describe('useSummary', () => {
 			entity_id: 'category-1',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 100,
+			planned_amount_minor: 10000,
 		};
 
 		const tx1: Transaction = {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 250,
+			amount_minor: 25000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -277,7 +277,7 @@ describe('useSummary', () => {
 			entity_id: 'category-1',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 500,
+			planned_amount_minor: 50000,
 		};
 
 		const plan2: Plan = {
@@ -285,7 +285,7 @@ describe('useSummary', () => {
 			entity_id: 'category-2',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 100,
+			planned_amount_minor: 10000,
 		};
 
 		// category-1: spent 200 of 500 → 300 remaining
@@ -293,7 +293,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -303,7 +303,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-2',
-			amount: 250,
+			amount_minor: 25000,
 			currency: 'USD',
 			timestamp: periodStart + 1000,
 		};
@@ -317,9 +317,9 @@ describe('useSummary', () => {
 		const { result } = renderHook(() => useSummary());
 
 		// Remaining: 300 (from category-1) + 0 (from overspent category-2) = 300
-		expect(result.current.remaining).toBe(300);
-		// Expenses: 200 + 250 = 450
-		expect(result.current.expenses).toBe(450);
+		expect(result.current.remaining).toBe(30000);
+		// Expenses: 20000 + 25000 = 45000 minor units ($450).
+		expect(result.current.expenses).toBe(45000);
 	});
 
 	it('should exclude accounts with include_in_total false from balance', () => {
@@ -338,7 +338,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 3000,
+			amount_minor: 300000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -347,7 +347,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-hidden',
-			amount: 2000,
+			amount_minor: 200000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -359,8 +359,8 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		// Only account-1 (3000) should count; hidden account (2000) excluded
-		expect(result.current.balance).toBe(3000);
+		// Only account-1 (300000) should count; hidden account excluded.
+		expect(result.current.balance).toBe(300000);
 	});
 
 	it('should exclude investment accounts from balance', () => {
@@ -379,7 +379,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 3000,
+			amount_minor: 300000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -388,7 +388,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-investment',
-			amount: 2000,
+			amount_minor: 200000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -400,7 +400,7 @@ describe('useSummary', () => {
 
 		const { result } = renderHook(() => useSummary());
 
-		expect(result.current.balance).toBe(3000);
+		expect(result.current.balance).toBe(300000);
 	});
 
 	it('should not include unplanned categories in remaining', () => {
@@ -419,7 +419,7 @@ describe('useSummary', () => {
 			entity_id: 'category-1',
 			period: 'all-time',
 			period_start: currentPeriod,
-			planned_amount: 500,
+			planned_amount_minor: 50000,
 		};
 
 		// Spending on the planned category
@@ -427,7 +427,7 @@ describe('useSummary', () => {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: periodStart,
 		};
@@ -437,7 +437,7 @@ describe('useSummary', () => {
 			id: 'tx-2',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-2',
-			amount: 300,
+			amount_minor: 30000,
 			currency: 'USD',
 			timestamp: periodStart + 1000,
 		};
@@ -451,9 +451,9 @@ describe('useSummary', () => {
 		const { result } = renderHook(() => useSummary());
 
 		// Remaining: only category-1 counts → 500 - 200 = 300
-		expect(result.current.remaining).toBe(300);
-		// Expenses: both categories count → 200 + 300 = 500
-		expect(result.current.expenses).toBe(500);
+		expect(result.current.remaining).toBe(30000);
+		// Expenses: both categories count → 20000 + 30000 = 50000 minor units.
+		expect(result.current.expenses).toBe(50000);
 	});
 
 	it('should return zeros when no entities exist', () => {

@@ -36,7 +36,7 @@ function entitiesToCsv(entities: Entity[]): string {
 // Convert plans to CSV
 function plansToCsv(plans: Plan[]): string {
 	const rows = plans.map((p) =>
-		[p.id, p.entity_id, p.period, p.period_start, p.planned_amount].join(',')
+		[p.id, p.entity_id, p.period, p.period_start, p.planned_amount_minor].join(',')
 	);
 	return [PLAN_HEADERS.join(','), ...rows].join('\n');
 }
@@ -48,7 +48,7 @@ function transactionsToCsv(transactions: Transaction[]): string {
 			t.id,
 			t.from_entity_id,
 			t.to_entity_id,
-			t.amount,
+			t.amount_minor,
 			t.currency,
 			t.timestamp,
 			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
@@ -65,7 +65,7 @@ function recurrenceTemplatesToCsv(templates: RecurrenceTemplate[]): string {
 			t.id,
 			t.from_entity_id,
 			t.to_entity_id,
-			t.amount,
+			t.amount_minor,
 			t.currency,
 			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
 			`"${t.rule.replace(/"/g, '""')}"`,
@@ -104,9 +104,13 @@ function recurrenceExclusionsToCsv(templates: RecurrenceTemplate[]): string {
 
 function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
 	const rows = marketValueSnapshots.map((snapshot) =>
-		[snapshot.id, snapshot.entity_id, snapshot.amount, snapshot.currency, snapshot.date].join(
-			','
-		)
+		[
+			snapshot.id,
+			snapshot.entity_id,
+			snapshot.amount_minor,
+			snapshot.currency,
+			snapshot.date,
+		].join(',')
 	);
 	return [MARKET_VALUE_SNAPSHOT_HEADERS.join(','), ...rows].join('\n');
 }

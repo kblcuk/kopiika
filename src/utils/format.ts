@@ -1,4 +1,5 @@
 import { getCurrencyDecimalPlaces } from './currency-precision';
+import { toMajor, toMinor } from './money';
 
 export const DEFAULT_CURRENCY = 'EUR';
 
@@ -23,40 +24,36 @@ export function getCurrencySymbol(currency: string): string {
 	return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
 }
 
-// Round monetary value to N decimal places (default 2) to avoid float drift.
-export function roundMoney(amount: number, decimalPlaces = 2): number {
-	const factor = 10 ** decimalPlaces;
-	return Math.round(amount * factor) / factor;
-}
-
-// Format currency amounts (number only — symbol is composed by callers).
-export function formatAmount(amount: number, currency: string = DEFAULT_CURRENCY): string {
+// KII-120: amounts are stored as integer minor units. formatAmount converts to
+// major at the display boundary; callers pass the raw DB / store value.
+export function formatAmount(amountMinor: number, currency: string = DEFAULT_CURRENCY): string {
 	const dp = getCurrencyDecimalPlaces(currency);
-	amount = roundMoney(amount, dp) || 0; // Normalize tiny negatives and -0 to 0
-	const absAmount = Math.abs(amount);
+	const major = toMajor(amountMinor, currency) || 0; // -0 → 0
+	const absAmount = Math.abs(major);
 	const formatted = new Intl.NumberFormat(void 0, {
 		minimumFractionDigits: dp,
 		maximumFractionDigits: dp,
 	}).format(absAmount);
 
-	const sign = amount < 0 ? '-' : '';
+	const sign = major < 0 ? '-' : '';
 	return `${sign}${formatted}`;
 }
 
-// Format a numeric amount for assignment to an editable amount input. Same locale
-// decimal separator as formatAmount (so chip-fills agree with user-typed values),
-// but no thousands grouping and no forced trailing zeros — the input keeps the
-// shape the user would have typed themselves. Replaces raw `Number.toString()`
-// at programmatic input-write sites, which always emits a period regardless of
-// locale and so disagreed visibly with user input on comma-decimal locales.
-export function formatAmountForInput(amount: number, currency: string = DEFAULT_CURRENCY): string {
+// Format minor-unit amount for assignment to an editable amount input. Same
+// locale decimal separator as formatAmount (so chip-fills agree with user-typed
+// values), but no thousands grouping and no forced trailing zeros — the input
+// keeps the shape the user would have typed themselves.
+export function formatAmountForInput(
+	amountMinor: number,
+	currency: string = DEFAULT_CURRENCY
+): string {
 	const dp = getCurrencyDecimalPlaces(currency);
-	const rounded = roundMoney(amount, dp) || 0;
+	const major = toMajor(amountMinor, currency) || 0;
 	return new Intl.NumberFormat(void 0, {
 		minimumFractionDigits: 0,
 		maximumFractionDigits: dp,
 		useGrouping: false,
-	}).format(rounded);
+	}).format(major);
 }
 
 // Format period for display
@@ -77,8 +74,9 @@ export function isOverspent(actual: number, planned: number): boolean {
 	return actual > planned && planned > 0;
 }
 
-// Parse a currency string to a number, handling both European (1.234,56) and US (1,234.56) formats.
-// Detects the decimal separator from the input pattern rather than relying on locale.
+// Parse a currency string to a major-unit number, handling both European
+// (1.234,56) and US (1,234.56) formats. Detects the decimal separator from
+// the input pattern rather than relying on locale.
 export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURRENCY) {
 	// Check for negative sign
 	const isNegative = amount.trim().startsWith('-');
@@ -123,4 +121,12 @@ export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURREN
 	}
 
 	return isNegative ? -result : result;
+}
+
+// KII-120: convenience helper for the common pattern of parsing user input
+// straight into minor units. Returns NaN if the string can't be parsed.
+export function parseAmountToMinor(input: string, currency: string = DEFAULT_CURRENCY): number {
+	const major = reverseFormatCurrency(input, currency);
+	if (!Number.isFinite(major)) return NaN;
+	return toMinor(major, currency);
 }

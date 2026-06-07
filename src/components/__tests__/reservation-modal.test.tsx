@@ -81,7 +81,8 @@ describe('ReservationModal', () => {
 		fireEvent.press(getByTestId('reservation-submit-button'));
 
 		await waitFor(() => {
-			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 250);
+			// €250 typed → 25000 minor units (KII-120).
+			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 25000);
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
@@ -96,7 +97,7 @@ describe('ReservationModal', () => {
 					id: 'tx-existing',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'EUR',
 					timestamp: Date.now(),
 				},
@@ -119,8 +120,8 @@ describe('ReservationModal', () => {
 		fireEvent.press(getByTestId('reservation-submit-button'));
 
 		await waitFor(() => {
-			// 300 existing + 150 entered = 450 desired total
-			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 450);
+			// 30000 existing + 15000 entered = 45000 minor units (€450) desired total.
+			expect(reserveToSaving).toHaveBeenCalledWith('account-1', 'saving-1', 45000);
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
@@ -134,7 +135,7 @@ describe('ReservationModal', () => {
 					id: 'tx-existing',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'EUR',
 					timestamp: Date.now(),
 				},

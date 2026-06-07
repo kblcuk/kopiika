@@ -1,105 +1,78 @@
 import {
-	roundMoney,
 	formatAmount,
 	formatAmountForInput,
 	getProgressPercent,
 	isOverspent,
 	reverseFormatCurrency,
+	parseAmountToMinor,
 	getCurrencySymbol,
 	DEFAULT_CURRENCY,
 } from '../format';
 
-describe('roundMoney', () => {
-	test('should round to 2 decimal places', () => {
-		expect(roundMoney(1.155)).toBe(1.16);
-		expect(roundMoney(1.154)).toBe(1.15);
-		expect(roundMoney(1.15)).toBe(1.15);
-	});
-
-	test('should handle floating point precision issues', () => {
-		// Classic floating point issue: 0.1 + 0.2 = 0.30000000000000004
-		expect(roundMoney(0.1 + 0.2)).toBe(0.3);
-
-		// Simulated precision issue like 1.1500000000091
-		expect(roundMoney(1.1500000000091)).toBe(1.15);
-		expect(roundMoney(1.1499999999909)).toBe(1.15);
-	});
-
-	test('should handle whole numbers', () => {
-		expect(roundMoney(5)).toBe(5);
-		expect(roundMoney(100)).toBe(100);
-	});
-
-	test('should handle negative amounts', () => {
-		// Math.round rounds towards zero for negative numbers at .5
-		expect(roundMoney(-1.156)).toBe(-1.16);
-		expect(roundMoney(-1.154)).toBe(-1.15);
-	});
-
-	test('should handle zero', () => {
-		expect(roundMoney(0)).toBe(0);
-	});
-});
+// KII-120: formatAmount / formatAmountForInput take integer minor units
+// (cents for EUR, etc.). Tests below use minor-unit inputs and assert the
+// formatted major-unit string the user sees.
 
 describe('formatAmount', () => {
-	test('should format positive amounts with 2 decimal places', () => {
-		expect(formatAmount(1234.5)).toBe('1,234.50');
+	test('formats positive minor-unit amounts as major decimals', () => {
+		expect(formatAmount(123450)).toBe('1,234.50'); // €1,234.50
 		expect(formatAmount(0)).toBe('0.00');
 	});
 
-	test('should format negative amounts with minus sign', () => {
-		expect(formatAmount(-1234.5)).toBe('-1,234.50');
+	test('formats negative amounts with minus sign', () => {
+		expect(formatAmount(-123450)).toBe('-1,234.50');
 	});
 
-	test('should not display negative zero', () => {
-		// Tiny negative from floating-point accumulation rounds to "0.00", not "-0.00"
-		expect(formatAmount(-0.001)).toBe('0.00');
-		expect(formatAmount(-0.004)).toBe('0.00');
-		expect(formatAmount(-0.005)).toBe('0.00');
-		expect(formatAmount(-0.0000001)).toBe('0.00');
-		// JS negative zero
+	test('does not display negative zero', () => {
+		// Minor-unit inputs are exact integers — there's no float "tiny negative"
+		// path in production any more; JS `-0` still normalizes to "0.00".
 		expect(formatAmount(-0)).toBe('0.00');
+	});
+
+	test('coerces non-finite input to 0.00 (defensive — no "NaN" leaking to UI)', () => {
+		// Should never happen in practice (every callsite passes a DB-sourced
+		// integer or `toMinor` result), but a stray NaN must not leak into the
+		// rendered amount.
+		expect(formatAmount(NaN)).toBe('0.00');
+		expect(formatAmount(Infinity)).toBe('0.00');
+		expect(formatAmount(-Infinity)).toBe('0.00');
+	});
+
+	test('handles per-currency zero with the right decimal precision', () => {
+		expect(formatAmount(0, 'EUR')).toBe('0.00');
+		expect(formatAmount(0, 'JPY')).toBe('0');
+		expect(formatAmount(0, 'BHD')).toBe('0.000');
 	});
 });
 
 describe('formatAmountForInput', () => {
 	// Locale-aware separator, no thousands grouping, no forced trailing zeros —
-	// suitable for putting back into an editable amount input so the value the
-	// user sees from a chip tap or edit-mode initial load matches what they
-	// would have typed themselves.
+	// suitable for putting back into an editable amount input.
 
-	test('preserves integer shape (no forced .00)', () => {
-		// en-US test locale
-		expect(formatAmountForInput(100)).toBe('100');
-		expect(formatAmountForInput(50)).toBe('50');
-		expect(formatAmountForInput(2500)).toBe('2500');
+	test('preserves whole-major amounts without forced .00', () => {
+		expect(formatAmountForInput(10000)).toBe('100'); // 100 EUR
+		expect(formatAmountForInput(5000)).toBe('50');
+		expect(formatAmountForInput(250000)).toBe('2500');
 	});
 
-	test('keeps decimals up to two places', () => {
-		expect(formatAmountForInput(1.15)).toBe('1.15');
-		expect(formatAmountForInput(81.7)).toBe('81.7');
-	});
-
-	test('rounds beyond two decimals', () => {
-		expect(formatAmountForInput(1.155)).toBe('1.16');
-		expect(formatAmountForInput(1.1500000000091)).toBe('1.15');
+	test('keeps fractional cents as decimals', () => {
+		expect(formatAmountForInput(115)).toBe('1.15');
+		expect(formatAmountForInput(8170)).toBe('81.7');
 	});
 
 	test('drops thousands grouping so the input stays clean', () => {
 		// formatAmount produces "1,234.50"; the input variant must not group.
-		expect(formatAmountForInput(1234.5)).toBe('1234.5');
-		expect(formatAmountForInput(10000)).toBe('10000');
+		expect(formatAmountForInput(123450)).toBe('1234.5');
+		expect(formatAmountForInput(1000000)).toBe('10000');
 	});
 
-	test('handles zero and tiny negatives', () => {
+	test('handles zero', () => {
 		expect(formatAmountForInput(0)).toBe('0');
-		// Tiny floating-point negatives normalize to 0 like formatAmount.
-		expect(formatAmountForInput(-0.001)).toBe('0');
 	});
 
 	test('handles negative amounts', () => {
-		expect(formatAmountForInput(-100)).toBe('-100');
-		expect(formatAmountForInput(-1.15)).toBe('-1.15');
+		expect(formatAmountForInput(-10000)).toBe('-100');
+		expect(formatAmountForInput(-115)).toBe('-1.15');
 	});
 });
 
@@ -155,56 +128,40 @@ describe('getCurrencySymbol', () => {
 	});
 });
 
-describe('roundMoney with decimal places', () => {
-	test('default 2 dp preserved (back-compat)', () => {
-		expect(roundMoney(1.235)).toBe(1.24);
-	});
-
-	test('explicit 2 dp', () => {
-		expect(roundMoney(1.235, 2)).toBe(1.24);
-	});
-
-	test('0 dp (JPY)', () => {
-		expect(roundMoney(1.235, 0)).toBe(1);
-		expect(roundMoney(1.5, 0)).toBe(2);
-	});
-
-	test('3 dp (BHD)', () => {
-		expect(roundMoney(1.2355, 3)).toBe(1.236);
-		expect(roundMoney(1.2354, 3)).toBe(1.235);
-	});
-});
-
 describe('formatAmount with currency precision', () => {
 	test('USD → 2 decimals', () => {
-		// Use a fixed locale to avoid CI flakiness; assert digit count not exact string.
-		const out = formatAmount(1234.5, 'USD');
+		// 123450 minor units = $1,234.50
+		const out = formatAmount(123450, 'USD');
 		expect(out).toMatch(/\.50$/);
 	});
 
 	test('JPY → 0 decimals', () => {
-		const out = formatAmount(1234.5, 'JPY');
+		// 1235 minor units = ¥1,235 (JPY has no fractional units)
+		const out = formatAmount(1235, 'JPY');
 		expect(out).not.toMatch(/\./);
-		expect(out).toMatch(/1[.,  ]?23[45]/); // rounded to whole
+		expect(out).toMatch(/1[.,  ]?235/);
 	});
 
 	test('BHD → 3 decimals', () => {
-		const out = formatAmount(1234.5, 'BHD');
+		// 1234500 minor units = 1234.500 BHD
+		const out = formatAmount(1234500, 'BHD');
 		expect(out).toMatch(/\.500$/);
 	});
 });
 
 describe('formatAmountForInput with currency precision', () => {
 	test('USD keeps 2-dp ceiling', () => {
-		expect(formatAmountForInput(12.345, 'USD')).toMatch(/^12[.,]35$/);
+		// 1235 minor = $12.35
+		expect(formatAmountForInput(1235, 'USD')).toMatch(/^12[.,]35$/);
 	});
 
 	test('JPY drops fractional digits', () => {
-		expect(formatAmountForInput(12.5, 'JPY')).toMatch(/^13$/);
+		expect(formatAmountForInput(13, 'JPY')).toMatch(/^13$/);
 	});
 
 	test('BHD keeps 3 dp', () => {
-		expect(formatAmountForInput(12.3456, 'BHD')).toMatch(/^12[.,]346$/);
+		// 12346 minor = 12.346 BHD
+		expect(formatAmountForInput(12346, 'BHD')).toMatch(/^12[.,]346$/);
 	});
 });
 
@@ -221,16 +178,39 @@ describe('reverseFormatCurrency', () => {
 	});
 
 	test('should parse amounts with comma as decimal separator', () => {
-		// This is the bug case: user types "1,15" expecting 1.15
-		// On European locales, comma is the decimal separator
+		// User types "1,15" expecting 1.15 (European locales).
 		expect(reverseFormatCurrency('1,15')).toBe(1.15);
 		expect(reverseFormatCurrency('100,50')).toBe(100.5);
 	});
 
 	test('should handle amounts with thousands separators', () => {
 		// US style: 1,234.56
-		expect(reverseFormatCurrency('1,234.56')).toBeCloseTo(1234.56, 2);
+		expect(reverseFormatCurrency('1,234.56')).toBe(1234.56);
 		// European style: 1.234,56
-		expect(reverseFormatCurrency('1.234,56')).toBeCloseTo(1234.56, 2);
+		expect(reverseFormatCurrency('1.234,56')).toBe(1234.56);
 	});
+});
+
+describe('parseAmountToMinor', () => {
+	test('parses major-unit user input into integer minor units', () => {
+		expect(parseAmountToMinor('1.15', 'EUR')).toBe(115);
+		expect(parseAmountToMinor('100', 'EUR')).toBe(10000);
+		expect(parseAmountToMinor('1234.56', 'USD')).toBe(123456);
+	});
+
+	test('handles zero-decimal currencies (JPY)', () => {
+		expect(parseAmountToMinor('1234', 'JPY')).toBe(1234);
+	});
+
+	test('returns NaN for unparseable input', () => {
+		expect(parseAmountToMinor('abc', 'EUR')).toBeNaN();
+		expect(parseAmountToMinor('', 'EUR')).toBeNaN();
+	});
+
+	// Caveat: `reverseFormatCurrency` treats more than 2 digits after the
+	// last separator as a thousands separator (so `'1.234'` parses to 1234,
+	// not 1.234). This is invisible on the live path because
+	// `sanitizeAmountInput` caps decimals to the per-currency max before
+	// `parseAmountToMinor` ever sees the string. A BHD-aware parser would
+	// be a separate refactor — out of scope for KII-120.
 });

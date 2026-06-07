@@ -12,9 +12,9 @@ export function getReservationForPair(
 	let net = 0;
 	for (const tx of transactions) {
 		if (tx.from_entity_id === accountId && tx.to_entity_id === savingId) {
-			net += tx.amount;
+			net += tx.amount_minor;
 		} else if (tx.from_entity_id === savingId && tx.to_entity_id === accountId) {
-			net -= tx.amount;
+			net -= tx.amount_minor;
 		}
 	}
 	return Math.max(0, net);
@@ -34,9 +34,15 @@ export function getReservationsForSaving(
 
 	for (const tx of transactions) {
 		if (tx.to_entity_id === savingId && accountIds.has(tx.from_entity_id)) {
-			perAccount.set(tx.from_entity_id, (perAccount.get(tx.from_entity_id) ?? 0) + tx.amount);
+			perAccount.set(
+				tx.from_entity_id,
+				(perAccount.get(tx.from_entity_id) ?? 0) + tx.amount_minor
+			);
 		} else if (tx.from_entity_id === savingId && accountIds.has(tx.to_entity_id)) {
-			perAccount.set(tx.to_entity_id, (perAccount.get(tx.to_entity_id) ?? 0) - tx.amount);
+			perAccount.set(
+				tx.to_entity_id,
+				(perAccount.get(tx.to_entity_id) ?? 0) - tx.amount_minor
+			);
 		}
 	}
 
@@ -59,9 +65,12 @@ export function getReservationsForAccount(
 
 	for (const tx of transactions) {
 		if (tx.from_entity_id === accountId && savingIds.has(tx.to_entity_id)) {
-			perSaving.set(tx.to_entity_id, (perSaving.get(tx.to_entity_id) ?? 0) + tx.amount);
+			perSaving.set(tx.to_entity_id, (perSaving.get(tx.to_entity_id) ?? 0) + tx.amount_minor);
 		} else if (tx.to_entity_id === accountId && savingIds.has(tx.from_entity_id)) {
-			perSaving.set(tx.from_entity_id, (perSaving.get(tx.from_entity_id) ?? 0) - tx.amount);
+			perSaving.set(
+				tx.from_entity_id,
+				(perSaving.get(tx.from_entity_id) ?? 0) - tx.amount_minor
+			);
 		}
 	}
 

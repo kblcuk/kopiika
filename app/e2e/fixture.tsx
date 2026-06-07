@@ -6,6 +6,7 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { getAllEntities, getNextPosition } from '@/src/db/entities';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
+import { toMinor } from '@/src/utils/money';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
 import { useStore } from '@/src/store';
 import type { EntityType, Transaction } from '@/src/types';
@@ -21,6 +22,8 @@ import type { EntityType, Transaction } from '@/src/types';
 type TxFixture = {
 	from: string;
 	to: string;
+	// Authored as a major-unit value (e.g. 55.00 = €55); converted to integer
+	// minor units (KII-120) at seed time.
 	amount: number;
 	/** Optional series id — marks the transaction as part of a recurring series. */
 	seriesId?: string;
@@ -97,7 +100,7 @@ export default function E2EFixtureScreen() {
 						id: generateId(),
 						from_entity_id: from.id,
 						to_entity_id: to.id,
-						amount: tx.amount,
+						amount_minor: toMinor(tx.amount, DEFAULT_CURRENCY),
 						currency: DEFAULT_CURRENCY,
 						timestamp: Date.now() + (tx.timestampOffsetMs ?? 0),
 						note: null,

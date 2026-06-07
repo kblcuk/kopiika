@@ -58,14 +58,14 @@ function tx(
 	id: string,
 	from: string,
 	to: string,
-	amount: number,
+	amount_minor: number,
 	timestamp = Date.now()
 ): Transaction {
 	return {
 		id,
 		from_entity_id: from,
 		to_entity_id: to,
-		amount,
+		amount_minor,
 		currency: 'USD',
 		timestamp,
 	};

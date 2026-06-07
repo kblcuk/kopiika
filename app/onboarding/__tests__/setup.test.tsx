@@ -127,7 +127,7 @@ describe('Onboarding setup screen', () => {
 				icon: 'cat',
 				color: 'jade',
 				isInvestment: false,
-				plannedAmount: 1500,
+				plannedAmountMinor: 150000,
 			});
 		});
 
@@ -162,7 +162,7 @@ describe('Onboarding setup screen', () => {
 				icon: 'sailboat',
 				color: 'sapphire',
 				isInvestment: false,
-				plannedAmount: null,
+				plannedAmountMinor: null,
 			});
 		});
 		const stagedChip = queryByTestId(/^onboarding-setup-staged-custom-/);
@@ -191,7 +191,7 @@ describe('Onboarding setup screen', () => {
 				icon: 'landmark',
 				color: 'sapphire',
 				isInvestment: false,
-				plannedAmount: null,
+				plannedAmountMinor: null,
 			});
 		});
 		await act(async () => {

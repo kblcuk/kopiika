@@ -79,7 +79,7 @@ export const TransactionRow = memo(function TransactionRow({
 		} else {
 			Alert.alert(
 				'Delete Transaction',
-				`Delete ${formatAmount(transaction.amount, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
+				`Delete ${formatAmount(transaction.amount_minor, transaction.currency)} from ${fromLabel} to ${toLabel}?`,
 				[
 					{ text: 'Cancel', style: 'cancel' },
 					{
@@ -178,7 +178,7 @@ export const TransactionRow = memo(function TransactionRow({
 					<Text
 						className={`font-sans-semibold text-base ${isUnconfirmed ? 'text-warning' : isUpcoming ? 'text-info' : 'text-ink'}`}
 					>
-						{formatAmount(transaction.amount, transaction.currency)}{' '}
+						{formatAmount(transaction.amount_minor, transaction.currency)}{' '}
 						<Text className="font-sans text-sm text-ink-muted">
 							{getCurrencySymbol(transaction.currency)}
 						</Text>

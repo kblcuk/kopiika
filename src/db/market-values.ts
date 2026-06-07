@@ -7,7 +7,7 @@ import { marketValueSnapshots } from './drizzle-schema';
  * Update-input shape for partial updates. Forbidding `created_at`/`updated_at`
  * at the type level prevents accidental rewrite of write-time metadata (KII-126).
  */
-export type MarketValueSnapshotUpdate = { amount?: number; date?: number };
+export type MarketValueSnapshotUpdate = { amount_minor?: number; date?: number };
 
 export async function getAllMarketValueSnapshots(): Promise<MarketValueSnapshot[]> {
 	const db = await getDrizzleDb();
@@ -46,7 +46,7 @@ export async function createMarketValueSnapshot(
 		.values({
 			id: snapshot.id,
 			entity_id: snapshot.entity_id,
-			amount: snapshot.amount,
+			amount_minor: snapshot.amount_minor,
 			currency: snapshot.currency,
 			date: snapshot.date,
 			created_at: snapshot.created_at ?? now,

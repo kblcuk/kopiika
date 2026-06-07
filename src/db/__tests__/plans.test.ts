@@ -58,21 +58,21 @@ describe('plans.ts', () => {
 					entity_id: 'entity-1',
 					period: 'all-time',
 					period_start: '2025-01',
-					planned_amount: 1000,
+					planned_amount_minor: 100000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
 					period: 'all-time',
 					period_start: '2025-03',
-					planned_amount: 1500,
+					planned_amount_minor: 150000,
 				},
 				{
 					id: 'plan-3',
 					entity_id: 'entity-3',
 					period: 'all-time',
 					period_start: '2025-02',
-					planned_amount: 1200,
+					planned_amount_minor: 120000,
 				},
 			];
 
@@ -97,14 +97,14 @@ describe('plans.ts', () => {
 					entity_id: 'entity-1',
 					period: 'all-time',
 					period_start: '2025-01',
-					planned_amount: 1000,
+					planned_amount_minor: 100000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
 					period: 'all-time',
 					period_start: '2025-01',
-					planned_amount: 500,
+					planned_amount_minor: 50000,
 				},
 			];
 
@@ -118,7 +118,7 @@ describe('plans.ts', () => {
 			expect(result).not.toBeNull();
 			expect(result?.id).toBe('plan-1');
 			expect(result?.period).toBe('all-time');
-			expect(result?.planned_amount).toBe(1000);
+			expect(result?.planned_amount_minor).toBe(100000);
 		});
 
 		test('should return null when no plan exists for entity and period_start', async () => {
@@ -138,7 +138,7 @@ describe('plans.ts', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await upsertPlan(plan);
@@ -153,14 +153,14 @@ describe('plans.ts', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await upsertPlan(original);
-			await upsertPlan({ ...original, planned_amount: 1500 });
+			await upsertPlan({ ...original, planned_amount_minor: 150000 });
 
 			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result?.planned_amount).toBe(1500);
+			expect(result?.planned_amount_minor).toBe(150000);
 			expect(result?.id).toBe('plan-upsert-2');
 			expect(await getAllPlans()).toHaveLength(1);
 		});
@@ -171,14 +171,14 @@ describe('plans.ts', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 			const second: Plan = {
 				id: 'plan-upsert-dup-b', // different id, same composite key
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1500,
+				planned_amount_minor: 150000,
 			};
 
 			await upsertPlan(first);
@@ -187,7 +187,7 @@ describe('plans.ts', () => {
 			const all = await getAllPlans();
 			expect(all).toHaveLength(1);
 			expect(all[0]!.id).toBe('plan-upsert-dup-a'); // ON CONFLICT keeps the original row
-			expect(all[0]!.planned_amount).toBe(1500); // planned_amount is overwritten
+			expect(all[0]!.planned_amount_minor).toBe(150000); // planned_amount is overwritten
 		});
 
 		test('should handle multiple upserts idempotently', async () => {
@@ -196,18 +196,18 @@ describe('plans.ts', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await upsertPlan(plan);
-			await upsertPlan({ ...plan, planned_amount: 1200 });
-			await upsertPlan({ ...plan, planned_amount: 1500 });
+			await upsertPlan({ ...plan, planned_amount_minor: 120000 });
+			await upsertPlan({ ...plan, planned_amount_minor: 150000 });
 
 			const allPlans = await getAllPlans();
 			expect(allPlans).toHaveLength(1);
 
 			const result = await getPlanForEntity('entity-1', '2025-01');
-			expect(result?.planned_amount).toBe(1500);
+			expect(result?.planned_amount_minor).toBe(150000);
 		});
 	});
 
@@ -218,7 +218,7 @@ describe('plans.ts', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2025-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await upsertPlan(plan);

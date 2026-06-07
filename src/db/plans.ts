@@ -38,7 +38,7 @@ export async function upsertPlan(plan: Plan): Promise<Plan> {
 		})
 		.onConflictDoUpdate({
 			target: [plans.entity_id, plans.period_start],
-			set: { planned_amount: plan.planned_amount, updated_at: now },
+			set: { planned_amount_minor: plan.planned_amount_minor, updated_at: now },
 		})
 		.returning();
 	return row!;

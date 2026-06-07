@@ -139,8 +139,8 @@ describe('migration 0018: add_updated_at (KII-126)', () => {
 		// Inserting a transaction that references a non-existent entity must
 		// throw — proves FKs survived the rebuild.
 		expect(() =>
-			db.run(`INSERT INTO transactions (id, from_entity_id, to_entity_id, amount, currency, timestamp)
-				VALUES ('t1', 'ghost', 'e1', 10, 'EUR', 1700000000000)`)
+			db.run(`INSERT INTO transactions (id, from_entity_id, to_entity_id, amount_minor, currency, timestamp)
+				VALUES ('t1', 'ghost', 'e1', 1000, 'EUR', 1700000000000)`)
 		).toThrow(/FOREIGN KEY/i);
 	});
 });

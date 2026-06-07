@@ -10,14 +10,14 @@ e2,account,"Bank Account",EUR,landmark,,,0,0,0,true
 e3,category,"Groceries",EUR,shopping-cart,,,0,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
-p1,e1,all-time,2026-01,3000
-p2,e3,all-time,2026-01,500
+id,entity_id,period,period_start,planned_amount_minor
+p1,e1,all-time,2026-01,300000
+p2,e3,all-time,2026-01,50000
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,3000,EUR,1706745600000,
-t2,e2,e3,150,EUR,1706832000000,"Weekly groceries"`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,300000,EUR,1706745600000,
+t2,e2,e3,15000,EUR,1706832000000,"Weekly groceries"`;
 
 const CURRENT_EXPORT_STYLE_CSV = `# ENTITIES
 id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted
@@ -26,12 +26,12 @@ e1,income,"Salary",EUR,briefcase,,0,0,0,true,false
 e2,account,"Bank Account",EUR,landmark,,1,0,1,false,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
-p1,e1,all-time,2026-01,3000
+id,entity_id,period,period_start,planned_amount_minor
+p1,e1,all-time,2026-01,300000
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,3000,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,300000,EUR,1706745600000,`;
 
 const LEGACY_OWNER_ID_CSV = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total,is_deleted
@@ -39,10 +39,10 @@ __system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,,0,0
 e1,account,"Joint Account",EUR,landmark,#4CAF50,household-1,0,0,0,true,false
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 const INVESTMENT_EXPORT_CSV = `# ENTITIES
 id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_investment
@@ -50,14 +50,14 @@ __system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,
 e1,account,"Brokerage",USD,landmark,,0,0,0,true,false,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # MARKET_VALUE_SNAPSHOTS
-id,entity_id,amount,currency,date
-s1,e1,7500,USD,1736899200000`;
+id,entity_id,amount_minor,currency,date
+s1,e1,750000,USD,1736899200000`;
 
 describe('parseCsvLine', () => {
 	test('parses simple fields', () => {
@@ -106,12 +106,12 @@ describe('parseImportCsv', () => {
 		const plan = result.data.plans.find((p) => p.id === 'p1');
 		expect(plan).toBeDefined();
 		expect(plan!.entity_id).toBe('e1');
-		expect(plan!.planned_amount).toBe(3000);
+		expect(plan!.planned_amount_minor).toBe(300000);
 
 		// Check transaction parsing
 		const txn = result.data.transactions.find((t) => t.id === 't2');
 		expect(txn).toBeDefined();
-		expect(txn!.amount).toBe(150);
+		expect(txn!.amount_minor).toBe(15000);
 		expect(txn!.note).toBe('Weekly groceries');
 	});
 
@@ -150,7 +150,7 @@ describe('parseImportCsv', () => {
 			{
 				id: 's1',
 				entity_id: 'e1',
-				amount: 7500,
+				amount_minor: 750000,
 				currency: 'USD',
 				date: 1736899200000,
 			},
@@ -184,10 +184,10 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,bogus,"Test",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
@@ -201,11 +201,11 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
-p1,nonexistent,all-time,2026-01,1000
+id,entity_id,period,period_start,planned_amount_minor
+p1,nonexistent,all-time,2026-01,100000
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
@@ -219,11 +219,11 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,nonexistent,e1,100,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,nonexistent,e1,10000,EUR,1706745600000,`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -243,11 +243,11 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,nonexistent,100,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,nonexistent,10000,EUR,1706745600000,`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -264,11 +264,11 @@ e1,account,"My ""Main"" Account",EUR,,,,,0,0,true
 e2,category,"Food, Drinks",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,"Lunch at ""Joe's"", expensive"`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,"Lunch at ""Joe's"", expensive"`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -285,10 +285,10 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -319,10 +319,10 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -334,22 +334,22 @@ id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
 		expect(result.data.transactions).toHaveLength(0);
 	});
 
-	test('rejects invalid planned_amount', () => {
+	test('rejects invalid planned_amount_minor', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,income,"Salary",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 p1,e1,all-time,2026-01,not-a-number
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
-		expect(result.errors[0]).toContain('not a valid number');
+		expect(result.errors[0]).toContain('not a valid integer');
 	});
 
 	test('include_in_total defaults to true when not "false"', () => {
@@ -360,10 +360,10 @@ e2,account,"B",EUR,,,,,0,0,false
 e3,category,"C",EUR,,,,,0,0,
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -384,10 +384,10 @@ e1,income,"A",EUR,,,,,0,0,true,true
 e2,account,"B",EUR,,,,,0,0,true,
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -404,10 +404,10 @@ __system_balance_adjustment__,account,"Balance Adjustments",EUR,refresh-cw,,0,0,
 e1,account,"Main",EUR,landmark,,0,0,0,true,false,true,false
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -428,7 +428,7 @@ e1,income,"Salary",EUR,,,0,0,0,true
 e2,account,"Bank",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
 `;
@@ -436,9 +436,9 @@ id,entity_id,period,period_start,planned_amount
 		test('explicit "true" stays true regardless of timestamp', () => {
 			const csv =
 				ENTITIES +
-				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
-t1,e1,e2,10,EUR,${PAST},,,true
-t2,e1,e2,20,EUR,${FUTURE},,,true`;
+				`id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,1000,EUR,${PAST},,,true
+t2,e1,e2,2000,EUR,${FUTURE},,,true`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -450,9 +450,9 @@ t2,e1,e2,20,EUR,${FUTURE},,,true`;
 		test('explicit "false" stays false regardless of timestamp', () => {
 			const csv =
 				ENTITIES +
-				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
-t1,e1,e2,10,EUR,${PAST},,,false
-t2,e1,e2,20,EUR,${FUTURE},,,false`;
+				`id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,1000,EUR,${PAST},,,false
+t2,e1,e2,2000,EUR,${FUTURE},,,false`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -464,9 +464,9 @@ t2,e1,e2,20,EUR,${FUTURE},,,false`;
 		test('empty cell defaults by timestamp (past → true, future → false)', () => {
 			const csv =
 				ENTITIES +
-				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed
-t1,e1,e2,10,EUR,${PAST},,,
-t2,e1,e2,20,EUR,${FUTURE},,,`;
+				`id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,1000,EUR,${PAST},,,
+t2,e1,e2,2000,EUR,${FUTURE},,,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -478,9 +478,9 @@ t2,e1,e2,20,EUR,${FUTURE},,,`;
 		test('missing column defaults by timestamp (past → true, future → false)', () => {
 			const csv =
 				ENTITIES +
-				`id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,10,EUR,${PAST},
-t2,e1,e2,20,EUR,${FUTURE},`;
+				`id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,1000,EUR,${PAST},
+t2,e1,e2,2000,EUR,${FUTURE},`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -496,11 +496,11 @@ id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
 e1,account,"Bank",EUR,,,,,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,__system_balance_adjustment__,e1,100,EUR,1706745600000,Correction`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,__system_balance_adjustment__,e1,10000,EUR,1706745600000,Correction`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -516,14 +516,14 @@ e1,account,"Main",EUR,,,0,0,0,true
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"[1706832000000]",false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"[1706832000000]",false,1706745500000`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -532,7 +532,7 @@ rt1,e1,e2,50,EUR,"Weekly groceries","{""type"":""weekly""}",1706745600000,,,90,"
 		const t = result.data.recurrenceTemplates[0]!;
 		expect(t.id).toBe('rt1');
 		expect(t.from_entity_id).toBe('e1');
-		expect(t.amount).toBe(50);
+		expect(t.amount_minor).toBe(5000);
 		expect(t.note).toBe('Weekly groceries');
 		expect(t.rule).toBe('{"type":"weekly"}');
 		expect(t.start_date).toBe(1706745600000);
@@ -559,14 +559,14 @@ id,type,name,currency,icon,color,order,row,position,include_in_total
 e1,account,"Main",EUR,,,0,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e-gone,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e-gone,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -586,14 +586,14 @@ id,type,name,currency,icon,color,order,row,position,include_in_total
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e-gone,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e-gone,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(true);
@@ -621,14 +621,14 @@ e1,account,"Main",EUR,,,0,0,0,true
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e2,50,EUR,,not-json,1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,,not-json,1706745600000,,,90,,false,1706745500000`;
 
 		const result = parseImportCsv(csv);
 		expect(result.ok).toBe(false);
@@ -645,11 +645,11 @@ e1,category,"Groceries",EUR,,,0,0,0,true
 e2,category,"Rent",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -664,11 +664,11 @@ e1,income,"Salary",EUR,,,0,0,0,true
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -683,11 +683,11 @@ e1,saving,"Emergency",EUR,,,0,0,0,true
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -701,11 +701,11 @@ id,type,name,currency,icon,color,order,row,position,include_in_total
 e1,account,"Main",EUR,,,0,0,0,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e1,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e1,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -720,11 +720,11 @@ e1,account,"Main EUR",EUR,,,0,0,0,true
 e2,category,"USD Goods",USD,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -739,16 +739,16 @@ e1,account,"Main",EUR,,,0,0,0,true
 e2,category,"Groceries",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 t1,e1,e2,0,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
 			if (result.ok) return;
-			expect(result.errors.join('\n')).toMatch(/positive number/i);
+			expect(result.errors.join('\n')).toMatch(/positive integer/i);
 		});
 
 		test('accepts transaction whose entity is soft-deleted (historical record)', () => {
@@ -758,11 +758,11 @@ e1,account,"Old Card",EUR,,,0,0,0,true,true
 e2,category,"Groceries",EUR,,,0,0,1,true,false
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -777,14 +777,14 @@ e1,category,"Groceries",EUR,,,0,0,0,true
 e2,category,"Rent",EUR,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -799,14 +799,14 @@ e1,account,"Main EUR",EUR,,,0,0,0,true
 e2,category,"USD Goods",USD,,,0,0,1,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);
@@ -821,14 +821,14 @@ e1,account,"Old Card",EUR,,,0,0,0,true,true
 e2,category,"Groceries",EUR,,,0,0,1,true,false
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 
 # RECURRENCE_TEMPLATES
-id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
-rt1,e1,e2,50,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(true);
@@ -844,12 +844,12 @@ e2,category,"Groceries",EUR,,,0,0,1,true
 e3,category,"Rent",EUR,,,0,0,2,true
 
 # PLANS
-id,entity_id,period,period_start,planned_amount
+id,entity_id,period,period_start,planned_amount_minor
 
 # TRANSACTIONS
-id,from_entity_id,to_entity_id,amount,currency,timestamp,note
-t1,e1,e2,50,EUR,1706745600000,
-t2,e2,e3,25,EUR,1706745700000,`;
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
+t1,e1,e2,5000,EUR,1706745600000,
+t2,e2,e3,2500,EUR,1706745700000,`;
 
 			const result = parseImportCsv(csv);
 			expect(result.ok).toBe(false);

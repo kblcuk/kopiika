@@ -61,14 +61,14 @@ describe('Store Data Integrity', () => {
 					entity_id: 'entity-1',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 1000,
+					planned_amount_minor: 100000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-temp',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 500,
+					planned_amount_minor: 50000,
 				},
 			];
 
@@ -122,14 +122,14 @@ describe('Store Data Integrity', () => {
 					entity_id: 'entity-1',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 1000,
+					planned_amount_minor: 100000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 500,
+					planned_amount_minor: 50000,
 				},
 			];
 
@@ -179,7 +179,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'non-existent-entity',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await useStore.getState().setPlan(plan);
@@ -211,7 +211,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			await useStore.getState().setPlan(plan);
@@ -241,7 +241,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'entity-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			};
 
 			useStore.setState({ entities: [entity], plans: [plan] });
@@ -250,18 +250,18 @@ describe('Store Data Integrity', () => {
 
 			const updatedPlan: Plan = {
 				...plan,
-				planned_amount: 2000,
+				planned_amount_minor: 200000,
 			};
 
 			await useStore.getState().setPlan(updatedPlan);
 
 			const state = useStore.getState();
 			expect(state.plans).toHaveLength(1);
-			expect(state.plans[0]!.planned_amount).toBe(2000);
+			expect(state.plans[0]!.planned_amount_minor).toBe(200000);
 
 			// Verify it was updated in database
 			const dbPlan = await db.getPlanForEntity('entity-1', '2026-01');
-			expect(dbPlan?.planned_amount).toBe(2000);
+			expect(dbPlan?.planned_amount_minor).toBe(200000);
 		});
 	});
 
@@ -285,7 +285,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'non-existent',
 				to_entity_id: 'entity-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -318,7 +318,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'entity-1',
 				to_entity_id: 'non-existent',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -363,7 +363,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'entity-1',
 				to_entity_id: 'entity-2',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -427,7 +427,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-ok-1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -435,7 +435,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-ok-2',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-fuel',
-					amount: 20,
+					amount_minor: 2000,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -443,7 +443,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-ok-3',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 30,
+					amount_minor: 3000,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -466,7 +466,7 @@ describe('Store Data Integrity', () => {
 				id: 'batch-rb-1',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-groceries',
-				amount: 11,
+				amount_minor: 1100,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -474,7 +474,7 @@ describe('Store Data Integrity', () => {
 				id: 'batch-rb-2',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-fuel',
-				amount: 22,
+				amount_minor: 2200,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -484,7 +484,7 @@ describe('Store Data Integrity', () => {
 				id: 'batch-rb-3',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'does-not-exist',
-				amount: 33,
+				amount_minor: 3300,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -516,7 +516,7 @@ describe('Store Data Integrity', () => {
 				id: 'collision-id',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-groceries',
-				amount: 5,
+				amount_minor: 500,
 				currency: 'USD',
 				timestamp: ts,
 			});
@@ -526,7 +526,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-col-1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 7,
+					amount_minor: 700,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -536,7 +536,7 @@ describe('Store Data Integrity', () => {
 					id: 'collision-id',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-fuel',
-					amount: 9,
+					amount_minor: 900,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -562,7 +562,7 @@ describe('Store Data Integrity', () => {
 				id: 'first-bad',
 				from_entity_id: 'does-not-exist',
 				to_entity_id: 'cat-groceries',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -570,7 +570,7 @@ describe('Store Data Integrity', () => {
 				id: 'first-bad-tail',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-groceries',
-				amount: 2,
+				amount_minor: 200,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -596,7 +596,7 @@ describe('Store Data Integrity', () => {
 				id: 'pre-existing-1',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-groceries',
-				amount: 42,
+				amount_minor: 4200,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -606,7 +606,7 @@ describe('Store Data Integrity', () => {
 				id: 'should-not-persist',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'does-not-exist',
-				amount: 99,
+				amount_minor: 9900,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -636,7 +636,7 @@ describe('Store Data Integrity', () => {
 					id: 'confirm-explicit-true-past',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 					timestamp: past,
 					is_confirmed: true,
@@ -645,7 +645,7 @@ describe('Store Data Integrity', () => {
 					id: 'confirm-explicit-false-past',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-fuel',
-					amount: 2,
+					amount_minor: 200,
 					currency: 'USD',
 					timestamp: past,
 					is_confirmed: false,
@@ -670,7 +670,7 @@ describe('Store Data Integrity', () => {
 					id: 'dup-within-batch',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 3,
+					amount_minor: 300,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -678,7 +678,7 @@ describe('Store Data Integrity', () => {
 					id: 'dup-within-batch',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-fuel',
-					amount: 4,
+					amount_minor: 400,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -742,7 +742,7 @@ describe('Store Data Integrity', () => {
 					id: 'mix-split-1',
 					from_entity_id: 'acct-mix',
 					to_entity_id: 'cat-groc',
-					amount: 25,
+					amount_minor: 2500,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -750,7 +750,7 @@ describe('Store Data Integrity', () => {
 					id: 'mix-split-2',
 					from_entity_id: 'acct-mix',
 					to_entity_id: 'cat-fuel',
-					amount: 15,
+					amount_minor: 1500,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -758,7 +758,7 @@ describe('Store Data Integrity', () => {
 					id: 'mix-release',
 					from_entity_id: 'sav-buf',
 					to_entity_id: 'acct-mix',
-					amount: 40,
+					amount_minor: 4000,
 					currency: 'USD',
 					timestamp: ts,
 					is_confirmed: true,
@@ -767,8 +767,8 @@ describe('Store Data Integrity', () => {
 
 			const all = await db.getAllTransactions();
 			const byId = new Map(all.map((t) => [t.id, t]));
-			expect(byId.get('mix-split-1')?.amount).toBe(25);
-			expect(byId.get('mix-split-2')?.amount).toBe(15);
+			expect(byId.get('mix-split-1')?.amount_minor).toBe(2500);
+			expect(byId.get('mix-split-2')?.amount_minor).toBe(1500);
 			expect(byId.get('mix-release')?.from_entity_id).toBe('sav-buf');
 			expect(byId.get('mix-release')?.is_confirmed).toBe(true);
 		});
@@ -790,7 +790,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-conf-past',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-groceries',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 					timestamp: past,
 				},
@@ -798,7 +798,7 @@ describe('Store Data Integrity', () => {
 					id: 'batch-conf-future',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-fuel',
-					amount: 2,
+					amount_minor: 200,
 					currency: 'USD',
 					timestamp: future,
 				},
@@ -852,7 +852,7 @@ describe('Store Data Integrity', () => {
 				id: 'orig',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-1',
-				amount: 20,
+				amount_minor: 2000,
 				currency: 'USD',
 				timestamp: ts,
 				note: 'lunch',
@@ -865,7 +865,7 @@ describe('Store Data Integrity', () => {
 					id: 'c1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-1',
-					amount: 12,
+					amount_minor: 1200,
 					currency: 'USD',
 					timestamp: ts,
 					note: 'lunch',
@@ -874,7 +874,7 @@ describe('Store Data Integrity', () => {
 					id: 'c2',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-2',
-					amount: 8,
+					amount_minor: 800,
 					currency: 'USD',
 					timestamp: ts,
 					note: 'lunch',
@@ -907,7 +907,7 @@ describe('Store Data Integrity', () => {
 				id: 'orig-n',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-1',
-				amount: 30,
+				amount_minor: 3000,
 				currency: 'USD',
 				timestamp: ts,
 				is_confirmed: false,
@@ -921,7 +921,7 @@ describe('Store Data Integrity', () => {
 					id: 'cn1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-1',
-					amount: 18,
+					amount_minor: 1800,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -929,7 +929,7 @@ describe('Store Data Integrity', () => {
 					id: 'cn2',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-2',
-					amount: 12,
+					amount_minor: 1200,
 					currency: 'USD',
 					timestamp: ts,
 				},
@@ -953,7 +953,7 @@ describe('Store Data Integrity', () => {
 				id: templateId,
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: 1_000_000,
@@ -972,7 +972,7 @@ describe('Store Data Integrity', () => {
 				id: 'rec-1',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-1',
-				amount: 25,
+				amount_minor: 2500,
 				currency: 'USD',
 				timestamp: occurrenceTs,
 				series_id: templateId,
@@ -985,7 +985,7 @@ describe('Store Data Integrity', () => {
 					id: 'rs1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-1',
-					amount: 15,
+					amount_minor: 1500,
 					currency: 'USD',
 					timestamp: occurrenceTs,
 					series_id: templateId, // caller mistakenly passed series_id; action must strip it
@@ -994,7 +994,7 @@ describe('Store Data Integrity', () => {
 					id: 'rs2',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-2',
-					amount: 10,
+					amount_minor: 1000,
 					currency: 'USD',
 					timestamp: occurrenceTs,
 					series_id: templateId, // caller mistakenly passed series_id; action must strip it
@@ -1028,7 +1028,7 @@ describe('Store Data Integrity', () => {
 					id: 'noop-1',
 					from_entity_id: 'acct-1',
 					to_entity_id: 'cat-1',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -1043,7 +1043,7 @@ describe('Store Data Integrity', () => {
 				id: 'orig-empty',
 				from_entity_id: 'acct-1',
 				to_entity_id: 'cat-1',
-				amount: 5,
+				amount_minor: 500,
 				currency: 'USD',
 				timestamp: ts,
 			};
@@ -1087,14 +1087,14 @@ describe('Store Data Integrity', () => {
 					entity_id: 'entity-1',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 1000,
+					planned_amount_minor: 100000,
 				},
 				{
 					id: 'plan-2',
 					entity_id: 'entity-2',
 					period: 'all-time',
 					period_start: '2026-01',
-					planned_amount: 500,
+					planned_amount_minor: 50000,
 				},
 			];
 
@@ -1145,7 +1145,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: income.id,
 				to_entity_id: account.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1203,7 +1203,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'income-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 5000,
+				planned_amount_minor: 500000,
 			};
 
 			const categoryPlan: Plan = {
@@ -1211,7 +1211,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 500,
+				planned_amount_minor: 50000,
 			};
 
 			// Create transactions:
@@ -1221,7 +1221,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-current',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1230,7 +1230,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-previous',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 4500,
+				amount_minor: 450000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-15').getTime(),
 			};
@@ -1239,7 +1239,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-category-current',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -1248,7 +1248,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-category-previous',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-20').getTime(),
 			};
@@ -1279,7 +1279,7 @@ describe('Store Data Integrity', () => {
 			const incomePlanData = state.plans.find(
 				(p) => p.entity_id === 'income-1' && p.period_start === '2026-01'
 			);
-			expect(incomePlanData?.planned_amount).toBe(5000);
+			expect(incomePlanData?.planned_amount_minor).toBe(500000);
 
 			// Income should only count current period transactions
 			const jan2026Start = new Date('2026-01-01').getTime();
@@ -1291,7 +1291,7 @@ describe('Store Data Integrity', () => {
 					[t.from_entity_id, t.to_entity_id].includes('income-1')
 			);
 			expect(incomeTransactionsInPeriod).toHaveLength(1);
-			expect(incomeTransactionsInPeriod[0]!.amount).toBe(5000);
+			expect(incomeTransactionsInPeriod[0]!.amount_minor).toBe(500000);
 
 			// Categories should only count current period transactions
 			const categoryTransactionsInPeriod = state.transactions.filter(
@@ -1301,7 +1301,7 @@ describe('Store Data Integrity', () => {
 					t.to_entity_id === 'category-1'
 			);
 			expect(categoryTransactionsInPeriod).toHaveLength(1);
-			expect(categoryTransactionsInPeriod[0]!.amount).toBe(300);
+			expect(categoryTransactionsInPeriod[0]!.amount_minor).toBe(30000);
 		});
 
 		test('should use all-time transactions for accounts and savings', async () => {
@@ -1342,7 +1342,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'all-time',
 				period_start: '2025-12', // Date when goal was created
-				planned_amount: 10000,
+				planned_amount_minor: 1000000,
 			};
 
 			// Create transactions across multiple periods
@@ -1350,7 +1350,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-15').getTime(),
 			};
@@ -1359,7 +1359,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1368,7 +1368,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 2000,
+				amount_minor: 200000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-20').getTime(),
 			};
@@ -1377,7 +1377,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-4',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 3000,
+				amount_minor: 300000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -1403,10 +1403,10 @@ describe('Store Data Integrity', () => {
 
 			// Calculate account balance: money in - money out
 			const accountBalance = accountTransactions.reduce((sum, t) => {
-				return t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount;
+				return t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor;
 			}, 0);
 			// +5000 +5000 -2000 -3000 = 5000
-			expect(accountBalance).toBe(5000);
+			expect(accountBalance).toBe(500000);
 
 			// Saving should count ALL transactions (not period-filtered)
 			const savingTransactions = state.transactions.filter(
@@ -1414,15 +1414,15 @@ describe('Store Data Integrity', () => {
 			);
 			expect(savingTransactions).toHaveLength(2);
 
-			const savingBalance = savingTransactions.reduce((sum, t) => sum + t.amount, 0);
+			const savingBalance = savingTransactions.reduce((sum, t) => sum + t.amount_minor, 0);
 			// 2000 + 3000 = 5000
-			expect(savingBalance).toBe(5000);
+			expect(savingBalance).toBe(500000);
 
 			// Verify the plan is using 'all-time' period
 			const plan = state.plans.find(
 				(p) => p.entity_id === 'saving-1' && p.period === 'all-time'
 			);
-			expect(plan?.planned_amount).toBe(10000);
+			expect(plan?.planned_amount_minor).toBe(1000000);
 		});
 
 		test('should use all-time period for savings plans', async () => {
@@ -1442,7 +1442,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'all-time',
 				period_start: '2026-01', // Date when goal was created
-				planned_amount: 15000,
+				planned_amount_minor: 1500000,
 			};
 
 			// Also create a monthly plan (should be ignored for savings)
@@ -1451,7 +1451,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'month',
 				period_start: '2026-01',
-				planned_amount: 500,
+				planned_amount_minor: 50000,
 			};
 
 			useStore.setState({
@@ -1470,13 +1470,13 @@ describe('Store Data Integrity', () => {
 			const allTimePlan = state.plans.find(
 				(p) => p.entity_id === 'saving-1' && p.period === 'all-time'
 			);
-			expect(allTimePlan?.planned_amount).toBe(15000);
+			expect(allTimePlan?.planned_amount_minor).toBe(1500000);
 			expect(allTimePlan?.period_start).toBe('2026-01'); // Preserves creation date
 
 			const monthPlan = state.plans.find(
 				(p) => p.entity_id === 'saving-1' && p.period === 'month'
 			);
-			expect(monthPlan?.planned_amount).toBe(500);
+			expect(monthPlan?.planned_amount_minor).toBe(50000);
 
 			// Verify that both plans exist but we expect the implementation to use period='all-time'
 			expect(state.plans).toHaveLength(2);
@@ -1547,7 +1547,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1569,26 +1569,28 @@ describe('Store Data Integrity', () => {
 					[t.from_entity_id, t.to_entity_id].includes('income-1')
 			);
 			const incomeBalance = incomeTx.reduce(
-				(sum, t) => (t.from_entity_id === 'income-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.from_entity_id === 'income-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(incomeBalance).toBe(5000);
+			expect(incomeBalance).toBe(500000);
 
 			const accountTx = state.transactions.filter((t) =>
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const accountBalance = accountTx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(5000);
+			expect(accountBalance).toBe(500000);
 
 			// Add transaction: Account -> Category (300)
 			const tx2: Transaction = {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -1604,10 +1606,11 @@ describe('Store Data Integrity', () => {
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const accountBalance2 = accountTx2.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance2).toBe(4700);
+			expect(accountBalance2).toBe(470000);
 
 			const categoryTx = state.transactions.filter(
 				(t) =>
@@ -1615,15 +1618,15 @@ describe('Store Data Integrity', () => {
 					t.timestamp <= jan2026End &&
 					t.to_entity_id === 'category-1'
 			);
-			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount, 0);
-			expect(categoryBalance).toBe(300);
+			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(categoryBalance).toBe(30000);
 
 			// Add transaction: Account -> Saving (1000)
 			const tx3: Transaction = {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-25').getTime(),
 			};
@@ -1639,14 +1642,15 @@ describe('Store Data Integrity', () => {
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const accountBalance3 = accountTx3.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance3).toBe(3700);
+			expect(accountBalance3).toBe(370000);
 
 			const savingTx = state.transactions.filter((t) => t.to_entity_id === 'saving-1');
-			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount, 0);
-			expect(savingBalance).toBe(1000);
+			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(savingBalance).toBe(100000);
 		});
 
 		test('should handle previous period transactions correctly for different entity types', async () => {
@@ -1700,7 +1704,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-current',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1711,7 +1715,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-previous',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-15').getTime(),
 			};
@@ -1722,7 +1726,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-prev-saving',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-20').getTime(),
 			};
@@ -1737,11 +1741,12 @@ describe('Store Data Integrity', () => {
 			);
 			expect(accountTx).toHaveLength(3);
 			const accountBalance = accountTx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
 			// Account: -500 (current) -300 (previous) -1000 (previous) = -1800
-			expect(accountBalance).toBe(-1800);
+			expect(accountBalance).toBe(-180000);
 
 			// Verify category uses only current period
 			const jan2026Start = new Date('2026-01-01').getTime();
@@ -1753,14 +1758,14 @@ describe('Store Data Integrity', () => {
 					t.to_entity_id === 'category-1'
 			);
 			expect(categoryTx).toHaveLength(1); // Only current period transaction
-			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount, 0);
-			expect(categoryBalance).toBe(500); // Not 800!
+			const categoryBalance = categoryTx.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(categoryBalance).toBe(50000); // Not 800!
 
 			// Verify saving uses all transactions (all-time)
 			const savingTx = state.transactions.filter((t) => t.to_entity_id === 'saving-1');
 			expect(savingTx).toHaveLength(1);
-			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount, 0);
-			expect(savingBalance).toBe(1000);
+			const savingBalance = savingTx.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(savingBalance).toBe(100000);
 		});
 
 		test('should update balances when deleting transactions', async () => {
@@ -1804,7 +1809,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-10').getTime(),
 			};
@@ -1812,7 +1817,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1820,7 +1825,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -1834,10 +1839,11 @@ describe('Store Data Integrity', () => {
 
 			// Initial balance: -1000 for account, +1000 for category
 			let accountBalance = state.transactions.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(-1000);
+			expect(accountBalance).toBe(-100000);
 
 			// Delete one transaction
 			await useStore.getState().deleteTransaction('tx-2');
@@ -1847,15 +1853,16 @@ describe('Store Data Integrity', () => {
 
 			// Balance after deletion: -700 for account, +700 for category
 			accountBalance = state.transactions.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(-700);
+			expect(accountBalance).toBe(-70000);
 
 			const categoryBalance = state.transactions
 				.filter((t) => t.to_entity_id === 'category-1')
-				.reduce((sum, t) => sum + t.amount, 0);
-			expect(categoryBalance).toBe(700);
+				.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(categoryBalance).toBe(70000);
 		});
 
 		test('should update balances when updating transaction amounts', async () => {
@@ -1899,7 +1906,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1907,29 +1914,31 @@ describe('Store Data Integrity', () => {
 
 			let state = useStore.getState();
 			let accountBalance = state.transactions.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(-500);
+			expect(accountBalance).toBe(-50000);
 
 			// Update transaction amount
-			await useStore.getState().updateTransaction('tx-1', { amount: 750 });
+			await useStore.getState().updateTransaction('tx-1', { amount_minor: 75000 });
 
 			state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
-			expect(state.transactions[0]!.amount).toBe(750);
+			expect(state.transactions[0]!.amount_minor).toBe(75000);
 
 			// Balance should reflect updated amount
 			accountBalance = state.transactions.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(-750);
+			expect(accountBalance).toBe(-75000);
 
 			const categoryBalance = state.transactions
 				.filter((t) => t.to_entity_id === 'category-1')
-				.reduce((sum, t) => sum + t.amount, 0);
-			expect(categoryBalance).toBe(750);
+				.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(categoryBalance).toBe(75000);
 		});
 
 		test('should correctly calculate negative balance when account spends money', async () => {
@@ -1973,7 +1982,10 @@ describe('Store Data Integrity', () => {
 			let accountBalance = state.transactions
 				.filter((t) => [t.from_entity_id, t.to_entity_id].includes('account-1'))
 				.reduce(
-					(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+					(sum, t) =>
+						t.to_entity_id === 'account-1'
+							? sum + t.amount_minor
+							: sum - t.amount_minor,
 					0
 				);
 			expect(accountBalance).toBe(0);
@@ -1983,7 +1995,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -1995,16 +2007,19 @@ describe('Store Data Integrity', () => {
 			accountBalance = state.transactions
 				.filter((t) => [t.from_entity_id, t.to_entity_id].includes('account-1'))
 				.reduce(
-					(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+					(sum, t) =>
+						t.to_entity_id === 'account-1'
+							? sum + t.amount_minor
+							: sum - t.amount_minor,
 					0
 				);
-			expect(accountBalance).toBe(-500); // Should be -500, NOT +500!
+			expect(accountBalance).toBe(-50000); // Should be -500, NOT +500!
 
 			// Category should have received the money
 			const categoryBalance = state.transactions
 				.filter((t) => t.to_entity_id === 'category-1')
-				.reduce((sum, t) => sum + t.amount, 0);
-			expect(categoryBalance).toBe(500);
+				.reduce((sum, t) => sum + t.amount_minor, 0);
+			expect(categoryBalance).toBe(50000);
 		});
 	});
 
@@ -2057,7 +2072,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'income-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 5000,
+				planned_amount_minor: 500000,
 			};
 
 			const categoryPlan: Plan = {
@@ -2065,7 +2080,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 300,
+				planned_amount_minor: 30000,
 			};
 
 			const savingPlan: Plan = {
@@ -2073,7 +2088,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 10000,
+				planned_amount_minor: 1000000,
 			};
 
 			// Set up transactions (January 2026)
@@ -2081,7 +2096,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2090,7 +2105,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -2100,7 +2115,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-22').getTime(),
 			};
@@ -2126,8 +2141,8 @@ describe('Store Data Integrity', () => {
 			);
 			expect(incomeEntities).toHaveLength(1);
 			expect(incomeEntities[0]!.id).toBe('income-1');
-			expect(incomeEntities[0]!.planned).toBe(5000);
-			expect(incomeEntities[0]!.actual).toBe(5000); // Money out from income
+			expect(incomeEntities[0]!.planned).toBe(500000);
+			expect(incomeEntities[0]!.actual).toBe(500000); // Money out from income
 			expect(incomeEntities[0]!.remaining).toBe(0);
 
 			// Test account entities (all-time balance, reserved derived from account->saving txns)
@@ -2141,9 +2156,9 @@ describe('Store Data Integrity', () => {
 			expect(accountEntities).toHaveLength(1);
 			expect(accountEntities[0]!.id).toBe('account-1');
 			expect(accountEntities[0]!.planned).toBe(0); // No plan
-			expect(accountEntities[0]!.actual).toBe(3800); // +5000 -200 -1000 (txns) = 3800 (full bank balance)
-			expect(accountEntities[0]!.reserved).toBe(1000); // derived from account->saving txns
-			expect(accountEntities[0]!.remaining).toBe(-3800);
+			expect(accountEntities[0]!.actual).toBe(380000); // +5000 -200 -1000 (txns) = 3800 (full bank balance)
+			expect(accountEntities[0]!.reserved).toBe(100000); // derived from account->saving txns
+			expect(accountEntities[0]!.remaining).toBe(-380000);
 
 			// Test category entities (current period only)
 			const categoryEntities = getEntitiesWithBalance(
@@ -2155,9 +2170,9 @@ describe('Store Data Integrity', () => {
 			);
 			expect(categoryEntities).toHaveLength(1);
 			expect(categoryEntities[0]!.id).toBe('category-1');
-			expect(categoryEntities[0]!.planned).toBe(300);
-			expect(categoryEntities[0]!.actual).toBe(200);
-			expect(categoryEntities[0]!.remaining).toBe(100);
+			expect(categoryEntities[0]!.planned).toBe(30000);
+			expect(categoryEntities[0]!.actual).toBe(20000);
+			expect(categoryEntities[0]!.remaining).toBe(10000);
 
 			// Test saving entities (balance from account->saving transactions)
 			const savingEntities = getEntitiesWithBalance(
@@ -2169,9 +2184,9 @@ describe('Store Data Integrity', () => {
 			);
 			expect(savingEntities).toHaveLength(1);
 			expect(savingEntities[0]!.id).toBe('saving-1');
-			expect(savingEntities[0]!.planned).toBe(10000);
-			expect(savingEntities[0]!.actual).toBe(1000);
-			expect(savingEntities[0]!.remaining).toBe(9000);
+			expect(savingEntities[0]!.planned).toBe(1000000);
+			expect(savingEntities[0]!.actual).toBe(100000);
+			expect(savingEntities[0]!.remaining).toBe(900000);
 		});
 
 		test('should use all-time transactions for accounts and savings, current period for income and categories', () => {
@@ -2220,7 +2235,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-dec-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 4000,
+				amount_minor: 400000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-15').getTime(),
 			};
@@ -2229,7 +2244,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-dec-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2025-12-20').getTime(),
 			};
@@ -2239,7 +2254,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-jan-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2248,7 +2263,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-jan-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -2258,7 +2273,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-saving',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 1500,
+				amount_minor: 150000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-10').getTime(),
 			};
@@ -2282,7 +2297,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'income'
 			);
-			expect(incomeEntities[0]!.actual).toBe(5000); // Only Jan, not Dec
+			expect(incomeEntities[0]!.actual).toBe(500000); // Only Jan, not Dec
 
 			// Account: all txns (4000 - 300 + 5000 - 200 - 1500 = 7000), reserved derived from txns
 			const accountEntities = getEntitiesWithBalance(
@@ -2292,8 +2307,8 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'account'
 			);
-			expect(accountEntities[0]!.actual).toBe(7000); // All-time balance
-			expect(accountEntities[0]!.reserved).toBe(1500); // Derived from account->saving txns
+			expect(accountEntities[0]!.actual).toBe(700000); // All-time balance
+			expect(accountEntities[0]!.reserved).toBe(150000); // Derived from account->saving txns
 
 			// Category: only January transactions (200)
 			const categoryEntities = getEntitiesWithBalance(
@@ -2303,7 +2318,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0]!.actual).toBe(200); // Only Jan, not Dec
+			expect(categoryEntities[0]!.actual).toBe(20000); // Only Jan, not Dec
 
 			// Saving: balance from account->saving transactions (1500)
 			const savingEntities = getEntitiesWithBalance(
@@ -2313,7 +2328,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'saving'
 			);
-			expect(savingEntities[0]!.actual).toBe(1500); // From transactions
+			expect(savingEntities[0]!.actual).toBe(150000); // From transactions
 		});
 
 		test('should look up plans with correct period type', () => {
@@ -2343,7 +2358,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 300,
+				planned_amount_minor: 30000,
 			};
 
 			// Category also has a monthly plan (should be ignored - kept for potential future override feature)
@@ -2352,7 +2367,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'month',
 				period_start: '2026-01',
-				planned_amount: 250,
+				planned_amount_minor: 25000,
 			};
 
 			// Saving has all-time plan
@@ -2361,7 +2376,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 10000,
+				planned_amount_minor: 1000000,
 			};
 
 			// Saving also has monthly plan (should be ignored - kept for potential future override feature)
@@ -2370,7 +2385,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'saving-1',
 				period: 'month',
 				period_start: '2026-01',
-				planned_amount: 500,
+				planned_amount_minor: 50000,
 			};
 
 			useStore.setState({
@@ -2397,7 +2412,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0]!.planned).toBe(300);
+			expect(categoryEntities[0]!.planned).toBe(30000);
 
 			// Saving should use all-time plan (10000), not monthly plan (500)
 			const savingEntities = getEntitiesWithBalance(
@@ -2407,7 +2422,7 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'saving'
 			);
-			expect(savingEntities[0]!.planned).toBe(10000);
+			expect(savingEntities[0]!.planned).toBe(1000000);
 		});
 
 		test('should handle entities with no plans', () => {
@@ -2435,7 +2450,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2459,8 +2474,8 @@ describe('Store Data Integrity', () => {
 				'income'
 			);
 			expect(incomeEntities[0]!.planned).toBe(0);
-			expect(incomeEntities[0]!.actual).toBe(1000);
-			expect(incomeEntities[0]!.remaining).toBe(-1000);
+			expect(incomeEntities[0]!.actual).toBe(100000);
+			expect(incomeEntities[0]!.remaining).toBe(-100000);
 
 			const accountEntities = getEntitiesWithBalance(
 				state.entities,
@@ -2470,8 +2485,8 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 			expect(accountEntities[0]!.planned).toBe(0);
-			expect(accountEntities[0]!.actual).toBe(1000);
-			expect(accountEntities[0]!.remaining).toBe(-1000);
+			expect(accountEntities[0]!.actual).toBe(100000);
+			expect(accountEntities[0]!.remaining).toBe(-100000);
 		});
 
 		test('should handle entities with no transactions', () => {
@@ -2490,7 +2505,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 500,
+				planned_amount_minor: 50000,
 			};
 
 			useStore.setState({
@@ -2511,9 +2526,9 @@ describe('Store Data Integrity', () => {
 				state.currentPeriod,
 				'category'
 			);
-			expect(categoryEntities[0]!.planned).toBe(500);
+			expect(categoryEntities[0]!.planned).toBe(50000);
 			expect(categoryEntities[0]!.actual).toBe(0);
-			expect(categoryEntities[0]!.remaining).toBe(500);
+			expect(categoryEntities[0]!.remaining).toBe(50000);
 		});
 
 		test('should handle multiple entities of the same type', () => {
@@ -2552,7 +2567,7 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 300,
+				planned_amount_minor: 30000,
 			};
 
 			const plan2: Plan = {
@@ -2560,14 +2575,14 @@ describe('Store Data Integrity', () => {
 				entity_id: 'category-2',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 150,
+				planned_amount_minor: 15000,
 			};
 
 			const tx1: Transaction = {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'category-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-10').getTime(),
 			};
@@ -2576,7 +2591,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'income-1',
 				to_entity_id: 'category-2',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2607,13 +2622,13 @@ describe('Store Data Integrity', () => {
 			expect(categories[2]!.id).toBe('category-3');
 
 			// Check balances
-			expect(categories[0]!.planned).toBe(300);
-			expect(categories[0]!.actual).toBe(200);
-			expect(categories[0]!.remaining).toBe(100);
+			expect(categories[0]!.planned).toBe(30000);
+			expect(categories[0]!.actual).toBe(20000);
+			expect(categories[0]!.remaining).toBe(10000);
 
-			expect(categories[1]!.planned).toBe(150);
-			expect(categories[1]!.actual).toBe(100);
-			expect(categories[1]!.remaining).toBe(50);
+			expect(categories[1]!.planned).toBe(15000);
+			expect(categories[1]!.actual).toBe(10000);
+			expect(categories[1]!.remaining).toBe(5000);
 
 			expect(categories[2]!.planned).toBe(0); // No plan
 			expect(categories[2]!.actual).toBe(0); // No transactions
@@ -2646,7 +2661,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2656,7 +2671,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'income-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -2680,7 +2695,7 @@ describe('Store Data Integrity', () => {
 				'income'
 			);
 			// Income: +5000 (out) -100 (in) = 4900
-			expect(incomeEntities[0]!.actual).toBe(4900);
+			expect(incomeEntities[0]!.actual).toBe(490000);
 		});
 
 		test('should calculate account balance correctly (money in is positive, money out is negative)', () => {
@@ -2719,7 +2734,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2729,7 +2744,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 1500,
+				amount_minor: 150000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20').getTime(),
 			};
@@ -2753,7 +2768,7 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 			// Account: +5000 (in) -1500 (out) = 3500
-			expect(accountEntities[0]!.actual).toBe(3500);
+			expect(accountEntities[0]!.actual).toBe(350000);
 		});
 
 		test('should only count incoming transactions for categories and savings', () => {
@@ -2792,7 +2807,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 300,
+				amount_minor: 30000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-10').getTime(),
 			};
@@ -2802,7 +2817,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-2',
 				from_entity_id: 'category-1',
 				to_entity_id: 'account-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15').getTime(),
 			};
@@ -2812,7 +2827,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-3',
 				from_entity_id: 'account-1',
 				to_entity_id: 'saving-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-05').getTime(),
 			};
@@ -2836,7 +2851,7 @@ describe('Store Data Integrity', () => {
 				'category'
 			);
 			// Category: only incoming (300), not outgoing (50)
-			expect(categoryEntities[0]!.actual).toBe(300);
+			expect(categoryEntities[0]!.actual).toBe(30000);
 
 			const savingEntities = getEntitiesWithBalance(
 				state.entities,
@@ -2846,7 +2861,7 @@ describe('Store Data Integrity', () => {
 				'saving'
 			);
 			// Saving: balance from account->saving transactions (net flow)
-			expect(savingEntities[0]!.actual).toBe(1000);
+			expect(savingEntities[0]!.actual).toBe(100000);
 		});
 	});
 
@@ -2925,7 +2940,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'Balance correction: 0 → 500',
@@ -2940,10 +2955,11 @@ describe('Store Data Integrity', () => {
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const accountBalance = accountTx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(500);
+			expect(accountBalance).toBe(50000);
 		});
 
 		test('should handle multiple adjustments correctly', async () => {
@@ -2965,7 +2981,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust-1',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-1',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'Balance correction: 0 → 1000',
@@ -2977,7 +2993,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust-2',
 				from_entity_id: 'account-1',
 				to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: Date.now() + 1000,
 				note: 'Balance correction: 1000 → 800',
@@ -2991,10 +3007,11 @@ describe('Store Data Integrity', () => {
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const accountBalance = accountTx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(accountBalance).toBe(800);
+			expect(accountBalance).toBe(80000);
 
 			// Should have 2 transactions
 			expect(state.transactions).toHaveLength(2);
@@ -3030,7 +3047,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust-1',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'Balance correction for account 1',
@@ -3042,7 +3059,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust-2',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-2',
-				amount: 1000,
+				amount_minor: 100000,
 				currency: 'USD',
 				timestamp: Date.now() + 1000,
 				note: 'Balance correction for account 2',
@@ -3056,20 +3073,22 @@ describe('Store Data Integrity', () => {
 				[t.from_entity_id, t.to_entity_id].includes('account-1')
 			);
 			const account1Balance = account1Tx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-1' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-1' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(account1Balance).toBe(500);
+			expect(account1Balance).toBe(50000);
 
 			// Account 2 balance should be +1000
 			const account2Tx = state.transactions.filter((t) =>
 				[t.from_entity_id, t.to_entity_id].includes('account-2')
 			);
 			const account2Balance = account2Tx.reduce(
-				(sum, t) => (t.to_entity_id === 'account-2' ? sum + t.amount : sum - t.amount),
+				(sum, t) =>
+					t.to_entity_id === 'account-2' ? sum + t.amount_minor : sum - t.amount_minor,
 				0
 			);
-			expect(account2Balance).toBe(1000);
+			expect(account2Balance).toBe(100000);
 
 			// Should have 2 transactions
 			expect(state.transactions).toHaveLength(2);
@@ -3104,7 +3123,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust-after-reset',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				note: 'Balance correction after reset',
@@ -3112,7 +3131,7 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().addTransaction(adjustment);
 
 			expect(useStore.getState().transactions).toHaveLength(1);
-			expect(useStore.getState().transactions[0]!.amount).toBe(500);
+			expect(useStore.getState().transactions[0]!.amount_minor).toBe(50000);
 		});
 
 		test('should include adjustment transactions in account balance calculations via getEntitiesWithBalance', async () => {
@@ -3145,7 +3164,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-regular',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 5000,
+				amount_minor: 500000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -3156,7 +3175,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-adjust',
 				from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 				to_entity_id: 'account-1',
-				amount: 200,
+				amount_minor: 20000,
 				currency: 'USD',
 				timestamp: Date.now() - 1000,
 				note: 'Balance correction',
@@ -3176,7 +3195,7 @@ describe('Store Data Integrity', () => {
 
 			// Account balance should include both regular and adjustment transactions
 			// +5000 (from income) +200 (adjustment) = 5200
-			expect(accountEntities[0]!.actual).toBe(5200);
+			expect(accountEntities[0]!.actual).toBe(520000);
 		});
 
 		test('should return upcoming: 0 when no future transactions exist', () => {
@@ -3202,7 +3221,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-past',
 				from_entity_id: 'acc-1',
 				to_entity_id: 'cat-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'EUR',
 				timestamp: new Date('2026-01-10').getTime(), // past
 			};
@@ -3224,7 +3243,7 @@ describe('Store Data Integrity', () => {
 				'category'
 			);
 			expect(cats[0]!.upcoming).toBe(0);
-			expect(cats[0]!.actual).toBe(50);
+			expect(cats[0]!.actual).toBe(5000);
 		});
 		test('should handle decimal amounts without floating point precision issues', async () => {
 			const account: Entity = {
@@ -3246,7 +3265,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-1',
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'account-1',
-					amount: 0.1,
+					amount_minor: 10,
 					currency: 'EUR',
 					timestamp: Date.now(),
 				},
@@ -3254,7 +3273,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-2',
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'account-1',
-					amount: 0.2,
+					amount_minor: 20,
 					currency: 'EUR',
 					timestamp: Date.now() - 1000,
 				},
@@ -3262,7 +3281,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-3',
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'account-1',
-					amount: 1.15,
+					amount_minor: 115,
 					currency: 'EUR',
 					timestamp: Date.now() - 2000,
 				},
@@ -3284,11 +3303,57 @@ describe('Store Data Integrity', () => {
 			const account1 = accountEntities.find((e) => e.id === 'account-1');
 			expect(account1).toBeDefined();
 
-			// Raw sum would be 1.4500000000000002 due to floating point
-			// We expect the balance to be usable without precision artifacts
-			// Note: This test documents the current behavior - the actual value
-			// may have floating point issues which is handled at display time
-			expect(account1!.actual).toBeCloseTo(1.45, 2);
+			// Pre-KII-120 the equivalent float sum (0.1 + 0.2 + 1.15) landed on
+			// 1.4500000000000002 and was papered over with `toBeCloseTo(1.45, 2)`.
+			// Now: integer minor-unit sum is exact.
+			expect(account1!.actual).toBe(145);
+		});
+
+		test('decimal sums stay exact across thousands of transactions (KII-120)', async () => {
+			// 1000 × 10-cent rows. Pre-KII-120 this would drift to ~99.999... in
+			// REAL accumulation; in integer minor units the SUM lands exactly on
+			// 10,000 cents (€100). This is the primary motivation for the
+			// migration — drift compounds with N and the sync op-log (KII-96)
+			// needs bit-stable replay across devices.
+			const account: Entity = {
+				id: 'account-1',
+				type: 'account',
+				name: 'Checking',
+				currency: 'EUR',
+				order: 0,
+				row: 0,
+				position: 0,
+			};
+			await db.createEntity(account);
+			await useStore.getState().initialize();
+
+			const N = 1000;
+			// Anchor every timestamp safely in the past so each row is
+			// `is_confirmed: true` (defaultIsConfirmed flips on `<= now`).
+			const baseTs = Date.now() - N - 1000;
+			const batch: Transaction[] = [];
+			for (let i = 0; i < N; i++) {
+				batch.push({
+					id: `tx-${i}`,
+					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
+					to_entity_id: 'account-1',
+					amount_minor: 10, // €0.10
+					currency: 'EUR',
+					timestamp: baseTs + i,
+				});
+			}
+			await useStore.getState().createTransactionBatch(batch);
+
+			const state = useStore.getState();
+			const [account1] = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			expect(account1!.actual).toBe(N * 10);
+			expect(Number.isInteger(account1!.actual)).toBe(true);
 		});
 	});
 
@@ -3353,21 +3418,21 @@ describe('Store Data Integrity', () => {
 				entity_id: 'cat-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 1000,
+				planned_amount_minor: 100000,
 			},
 			{
 				id: 'plan-sav',
 				entity_id: 'sav-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 5000,
+				planned_amount_minor: 500000,
 			},
 			{
 				id: 'plan-inc',
 				entity_id: 'income-1',
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 3000,
+				planned_amount_minor: 300000,
 			},
 		];
 
@@ -3421,13 +3486,13 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 400,
+					amount_minor: 40000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
 			expect(category.actual).toBe(0);
-			expect(category.remaining).toBe(1000); // planned unchanged
+			expect(category.remaining).toBe(100000); // planned unchanged
 		});
 
 		test('future transaction is counted in upcoming', () => {
@@ -3436,12 +3501,12 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 400,
+					amount_minor: 40000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
-			expect(category.upcoming).toBe(400);
+			expect(category.upcoming).toBe(40000);
 		});
 
 		test('past + future transactions: actual excludes future, upcoming excludes past', () => {
@@ -3450,7 +3515,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-past',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 200,
+					amount_minor: 20000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
@@ -3458,14 +3523,14 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 150,
+					amount_minor: 15000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
-			expect(category.actual).toBe(200);
-			expect(category.upcoming).toBe(150);
-			expect(category.remaining).toBe(800); // 1000 - 200 (actual only)
+			expect(category.actual).toBe(20000);
+			expect(category.upcoming).toBe(15000);
+			expect(category.remaining).toBe(80000); // 1000 - 200 (actual only)
 		});
 
 		test('remaining is based on actual only, not actual + upcoming', () => {
@@ -3474,7 +3539,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-past',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
@@ -3482,13 +3547,13 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 900, // would overspend if counted
+					amount_minor: 90000, // would overspend if counted
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
 			// planned = 1000; actual = 300 → remaining = 700, NOT -200
-			expect(category.remaining).toBe(700);
+			expect(category.remaining).toBe(70000);
 		});
 
 		test('account actual excludes future inflows', () => {
@@ -3497,7 +3562,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-income-past',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 3000,
+					amount_minor: 300000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
@@ -3505,13 +3570,13 @@ describe('Store Data Integrity', () => {
 					id: 'tx-income-future',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 1000,
+					amount_minor: 100000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
-			expect(account.actual).toBe(3000);
-			expect(account.upcoming).toBe(1000);
+			expect(account.actual).toBe(300000);
+			expect(account.upcoming).toBe(100000);
 		});
 
 		test('account actual excludes future outflows', () => {
@@ -3520,7 +3585,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-in',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 5000,
+					amount_minor: 500000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
@@ -3528,14 +3593,14 @@ describe('Store Data Integrity', () => {
 					id: 'tx-out-future',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 2000,
+					amount_minor: 200000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
 			// actual = +5000 only; upcoming = -2000 (outflow)
-			expect(account.actual).toBe(5000);
-			expect(account.upcoming).toBe(-2000);
+			expect(account.actual).toBe(500000);
+			expect(account.upcoming).toBe(-200000);
 		});
 
 		test('income upcoming counts inflow that has not yet left income', () => {
@@ -3544,7 +3609,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-past',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 1000,
+					amount_minor: 100000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
@@ -3552,15 +3617,15 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 2000,
+					amount_minor: 200000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
 			]);
 			// income "actual" = money that has left income = 1000
 			// income "upcoming" = money scheduled to leave = 2000
-			expect(income.actual).toBe(1000);
-			expect(income.upcoming).toBe(2000);
+			expect(income.actual).toBe(100000);
+			expect(income.upcoming).toBe(200000);
 		});
 
 		test('saving balance comes from account->saving transactions', () => {
@@ -3569,12 +3634,12 @@ describe('Store Data Integrity', () => {
 					id: 'tx-reserve',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'sav-1',
-					amount: 500,
+					amount_minor: 50000,
 					currency: 'EUR',
 					timestamp: PAST,
 				},
 			]);
-			expect(saving.actual).toBe(500);
+			expect(saving.actual).toBe(50000);
 			expect(saving.upcoming).toBe(0);
 		});
 
@@ -3584,7 +3649,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-f1',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'EUR',
 					timestamp: FUTURE,
 				},
@@ -3592,12 +3657,12 @@ describe('Store Data Integrity', () => {
 					id: 'tx-f2',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 250,
+					amount_minor: 25000,
 					currency: 'EUR',
 					timestamp: FUTURE + 1000,
 				},
 			]);
-			expect(category.upcoming).toBe(350);
+			expect(category.upcoming).toBe(35000);
 			expect(category.actual).toBe(0);
 		});
 
@@ -3609,7 +3674,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future-wrong-month',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'cat-1',
-					amount: 999,
+					amount_minor: 99900,
 					currency: 'EUR',
 					timestamp: new Date('2026-02-15').getTime(), // Feb — outside Jan period
 				},
@@ -3626,7 +3691,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-acc-future',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 800,
+					amount_minor: 80000,
 					currency: 'EUR',
 					timestamp: new Date('2026-04-01').getTime(), // April — outside Jan period
 				},
@@ -3640,12 +3705,12 @@ describe('Store Data Integrity', () => {
 					id: 'tx-acc-future-same-month',
 					from_entity_id: 'income-1',
 					to_entity_id: 'acc-1',
-					amount: 500,
+					amount_minor: 50000,
 					currency: 'EUR',
 					timestamp: new Date('2026-01-20T12:00:00Z').getTime(), // Jan 20 — within Jan period, after NOW (Jan 15)
 				},
 			]);
-			expect(account.upcoming).toBe(500);
+			expect(account.upcoming).toBe(50000);
 		});
 
 		test('saving upcoming excludes future txns outside current period', () => {
@@ -3654,7 +3719,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-sav-future-far',
 					from_entity_id: 'acc-1',
 					to_entity_id: 'sav-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'EUR',
 					timestamp: new Date('2026-06-01').getTime(), // June — outside Jan period
 				},
@@ -3712,49 +3777,49 @@ describe('Store Data Integrity', () => {
 		test('creates account -> saving transaction when desiredTotal > current net', async () => {
 			await setupSavingEntities();
 
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 500);
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 50000);
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(1);
 			expect(state.transactions[0]!.from_entity_id).toBe('account-1');
 			expect(state.transactions[0]!.to_entity_id).toBe('saving-1');
-			expect(state.transactions[0]!.amount).toBe(500);
+			expect(state.transactions[0]!.amount_minor).toBe(50000);
 		});
 
 		test('creates saving -> account transaction when desiredTotal < current net', async () => {
 			await setupSavingEntities();
 
-			// First reserve 500
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 500);
+			// First reserve 50000
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 50000);
 			expect(useStore.getState().transactions).toHaveLength(1);
 
-			// Now reduce to 200 — should create saving -> account for delta (300)
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 200);
+			// Now reduce to 20000 — should create saving -> account for delta (30000)
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 20000);
 
 			const state = useStore.getState();
 			expect(state.transactions).toHaveLength(2);
 			const releaseTx = state.transactions[0]!; // newest first
 			expect(releaseTx.from_entity_id).toBe('saving-1');
 			expect(releaseTx.to_entity_id).toBe('account-1');
-			expect(releaseTx.amount).toBe(300);
+			expect(releaseTx.amount_minor).toBe(30000);
 		});
 
 		test('is a no-op when desiredTotal equals current net', async () => {
 			await setupSavingEntities();
 
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 500);
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 50000);
 			expect(useStore.getState().transactions).toHaveLength(1);
 
 			// Reserve same amount again — no new transaction
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 500);
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 50000);
 			expect(useStore.getState().transactions).toHaveLength(1);
 		});
 
 		test('with desiredTotal=0 creates saving -> account for full amount', async () => {
 			await setupSavingEntities();
 
-			// Reserve 800
-			await useStore.getState().reserveToSaving('account-1', 'saving-1', 800);
+			// Reserve 80000
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 80000);
 			expect(useStore.getState().transactions).toHaveLength(1);
 
 			// Set desired to 0 — release everything
@@ -3765,7 +3830,7 @@ describe('Store Data Integrity', () => {
 			const releaseTx = state.transactions[0]!; // newest first
 			expect(releaseTx.from_entity_id).toBe('saving-1');
 			expect(releaseTx.to_entity_id).toBe('account-1');
-			expect(releaseTx.amount).toBe(800);
+			expect(releaseTx.amount_minor).toBe(80000);
 		});
 
 		test('account reserved field reflects transaction-derived savings', () => {
@@ -3784,7 +3849,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-income',
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 5000,
+					amount_minor: 500000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-15').getTime(),
 				},
@@ -3792,7 +3857,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-res-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 500,
+					amount_minor: 50000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-16').getTime(),
 				},
@@ -3800,7 +3865,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-res-2',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-2',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-17').getTime(),
 				},
@@ -3815,9 +3880,9 @@ describe('Store Data Integrity', () => {
 			);
 
 			// actual = 5000 - 500 - 300 = 4200
-			expect(accountEntities[0]!.actual).toBe(4200);
+			expect(accountEntities[0]!.actual).toBe(420000);
 			// reserved = sum of net account->saving flows (800)
-			expect(accountEntities[0]!.reserved).toBe(800);
+			expect(accountEntities[0]!.reserved).toBe(80000);
 
 			// Savings get their balance from transactions
 			const savingEntities = getEntitiesWithBalance(
@@ -3828,8 +3893,8 @@ describe('Store Data Integrity', () => {
 				'saving'
 			);
 
-			expect(savingEntities[0]!.actual).toBe(500); // saving-1
-			expect(savingEntities[1]!.actual).toBe(300); // saving-2
+			expect(savingEntities[0]!.actual).toBe(50000); // saving-1
+			expect(savingEntities[1]!.actual).toBe(30000); // saving-2
 		});
 
 		test('saving balance aggregates transactions from multiple accounts', () => {
@@ -3848,7 +3913,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-res-1',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 500,
+					amount_minor: 50000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-10').getTime(),
 				},
@@ -3856,7 +3921,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-res-2',
 					from_entity_id: 'account-2',
 					to_entity_id: 'saving-1',
-					amount: 200,
+					amount_minor: 20000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-11').getTime(),
 				},
@@ -3871,7 +3936,7 @@ describe('Store Data Integrity', () => {
 			);
 
 			// saving-1 should sum both accounts' transactions
-			expect(savingEntities[0]!.actual).toBe(700);
+			expect(savingEntities[0]!.actual).toBe(70000);
 			// saving-2 has no transactions
 			expect(savingEntities[1]!.actual).toBe(0);
 
@@ -3884,8 +3949,8 @@ describe('Store Data Integrity', () => {
 				'account'
 			);
 
-			expect(accountEntities[0]!.reserved).toBe(500); // account-1
-			expect(accountEntities[1]!.reserved).toBe(200); // account-2
+			expect(accountEntities[0]!.reserved).toBe(50000); // account-1
+			expect(accountEntities[1]!.reserved).toBe(20000); // account-2
 		});
 	});
 
@@ -3939,7 +4004,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-past',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now() - 86400000,
 			});
@@ -3952,7 +4017,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-future',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now() + 86400000,
 			});
@@ -3965,7 +4030,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-explicit',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now() + 86400000,
 				is_confirmed: true,
@@ -3979,7 +4044,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-unconfirmed',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now() + 86400000,
 			});
@@ -4002,7 +4067,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-past-unconfirmed',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: now - 86400000,
 				is_confirmed: false,
@@ -4013,7 +4078,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-future-unconfirmed',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 75,
+				amount_minor: 7500,
 				currency: 'USD',
 				timestamp: now + 86400000,
 				is_confirmed: false,
@@ -4024,7 +4089,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-past-confirmed',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: now - 86400000,
 				is_confirmed: true,
@@ -4049,7 +4114,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-confirmed',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 200,
+					amount_minor: 20000,
 					currency: 'USD',
 					timestamp: now - 86400000,
 					is_confirmed: true,
@@ -4058,7 +4123,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-unconfirmed',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 300,
+					amount_minor: 30000,
 					currency: 'USD',
 					timestamp: now - 86400000,
 					is_confirmed: false,
@@ -4074,9 +4139,9 @@ describe('Store Data Integrity', () => {
 			);
 
 			// Only the confirmed 200 should be in actual
-			expect(categories[0]!.actual).toBe(200);
+			expect(categories[0]!.actual).toBe(20000);
 			// The unconfirmed 300 should be in unconfirmed
-			expect(categories[0]!.unconfirmed).toBe(300);
+			expect(categories[0]!.unconfirmed).toBe(30000);
 		});
 
 		test('updateTransaction: editing future tx date to past keeps is_confirmed false', async () => {
@@ -4085,7 +4150,7 @@ describe('Store Data Integrity', () => {
 				id: 'tx-future-edit',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now() + 86400000,
 			});
@@ -4112,7 +4177,7 @@ describe('Store Data Integrity', () => {
 					id: 'tx-future',
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 150,
+					amount_minor: 15000,
 					currency: 'USD',
 					timestamp: futureTimestamp,
 					is_confirmed: false,
@@ -4128,7 +4193,7 @@ describe('Store Data Integrity', () => {
 			);
 
 			expect(categories[0]!.actual).toBe(0);
-			expect(categories[0]!.upcoming).toBe(150);
+			expect(categories[0]!.upcoming).toBe(15000);
 			expect(categories[0]!.unconfirmed).toBe(0);
 		});
 	});
@@ -4168,7 +4233,7 @@ describe('Store Data Integrity', () => {
 				{
 					from_entity_id: 'entity-1',
 					to_entity_id: 'entity-2',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: Date.now(),
 				},
@@ -4217,7 +4282,7 @@ describe('Store Data Integrity', () => {
 				{
 					from_entity_id: 'entity-1',
 					to_entity_id: 'entity-2',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: now,
 				},
@@ -4269,13 +4334,13 @@ describe('Store Data Integrity', () => {
 				entity_id: oldCategory.id,
 				period: 'all-time',
 				period_start: '2026-01',
-				planned_amount: 100,
+				planned_amount_minor: 10000,
 			};
 			const oldTransaction: Transaction = {
 				id: 'old-tx',
 				from_entity_id: oldAccount.id,
 				to_entity_id: oldCategory.id,
-				amount: 40,
+				amount_minor: 4000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-10').getTime(),
 			};
@@ -4283,7 +4348,7 @@ describe('Store Data Integrity', () => {
 				id: 'old-series',
 				from_entity_id: oldAccount.id,
 				to_entity_id: oldCategory.id,
-				amount: 40,
+				amount_minor: 4000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-10').getTime(),
@@ -4307,7 +4372,7 @@ describe('Store Data Integrity', () => {
 					entity_id: importedCategory.id,
 					period: 'all-time',
 					period_start: '2026-02',
-					planned_amount: 250,
+					planned_amount_minor: 25000,
 				},
 			];
 			const importedTransactions: Transaction[] = [
@@ -4315,7 +4380,7 @@ describe('Store Data Integrity', () => {
 					id: 'import-tx',
 					from_entity_id: importedAccount.id,
 					to_entity_id: importedCategory.id,
-					amount: 75,
+					amount_minor: 7500,
 					currency: 'USD',
 					timestamp: new Date('2026-02-03').getTime(),
 				},
@@ -4324,7 +4389,7 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'import-snapshot',
 					entity_id: importedAccount.id,
-					amount: 1500,
+					amount_minor: 150000,
 					currency: 'USD',
 					date: new Date('2026-02-05').getTime(),
 				},
@@ -4424,14 +4489,14 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'snap-1',
 					entity_id: investment.id,
-					amount: 1000,
+					amount_minor: 100000,
 					currency: 'USD',
 					date: new Date('2026-01-01').getTime(),
 				},
 				{
 					id: 'snap-2',
 					entity_id: other.id,
-					amount: 2000,
+					amount_minor: 200000,
 					currency: 'USD',
 					date: new Date('2026-01-02').getTime(),
 				},
@@ -4552,7 +4617,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-1',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				note: 'Original',
 				rule: JSON.stringify({ type: 'monthly' }),
@@ -4565,7 +4630,7 @@ describe('Store Data Integrity', () => {
 					id: 'series-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4574,7 +4639,7 @@ describe('Store Data Integrity', () => {
 					id: 'series-tx-2',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-02-01').getTime(),
 					series_id: template.id,
@@ -4583,7 +4648,7 @@ describe('Store Data Integrity', () => {
 					id: 'series-tx-3',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-03-01').getTime(),
 					series_id: template.id,
@@ -4605,26 +4670,26 @@ describe('Store Data Integrity', () => {
 				.getState()
 				.updateTransactionWithScope(
 					'series-tx-2',
-					{ amount: 250, note: 'Updated future' },
+					{ amount_minor: 25000, note: 'Updated future' },
 					'future'
 				);
 
 			const dbSeries = await db.getTransactionsBySeriesId(template.id);
 			expect(dbSeries.find((tx) => tx.id === 'series-tx-1')).toMatchObject({
-				amount: 100,
+				amount_minor: 10000,
 				note: null,
 			});
 			expect(dbSeries.find((tx) => tx.id === 'series-tx-2')).toMatchObject({
-				amount: 250,
+				amount_minor: 25000,
 				note: 'Updated future',
 			});
 			expect(dbSeries.find((tx) => tx.id === 'series-tx-3')).toMatchObject({
-				amount: 250,
+				amount_minor: 25000,
 				note: 'Updated future',
 			});
 
 			const updatedTemplate = await db.getRecurrenceTemplateById(template.id);
-			expect(updatedTemplate).toMatchObject({ amount: 250, note: 'Updated future' });
+			expect(updatedTemplate).toMatchObject({ amount_minor: 25000, note: 'Updated future' });
 		});
 
 		test('updateTransactionWithScope future preserves existing in-memory exclusions', async () => {
@@ -4639,7 +4704,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-future-edit-preserve-exclusions',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4651,7 +4716,7 @@ describe('Store Data Integrity', () => {
 					id: 'preserve-edit-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4660,7 +4725,7 @@ describe('Store Data Integrity', () => {
 					id: 'preserve-edit-tx-3',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-03-01').getTime(),
 					series_id: template.id,
@@ -4681,7 +4746,11 @@ describe('Store Data Integrity', () => {
 
 			await useStore
 				.getState()
-				.updateTransactionWithScope('preserve-edit-tx-3', { amount: 250 }, 'future');
+				.updateTransactionWithScope(
+					'preserve-edit-tx-3',
+					{ amount_minor: 25000 },
+					'future'
+				);
 
 			expect(
 				useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
@@ -4700,7 +4769,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-2',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4712,7 +4781,7 @@ describe('Store Data Integrity', () => {
 					id: 'truncate-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4721,7 +4790,7 @@ describe('Store Data Integrity', () => {
 					id: 'truncate-tx-2',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-02-01').getTime(),
 					series_id: template.id,
@@ -4730,7 +4799,7 @@ describe('Store Data Integrity', () => {
 					id: 'truncate-tx-3',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-03-01').getTime(),
 					series_id: template.id,
@@ -4771,7 +4840,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-future-delete-preserve-exclusions',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4783,7 +4852,7 @@ describe('Store Data Integrity', () => {
 					id: 'preserve-delete-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4792,7 +4861,7 @@ describe('Store Data Integrity', () => {
 					id: 'preserve-delete-tx-3',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-03-01').getTime(),
 					series_id: template.id,
@@ -4831,7 +4900,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-single-delete',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4843,7 +4912,7 @@ describe('Store Data Integrity', () => {
 					id: 'single-delete-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4852,7 +4921,7 @@ describe('Store Data Integrity', () => {
 					id: 'single-delete-tx-2',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: deletedTimestamp,
 					series_id: template.id,
@@ -4861,7 +4930,7 @@ describe('Store Data Integrity', () => {
 					id: 'single-delete-tx-3',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-03-01').getTime(),
 					series_id: template.id,
@@ -4910,7 +4979,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-3',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4922,7 +4991,7 @@ describe('Store Data Integrity', () => {
 					id: 'delete-all-tx-1',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4931,7 +5000,7 @@ describe('Store Data Integrity', () => {
 					id: 'delete-all-tx-2',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-02-01').getTime(),
 					series_id: template.id,
@@ -4971,7 +5040,7 @@ describe('Store Data Integrity', () => {
 				id: 'series-4',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
@@ -4983,7 +5052,7 @@ describe('Store Data Integrity', () => {
 					id: 'deactivate-past',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-01-01').getTime(),
 					series_id: template.id,
@@ -4992,7 +5061,7 @@ describe('Store Data Integrity', () => {
 					id: 'deactivate-future',
 					from_entity_id: account.id,
 					to_entity_id: category.id,
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 					timestamp: new Date('2026-02-01').getTime(),
 					series_id: template.id,
@@ -5054,14 +5123,14 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'snap-1',
 					entity_id: 'inv-account',
-					amount: 5000,
+					amount_minor: 500000,
 					currency: 'USD',
 					date: new Date('2026-01-01').getTime(),
 				},
 				{
 					id: 'snap-2',
 					entity_id: 'inv-account',
-					amount: 7500,
+					amount_minor: 750000,
 					currency: 'USD',
 					date: new Date('2026-02-01').getTime(),
 				},
@@ -5079,7 +5148,7 @@ describe('Store Data Integrity', () => {
 			const inv = result.find((e) => e.id === 'inv-account');
 			const norm = result.find((e) => e.id === 'norm-account');
 
-			expect(inv?.latestMarketValue).toBe(7500);
+			expect(inv?.latestMarketValue).toBe(750000);
 			expect(norm?.latestMarketValue).toBeNull();
 		});
 
@@ -5101,7 +5170,7 @@ describe('Store Data Integrity', () => {
 				{
 					id: 'snap-1',
 					entity_id: 'norm-account',
-					amount: 9999,
+					amount_minor: 999900,
 					currency: 'USD',
 					date: new Date('2026-01-01').getTime(),
 				},
@@ -5126,7 +5195,7 @@ describe('Store Data Integrity', () => {
 			const snapshot = {
 				id: 'snap-1',
 				entity_id: 'inv-account',
-				amount: 3000,
+				amount_minor: 300000,
 				currency: 'USD',
 				date: Date.now(),
 			};
@@ -5136,10 +5205,11 @@ describe('Store Data Integrity', () => {
 				expect.objectContaining(snapshot)
 			);
 
-			await useStore.getState().updateMarketValueSnapshot('snap-1', { amount: 3500 });
+			await useStore.getState().updateMarketValueSnapshot('snap-1', { amount_minor: 350000 });
 			expect(
-				useStore.getState().marketValueSnapshots.find((s) => s.id === 'snap-1')?.amount
-			).toBe(3500);
+				useStore.getState().marketValueSnapshots.find((s) => s.id === 'snap-1')
+					?.amount_minor
+			).toBe(350000);
 
 			await useStore.getState().deleteMarketValueSnapshot('snap-1');
 			expect(
@@ -5175,7 +5245,7 @@ describe('Store Data Integrity', () => {
 				id: 'bf-tmpl',
 				from_entity_id: account.id,
 				to_entity_id: category.id,
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'daily' }),
 				start_date: Date.now() - 10 * 24 * 60 * 60 * 1000, // 10 days ago

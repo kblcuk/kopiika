@@ -25,8 +25,8 @@ import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import {
 	formatAmount,
-	reverseFormatCurrency,
-	roundMoney,
+	formatAmountForInput,
+	parseAmountToMinor,
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
@@ -188,11 +188,12 @@ export default function HistoryScreen() {
 			// Period boundary
 			if (tx.timestamp < start || tx.timestamp > end) continue;
 
-			// Search filter — match note (case-insensitive) or amount (partial)
+			// Search filter — match note (case-insensitive) or amount (partial,
+			// matched against the formatted major-unit string the user sees)
 			if (
 				query &&
 				!tx.note?.toLowerCase().includes(query) &&
-				!String(tx.amount).includes(query)
+				!formatAmount(tx.amount_minor, tx.currency).includes(query)
 			) {
 				continue;
 			}
@@ -289,9 +290,10 @@ export default function HistoryScreen() {
 			.sort((a, b) => b.date - a.date);
 	}, [marketValueSnapshots, selectedEntityId, isInvestmentSelected]);
 
-	const parsedSnapshotAmount = useMemo(
-		() => reverseFormatCurrency(editingSnapshotAmount),
-		[editingSnapshotAmount]
+	const editingSnapshotCurrency = editingSnapshot?.currency ?? selectedEntity?.currency;
+	const parsedSnapshotAmountMinor = useMemo(
+		() => parseAmountToMinor(editingSnapshotAmount, editingSnapshotCurrency),
+		[editingSnapshotAmount, editingSnapshotCurrency]
 	);
 	const parsedSnapshotDate = useMemo(
 		() => parseSnapshotDateInput(editingSnapshotDate),
@@ -305,7 +307,8 @@ export default function HistoryScreen() {
 		today.setHours(0, 0, 0, 0);
 		return today.getTime();
 	}, []);
-	const isSnapshotAmountValid = !Number.isNaN(parsedSnapshotAmount) && parsedSnapshotAmount >= 0;
+	const isSnapshotAmountValid =
+		!Number.isNaN(parsedSnapshotAmountMinor) && parsedSnapshotAmountMinor >= 0;
 	const isSnapshotDateValid = parsedSnapshotDate !== null && parsedSnapshotDate <= todayStart;
 	const canSaveSnapshot =
 		editingSnapshot !== null && isSnapshotAmountValid && isSnapshotDateValid;
@@ -316,8 +319,8 @@ export default function HistoryScreen() {
 		let inflow = 0;
 		let outflow = 0;
 		for (const tx of filteredTransactions) {
-			if (tx.to_entity_id === selectedEntityId) inflow += tx.amount;
-			if (tx.from_entity_id === selectedEntityId) outflow += tx.amount;
+			if (tx.to_entity_id === selectedEntityId) inflow += tx.amount_minor;
+			if (tx.from_entity_id === selectedEntityId) outflow += tx.amount_minor;
 		}
 		return { count, inflow, outflow };
 	}, [filteredTransactions, selectedEntityId]);
@@ -353,7 +356,7 @@ export default function HistoryScreen() {
 
 	const handleEditSnapshot = useCallback((snapshot: MarketValueSnapshot) => {
 		setEditingSnapshot(snapshot);
-		setEditingSnapshotAmount(roundMoney(snapshot.amount).toString());
+		setEditingSnapshotAmount(formatAmountForInput(snapshot.amount_minor, snapshot.currency));
 		setEditingSnapshotDate(formatSnapshotDateInput(snapshot.date));
 	}, []);
 
@@ -366,7 +369,7 @@ export default function HistoryScreen() {
 	const handleSaveSnapshot = useCallback(async () => {
 		if (!editingSnapshot) return;
 
-		if (Number.isNaN(parsedSnapshotAmount) || parsedSnapshotAmount < 0) {
+		if (Number.isNaN(parsedSnapshotAmountMinor) || parsedSnapshotAmountMinor < 0) {
 			Alert.alert('Invalid Amount', 'Enter a valid non-negative market value amount.');
 			return;
 		}
@@ -382,7 +385,7 @@ export default function HistoryScreen() {
 
 		try {
 			await updateMarketValueSnapshot(editingSnapshot.id, {
-				amount: parsedSnapshotAmount,
+				amount_minor: parsedSnapshotAmountMinor,
 				date: parsedSnapshotDate,
 			});
 			handleCloseSnapshotEditor();
@@ -392,7 +395,7 @@ export default function HistoryScreen() {
 		}
 	}, [
 		editingSnapshot,
-		parsedSnapshotAmount,
+		parsedSnapshotAmountMinor,
 		parsedSnapshotDate,
 		todayStart,
 		updateMarketValueSnapshot,
@@ -532,7 +535,7 @@ export default function HistoryScreen() {
 										className="font-sans-semibold text-base text-ink"
 										style={{ fontVariant: ['tabular-nums'] }}
 									>
-										{formatAmount(snapshot.amount, currency)}
+										{formatAmount(snapshot.amount_minor, currency)}
 									</Text>
 									<Text className="font-sans text-sm text-ink-muted">
 										{dateStr}
@@ -590,13 +593,13 @@ export default function HistoryScreen() {
 						<Text className="font-sans text-xs text-ink-muted">
 							In:{' '}
 							<Text className="text-positive">
-								{formatAmount(periodTotals.inflow)}
+								{formatAmount(periodTotals.inflow, selectedEntity?.currency)}
 							</Text>
 						</Text>
 						<Text className="font-sans text-xs text-ink-muted">
 							Out:{' '}
 							<Text className="text-negative">
-								{formatAmount(periodTotals.outflow ?? 0)}
+								{formatAmount(periodTotals.outflow ?? 0, selectedEntity?.currency)}
 							</Text>
 						</Text>
 					</View>

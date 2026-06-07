@@ -11,6 +11,7 @@ import { TestIDs } from '@/e2e/support/test-ids';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
+import { formatAmount } from '@/src/utils/format';
 import { parseImportCsv, formatImportErrors, type ParsedImportData } from '@/src/utils/import';
 import { resetDrizzleDb, updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
@@ -97,7 +98,7 @@ export default function SettingsScreen() {
 							transactionId: tx.id,
 							fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
 							toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
-							amount: `${tx.amount} ${tx.currency}`,
+							amount: `${formatAmount(tx.amount_minor, tx.currency)} ${tx.currency}`,
 							timestamp: tx.timestamp,
 						});
 						updates.push({ id: tx.id, notificationId });

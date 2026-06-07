@@ -249,10 +249,10 @@ function parseMarketValueSnapshots(
 			continue;
 		}
 
-		const amount = Number(row.amount);
-		if (isNaN(amount)) {
+		const amount_minor = Number(row.amount_minor);
+		if (!Number.isInteger(amount_minor)) {
 			errors.push(
-				`Market value snapshot row ${lineNum}: amount "${row.amount}" is not a valid number`
+				`Market value snapshot row ${lineNum}: amount_minor "${row.amount_minor}" is not a valid integer (KII-120: minor units)`
 			);
 			continue;
 		}
@@ -273,7 +273,7 @@ function parseMarketValueSnapshots(
 		result.push({
 			id: row.id,
 			entity_id: row.entity_id,
-			amount,
+			amount_minor,
 			currency: row.currency,
 			date,
 		});
@@ -315,10 +315,10 @@ function parsePlans(
 			continue;
 		}
 
-		const planned_amount = Number(row.planned_amount);
-		if (isNaN(planned_amount)) {
+		const planned_amount_minor = Number(row.planned_amount_minor);
+		if (!Number.isInteger(planned_amount_minor)) {
 			errors.push(
-				`Plan row ${lineNum}: planned_amount "${row.planned_amount}" is not a valid number`
+				`Plan row ${lineNum}: planned_amount_minor "${row.planned_amount_minor}" is not a valid integer (KII-120: minor units)`
 			);
 			continue;
 		}
@@ -328,7 +328,7 @@ function parsePlans(
 			entity_id: row.entity_id,
 			period: row.period,
 			period_start: row.period_start,
-			planned_amount,
+			planned_amount_minor,
 		});
 	}
 
@@ -376,9 +376,11 @@ function parseTransactions(
 			continue;
 		}
 
-		const amount = Number(row.amount);
-		if (isNaN(amount)) {
-			errors.push(`Transaction row ${lineNum}: amount "${row.amount}" is not a valid number`);
+		const amount_minor = Number(row.amount_minor);
+		if (!Number.isInteger(amount_minor)) {
+			errors.push(
+				`Transaction row ${lineNum}: amount_minor "${row.amount_minor}" is not a valid integer (KII-120: minor units)`
+			);
 			continue;
 		}
 
@@ -399,7 +401,7 @@ function parseTransactions(
 			{
 				from_entity_id: row.from_entity_id,
 				to_entity_id: row.to_entity_id,
-				amount,
+				amount_minor,
 				currency: row.currency,
 			},
 			entities,
@@ -414,7 +416,7 @@ function parseTransactions(
 			id: row.id,
 			from_entity_id: row.from_entity_id,
 			to_entity_id: row.to_entity_id,
-			amount,
+			amount_minor,
 			currency: row.currency,
 			timestamp,
 			note: row.note || null,
@@ -448,7 +450,7 @@ function parseRecurrenceTemplates(
 			'id',
 			'from_entity_id',
 			'to_entity_id',
-			'amount',
+			'amount_minor',
 			'currency',
 			'rule',
 			'start_date',
@@ -472,13 +474,19 @@ function parseRecurrenceTemplates(
 		const currency = row.currency!;
 		const rule = row.rule!;
 
-		const amount = Number(row.amount);
+		const amount_minor = Number(row.amount_minor);
 		const start_date = Number(row.start_date);
 		const horizon = Number(row.horizon);
 		const created_at = Number(row.created_at);
-		if (isNaN(amount) || isNaN(start_date) || isNaN(horizon) || isNaN(created_at)) {
+		if (!Number.isInteger(amount_minor)) {
 			errors.push(
-				`Recurrence template row ${lineNum}: amount/start_date/horizon/created_at must be numbers`
+				`Recurrence template row ${lineNum}: amount_minor "${row.amount_minor}" is not a valid integer (KII-120: minor units)`
+			);
+			continue;
+		}
+		if (isNaN(start_date) || isNaN(horizon) || isNaN(created_at)) {
+			errors.push(
+				`Recurrence template row ${lineNum}: start_date/horizon/created_at must be numbers`
 			);
 			continue;
 		}
@@ -560,7 +568,7 @@ function parseRecurrenceTemplates(
 			{
 				from_entity_id,
 				to_entity_id,
-				amount,
+				amount_minor,
 				currency,
 			},
 			entities,
@@ -575,7 +583,7 @@ function parseRecurrenceTemplates(
 			id,
 			from_entity_id,
 			to_entity_id,
-			amount,
+			amount_minor,
 			currency,
 			note: row.note || null,
 			rule,

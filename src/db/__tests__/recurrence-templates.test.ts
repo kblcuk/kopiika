@@ -31,7 +31,7 @@ const baseTemplate: RecurrenceTemplate = {
 	id: 'rec-1',
 	from_entity_id: 'account-1',
 	to_entity_id: 'category-1',
-	amount: 50,
+	amount_minor: 5000,
 	currency: 'USD',
 	rule: JSON.stringify({ type: 'monthly' }),
 	start_date: Date.now(),
@@ -51,7 +51,7 @@ describe('recurrence-templates.ts', () => {
 		await createRecurrenceTemplate(baseTemplate);
 		const result = await getRecurrenceTemplateById('rec-1');
 		expect(result).not.toBeNull();
-		expect(result!.amount).toBe(50);
+		expect(result!.amount_minor).toBe(5000);
 		expect(result!.rule).toBe(JSON.stringify({ type: 'monthly' }));
 		expect(result!.is_deleted).toBe(false);
 	});
@@ -66,9 +66,9 @@ describe('recurrence-templates.ts', () => {
 
 	test('updateRecurrenceTemplate', async () => {
 		await createRecurrenceTemplate(baseTemplate);
-		await updateRecurrenceTemplate('rec-1', { amount: 100, note: 'Updated' });
+		await updateRecurrenceTemplate('rec-1', { amount_minor: 10000, note: 'Updated' });
 		const result = await getRecurrenceTemplateById('rec-1');
-		expect(result!.amount).toBe(100);
+		expect(result!.amount_minor).toBe(10000);
 		expect(result!.note).toBe('Updated');
 	});
 

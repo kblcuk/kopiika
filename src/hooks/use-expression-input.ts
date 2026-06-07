@@ -2,7 +2,6 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { TextInput } from 'react-native';
 
 import { evaluateExpression } from '@/src/utils/evaluate-expression';
-import { formatAmount, roundMoney } from '@/src/utils/format';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { tryInsertOperator } from '@/src/utils/expression-input';
 import { sanitizeExpressionInput } from '@/src/utils/sanitize-amount';
@@ -36,7 +35,12 @@ export function useExpressionInput(
 		if (!isExpression) return null;
 		const result = evaluateExpression(value);
 		if (result === null) return null;
-		return `= ${formatAmount(roundMoney(result, opts.maxDecimalPlaces))}`;
+		// Currency-agnostic preview — the hook doesn't know the currency, so use
+		// `opts.maxDecimalPlaces` directly (set by the caller per currency).
+		return `= ${new Intl.NumberFormat(undefined, {
+			minimumFractionDigits: opts.maxDecimalPlaces,
+			maximumFractionDigits: opts.maxDecimalPlaces,
+		}).format(result)}`;
 	}, [value, isExpression, opts.maxDecimalPlaces]);
 
 	const setValue = useCallback(
@@ -53,7 +57,8 @@ export function useExpressionInput(
 		if (!isExpression) return value;
 		const evaluated = evaluateExpression(value);
 		if (evaluated === null) return value;
-		const rounded = roundMoney(evaluated, opts.maxDecimalPlaces);
+		const factor = 10 ** opts.maxDecimalPlaces;
+		const rounded = Math.round(evaluated * factor) / factor;
 		const resolved = rounded.toString();
 		onChange(resolved);
 		return resolved;

@@ -8,7 +8,7 @@ const tx = (overrides: Partial<Transaction> = {}): Transaction => ({
 	id: crypto.randomUUID(),
 	from_entity_id: 'acc-1',
 	to_entity_id: 'cat-1',
-	amount: 100,
+	amount_minor: 10000,
 	currency: 'USD',
 	timestamp: Date.now() + hour,
 	is_confirmed: false,

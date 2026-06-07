@@ -259,7 +259,7 @@ describe('EntityDetailModal', () => {
 						entity_id: 'entity-1',
 						period: 'all-time',
 						period_start: '2026-01',
-						planned_amount: 500,
+						planned_amount_minor: 50000,
 					},
 				],
 			});
@@ -276,7 +276,7 @@ describe('EntityDetailModal', () => {
 				expect(setPlanSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
 						entity_id: 'entity-1',
-						planned_amount: 600,
+						planned_amount_minor: 60000,
 					})
 				);
 			});
@@ -324,7 +324,7 @@ describe('EntityDetailModal', () => {
 						entity_id: 'entity-1',
 						period: 'all-time',
 						period_start: '2026-01',
-						planned_amount: 500,
+						planned_amount_minor: 50000,
 					},
 				],
 				setPlan: setPlanSpy,
@@ -360,7 +360,7 @@ describe('EntityDetailModal', () => {
 						entity_id: 'entity-1',
 						period: 'all-time',
 						period_start: '2026-01',
-						planned_amount: 500,
+						planned_amount_minor: 50000,
 					},
 				],
 			});
@@ -548,9 +548,10 @@ describe('EntityDetailModal', () => {
 			order: 0,
 			row: 0,
 			position: 0,
-			actual: 1000,
+			// KII-120: minor units. $1,000.00 balance.
+			actual: 100000,
 			planned: 0,
-			remaining: -1000,
+			remaining: -100000,
 			upcoming: 0,
 		};
 
@@ -594,8 +595,8 @@ describe('EntityDetailModal', () => {
 		it('shows total including savings when reserved > 0', () => {
 			const entityWithReservation = {
 				...mockAccountEntity,
-				actual: 1000,
-				reserved: 300,
+				actual: 100000, // $1,000
+				reserved: 30000, // $300
 			};
 			const { getByText } = render(
 				<EntityDetailModal
@@ -606,7 +607,8 @@ describe('EntityDetailModal', () => {
 			);
 
 			expect(getByText('Total (incl. savings)')).toBeTruthy();
-			expect(getByText(formatAmount(1300))).toBeTruthy();
+			// 130000 minor → "1,300.00"
+			expect(getByText(formatAmount(130000, 'USD'))).toBeTruthy();
 		});
 
 		it('creates positive adjustment transaction when increasing balance', async () => {
@@ -637,7 +639,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 						to_entity_id: 'account-1',
-						amount: 500, // 1500 - 1000
+						amount_minor: 50000, // 1500 - 1000
 						currency: 'USD',
 						note: expect.stringContaining('Balance correction'),
 					})
@@ -673,7 +675,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: 'account-1',
 						to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
-						amount: 200, // 1000 - 800
+						amount_minor: 20000, // 1000 - 800
 						currency: 'USD',
 						note: expect.stringContaining('Balance correction'),
 					})
@@ -804,7 +806,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: 'account-1',
 						to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
-						amount: 1000,
+						amount_minor: 100000,
 					})
 				);
 				// Check note separately to avoid exact format matching
@@ -839,7 +841,7 @@ describe('EntityDetailModal', () => {
 			await waitFor(() => {
 				expect(addTransactionSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
-						amount: 1.15,
+						amount_minor: 115,
 					})
 				);
 			});
@@ -871,29 +873,28 @@ describe('EntityDetailModal', () => {
 			await waitFor(() => {
 				expect(addTransactionSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
-						amount: 1.15,
+						amount_minor: 115,
 					})
 				);
 			});
 		});
 
-		it('rounds floating point amounts when displaying', () => {
-			// Test that floating point precision issues are handled when displaying
-			const entityWithFloatingPointAmount = {
+		it('displays minor-unit amounts cleanly (KII-120: float drift impossible)', () => {
+			// Pre-KII-120 this test guarded against `actual: 1000.1500000000091`
+			// (IEEE 754 drift) bleeding into the input as "1000.1500000000091".
+			// Post-migration, `actual` is an integer minor-unit count so the
+			// drift source is gone by construction — but the formatter still
+			// has to produce a clean major-unit string for input editing.
+			const entity = {
 				...mockAccountEntity,
-				actual: 1000.1500000000091, // Floating point artifact
+				actual: 100015, // $1,000.15 in minor units
 			};
 
 			const { getByTestId } = render(
-				<EntityDetailModal
-					visible={true}
-					entity={entityWithFloatingPointAmount}
-					onClose={mockOnClose}
-				/>
+				<EntityDetailModal visible={true} entity={entity} onClose={mockOnClose} />
 			);
 
 			const actualInput = getByTestId('entity-detail-actual-input');
-			// Should display "1000.15", not "1000.1500000000091"
 			expect(actualInput.props.value).toBe('1000.15');
 		});
 
@@ -950,7 +951,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 						to_entity_id: 'account-1',
-						amount: 500,
+						amount_minor: 50000,
 						note: expect.stringContaining('Balance correction'),
 					})
 				);
@@ -1020,7 +1021,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 						to_entity_id: 'account-1',
-						amount: 500,
+						amount_minor: 50000,
 					})
 				);
 			});
@@ -1098,7 +1099,7 @@ describe('EntityDetailModal', () => {
 					expect.objectContaining({
 						from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 						to_entity_id: 'account-1',
-						amount: 500,
+						amount_minor: 50000,
 					})
 				);
 			});
@@ -1284,13 +1285,13 @@ describe('EntityDetailModal', () => {
 						id: 'tx-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'saving-1',
-						amount: 100,
+						amount_minor: 10000,
 					}),
 					createMockTransaction({
 						id: 'tx-2',
 						from_entity_id: 'account-1',
 						to_entity_id: 'saving-2',
-						amount: 150,
+						amount_minor: 15000,
 					}),
 				],
 			});
@@ -1460,7 +1461,7 @@ describe('EntityDetailModal', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -1504,7 +1505,7 @@ describe('EntityDetailModal', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -1556,7 +1557,7 @@ describe('EntityDetailModal', () => {
 				expect(addMarketValueSnapshotSpy).toHaveBeenCalledWith(
 					expect.objectContaining({
 						entity_id: 'inv-account',
-						amount: 8000,
+						amount_minor: 800000,
 						currency: 'USD',
 					})
 				);

@@ -15,8 +15,7 @@ import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { generateOccurrences } from '@/src/utils/recurrence';
-import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
-import { roundMoney } from '@/src/utils/format';
+import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -130,18 +129,19 @@ interface AppState {
 	// Default account — toggle the default flag; only one account at a time
 	setDefaultAccount: (accountId: string | null) => Promise<void>;
 
-	// Savings reservation action — creates account↔saving transactions to reach desiredTotal
+	// Savings reservation action — creates account↔saving transactions to reach
+	// `desiredTotalMinor` (integer minor units, KII-120).
 	reserveToSaving: (
 		accountEntityId: string,
 		savingEntityId: string,
-		desiredTotal: number
+		desiredTotalMinor: number
 	) => Promise<void>;
 
 	// Market value snapshot actions
 	addMarketValueSnapshot: (snapshot: MarketValueSnapshot) => Promise<void>;
 	updateMarketValueSnapshot: (
 		id: string,
-		updates: { amount?: number; date?: number }
+		updates: { amount_minor?: number; date?: number }
 	) => Promise<void>;
 	deleteMarketValueSnapshot: (id: string) => Promise<void>;
 	deleteAllMarketValueSnapshots: (entityId: string) => Promise<void>;
@@ -192,7 +192,7 @@ async function scheduleNotificationsForTransactions(
 				transactionId: tx.id,
 				fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
 				toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
-				amount: `${tx.amount} ${tx.currency}`,
+				amount: `${formatAmount(tx.amount_minor, tx.currency)} ${tx.currency}`,
 				timestamp: tx.timestamp,
 			});
 			updates.push({ id: tx.id, notificationId });
@@ -240,7 +240,7 @@ async function backfillRecurrences(
 			{
 				from_entity_id: template.from_entity_id,
 				to_entity_id: template.to_entity_id,
-				amount: template.amount,
+				amount_minor: template.amount_minor,
 				currency: template.currency,
 			},
 			entities
@@ -276,7 +276,7 @@ async function backfillRecurrences(
 						{
 							from_entity_id: template.from_entity_id,
 							to_entity_id: template.to_entity_id,
-							amount: template.amount,
+							amount_minor: template.amount_minor,
 							currency: template.currency,
 							timestamp: ts,
 							note: template.note ?? undefined,
@@ -449,7 +449,7 @@ export const useStore = create<AppState>((set, get) => ({
 						id: template.id,
 						from_entity_id: template.from_entity_id,
 						to_entity_id: template.to_entity_id,
-						amount: template.amount,
+						amount_minor: template.amount_minor,
 						currency: template.currency,
 						note: template.note ?? null,
 						rule: template.rule,
@@ -478,7 +478,7 @@ export const useStore = create<AppState>((set, get) => ({
 						id: txn.id,
 						from_entity_id: txn.from_entity_id,
 						to_entity_id: txn.to_entity_id,
-						amount: txn.amount,
+						amount_minor: txn.amount_minor,
 						currency: txn.currency,
 						timestamp: txn.timestamp,
 						note: txn.note ?? null,
@@ -779,7 +779,7 @@ export const useStore = create<AppState>((set, get) => ({
 		const template = buildRecurringTemplate({
 			from_entity_id: transaction.from_entity_id,
 			to_entity_id: transaction.to_entity_id,
-			amount: transaction.amount,
+			amount_minor: transaction.amount_minor,
 			currency: transaction.currency,
 			note: transaction.note ?? undefined,
 			timestamp: transaction.timestamp,
@@ -807,7 +807,7 @@ export const useStore = create<AppState>((set, get) => ({
 				{
 					from_entity_id: transaction.from_entity_id,
 					to_entity_id: transaction.to_entity_id,
-					amount: transaction.amount,
+					amount_minor: transaction.amount_minor,
 					currency: transaction.currency,
 					timestamp: ts,
 					note: transaction.note ?? undefined,
@@ -879,7 +879,8 @@ export const useStore = create<AppState>((set, get) => ({
 
 		if (template) {
 			const templateUpdates: Partial<RecurrenceTemplate> = {};
-			if (updates.amount !== undefined) templateUpdates.amount = updates.amount;
+			if (updates.amount_minor !== undefined)
+				templateUpdates.amount_minor = updates.amount_minor;
 			if (updates.from_entity_id !== undefined)
 				templateUpdates.from_entity_id = updates.from_entity_id;
 			if (updates.to_entity_id !== undefined)
@@ -1103,7 +1104,7 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 
 	// Savings reservation — computes delta from current net and creates a transaction
-	reserveToSaving: async (accountEntityId, savingEntityId, desiredTotal) => {
+	reserveToSaving: async (accountEntityId, savingEntityId, desiredTotalMinor) => {
 		const state = get();
 		const account = state.entities.find((e) => e.id === accountEntityId);
 		const saving = state.entities.find((e) => e.id === savingEntityId);
@@ -1113,20 +1114,22 @@ export const useStore = create<AppState>((set, get) => ({
 			);
 		}
 
-		const currentNet = getReservationForPair(
+		const currentNetMinor = getReservationForPair(
 			state.transactions,
 			accountEntityId,
 			savingEntityId
 		);
-		const delta = desiredTotal - currentNet;
+		const deltaMinor = desiredTotalMinor - currentNetMinor;
 
-		if (Math.abs(delta) < 0.005) return; // no meaningful change
+		// KII-120: integer minor units, so the threshold is "no change" (delta=0).
+		// The old `< 0.005` paper-over from the float era is no longer needed.
+		if (deltaMinor === 0) return;
 
 		const transaction: Transaction = {
 			id: generateId(),
-			from_entity_id: delta > 0 ? accountEntityId : savingEntityId,
-			to_entity_id: delta > 0 ? savingEntityId : accountEntityId,
-			amount: roundMoney(Math.abs(delta), getCurrencyDecimalPlaces(account.currency)),
+			from_entity_id: deltaMinor > 0 ? accountEntityId : savingEntityId,
+			to_entity_id: deltaMinor > 0 ? savingEntityId : accountEntityId,
+			amount_minor: Math.abs(deltaMinor),
 			currency: account.currency,
 			timestamp: Date.now(),
 		};
@@ -1197,7 +1200,7 @@ export function getEntitiesWithBalance(
 	return filteredEntities.map((entity) => {
 		// All plans use 'all-time' period - static budget/goal that applies every month
 		const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
-		const planned = plan?.planned_amount ?? 0;
+		const planned = plan?.planned_amount_minor ?? 0;
 
 		// Accounts and savings use all transactions (all-time balance)
 		// Income and categories use current period only
@@ -1236,7 +1239,9 @@ export function getEntitiesWithBalance(
 						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
 						.reduce(
 							(sum, t) =>
-								t.from_entity_id === entityId ? sum - t.amount : sum + t.amount,
+								t.from_entity_id === entityId
+									? sum - t.amount_minor
+									: sum + t.amount_minor,
 							0
 						);
 				case 'income':
@@ -1244,13 +1249,15 @@ export function getEntitiesWithBalance(
 						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
 						.reduce(
 							(sum, t) =>
-								t.from_entity_id === entityId ? sum + t.amount : sum - t.amount,
+								t.from_entity_id === entityId
+									? sum + t.amount_minor
+									: sum - t.amount_minor,
 							0
 						);
 				case 'category':
 					return txns
 						.filter((t) => t.to_entity_id === entityId)
-						.reduce((sum, t) => sum + t.amount, 0);
+						.reduce((sum, t) => sum + t.amount_minor, 0);
 			}
 		}
 
@@ -1272,7 +1279,7 @@ export function getEntitiesWithBalance(
 				.filter((s) => s.entity_id === entity.id)
 				.sort((a, b) => b.date - a.date)[0];
 			if (latest) {
-				latestMarketValue = latest.amount;
+				latestMarketValue = latest.amount_minor;
 			}
 		}
 

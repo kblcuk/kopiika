@@ -15,7 +15,7 @@ import type { EntityType, EntityColorKey } from '@/src/types';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { reverseFormatCurrency, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
+import { parseAmountToMinor, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import {
@@ -36,7 +36,9 @@ export interface EntityDraft {
 	icon: string;
 	color: EntityColorKey | null;
 	isInvestment: boolean;
-	plannedAmount: number | null;
+	// KII-120: integer minor units (cents for EUR). `null` if the user left
+	// the planned-amount input empty.
+	plannedAmountMinor: number | null;
 }
 
 interface EntityCreateModalProps {
@@ -89,16 +91,19 @@ export function EntityCreateModal({
 
 		// Staging mode: hand the draft to the caller and exit.
 		if (onCreate) {
-			const planned =
-				entityType !== 'account' ? reverseFormatCurrency(plannedExpr.resolve()) : NaN;
-			const plannedAmount = !isNaN(planned) && planned > 0 ? planned : null;
+			const plannedMinor =
+				entityType !== 'account'
+					? parseAmountToMinor(plannedExpr.resolve(), DEFAULT_CURRENCY)
+					: NaN;
+			const plannedAmountMinor =
+				Number.isInteger(plannedMinor) && plannedMinor > 0 ? plannedMinor : null;
 			onCreate({
 				type: entityType,
 				name: name.trim(),
 				icon: selectedIcon,
 				color: selectedColor,
 				isInvestment: entityType === 'account' ? isInvestment : false,
-				plannedAmount,
+				plannedAmountMinor,
 			});
 			void KeyboardController.dismiss();
 			onClose();
@@ -150,14 +155,14 @@ export function EntityCreateModal({
 		});
 
 		if (entityType !== 'account') {
-			const amount = reverseFormatCurrency(plannedExpr.resolve());
-			if (!isNaN(amount) && amount > 0) {
+			const amountMinor = parseAmountToMinor(plannedExpr.resolve(), DEFAULT_CURRENCY);
+			if (Number.isInteger(amountMinor) && amountMinor > 0) {
 				await setPlan({
 					id: generateId(),
 					entity_id: entityId,
 					period: 'all-time',
 					period_start: currentPeriod,
-					planned_amount: amount,
+					planned_amount_minor: amountMinor,
 				});
 			}
 		}

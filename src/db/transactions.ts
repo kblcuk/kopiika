@@ -83,7 +83,7 @@ export async function createTransaction(transaction: Transaction): Promise<Trans
 			id: transaction.id,
 			from_entity_id: transaction.from_entity_id,
 			to_entity_id: transaction.to_entity_id,
-			amount: transaction.amount,
+			amount_minor: transaction.amount_minor,
 			currency: transaction.currency,
 			timestamp: transaction.timestamp,
 			note: transaction.note ?? null,
@@ -174,7 +174,7 @@ export async function getBatchEntityActuals(
 	const inflowResults = await db
 		.select({
 			entity_id: transactions.to_entity_id,
-			total: sum(transactions.amount),
+			total: sum(transactions.amount_minor),
 		})
 		.from(transactions)
 		.where(
@@ -189,7 +189,7 @@ export async function getBatchEntityActuals(
 	const outflowResults = await db
 		.select({
 			entity_id: transactions.from_entity_id,
-			total: sum(transactions.amount),
+			total: sum(transactions.amount_minor),
 		})
 		.from(transactions)
 		.where(
@@ -288,7 +288,7 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<Trans
 					id: txn.id,
 					from_entity_id: txn.from_entity_id,
 					to_entity_id: txn.to_entity_id,
-					amount: txn.amount,
+					amount_minor: txn.amount_minor,
 					currency: txn.currency,
 					timestamp: txn.timestamp,
 					note: txn.note ?? null,
@@ -401,7 +401,7 @@ export async function replaceTransactionAtomic(
 					id: txn.id,
 					from_entity_id: txn.from_entity_id,
 					to_entity_id: txn.to_entity_id,
-					amount: txn.amount,
+					amount_minor: txn.amount_minor,
 					currency: txn.currency,
 					timestamp: txn.timestamp,
 					note: txn.note ?? null,

@@ -49,7 +49,7 @@ describe('transaction-builder', () => {
 			const tx = buildTransaction({
 				from_entity_id: 'a',
 				to_entity_id: 'b',
-				amount: 5,
+				amount_minor: 500,
 				currency: 'USD',
 				timestamp: 100,
 			});
@@ -61,14 +61,14 @@ describe('transaction-builder', () => {
 			const t1 = buildTransaction({
 				from_entity_id: 'a',
 				to_entity_id: 'b',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 1,
 			});
 			const t2 = buildTransaction({
 				from_entity_id: 'a',
 				to_entity_id: 'b',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 1,
 			});
@@ -80,7 +80,7 @@ describe('transaction-builder', () => {
 				{
 					from_entity_id: 'a',
 					to_entity_id: 'b',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: 1_000,
 				},
@@ -92,7 +92,7 @@ describe('transaction-builder', () => {
 				{
 					from_entity_id: 'a',
 					to_entity_id: 'b',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 					timestamp: 10_000,
 				},
@@ -106,7 +106,7 @@ describe('transaction-builder', () => {
 				{
 					from_entity_id: 'a',
 					to_entity_id: 'b',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 					timestamp: 100,
 					is_confirmed: false,
@@ -120,7 +120,7 @@ describe('transaction-builder', () => {
 			const tx = buildTransaction({
 				from_entity_id: 'a',
 				to_entity_id: 'b',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 100,
 			});
@@ -133,7 +133,7 @@ describe('transaction-builder', () => {
 			const tx = buildTransaction({
 				from_entity_id: 'a',
 				to_entity_id: 'b',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 100,
 				note: 'lunch',
@@ -151,7 +151,7 @@ describe('transaction-builder', () => {
 				currency: 'USD',
 				timestamp: 1_700_000_000_000,
 				note: 'shopping',
-				splitTotal: 100,
+				splitTotalMinor: 10000,
 				splits: [
 					{ toEntityId: 'cat-anchor', amount: '' },
 					{ toEntityId: 'cat-2', amount: '30' },
@@ -163,13 +163,13 @@ describe('transaction-builder', () => {
 			expect(rows[0]).toMatchObject({
 				from_entity_id: 'acc-1',
 				to_entity_id: 'cat-anchor',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: 1_700_000_000_000,
 				note: 'shopping',
 			});
-			expect(rows[1]).toMatchObject({ to_entity_id: 'cat-2', amount: 30 });
-			expect(rows[2]).toMatchObject({ to_entity_id: 'cat-3', amount: 20 });
+			expect(rows[1]).toMatchObject({ to_entity_id: 'cat-2', amount_minor: 3000 });
+			expect(rows[2]).toMatchObject({ to_entity_id: 'cat-3', amount_minor: 2000 });
 		});
 
 		test('skips anchor when its computed amount is zero or negative', () => {
@@ -177,7 +177,7 @@ describe('transaction-builder', () => {
 				fromEntityId: 'acc-1',
 				currency: 'USD',
 				timestamp: 1,
-				splitTotal: 50,
+				splitTotalMinor: 5000,
 				splits: [
 					{ toEntityId: 'cat-anchor', amount: '' },
 					{ toEntityId: 'cat-2', amount: '50' },
@@ -192,7 +192,7 @@ describe('transaction-builder', () => {
 				fromEntityId: 'acc-1',
 				currency: 'USD',
 				timestamp: 1,
-				splitTotal: 100,
+				splitTotalMinor: 10000,
 				splits: [
 					{ toEntityId: null, amount: '' },
 					{ toEntityId: 'cat-2', amount: '30' },
@@ -200,7 +200,7 @@ describe('transaction-builder', () => {
 			});
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.to_entity_id).toBe('cat-2');
-			expect(rows[0]!.amount).toBe(30);
+			expect(rows[0]!.amount_minor).toBe(3000);
 		});
 
 		test('skips non-anchor rows that lack entity or have non-positive amount', () => {
@@ -208,7 +208,7 @@ describe('transaction-builder', () => {
 				fromEntityId: 'acc-1',
 				currency: 'USD',
 				timestamp: 1,
-				splitTotal: 100,
+				splitTotalMinor: 10000,
 				splits: [
 					{ toEntityId: 'cat-anchor', amount: '' },
 					{ toEntityId: null, amount: '20' }, // dropped: no entity
@@ -221,8 +221,8 @@ describe('transaction-builder', () => {
 			// will be dropped (matches the modal's pre-refactor behavior, so an
 			// entity-less typed amount still "claims" its share of the total).
 			expect(rows).toHaveLength(2);
-			expect(rows[0]).toMatchObject({ to_entity_id: 'cat-anchor', amount: 55 });
-			expect(rows[1]).toMatchObject({ to_entity_id: 'cat-5', amount: 25 });
+			expect(rows[0]).toMatchObject({ to_entity_id: 'cat-anchor', amount_minor: 5500 });
+			expect(rows[1]).toMatchObject({ to_entity_id: 'cat-5', amount_minor: 2500 });
 		});
 
 		test('returns [] when splits array is empty', () => {
@@ -231,7 +231,7 @@ describe('transaction-builder', () => {
 					fromEntityId: 'a',
 					currency: 'USD',
 					timestamp: 1,
-					splitTotal: 0,
+					splitTotalMinor: 0,
 					splits: [],
 				})
 			).toEqual([]);
@@ -242,14 +242,54 @@ describe('transaction-builder', () => {
 				fromEntityId: 'acc-1',
 				currency: 'USD',
 				timestamp: 1,
-				splitTotal: 100,
+				splitTotalMinor: 10000,
 				splits: [
 					{ toEntityId: 'cat-anchor', amount: '' },
 					{ toEntityId: 'cat-2', amount: '33.33' },
 					{ toEntityId: 'cat-3', amount: '33.33' },
 				],
 			});
-			expect(rows[0]!.amount).toBe(33.34);
+			expect(rows[0]!.amount_minor).toBe(3334);
+		});
+
+		test('anchor + shares sum exactly equals splitTotalMinor (KII-120 integer invariant)', () => {
+			// Pre-KII-120 the float math could leave a sub-cent gap between
+			// splitTotal and (anchor + sum(shares)). Integer minor units make
+			// this trivially exact for any partition.
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1,
+				splitTotalMinor: 10000, // €100
+				splits: [
+					{ toEntityId: 'cat-a', amount: '' }, // anchor
+					{ toEntityId: 'cat-b', amount: '33.33' },
+					{ toEntityId: 'cat-c', amount: '33.33' },
+					{ toEntityId: 'cat-d', amount: '33.33' },
+				],
+			});
+			const sum = rows.reduce((s, r) => s + r.amount_minor, 0);
+			expect(sum).toBe(10000);
+		});
+
+		test('skips anchor when over-split makes its amount negative', () => {
+			// User typed 100 EUR but the shares add to 110 EUR — anchor would
+			// be -1000 cents. Anchor row is suppressed (canSave at the modal
+			// level also disables submit; this is the builder-level safety net).
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1,
+				splitTotalMinor: 10000,
+				splits: [
+					{ toEntityId: 'cat-anchor', amount: '' },
+					{ toEntityId: 'cat-2', amount: '60' },
+					{ toEntityId: 'cat-3', amount: '50' },
+				],
+			});
+			// Only the two non-anchor rows survive.
+			expect(rows.length).toBe(2);
+			expect(rows.map((r) => r.to_entity_id)).toEqual(['cat-2', 'cat-3']);
 		});
 	});
 
@@ -260,8 +300,8 @@ describe('transaction-builder', () => {
 				currency: 'USD',
 				timestamp: 5_000,
 				funded: [
-					{ savingEntityId: 'sav-1', fundAmount: 30 },
-					{ savingEntityId: 'sav-2', fundAmount: 20 },
+					{ savingEntityId: 'sav-1', fundAmountMinor: 3000 },
+					{ savingEntityId: 'sav-2', fundAmountMinor: 2000 },
 				],
 			});
 			expect(rows).toHaveLength(2);
@@ -271,8 +311,8 @@ describe('transaction-builder', () => {
 				expect(r.currency).toBe('USD');
 				expect(r.timestamp).toBe(5_000);
 			}
-			expect(rows[0]).toMatchObject({ from_entity_id: 'sav-1', amount: 30 });
-			expect(rows[1]).toMatchObject({ from_entity_id: 'sav-2', amount: 20 });
+			expect(rows[0]).toMatchObject({ from_entity_id: 'sav-1', amount_minor: 3000 });
+			expect(rows[1]).toMatchObject({ from_entity_id: 'sav-2', amount_minor: 2000 });
 		});
 
 		test('drops zero / negative / non-finite fund amounts', () => {
@@ -281,10 +321,10 @@ describe('transaction-builder', () => {
 				currency: 'USD',
 				timestamp: 1,
 				funded: [
-					{ savingEntityId: 'sav-1', fundAmount: 0 },
-					{ savingEntityId: 'sav-2', fundAmount: -5 },
-					{ savingEntityId: 'sav-3', fundAmount: NaN },
-					{ savingEntityId: 'sav-4', fundAmount: 10 },
+					{ savingEntityId: 'sav-1', fundAmountMinor: 0 },
+					{ savingEntityId: 'sav-2', fundAmountMinor: -500 },
+					{ savingEntityId: 'sav-3', fundAmountMinor: NaN },
+					{ savingEntityId: 'sav-4', fundAmountMinor: 1000 },
 				],
 			});
 			expect(rows).toHaveLength(1);
@@ -297,7 +337,7 @@ describe('transaction-builder', () => {
 			const template = buildRecurringTemplate({
 				from_entity_id: 'acc-1',
 				to_entity_id: 'cat-1',
-				amount: 12.5,
+				amount_minor: 1250,
 				currency: 'USD',
 				timestamp: 100,
 				note: 'rent',
@@ -310,7 +350,7 @@ describe('transaction-builder', () => {
 			expect(template).toMatchObject({
 				from_entity_id: 'acc-1',
 				to_entity_id: 'cat-1',
-				amount: 12.5,
+				amount_minor: 1250,
 				currency: 'USD',
 				note: 'rent',
 				rule: JSON.stringify({ type: 'monthly' }),
@@ -327,7 +367,7 @@ describe('transaction-builder', () => {
 			const template = buildRecurringTemplate({
 				from_entity_id: 'acc-1',
 				to_entity_id: 'cat-1',
-				amount: 1,
+				amount_minor: 100,
 				currency: 'USD',
 				timestamp: 1,
 				rule: { type: 'weekly' },

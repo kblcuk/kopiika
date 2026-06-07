@@ -19,12 +19,15 @@ export const ENTITY_HEADERS = [
 	'is_investment',
 ] as const;
 
+// KII-120: `planned_amount_minor` is an integer minor-unit value (cents for
+// EUR). Old CSV exports used `planned_amount` as a float; this is a clean
+// break — pre-launch, so no compat layer.
 export const PLAN_HEADERS = [
 	'id',
 	'entity_id',
 	'period',
 	'period_start',
-	'planned_amount',
+	'planned_amount_minor',
 ] as const;
 
 // `is_confirmed` is exported as `"true"` / `"false"` but is treated as
@@ -36,7 +39,7 @@ export const TRANSACTION_HEADERS = [
 	'id',
 	'from_entity_id',
 	'to_entity_id',
-	'amount',
+	'amount_minor',
 	'currency',
 	'timestamp',
 	'note',
@@ -48,7 +51,7 @@ export const RECURRENCE_TEMPLATE_HEADERS = [
 	'id',
 	'from_entity_id',
 	'to_entity_id',
-	'amount',
+	'amount_minor',
 	'currency',
 	'note',
 	'rule',
@@ -69,7 +72,7 @@ export const RECURRENCE_EXCLUSION_HEADERS = ['template_id', 'timestamp'] as cons
 export const MARKET_VALUE_SNAPSHOT_HEADERS = [
 	'id',
 	'entity_id',
-	'amount',
+	'amount_minor',
 	'currency',
 	'date',
 ] as const;

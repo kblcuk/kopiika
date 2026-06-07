@@ -3,7 +3,7 @@ import { View, TextInput, Pressable } from 'react-native';
 import { Text } from './text';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
-import { formatAmount, reverseFormatCurrency, roundMoney } from '@/src/utils/format';
+import { formatAmount, formatAmountForInput, parseAmountToMinor } from '@/src/utils/format';
 import { useStore } from '@/src/store';
 import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
 import { getIcon } from '@/src/constants/icon-registry';
@@ -14,29 +14,31 @@ import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
+// KII-120: All `*Minor` fields are integer minor units; the raw string `amount`
+// is the user's textual input and is parsed at the boundary.
 interface FundingRow {
 	savingEntityId: string;
 	enabled: boolean;
 	amount: string;
-	maxAmount: number;
+	maxAmountMinor: number;
 }
 
 export interface SavingsFundingHandle {
-	/** Returns only the enabled rows with positive amounts, clamped to maxAmount */
+	/** Returns only the enabled rows with positive amounts, clamped to maxAmountMinor */
 	getFundedReservations(): {
 		savingEntityId: string;
-		fundAmount: number;
-		currentReservation: number;
+		fundAmountMinor: number;
+		currentReservationMinor: number;
 	}[];
 }
 
 interface SavingsFundingSectionProps {
 	accountEntityId: string;
 	currency: string;
-	/** Current entered transaction amount — used as default when toggling a goal on */
-	enteredAmount: number;
-	/** Called whenever the total funded amount changes (toggle or amount edit) */
-	onFundingChange: (totalFunded: number) => void;
+	/** Current entered transaction amount in minor units — default when toggling on */
+	enteredAmountMinor: number;
+	/** Called whenever the total funded amount (minor units) changes */
+	onFundingChange: (totalFundedMinor: number) => void;
 	maxDecimalPlaces: number;
 }
 
@@ -44,7 +46,7 @@ const VISIBLE_CAP = 3;
 
 export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFundingSectionProps>(
 	function SavingsFundingSection(
-		{ accountEntityId, currency, enteredAmount, onFundingChange, maxDecimalPlaces },
+		{ accountEntityId, currency, enteredAmountMinor, onFundingChange, maxDecimalPlaces },
 		ref
 	) {
 		const [rows, setRows] = useState<FundingRow[]>([]);
@@ -53,7 +55,7 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 		const transactions = useStore((s) => s.transactions);
 		const entities = useStore((s) => s.entities);
 
-		// Derive per-saving reservation amounts from transactions
+		// Derive per-saving reservation amounts (minor units) from transactions
 		const accountReservations = useMemo(
 			() => getReservationsForAccount(transactions, entities, accountEntityId),
 			[transactions, entities, accountEntityId]
@@ -66,35 +68,39 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 					savingEntityId: r.savingEntityId,
 					enabled: false,
 					amount: '',
-					maxAmount: r.amount,
+					maxAmountMinor: r.amount,
 				}))
 			);
 			onFundingChange(0);
 			setShowAll(false);
 		}, [accountReservations, onFundingChange]);
 
-		// Report total funded whenever rows change
+		// Report total funded (minor units) whenever rows change
 		useEffect(() => {
-			const total = rows
+			const totalMinor = rows
 				.filter((r) => r.enabled)
 				.reduce((sum, r) => {
-					const parsed = reverseFormatCurrency(r.amount, currency);
-					return sum + Math.min(roundMoney(parsed > 0 ? parsed : 0), r.maxAmount);
+					const parsedMinor = parseAmountToMinor(r.amount, currency);
+					const clamped = Math.min(
+						Number.isFinite(parsedMinor) && parsedMinor > 0 ? parsedMinor : 0,
+						r.maxAmountMinor
+					);
+					return sum + clamped;
 				}, 0);
-			onFundingChange(roundMoney(total));
+			onFundingChange(totalMinor);
 		}, [rows, currency, onFundingChange]);
 
 		useImperativeHandle(ref, () => ({
 			getFundedReservations() {
 				return rows
-					.filter((r) => r.enabled && reverseFormatCurrency(r.amount, currency) > 0)
+					.filter((r) => r.enabled && parseAmountToMinor(r.amount, currency) > 0)
 					.map((r) => {
-						const parsed = roundMoney(reverseFormatCurrency(r.amount, currency));
+						const parsedMinor = parseAmountToMinor(r.amount, currency);
 						return {
 							savingEntityId: r.savingEntityId,
 							// Clamp to the reservation max so users can't over-release
-							fundAmount: Math.min(parsed, r.maxAmount),
-							currentReservation: r.maxAmount,
+							fundAmountMinor: Math.min(parsedMinor, r.maxAmountMinor),
+							currentReservationMinor: r.maxAmountMinor,
 						};
 					});
 			},
@@ -107,14 +113,16 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 				prev.map((r, i) => {
 					if (i !== index) return r;
 					const willEnable = !r.enabled;
-					const defaultAmount = Math.min(
-						enteredAmount > 0 ? enteredAmount : r.maxAmount,
-						r.maxAmount
+					const defaultAmountMinor = Math.min(
+						enteredAmountMinor > 0 ? enteredAmountMinor : r.maxAmountMinor,
+						r.maxAmountMinor
 					);
 					return {
 						...r,
 						enabled: willEnable,
-						amount: willEnable ? roundMoney(defaultAmount).toString() : '',
+						amount: willEnable
+							? formatAmountForInput(defaultAmountMinor, currency)
+							: '',
 					};
 				})
 			);
@@ -220,12 +228,12 @@ export const SavingsFundingSection = forwardRef<SavingsFundingHandle, SavingsFun
 												placeholderTextColor={colors.ink.placeholder}
 											/>
 											<Text className="text-ink-faint ml-1 font-sans text-xs">
-												/ {formatAmount(row.maxAmount, currency)}
+												/ {formatAmount(row.maxAmountMinor, currency)}
 											</Text>
 										</>
 									) : (
 										<Text className="text-ink-faint font-sans text-sm">
-											{formatAmount(row.maxAmount, currency)}
+											{formatAmount(row.maxAmountMinor, currency)}
 										</Text>
 									)}
 								</View>

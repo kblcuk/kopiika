@@ -16,8 +16,7 @@ import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
 	formatAmount,
 	formatAmountForInput,
-	reverseFormatCurrency,
-	roundMoney,
+	parseAmountToMinor,
 	DEFAULT_CURRENCY,
 	getCurrencySymbol,
 } from '@/src/utils/format';
@@ -98,14 +97,16 @@ export function TransactionModal({
 	const [isSplitMode, setIsSplitMode] = useState(false);
 	const [splits, setSplits] = useState<SplitRow[]>([]);
 	const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
-	// Snapshot of amount when split mode was entered — drives the anchor calculation
-	const [splitTotal, setSplitTotal] = useState(0);
+	// Snapshot of amount when split mode was entered (integer minor units,
+	// KII-120) — drives the anchor calculation
+	const [splitTotalMinor, setSplitTotalMinor] = useState(0);
 	// Raw input string while editing splitTotal — preserves trailing/leading
 	// separators that the numeric `splitTotal` cannot round-trip (e.g. "5.").
 	const [splitTotalDraft, setSplitTotalDraft] = useState('');
 
 	// Savings funding — portion of typed amount sourced from savings reservations
-	const [totalFunded, setTotalFunded] = useState(0);
+	// (integer minor units, KII-120)
+	const [totalFundedMinor, setTotalFundedMinor] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const inputRef = useRef<TextInput>(null);
 	const fundingRef = useRef<SavingsFundingHandle>(null);
@@ -160,13 +161,16 @@ export function TransactionModal({
 			(v: string) => {
 				if (isSplitMode) {
 					setSplitTotalDraft(v);
-					const n = reverseFormatCurrency(sanitizeAmountInput(v, { maxDecimalPlaces }));
-					setSplitTotal(isNaN(n) ? 0 : roundMoney(n));
+					const n = parseAmountToMinor(
+						sanitizeAmountInput(v, { maxDecimalPlaces }),
+						currency
+					);
+					setSplitTotalMinor(Number.isFinite(n) ? n : 0);
 				} else {
 					setAmount(v);
 				}
 			},
-			[isSplitMode, maxDecimalPlaces]
+			[isSplitMode, maxDecimalPlaces, currency]
 		),
 		{ maxDecimalPlaces }
 	);
@@ -204,20 +208,26 @@ export function TransactionModal({
 		return getValidToEntities(entities, source, currency);
 	}, [selectedFromEntity, fromEntity, entities, currency]);
 
-	// Anchor = typed total - sum of all non-anchor splits
-	// Row 0 is always the anchor; its amount field in state is ignored
-	const anchorAmount = useMemo(() => {
+	// Anchor = typed total - sum of all non-anchor splits (integer minor units,
+	// KII-120). Row 0 is always the anchor; its amount field in state is ignored.
+	const anchorAmountMinor = useMemo(() => {
 		if (!isSplitMode) return 0;
-		const otherSum = splits
-			.slice(1)
-			.reduce((sum, s) => sum + (reverseFormatCurrency(s.amount) || 0), 0);
-		return roundMoney(splitTotal - otherSum);
-	}, [isSplitMode, splits, splitTotal]);
+		const otherSum = splits.slice(1).reduce((sum, s) => {
+			const n = parseAmountToMinor(s.amount, currency);
+			return sum + (Number.isFinite(n) ? n : 0);
+		}, 0);
+		return splitTotalMinor - otherSum;
+	}, [isSplitMode, splits, splitTotalMinor, currency]);
 
 	useEffect(() => {
 		if (visible) {
 			if (existingTransaction) {
-				setAmount(roundMoney(existingTransaction.amount).toString());
+				setAmount(
+					formatAmountForInput(
+						existingTransaction.amount_minor,
+						existingTransaction.currency
+					)
+				);
 				setNote(existingTransaction.note ?? '');
 				setSelectedDate(new Date(existingTransaction.timestamp));
 				setSelectedFromId(existingTransaction.from_entity_id);
@@ -241,10 +251,10 @@ export function TransactionModal({
 			setShowToSheet(false);
 			setIsSplitMode(false);
 			setSplits([]);
-			setSplitTotal(0);
+			setSplitTotalMinor(0);
 			setSplitTotalDraft('');
 			setActiveSplitIndex(null);
-			setTotalFunded(0);
+			setTotalFundedMinor(0);
 			setIsSubmitting(false);
 			setIsRepeat(false);
 			setRepeatFrequency('monthly');
@@ -317,8 +327,8 @@ export function TransactionModal({
 
 	const handleEnterSplitMode = () => {
 		const resolved = amountExpr.resolve();
-		const total = reverseFormatCurrency(resolved) || 0;
-		setSplitTotal(total);
+		const totalMinor = parseAmountToMinor(resolved, currency);
+		setSplitTotalMinor(Number.isFinite(totalMinor) ? totalMinor : 0);
 		setSplitTotalDraft(resolved);
 		setIsSplitMode(true);
 		setSplits([
@@ -334,8 +344,8 @@ export function TransactionModal({
 		setIsSplitMode(false);
 		setSplits([]);
 		// Restore the amount the user had typed before entering split mode
-		setAmount(splitTotal > 0 ? roundMoney(splitTotal).toString() : '');
-		setSplitTotal(0);
+		setAmount(splitTotalMinor > 0 ? formatAmountForInput(splitTotalMinor, currency) : '');
+		setSplitTotalMinor(0);
 		setSplitTotalDraft('');
 		setTimeout(() => amountExpr.inputRef.current?.focus(), 50);
 	};
@@ -450,9 +460,9 @@ export function TransactionModal({
 
 	const canSave = isSplitMode
 		? // At least one saveable transaction: anchor with entity & positive amount, or any non-anchor with entity & positive amount
-			(splits[0]?.toEntityId != null && anchorAmount > 0) ||
-			splits.slice(1).some((s) => s.toEntityId && reverseFormatCurrency(s.amount) > 0)
-		: !!(amount && reverseFormatCurrency(amount) > 0) && entitiesSelected;
+			(splits[0]?.toEntityId != null && anchorAmountMinor > 0) ||
+			splits.slice(1).some((s) => s.toEntityId && parseAmountToMinor(s.amount, currency) > 0)
+		: !!(amount && parseAmountToMinor(amount, currency) > 0) && entitiesSelected;
 
 	// ── Submit ────────────────────────────────────────────────────────────────
 
@@ -481,7 +491,7 @@ export function TransactionModal({
 					currency: splitFrom.currency,
 					timestamp,
 					note: note.trim() || undefined,
-					splitTotal,
+					splitTotalMinor,
 					splits: splits.map((s) => ({ toEntityId: s.toEntityId, amount: s.amount })),
 				});
 				if (txns.length === 0) {
@@ -503,7 +513,7 @@ export function TransactionModal({
 					currency: splitFrom.currency,
 					timestamp,
 					note: note.trim() || undefined,
-					splitTotal,
+					splitTotalMinor,
 					splits: splits.map((s) => ({ toEntityId: s.toEntityId, amount: s.amount })),
 				});
 
@@ -529,22 +539,20 @@ export function TransactionModal({
 				return;
 			}
 
-			const typedAmount = reverseFormatCurrency(resolvedAmount);
-			if (isNaN(typedAmount) || typedAmount <= 0) {
+			const amountMinor = parseAmountToMinor(resolvedAmount, currency);
+			if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
 				setIsSubmitting(false);
 				return;
 			}
 
-			const numAmount = roundMoney(typedAmount);
-
 			if (isEditing && existingTransaction) {
 				const updates: {
-					amount?: number;
+					amount_minor?: number;
 					note?: string;
 					timestamp?: number;
 					from_entity_id?: string;
 					to_entity_id?: string;
-				} = { amount: numAmount, note: note.trim() || undefined };
+				} = { amount_minor: amountMinor, note: note.trim() || undefined };
 				// Only forward `timestamp` if the user actually changed the date.
 				// In scope='future' updates this column is broadcast via SQL UPDATE …
 				// WHERE timestamp >= ?, so sending the edited row's timestamp would
@@ -565,7 +573,7 @@ export function TransactionModal({
 						{
 							from_entity_id: selectedFromEntity.id,
 							to_entity_id: selectedToEntity.id,
-							amount: numAmount,
+							amount_minor: amountMinor,
 							currency: selectedFromEntity.currency,
 							timestamp,
 							note: note.trim() || undefined,
@@ -599,7 +607,7 @@ export function TransactionModal({
 					const mainTx = buildTransaction({
 						from_entity_id: selectedFromEntity.id,
 						to_entity_id: selectedToEntity.id,
-						amount: numAmount,
+						amount_minor: amountMinor,
 						currency: selectedFromEntity.currency,
 						timestamp,
 						note: note.trim() || undefined,
@@ -815,26 +823,28 @@ export function TransactionModal({
 							{amountExpr.preview}
 						</Text>
 					)}
-					{!canSave && amount !== '' && reverseFormatCurrency(amount) <= 0 && (
+					{!canSave && amount !== '' && parseAmountToMinor(amount, currency) <= 0 && (
 						<Text className="mt-1 font-sans text-xs text-ink-muted">
 							Amount must be greater than 0
 						</Text>
 					)}
 					{!isEditing && suggestedAmount && (
 						<Pressable
-							onPress={() => setAmount(roundMoney(suggestedAmount).toString())}
+							onPress={() =>
+								setAmount(formatAmountForInput(suggestedAmount, currency))
+							}
 							className="mt-3 self-start rounded-full bg-paper-200 px-3 py-1.5"
 							testID="transaction-suggested-amount-button"
 						>
 							<Text className="font-sans text-sm text-ink-muted">
-								Use remaining: {formatAmount(suggestedAmount)}
+								Use remaining: {formatAmount(suggestedAmount, currency)}
 							</Text>
 						</Pressable>
 					)}
 					{/* Show note when part of the amount is sourced from savings */}
-					{totalFunded > 0 && (
+					{totalFundedMinor > 0 && (
 						<Text className="mt-2 font-sans text-sm text-ink-muted">
-							{formatAmount(totalFunded, currency)} from savings
+							{formatAmount(totalFundedMinor, currency)} from savings
 						</Text>
 					)}
 				</View>
@@ -914,10 +924,12 @@ export function TransactionModal({
 						ref={fundingRef}
 						accountEntityId={displayFromEntity.id}
 						currency={currency}
-						enteredAmount={
-							isSplitMode ? splitTotal : reverseFormatCurrency(amount) || 0
+						enteredAmountMinor={
+							isSplitMode
+								? splitTotalMinor
+								: parseAmountToMinor(amount, currency) || 0
 						}
-						onFundingChange={setTotalFunded}
+						onFundingChange={setTotalFundedMinor}
 						maxDecimalPlaces={maxDecimalPlaces}
 					/>
 				)}
@@ -1035,12 +1047,15 @@ export function TransactionModal({
 															className="font-sans-semibold text-lg"
 															style={{
 																color:
-																	anchorAmount >= 0
+																	anchorAmountMinor >= 0
 																		? colors.ink.light
 																		: colors.negative.DEFAULT,
 															}}
 														>
-															{formatAmount(anchorAmount)}
+															{formatAmount(
+																anchorAmountMinor,
+																currency
+															)}
 														</Text>
 														<Text className="ml-1 font-sans text-xs text-ink-muted">
 															auto
@@ -1049,13 +1064,14 @@ export function TransactionModal({
 												) : (
 													// Non-anchor: editable + "use remaining" chip
 													<View className="flex-1 flex-row items-center justify-end">
-														{!split.amount && anchorAmount > 0 && (
+														{!split.amount && anchorAmountMinor > 0 && (
 															<Pressable
 																onPress={() =>
 																	handleSplitAmountChange(
 																		index,
 																		formatAmountForInput(
-																			anchorAmount
+																			anchorAmountMinor,
+																			currency
 																		)
 																	)
 																}
@@ -1063,7 +1079,11 @@ export function TransactionModal({
 																testID={`split-remaining-chip-${index}`}
 															>
 																<Text className="font-sans text-xs text-positive">
-																	→ {formatAmount(anchorAmount)}
+																	→{' '}
+																	{formatAmount(
+																		anchorAmountMinor,
+																		currency
+																	)}
 																</Text>
 															</Pressable>
 														)}

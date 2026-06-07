@@ -62,7 +62,7 @@ describe('SummaryScreen', () => {
 		entity_id: 'category-1',
 		period: 'all-time',
 		period_start: '2026-01',
-		planned_amount: 500,
+		planned_amount_minor: 50000,
 	};
 
 	beforeEach(() => {
@@ -86,7 +86,7 @@ describe('SummaryScreen', () => {
 				id: 'tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -106,7 +106,7 @@ describe('SummaryScreen', () => {
 
 			const updatedTransaction: Transaction = {
 				...existingTransaction,
-				amount: 250,
+				amount_minor: 25000,
 			};
 
 			await act(async () => {
@@ -132,7 +132,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'category-1',
-						amount: 300,
+						amount_minor: 30000,
 						currency: 'USD',
 						timestamp: Date.now(),
 					},
@@ -184,7 +184,7 @@ describe('SummaryScreen', () => {
 						entity_id: 'category-1',
 						period: 'month',
 						period_start: '2026-01',
-						planned_amount: 250,
+						planned_amount_minor: 25000,
 					},
 					mockPlan,
 				],
@@ -219,7 +219,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'category-1',
-						amount: 175,
+						amount_minor: 17500,
 						currency: 'USD',
 						timestamp: Date.now(),
 					},
@@ -258,7 +258,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-res-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'saving-1',
-						amount: 350,
+						amount_minor: 35000,
 						currency: 'USD',
 						timestamp: Date.now(),
 					},
@@ -298,7 +298,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-current',
 						from_entity_id: 'account-1',
 						to_entity_id: 'category-1',
-						amount: 100,
+						amount_minor: 10000,
 						currency: 'USD',
 						timestamp: currentMonthTs,
 					},
@@ -306,7 +306,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-old',
 						from_entity_id: 'account-1',
 						to_entity_id: 'category-1',
-						amount: 200,
+						amount_minor: 20000,
 						currency: 'USD',
 						timestamp: lastMonthTs,
 					},
@@ -329,7 +329,7 @@ describe('SummaryScreen', () => {
 						id: 'tx-res-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'saving-1',
-						amount: 500,
+						amount_minor: 50000,
 						currency: 'USD',
 						timestamp: Date.now(),
 					},

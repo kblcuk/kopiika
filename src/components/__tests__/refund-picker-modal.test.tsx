@@ -172,7 +172,7 @@ describe('RefundPickerModal', () => {
 			id: 'tx-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 55,
+			amount_minor: 5500,
 			currency: 'USD',
 			timestamp: new Date('2026-01-15T12:00:00Z').getTime(),
 		};

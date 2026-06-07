@@ -52,7 +52,8 @@ export function createMockTransaction(
 	overrides: Partial<Transaction> & { id: string; from_entity_id: string; to_entity_id: string }
 ): Transaction {
 	return {
-		amount: 100,
+		// KII-120: integer minor units (USD cents). $1.00 default.
+		amount_minor: 100,
 		currency: 'USD',
 		timestamp: Date.now(),
 		...overrides,

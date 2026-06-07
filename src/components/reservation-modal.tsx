@@ -12,8 +12,7 @@ import { ArrowRight } from 'lucide-react-native';
 import type { EntityWithBalance } from '@/src/types';
 import {
 	formatAmount,
-	reverseFormatCurrency,
-	roundMoney,
+	parseAmountToMinor,
 	getCurrencySymbol,
 	DEFAULT_CURRENCY,
 } from '@/src/utils/format';
@@ -49,10 +48,10 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const reserveToSaving = useStore((s) => s.reserveToSaving);
 	const transactions = useStore((s) => s.transactions);
 
-	// Derive current reservation for this pair from transactions
-	const currentNet =
+	// Derive current reservation for this pair from transactions (minor units)
+	const currentNetMinor =
 		account && saving ? getReservationForPair(transactions, account.id, saving.id) : 0;
-	const hasExisting = currentNet > 0;
+	const hasExisting = currentNetMinor > 0;
 
 	useEffect(() => {
 		if (visible && account && saving) {
@@ -70,8 +69,8 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	if (!account || !saving) return null;
 
 	const currency = account.currency;
-	const parsedAmount = roundMoney(reverseFormatCurrency(amount, currency));
-	const canSubmit = parsedAmount > 0;
+	const parsedAmountMinor = parseAmountToMinor(amount, currency);
+	const canSubmit = Number.isFinite(parsedAmountMinor) && parsedAmountMinor > 0;
 
 	const showReservationError = (error: unknown) => {
 		console.error('Reservation failed:', error);
@@ -86,10 +85,10 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
 		const resolved = amountExpr.resolve();
-		const finalAmount = roundMoney(reverseFormatCurrency(resolved, currency));
-		if (isNaN(finalAmount) || finalAmount <= 0) return;
+		const finalAmountMinor = parseAmountToMinor(resolved, currency);
+		if (!Number.isFinite(finalAmountMinor) || finalAmountMinor <= 0) return;
 		try {
-			await reserveToSaving(account.id, saving.id, currentNet + finalAmount);
+			await reserveToSaving(account.id, saving.id, currentNetMinor + finalAmountMinor);
 		} catch (error) {
 			showReservationError(error);
 			return;
@@ -197,7 +196,7 @@ export function ReservationModal({ visible, account, saving, onClose }: Reservat
 					)}
 					{hasExisting && (
 						<Text className="text-ink-faint mt-1 font-sans text-xs">
-							Currently reserved: {formatAmount(currentNet, currency)}
+							Currently reserved: {formatAmount(currentNetMinor, currency)}
 						</Text>
 					)}
 				</View>

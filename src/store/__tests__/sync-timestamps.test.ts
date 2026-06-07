@@ -87,7 +87,7 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 			entity_id: 'acct',
 			period: 'all-time',
 			period_start: '2026-01',
-			planned_amount: 100,
+			planned_amount_minor: 10000,
 		};
 		await useStore.getState().setPlan(plan);
 		const statePlan = useStore.getState().plans.find((p) => p.id === 'p1')!;
@@ -102,18 +102,18 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 			entity_id: 'acct',
 			period: 'all-time',
 			period_start: '2026-01',
-			planned_amount: 100,
+			planned_amount_minor: 10000,
 		};
 		await useStore.getState().setPlan(plan);
 		const before = useStore.getState().plans.find((p) => p.id === 'p1')!;
 		await sleep(2);
-		await useStore.getState().setPlan({ ...plan, id: 'p2', planned_amount: 200 });
+		await useStore.getState().setPlan({ ...plan, id: 'p2', planned_amount_minor: 20000 });
 		// Conflict updates by (entity_id, period_start), so the existing plan
 		// id stays — match by entity_id + period_start.
 		const after = useStore
 			.getState()
 			.plans.find((p) => p.entity_id === 'acct' && p.period_start === '2026-01')!;
-		expect(after.planned_amount).toBe(200);
+		expect(after.planned_amount_minor).toBe(20000);
 		expect(after.updated_at).toBeGreaterThan(before.updated_at!);
 		expect(after.created_at).toBe(before.created_at!);
 	});
@@ -123,7 +123,7 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 			id: 't1',
 			from_entity_id: 'acct',
 			to_entity_id: 'cat',
-			amount: 25,
+			amount_minor: 2500,
 			currency: 'USD',
 			timestamp: Date.now(),
 		};
@@ -139,17 +139,17 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 			id: 't1',
 			from_entity_id: 'acct',
 			to_entity_id: 'cat',
-			amount: 25,
+			amount_minor: 2500,
 			currency: 'USD',
 			timestamp: Date.now(),
 		};
 		await useStore.getState().addTransaction(txn);
 		const before = useStore.getState().transactions.find((t) => t.id === 't1')!;
 		await sleep(2);
-		await useStore.getState().updateTransaction('t1', { amount: 50 });
+		await useStore.getState().updateTransaction('t1', { amount_minor: 5000 });
 		const after = useStore.getState().transactions.find((t) => t.id === 't1')!;
 		const dbTxn = (await db.getAllTransactions()).find((t) => t.id === 't1')!;
-		expect(after.amount).toBe(50);
+		expect(after.amount_minor).toBe(5000);
 		expect(after.updated_at).toBeGreaterThan(before.updated_at!);
 		expect(after.updated_at).toBe(dbTxn.updated_at!);
 		expect(after.created_at).toBe(before.created_at!);
@@ -160,7 +160,7 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 			id: 't1',
 			from_entity_id: 'acct',
 			to_entity_id: 'cat',
-			amount: 25,
+			amount_minor: 2500,
 			currency: 'USD',
 			timestamp: Date.now() - 10_000,
 			is_confirmed: false,
@@ -191,7 +191,7 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 		const snap: MarketValueSnapshot = {
 			id: 's1',
 			entity_id: 'acct',
-			amount: 1000,
+			amount_minor: 100000,
 			currency: 'USD',
 			date: Date.now(),
 		};
@@ -206,17 +206,17 @@ describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 		const snap: MarketValueSnapshot = {
 			id: 's1',
 			entity_id: 'acct',
-			amount: 1000,
+			amount_minor: 100000,
 			currency: 'USD',
 			date: Date.now(),
 		};
 		await useStore.getState().addMarketValueSnapshot(snap);
 		const before = useStore.getState().marketValueSnapshots.find((s) => s.id === 's1')!;
 		await sleep(2);
-		await useStore.getState().updateMarketValueSnapshot('s1', { amount: 2000 });
+		await useStore.getState().updateMarketValueSnapshot('s1', { amount_minor: 200000 });
 		const after = useStore.getState().marketValueSnapshots.find((s) => s.id === 's1')!;
 		const dbRow = await db.getLatestMarketValueSnapshot('acct');
-		expect(after.amount).toBe(2000);
+		expect(after.amount_minor).toBe(200000);
 		expect(after.updated_at).toBeGreaterThan(before.updated_at!);
 		expect(after.updated_at).toBe(dbRow!.updated_at!);
 		expect(after.created_at).toBe(before.created_at!);

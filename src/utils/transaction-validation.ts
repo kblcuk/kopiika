@@ -28,7 +28,8 @@ export class TransactionValidationError extends Error {
 export interface MutationInput {
 	from_entity_id: string;
 	to_entity_id: string;
-	amount: number;
+	// KII-120: integer minor units. Validation requires a positive integer.
+	amount_minor: number;
 	currency: string;
 }
 
@@ -175,8 +176,8 @@ export function validateTransaction(
 	entities: Entity[],
 	options?: ValidateTransactionOptions
 ): ValidationResult {
-	if (!(Number.isFinite(input.amount) && input.amount > 0)) {
-		return invalid('INVALID_AMOUNT', 'Amount must be a positive number.');
+	if (!(Number.isInteger(input.amount_minor) && input.amount_minor > 0)) {
+		return invalid('INVALID_AMOUNT', 'Amount must be a positive integer (minor units).');
 	}
 	if (input.from_entity_id === input.to_entity_id) {
 		return invalid('SAME_ENTITY', 'Source and destination must differ.');
@@ -252,16 +253,18 @@ export function validateTransaction(
  */
 export function validateUpdate(
 	existing: Transaction,
-	patch: Partial<Pick<Transaction, 'from_entity_id' | 'to_entity_id' | 'amount' | 'currency'>>,
+	patch: Partial<
+		Pick<Transaction, 'from_entity_id' | 'to_entity_id' | 'amount_minor' | 'currency'>
+	>,
 	entities: Entity[]
 ): ValidationResult {
 	const finalFromId = patch.from_entity_id ?? existing.from_entity_id;
 	const finalToId = patch.to_entity_id ?? existing.to_entity_id;
-	const finalAmount = patch.amount ?? existing.amount;
+	const finalAmountMinor = patch.amount_minor ?? existing.amount_minor;
 	const finalCurrency = patch.currency ?? existing.currency;
 
-	if (!(Number.isFinite(finalAmount) && finalAmount > 0)) {
-		return invalid('INVALID_AMOUNT', 'Amount must be a positive number.');
+	if (!(Number.isInteger(finalAmountMinor) && finalAmountMinor > 0)) {
+		return invalid('INVALID_AMOUNT', 'Amount must be a positive integer (minor units).');
 	}
 	if (finalFromId === finalToId) {
 		return invalid('SAME_ENTITY', 'Source and destination must differ.');

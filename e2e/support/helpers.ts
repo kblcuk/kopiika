@@ -1,6 +1,12 @@
 import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
-import { roundMoney } from '../../src/utils/format';
+
+// KII-120: previously imported from `src/utils/format` — the helper was removed
+// when monetary fields moved to integer minor units. The UI still displays
+// major-unit decimal strings, so we keep a small local rounding helper here.
+function roundMoney(value: number): number {
+	return Math.round(value * 100) / 100;
+}
 
 // Marks onboarding as complete via the E2E deep-link route so the first-launch
 // welcome/setup flow doesn't show. Returns once home is visible. Call after

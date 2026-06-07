@@ -59,7 +59,9 @@ export type Transaction = Omit<
 export type MarketValueSnapshot = {
 	id: string;
 	entity_id: string;
-	amount: number;
+	// KII-120: integer minor units (cents for EUR). Use toMinor/toMajor at the
+	// UI boundary.
+	amount_minor: number;
 	currency: string;
 	date: number;
 	created_at?: number;
@@ -84,6 +86,8 @@ export type EntityColorKey =
 // Transaction actuals are still calculated per-month for income/categories.
 
 // Derived types for UI
+// KII-120: All monetary fields below are integer minor units. Use
+// `formatAmount(value, currency)` for display.
 export interface EntityWithBalance extends Entity {
 	planned: number;
 	actual: number;

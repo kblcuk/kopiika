@@ -131,7 +131,7 @@ describe('HistoryScreen search params', () => {
 		id: 'tx-1',
 		from_entity_id: 'account-1',
 		to_entity_id: 'category-1',
-		amount: 100,
+		amount_minor: 10000,
 		currency: 'USD',
 		timestamp: Date.now(),
 	};
@@ -255,7 +255,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-past',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 100,
+			amount_minor: 10000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
 		};
@@ -265,7 +265,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-upcoming-jan',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 		};
@@ -275,7 +275,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-upcoming-feb',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 300,
+			amount_minor: 30000,
 			currency: 'USD',
 			timestamp: new Date('2026-02-10T12:00:00Z').getTime(),
 		};
@@ -304,7 +304,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-future',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 500,
+			amount_minor: 50000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 		};
@@ -332,7 +332,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-past',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 100,
+			amount_minor: 10000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
 		};
@@ -341,7 +341,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-upcoming',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 		};
@@ -375,7 +375,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-future-near',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 		};
@@ -383,7 +383,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-future-far',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 300,
+			amount_minor: 30000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-30T12:00:00Z').getTime(),
 		};
@@ -391,7 +391,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-today',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 100,
+			amount_minor: 10000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-15T10:00:00Z').getTime(),
 		};
@@ -399,7 +399,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-today-later',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 125,
+			amount_minor: 12500,
 			currency: 'USD',
 			timestamp: new Date('2026-01-15T11:00:00Z').getTime(),
 		};
@@ -407,7 +407,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-past',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 50,
+			amount_minor: 5000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
 		};
@@ -452,7 +452,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-just-created',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 42,
+			amount_minor: 4200,
 			currency: 'USD',
 			timestamp: fixedNow,
 		};
@@ -482,7 +482,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-just-created',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 42,
+			amount_minor: 4200,
 			currency: 'USD',
 			timestamp: fixedNow,
 		};
@@ -512,7 +512,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-reservation-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'saving-1',
-			amount: 300,
+			amount_minor: 30000,
 			currency: 'USD',
 			timestamp: new Date('2025-12-01T12:00:00Z').getTime(),
 		};
@@ -520,7 +520,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-release',
 			from_entity_id: 'saving-1',
 			to_entity_id: 'account-1',
-			amount: 125,
+			amount_minor: 12500,
 			currency: 'USD',
 			timestamp: new Date('2025-12-05T12:00:00Z').getTime(),
 		};
@@ -528,7 +528,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-reservation-2',
 			from_entity_id: 'account-1',
 			to_entity_id: 'saving-2',
-			amount: 75,
+			amount_minor: 7500,
 			currency: 'USD',
 			timestamp: new Date('2025-12-10T12:00:00Z').getTime(),
 		};
@@ -566,7 +566,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-reservation-1',
 			from_entity_id: 'account-1',
 			to_entity_id: 'saving-1',
-			amount: 125,
+			amount_minor: 12500,
 			currency: 'USD',
 			timestamp: fixedNow - 60_000,
 		};
@@ -574,7 +574,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-reservation-2',
 			from_entity_id: 'account-2',
 			to_entity_id: 'saving-1',
-			amount: 80,
+			amount_minor: 8000,
 			currency: 'USD',
 			timestamp: fixedNow - 120_000,
 		};
@@ -582,7 +582,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-release',
 			from_entity_id: 'saving-1',
 			to_entity_id: 'account-2',
-			amount: 30,
+			amount_minor: 3000,
 			currency: 'USD',
 			timestamp: fixedNow - 180_000,
 		};
@@ -619,7 +619,7 @@ describe('HistoryScreen search params', () => {
 					id: 'tx-reservation',
 					from_entity_id: 'account-1',
 					to_entity_id: 'saving-1',
-					amount: 125,
+					amount_minor: 12500,
 					currency: 'USD',
 					timestamp: fixedNow - 60_000,
 				},
@@ -663,7 +663,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-ikea',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 44.31,
+			amount_minor: 4431,
 			currency: 'USD',
 			timestamp: fixedNow - 60_000,
 			note: 'IKEA shelf',
@@ -673,7 +673,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-plain',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 20,
+			amount_minor: 2000,
 			currency: 'USD',
 			timestamp: fixedNow - 120_000,
 		};
@@ -703,7 +703,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-a',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 44.31,
+			amount_minor: 4431,
 			currency: 'USD',
 			timestamp: fixedNow - 60_000,
 		};
@@ -712,7 +712,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-b',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 20,
+			amount_minor: 2000,
 			currency: 'USD',
 			timestamp: fixedNow - 120_000,
 		};
@@ -742,7 +742,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-a',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 50,
+			amount_minor: 5000,
 			currency: 'USD',
 			timestamp: fixedNow - 60_000,
 			note: 'rent',
@@ -752,7 +752,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-b',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 20,
+			amount_minor: 2000,
 			currency: 'USD',
 			timestamp: fixedNow - 120_000,
 		};
@@ -793,7 +793,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-match',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 50,
+			amount_minor: 5000,
 			currency: 'USD',
 			timestamp: fixedNow - 60_000,
 			note: 'groceries at Lidl',
@@ -803,7 +803,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-wrong-entity',
 			from_entity_id: 'category-1',
 			to_entity_id: 'account-1',
-			amount: 50,
+			amount_minor: 5000,
 			currency: 'USD',
 			timestamp: fixedNow - 120_000,
 			note: 'groceries refund',
@@ -853,7 +853,7 @@ describe('HistoryScreen search params', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -903,7 +903,7 @@ describe('HistoryScreen search params', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'account-1',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -930,7 +930,7 @@ describe('HistoryScreen search params', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -953,7 +953,7 @@ describe('HistoryScreen search params', () => {
 				id: 'tx-1',
 				from_entity_id: 'inv-account',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: fixedNow - 60_000,
 			};
@@ -966,7 +966,7 @@ describe('HistoryScreen search params', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -995,7 +995,7 @@ describe('HistoryScreen search params', () => {
 					{
 						id: 'snap-1',
 						entity_id: 'inv-account',
-						amount: 7500,
+						amount_minor: 750000,
 						currency: 'USD',
 						date: new Date('2026-01-15').getTime(),
 					},
@@ -1020,7 +1020,7 @@ describe('HistoryScreen search params', () => {
 
 			await waitFor(() => {
 				expect(updateMarketValueSnapshot).toHaveBeenCalledWith('snap-1', {
-					amount: 8100,
+					amount_minor: 810000,
 					date: new Date(2026, 0, 10).setHours(0, 0, 0, 0),
 				});
 			});
@@ -1044,7 +1044,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-past',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 100,
+			amount_minor: 10000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-10T12:00:00Z').getTime(),
 		};
@@ -1053,7 +1053,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-upcoming',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 200,
+			amount_minor: 20000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 		};
@@ -1062,7 +1062,7 @@ describe('HistoryScreen search params', () => {
 			id: 'tx-unconfirmed',
 			from_entity_id: 'account-1',
 			to_entity_id: 'category-1',
-			amount: 50,
+			amount_minor: 5000,
 			currency: 'USD',
 			timestamp: new Date('2026-01-12T12:00:00Z').getTime(),
 			is_confirmed: false,

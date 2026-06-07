@@ -14,8 +14,8 @@ import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types
 import { getCurrentPeriod } from '@/src/types';
 import {
 	formatAmount,
-	reverseFormatCurrency,
-	roundMoney,
+	formatAmountForInput,
+	parseAmountToMinor,
 	getCurrencySymbol,
 	DEFAULT_CURRENCY,
 } from '@/src/utils/format';
@@ -181,11 +181,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setName(entity.name);
 			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
 			setPlannedAmount(
-				existingPlan?.planned_amount != null && existingPlan.planned_amount > 0
-					? roundMoney(existingPlan.planned_amount).toString()
+				existingPlan?.planned_amount_minor != null && existingPlan.planned_amount_minor > 0
+					? formatAmountForInput(existingPlan.planned_amount_minor, entity.currency)
 					: ''
 			);
-			setActualAmount(roundMoney(entity.actual).toString());
+			setActualAmount(formatAmountForInput(entity.actual, entity.currency));
 			setIsEditingActual(false);
 			setIncludeInTotal(entity.include_in_total !== false);
 			setIsDefault(entity.is_default === true);
@@ -195,7 +195,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			setShowIconPicker(false);
 			setSelectedColor((entity.color as EntityColorKey) ?? null);
 		}
-	}, [visible, entity, existingPlan?.planned_amount]);
+	}, [visible, entity, existingPlan?.planned_amount_minor]);
 
 	// Validate name on change
 	const handleNameChange = (text: string) => {
@@ -257,8 +257,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 			}
 
 			if (entity.type !== 'account') {
-				const amount = reverseFormatCurrency(plannedExpr.resolve());
-				if (!Number.isNaN(amount) && amount > 0) {
+				const amountMinor = parseAmountToMinor(plannedExpr.resolve(), entity.currency);
+				if (Number.isInteger(amountMinor) && amountMinor > 0) {
 					await setPlan({
 						id: existingPlan?.id ?? generateId(),
 						entity_id: entity.id,
@@ -266,7 +266,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						period: 'all-time',
 						// If updating existing plan, preserve original period_start; otherwise use current period
 						period_start: existingPlan?.period_start ?? currentPeriod,
-						planned_amount: amount,
+						planned_amount_minor: amountMinor,
 					});
 				} else if (existingPlan) {
 					await deletePlan(existingPlan.id);
@@ -280,22 +280,22 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 			// Handle balance adjustment for accounts
 			if (entity.type === 'account' && isEditingActual) {
-				const currentBalance = entity.actual;
-				const targetBalance = reverseFormatCurrency(actualExpr.resolve()) || 0;
-				const adjustment = targetBalance - currentBalance;
+				const currentBalanceMinor = entity.actual;
+				const targetBalanceMinor =
+					parseAmountToMinor(actualExpr.resolve(), entity.currency) || 0;
+				const adjustmentMinor = targetBalanceMinor - currentBalanceMinor;
 
-				const roundedAdjustment = roundMoney(adjustment);
-				if (roundedAdjustment !== 0) {
+				if (adjustmentMinor !== 0) {
 					const adjustmentTransaction: Transaction = {
 						id: generateId(),
 						from_entity_id:
-							roundedAdjustment > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
+							adjustmentMinor > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
 						to_entity_id:
-							roundedAdjustment > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
-						amount: Math.abs(roundedAdjustment),
+							adjustmentMinor > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
+						amount_minor: Math.abs(adjustmentMinor),
 						currency: entity.currency,
 						timestamp: Date.now(),
-						note: `Balance correction: ${formatAmount(currentBalance)} → ${formatAmount(targetBalance)}`,
+						note: `Balance correction: ${formatAmount(currentBalanceMinor, entity.currency)} → ${formatAmount(targetBalanceMinor, entity.currency)}`,
 					};
 
 					try {
@@ -315,8 +315,8 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 
 			// Handle market value snapshot for investment accounts
 			if (entity.type === 'account' && isInvestment && marketValueAmount.trim()) {
-				const amount = reverseFormatCurrency(marketValueAmount);
-				if (!Number.isNaN(amount)) {
+				const amountMinor = parseAmountToMinor(marketValueAmount, entity.currency);
+				if (Number.isInteger(amountMinor)) {
 					const today = new Date();
 					today.setHours(0, 0, 0, 0);
 					const date = today.getTime();
@@ -325,11 +325,11 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 					const latestToday = marketValueSnapshots
 						.filter((s) => s.entity_id === entity.id && s.date === date)
 						.sort((a, b) => b.date - a.date)[0];
-					if (!latestToday || latestToday.amount !== amount) {
+					if (!latestToday || latestToday.amount_minor !== amountMinor) {
 						await addMarketValueSnapshot({
 							id: generateId(),
 							entity_id: entity.id,
-							amount,
+							amount_minor: amountMinor,
 							currency: entity.currency,
 							date,
 						});
@@ -580,7 +580,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<Text
 									className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
 								>
-									{formatAmount(entity.actual + entity.reserved)}
+									{formatAmount(entity.actual + entity.reserved, entity.currency)}
 								</Text>
 							</View>
 						)}
@@ -789,7 +789,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 						<View className="items-center">
 							<Text className="font-sans text-xs text-ink-muted">Actual</Text>
 							<Text className="font-sans-semibold text-lg text-ink">
-								{formatAmount(entity.actual)}
+								{formatAmount(entity.actual, entity.currency)}
 							</Text>
 						</View>
 						{shouldShowRemaining && (
@@ -798,7 +798,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 								<Text
 									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
 								>
-									{formatAmount(entity.remaining)}
+									{formatAmount(entity.remaining, entity.currency)}
 								</Text>
 							</View>
 						)}

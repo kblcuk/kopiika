@@ -2,7 +2,6 @@ import {
 	sqliteTable,
 	text,
 	integer,
-	real,
 	index,
 	uniqueIndex,
 	primaryKey,
@@ -71,7 +70,10 @@ export const plans = sqliteTable(
 			.references(() => entities.id, { onDelete: 'cascade' }),
 		period: text('period').notNull(),
 		period_start: text('period_start').notNull(),
-		planned_amount: real('planned_amount').notNull(),
+		// KII-120: integer minor units (cents for EUR). Use toMinor/toMajor at the
+		// UI boundary. SUM is now exact; balance math is bit-stable across devices,
+		// which matters for KII-96 op-log replay.
+		planned_amount_minor: integer('planned_amount_minor').notNull(),
 		created_at: createdAt(),
 		updated_at: updatedAt(),
 	},
@@ -93,7 +95,8 @@ export const transactions = sqliteTable(
 		to_entity_id: text('to_entity_id')
 			.notNull()
 			.references(() => entities.id),
-		amount: real('amount').notNull(),
+		// KII-120: see plans.planned_amount_minor for rationale.
+		amount_minor: integer('amount_minor').notNull(),
 		currency: text('currency').notNull(),
 		timestamp: integer('timestamp').notNull(),
 		note: text('note'),
@@ -124,7 +127,8 @@ export const recurrenceTemplates = sqliteTable(
 		to_entity_id: text('to_entity_id')
 			.notNull()
 			.references(() => entities.id),
-		amount: real('amount').notNull(),
+		// KII-120: see plans.planned_amount_minor for rationale.
+		amount_minor: integer('amount_minor').notNull(),
 		currency: text('currency').notNull(),
 		note: text('note'),
 		rule: text('rule').notNull(), // JSON: { type: "daily" | "weekly" | "monthly" | "yearly" }
@@ -168,7 +172,8 @@ export const marketValueSnapshots = sqliteTable(
 		entity_id: text('entity_id')
 			.notNull()
 			.references(() => entities.id, { onDelete: 'cascade' }),
-		amount: real('amount').notNull(),
+		// KII-120: see plans.planned_amount_minor for rationale.
+		amount_minor: integer('amount_minor').notNull(),
 		currency: text('currency').notNull(),
 		date: integer('date').notNull(),
 		created_at: createdAt(),

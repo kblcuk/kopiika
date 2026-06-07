@@ -1,8 +1,7 @@
 import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
 import { generateId } from './ids';
-import { reverseFormatCurrency, roundMoney } from './format';
-import { getCurrencyDecimalPlaces } from './currency-precision';
+import { parseAmountToMinor } from './format';
 import type { MutationInput } from './transaction-validation';
 
 /**
@@ -14,6 +13,10 @@ import type { MutationInput } from './transaction-validation';
  * Validation is the responsibility of `transaction-validation.ts`, run at the
  * mutation boundary in the store. Builders trust their inputs to be shaped
  * correctly; they do NOT enforce domain rules.
+ *
+ * KII-120: all monetary inputs are integer minor units (cents for EUR). String
+ * inputs from the UI flow through `parseAmountToMinor` first; numeric inputs
+ * are already in minor units by contract.
  */
 
 export interface TransactionDraft extends MutationInput {
@@ -45,7 +48,7 @@ export function buildTransaction(draft: TransactionDraft, now: number = Date.now
 		id: generateId(),
 		from_entity_id: draft.from_entity_id,
 		to_entity_id: draft.to_entity_id,
-		amount: draft.amount,
+		amount_minor: draft.amount_minor,
 		currency: draft.currency,
 		timestamp: draft.timestamp,
 		is_confirmed: draft.is_confirmed ?? defaultIsConfirmed(draft.timestamp, now),
@@ -68,8 +71,8 @@ export interface BuildSplitRowsArgs {
 	currency: string;
 	timestamp: number;
 	note?: string;
-	/** The total typed by the user before splitting (anchor row derives from this). */
-	splitTotal: number;
+	/** The total typed by the user (in integer minor units) before splitting. */
+	splitTotalMinor: number;
 	/** First entry is the anchor; subsequent entries are user-edited shares. */
 	splits: SplitRowInput[];
 	now?: number;
@@ -77,30 +80,28 @@ export interface BuildSplitRowsArgs {
 
 /**
  * Builds the transaction rows for a split. Anchor row (index 0) auto-computes
- * its amount as `splitTotal - sum(non-anchor amounts)`. Non-anchor rows with
- * missing entity / non-positive amount are skipped silently.
+ * its amount as `splitTotalMinor - sum(non-anchor amounts)`. Non-anchor rows
+ * with missing entity / non-positive amount are skipped silently. All arithmetic
+ * is in integer minor units — the anchor's amount is exact, never re-rounded.
  */
 export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	if (args.splits.length === 0) return [];
 
 	const rows: Transaction[] = [];
 	const otherSum = args.splits.slice(1).reduce((sum, sp) => {
-		const n = reverseFormatCurrency(sp.amount);
+		const n = parseAmountToMinor(sp.amount, args.currency);
 		return sum + (Number.isFinite(n) ? n : 0);
 	}, 0);
-	const anchorAmount = roundMoney(
-		args.splitTotal - otherSum,
-		getCurrencyDecimalPlaces(args.currency)
-	);
+	const anchorAmountMinor = args.splitTotalMinor - otherSum;
 
 	const anchor = args.splits[0]!;
-	if (anchor.toEntityId && anchorAmount > 0) {
+	if (anchor.toEntityId && anchorAmountMinor > 0) {
 		rows.push(
 			buildTransaction(
 				{
 					from_entity_id: args.fromEntityId,
 					to_entity_id: anchor.toEntityId,
-					amount: anchorAmount,
+					amount_minor: anchorAmountMinor,
 					currency: args.currency,
 					timestamp: args.timestamp,
 					note: args.note,
@@ -111,14 +112,14 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	}
 
 	for (const sp of args.splits.slice(1)) {
-		const amt = reverseFormatCurrency(sp.amount);
-		if (!sp.toEntityId || !Number.isFinite(amt) || amt <= 0) continue;
+		const amtMinor = parseAmountToMinor(sp.amount, args.currency);
+		if (!sp.toEntityId || !Number.isFinite(amtMinor) || amtMinor <= 0) continue;
 		rows.push(
 			buildTransaction(
 				{
 					from_entity_id: args.fromEntityId,
 					to_entity_id: sp.toEntityId,
-					amount: amt,
+					amount_minor: amtMinor,
 					currency: args.currency,
 					timestamp: args.timestamp,
 					note: args.note,
@@ -133,7 +134,7 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 
 export interface FundedReservation {
 	savingEntityId: string;
-	fundAmount: number;
+	fundAmountMinor: number;
 }
 
 export interface BuildSavingsReleasesArgs {
@@ -151,13 +152,13 @@ export interface BuildSavingsReleasesArgs {
  */
 export function buildSavingsReleases(args: BuildSavingsReleasesArgs): Transaction[] {
 	return args.funded
-		.filter((f) => Number.isFinite(f.fundAmount) && f.fundAmount > 0)
+		.filter((f) => Number.isFinite(f.fundAmountMinor) && f.fundAmountMinor > 0)
 		.map((f) =>
 			buildTransaction(
 				{
 					from_entity_id: f.savingEntityId,
 					to_entity_id: args.accountId,
-					amount: f.fundAmount,
+					amount_minor: f.fundAmountMinor,
 					currency: args.currency,
 					timestamp: args.timestamp,
 					is_confirmed: true,
@@ -170,7 +171,7 @@ export function buildSavingsReleases(args: BuildSavingsReleasesArgs): Transactio
 export interface BuildRecurringTemplateArgs {
 	from_entity_id: string;
 	to_entity_id: string;
-	amount: number;
+	amount_minor: number;
 	currency: string;
 	/** First occurrence timestamp (a.k.a. start_date). */
 	timestamp: number;
@@ -187,7 +188,7 @@ export function buildRecurringTemplate(args: BuildRecurringTemplateArgs): Recurr
 		id: generateId(),
 		from_entity_id: args.from_entity_id,
 		to_entity_id: args.to_entity_id,
-		amount: args.amount,
+		amount_minor: args.amount_minor,
 		currency: args.currency,
 		note: args.note,
 		rule: JSON.stringify(args.rule),

@@ -89,11 +89,12 @@ describe('SortableEntityBubble', () => {
 		order: 0,
 		row: 0,
 		position: 0,
-		actual: 1200,
-		planned: 5000,
-		remaining: 3800,
+		// KII-120: minor units (EUR cents).
+		actual: 120000,
+		planned: 500000,
+		remaining: 380000,
 		upcoming: 0,
-		reserved: 1200,
+		reserved: 120000,
 	};
 
 	beforeEach(() => {
@@ -129,9 +130,10 @@ describe('SortableEntityBubble', () => {
 			order: 0,
 			row: 0,
 			position: 0,
-			actual: 3000,
-			planned: 5000,
-			remaining: 2000,
+			// KII-120: minor units.
+			actual: 300000,
+			planned: 500000,
+			remaining: 200000,
 			upcoming: 0,
 		};
 
@@ -150,7 +152,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('shows green text when actual meets planned', () => {
-			const metTarget = { ...incomeEntity, actual: 5000, remaining: 0 };
+			const metTarget = { ...incomeEntity, actual: 500000, remaining: 0 };
 			const { getAllByText } = render(<SortableEntityBubble entity={metTarget} />);
 
 			// Both main and planned show 5,000.00; main amount is the first (semibold)
@@ -162,7 +164,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('shows green text when actual exceeds planned', () => {
-			const exceededTarget = { ...incomeEntity, actual: 6000, remaining: -1000 };
+			const exceededTarget = { ...incomeEntity, actual: 600000, remaining: -100000 };
 			const { getByText } = render(<SortableEntityBubble entity={exceededTarget} />);
 
 			const amountText = getByText('6,000.00');
@@ -170,7 +172,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('shows default ink color when no plan is set', () => {
-			const noPlan = { ...incomeEntity, planned: 0, remaining: -3000 };
+			const noPlan = { ...incomeEntity, planned: 0, remaining: -300000 };
 			const { getByText } = render(<SortableEntityBubble entity={noPlan} />);
 
 			const amountText = getByText('3,000.00');
@@ -180,7 +182,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('clamps negative actual to zero', () => {
-			const negativeActual = { ...incomeEntity, actual: -100, remaining: 5100 };
+			const negativeActual = { ...incomeEntity, actual: -10000, remaining: 510000 };
 			const { getByText } = render(<SortableEntityBubble entity={negativeActual} />);
 
 			expect(getByText('0.00')).toBeTruthy();
@@ -197,11 +199,12 @@ describe('SortableEntityBubble', () => {
 			order: 0,
 			row: 0,
 			position: 0,
-			actual: 3800,
+			// KII-120: minor units.
+			actual: 380000,
 			planned: 0,
-			remaining: -3800,
+			remaining: -380000,
 			upcoming: 0,
-			reserved: 1000,
+			reserved: 100000,
 		};
 
 		it('shows actual balance, not actual minus reserved', () => {
@@ -219,7 +222,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('shows red text when actual is negative', () => {
-			const negative = { ...accountEntity, actual: -200, remaining: 200 };
+			const negative = { ...accountEntity, actual: -20000, remaining: 20000 };
 			const { getByText } = render(<SortableEntityBubble entity={negative} />);
 
 			const amountText = getByText('-200.00');
@@ -237,12 +240,13 @@ describe('SortableEntityBubble', () => {
 			order: 0,
 			row: 0,
 			position: 0,
-			actual: 5000,
+			// KII-120: minor units.
+			actual: 500000,
 			planned: 0,
-			remaining: -5000,
+			remaining: -500000,
 			upcoming: 0,
 			is_investment: true,
-			latestMarketValue: 7500,
+			latestMarketValue: 750000,
 		};
 
 		it('shows purchased price (actual) as main amount', () => {
@@ -258,7 +262,7 @@ describe('SortableEntityBubble', () => {
 		});
 
 		it('hides reserved total line for investment accounts', () => {
-			const withReserved = { ...investmentEntity, reserved: 2000 };
+			const withReserved = { ...investmentEntity, reserved: 200000 };
 			const { queryByText } = render(<SortableEntityBubble entity={withReserved} />);
 
 			expect(queryByText(/total/)).toBeNull();

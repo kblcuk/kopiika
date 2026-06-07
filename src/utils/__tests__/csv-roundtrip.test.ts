@@ -76,7 +76,7 @@ const FULL_FIXTURE = {
 			entity_id: 'e2',
 			period: 'all-time',
 			period_start: '2026-01',
-			planned_amount: 500,
+			planned_amount_minor: 50000,
 		},
 	] satisfies Plan[],
 	transactions: [
@@ -84,7 +84,7 @@ const FULL_FIXTURE = {
 			id: 't1',
 			from_entity_id: 'e1',
 			to_entity_id: 'e2',
-			amount: 43.21,
+			amount_minor: 4321,
 			currency: 'EUR',
 			timestamp: 1706745600000,
 			note: 'Weekly "groceries", with comma',
@@ -95,7 +95,7 @@ const FULL_FIXTURE = {
 			id: 't2',
 			from_entity_id: 'e1',
 			to_entity_id: 'e2',
-			amount: 10,
+			amount_minor: 1000,
 			currency: 'EUR',
 			timestamp: 1706832000000,
 			note: null,
@@ -108,7 +108,7 @@ const FULL_FIXTURE = {
 			id: 'rt1',
 			from_entity_id: 'e1',
 			to_entity_id: 'e2',
-			amount: 43.21,
+			amount_minor: 4321,
 			currency: 'EUR',
 			note: 'Weekly groceries',
 			rule: '{"type":"weekly"}',
@@ -128,7 +128,7 @@ const FULL_FIXTURE = {
 			id: 'rt2',
 			from_entity_id: 'e1',
 			to_entity_id: 'e2',
-			amount: 10,
+			amount_minor: 1000,
 			currency: 'EUR',
 			note: null,
 			rule: '{"type":"daily"}',
@@ -144,7 +144,7 @@ const FULL_FIXTURE = {
 		},
 	] satisfies RecurrenceTemplate[],
 	marketValueSnapshots: [
-		{ id: 's1', entity_id: 'e1', amount: 7500, currency: 'USD', date: 1736899200000 },
+		{ id: 's1', entity_id: 'e1', amount_minor: 750000, currency: 'USD', date: 1736899200000 },
 	] satisfies MarketValueSnapshot[],
 };
 
@@ -177,15 +177,15 @@ describe('csv roundtrip', () => {
 			'e2,category,Groceries,EUR,,,2,1,0,true,false,false,false',
 			'',
 			'# PLANS',
-			'id,entity_id,period,period_start,planned_amount',
+			'id,entity_id,period,period_start,planned_amount_minor',
 			'',
 			'# TRANSACTIONS',
-			'id,from_entity_id,to_entity_id,amount,currency,timestamp,note,series_id,is_confirmed',
+			'id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed',
 			'',
 			// Legacy header includes `exclusions` between horizon and is_deleted.
 			'# RECURRENCE_TEMPLATES',
-			'id,from_entity_id,to_entity_id,amount,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at',
-			'rt1,e1,e2,10,EUR,,"{""type"":""weekly""}",1706745600000,,,30,"[1706832000000,1707436800000]",false,1706745500000',
+			'id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at',
+			'rt1,e1,e2,1000,EUR,,"{""type"":""weekly""}",1706745600000,,,30,"[1706832000000,1707436800000]",false,1706745500000',
 		].join('\n');
 
 		const result = parseImportCsv(legacyCsv);

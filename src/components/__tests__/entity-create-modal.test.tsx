@@ -167,7 +167,7 @@ describe('EntityCreateModal', () => {
 					expect.objectContaining({
 						period: 'all-time',
 						period_start: '2026-01',
-						planned_amount: 500,
+						planned_amount_minor: 50000,
 					})
 				);
 			});
@@ -266,7 +266,7 @@ describe('EntityCreateModal', () => {
 					expect.objectContaining({
 						period: 'all-time',
 						period_start: '2026-01',
-						planned_amount: 5000,
+						planned_amount_minor: 500000,
 					})
 				);
 			});
@@ -396,7 +396,7 @@ describe('EntityCreateModal', () => {
 					expect.objectContaining({
 						type: 'category',
 						name: 'Pets',
-						plannedAmount: 1500,
+						plannedAmountMinor: 150000,
 					})
 				);
 			});
@@ -405,7 +405,7 @@ describe('EntityCreateModal', () => {
 			expect(mockOnClose).toHaveBeenCalled();
 		});
 
-		it('emits plannedAmount=null when amount is empty', async () => {
+		it('emits plannedAmountMinor=null when amount is empty', async () => {
 			useStore.setState({ addEntity: jest.fn(), setPlan: jest.fn() });
 			const onCreate = jest.fn();
 			const { getByTestId } = render(
@@ -425,7 +425,7 @@ describe('EntityCreateModal', () => {
 					expect.objectContaining({
 						type: 'saving',
 						name: 'Yacht',
-						plannedAmount: null,
+						plannedAmountMinor: null,
 					})
 				);
 			});

@@ -82,7 +82,7 @@ describe('createPlansForEntities', () => {
 		const entities = createEntitiesFromPresets([chip]);
 		const entityToPreset = new Map([[entities[0]!.id, chip]]);
 		const [plan] = createPlansForEntities(entities, entityToPreset);
-		expect(plan!.planned_amount).toBe(0);
+		expect(plan!.planned_amount_minor).toBe(0);
 	});
 
 	test('chips with suggestedPlan preserve the amount', () => {
@@ -90,6 +90,8 @@ describe('createPlansForEntities', () => {
 		const entities = createEntitiesFromPresets([chip]);
 		const entityToPreset = new Map([[entities[0]!.id, chip]]);
 		const [plan] = createPlansForEntities(entities, entityToPreset);
-		expect(plan!.planned_amount).toBe(chip.suggestedPlan!);
+		// chip.suggestedPlan is authored in major units (e.g. 50000 = €50,000);
+		// production converts to integer minor units via toMinor(value, currency).
+		expect(plan!.planned_amount_minor).toBe(chip.suggestedPlan! * 100);
 	});
 });

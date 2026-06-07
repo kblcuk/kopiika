@@ -114,7 +114,7 @@ describe('TransactionModal', () => {
 				id: 'txn-future',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 250,
+				amount_minor: 25000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 			};
@@ -365,7 +365,7 @@ describe('TransactionModal', () => {
 				expect(batch[0]).toMatchObject({
 					from_entity_id: 'account-1',
 					to_entity_id: 'category-1',
-					amount: 150,
+					amount_minor: 15000,
 					currency: 'USD',
 				});
 			});
@@ -393,7 +393,7 @@ describe('TransactionModal', () => {
 				expect(batchSpy).toHaveBeenCalledWith(
 					expect.arrayContaining([
 						expect.objectContaining({
-							amount: 1.15,
+							amount_minor: 115,
 						}),
 					])
 				);
@@ -420,7 +420,7 @@ describe('TransactionModal', () => {
 				expect(batchSpy).toHaveBeenCalledWith(
 					expect.arrayContaining([
 						expect.objectContaining({
-							amount: 70,
+							amount_minor: 7000,
 						}),
 					])
 				);
@@ -550,7 +550,7 @@ describe('TransactionModal', () => {
 				expect(batchSpy).toHaveBeenCalledWith(
 					expect.arrayContaining([
 						expect.objectContaining({
-							amount: 100,
+							amount_minor: 10000,
 							note: 'Weekly groceries',
 						}),
 					])
@@ -569,9 +569,10 @@ describe('TransactionModal', () => {
 				order: 0,
 				row: 0,
 				position: 0,
-				actual: 500,
-				planned: 3000,
-				remaining: 2500,
+				// KII-120: minor units.
+				actual: 50000,
+				planned: 300000,
+				remaining: 250000,
 
 				upcoming: 0,
 			};
@@ -638,9 +639,10 @@ describe('TransactionModal', () => {
 				order: 0,
 				row: 0,
 				position: 0,
-				actual: 500,
-				planned: 3000,
-				remaining: 2500,
+				// KII-120: minor units.
+				actual: 50000,
+				planned: 300000,
+				remaining: 250000,
 
 				upcoming: 0,
 			};
@@ -667,7 +669,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 250,
+				amount_minor: 25000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-05').getTime(),
 				note: 'Existing note',
@@ -700,7 +702,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 250,
+				amount_minor: 25000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -722,7 +724,7 @@ describe('TransactionModal', () => {
 				expect(updateTransactionSpy).toHaveBeenCalledWith(
 					'txn-1',
 					expect.objectContaining({
-						amount: 300,
+						amount_minor: 30000,
 					})
 				);
 			});
@@ -737,7 +739,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 1.1500000000091, // Floating point precision artifact
+				amount_minor: 115, // Floating point precision artifact
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -766,9 +768,10 @@ describe('TransactionModal', () => {
 				order: 0,
 				row: 0,
 				position: 0,
-				actual: 500,
-				planned: 3000,
-				remaining: 2500,
+				// KII-120: minor units.
+				actual: 50000,
+				planned: 300000,
+				remaining: 250000,
 
 				upcoming: 0,
 			};
@@ -777,7 +780,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'income-1',
 				to_entity_id: 'account-1',
-				amount: 500,
+				amount_minor: 50000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -851,7 +854,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -890,7 +893,7 @@ describe('TransactionModal', () => {
 				id: 'series-tx-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: new Date('2026-01-15T12:00:00Z').getTime(),
 				series_id: 'series-1',
@@ -927,7 +930,7 @@ describe('TransactionModal', () => {
 				id: 'txn-2',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 				series_id: 'series-1',
@@ -1019,8 +1022,9 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('split-toggle-button'));
 			fireEvent.changeText(getByTestId('split-amount-1'), '18.3');
 
-			// Expected: anchor rendered as the same formatter used everywhere else.
-			expect(queryByText(formatAmount(81.7))).toBeTruthy();
+			// KII-120: anchor is 8170 minor (€81.70). Assert via formatAmount so
+			// the test stays locale-agnostic about the decimal separator.
+			expect(queryByText(formatAmount(8170, 'USD'))).toBeTruthy();
 			// And NOT the raw Number.toString form that bypassed the formatter.
 			expect(queryByText('81.7')).toBeNull();
 		});
@@ -1110,7 +1114,11 @@ describe('TransactionModal', () => {
 			fireEvent.press(getByTestId('split-add-button'));
 			fireEvent.press(getByTestId('split-remaining-chip-2'));
 
-			expect(getByTestId('split-amount-2').props.value).toBe(formatAmountForInput(81.7));
+			// KII-120: anchor is 8170 minor (€81.70 remaining). Production fills the
+			// chip via formatAmountForInput(8170, currency).
+			expect(getByTestId('split-amount-2').props.value).toBe(
+				formatAmountForInput(8170, 'USD')
+			);
 		});
 
 		// Interaction tests that were missing — they reproduce each symptom the
@@ -1310,7 +1318,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'account-1',
 							to_entity_id: 'category-1',
-							amount: 30,
+							amount_minor: 3000,
 							currency: 'USD',
 						}),
 					])
@@ -1353,8 +1361,8 @@ describe('TransactionModal', () => {
 				expect(batch).toHaveLength(2);
 				expect(batch).toEqual(
 					expect.arrayContaining([
-						expect.objectContaining({ to_entity_id: 'category-1', amount: 30 }),
-						expect.objectContaining({ to_entity_id: 'category-2', amount: 20 }),
+						expect.objectContaining({ to_entity_id: 'category-1', amount_minor: 3000 }),
+						expect.objectContaining({ to_entity_id: 'category-2', amount_minor: 2000 }),
 					])
 				);
 			});
@@ -1485,7 +1493,7 @@ describe('TransactionModal', () => {
 				id: 'txn-pre',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1509,7 +1517,7 @@ describe('TransactionModal', () => {
 				id: 'txn-save',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 50,
+				amount_minor: 5000,
 				currency: 'USD',
 				timestamp: fixedNow,
 			};
@@ -1540,13 +1548,13 @@ describe('TransactionModal', () => {
 			});
 			expect(replaceSpy.mock.calls[0][0]).toBe('txn-save');
 			const passedRows = replaceSpy.mock.calls[0][1] as {
-				amount: number;
+				amount_minor: number;
 				to_entity_id: string;
 			}[];
-			// Anchor (30 = 50 - 20) + non-anchor (20)
+			// Anchor (3000 = 5000 - 2000) + non-anchor (2000)
 			expect(passedRows).toHaveLength(2);
-			const amounts = passedRows.map((r) => r.amount).sort((a, b) => a - b);
-			expect(amounts).toEqual([20, 30]);
+			const amounts = passedRows.map((r) => r.amount_minor).sort((a, b) => a - b);
+			expect(amounts).toEqual([2000, 3000]);
 		});
 	});
 
@@ -1556,7 +1564,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1593,7 +1601,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1629,7 +1637,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1718,7 +1726,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1742,7 +1750,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1769,7 +1777,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1802,7 +1810,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1847,7 +1855,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1892,7 +1900,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -1915,7 +1923,7 @@ describe('TransactionModal', () => {
 				expect(updateTransactionSpy).toHaveBeenCalledWith(
 					'txn-1',
 					expect.objectContaining({
-						amount: 200,
+						amount_minor: 20000,
 					})
 				);
 			});
@@ -1976,7 +1984,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'account-2',
 							to_entity_id: 'category-1',
-							amount: 50,
+							amount_minor: 5000,
 						}),
 					])
 				);
@@ -2012,7 +2020,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'account-1',
 							to_entity_id: 'category-2',
-							amount: 75,
+							amount_minor: 7500,
 						}),
 					])
 				);
@@ -2028,7 +2036,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -2066,7 +2074,7 @@ describe('TransactionModal', () => {
 				id: 'txn-1',
 				from_entity_id: 'account-1',
 				to_entity_id: 'category-1',
-				amount: 100,
+				amount_minor: 10000,
 				currency: 'USD',
 				timestamp: Date.now(),
 			};
@@ -2159,7 +2167,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'income-1',
 							to_entity_id: 'account-1',
-							amount: 500,
+							amount_minor: 50000,
 							currency: 'USD',
 						}),
 					])
@@ -2202,7 +2210,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'account-1',
 							to_entity_id: 'category-1',
-							amount: 42.5,
+							amount_minor: 4250,
 						}),
 					])
 				);
@@ -2400,7 +2408,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'account-other',
 							to_entity_id: 'category-1',
-							amount: 25,
+							amount_minor: 2500,
 						}),
 					])
 				);
@@ -2430,7 +2438,7 @@ describe('TransactionModal', () => {
 						id: 'tx-res-1',
 						from_entity_id: 'account-1',
 						to_entity_id: 'saving-1',
-						amount: 300,
+						amount_minor: 30000,
 						currency: 'USD',
 						timestamp: Date.now(),
 					},
@@ -2460,7 +2468,10 @@ describe('TransactionModal', () => {
 				// what was typed — release does NOT inflate it.
 				expect(batchSpy).toHaveBeenCalledWith(
 					expect.arrayContaining([
-						expect.objectContaining({ amount: 10, from_entity_id: 'account-1' }),
+						expect.objectContaining({
+							amount_minor: 1000,
+							from_entity_id: 'account-1',
+						}),
 					])
 				);
 			});
@@ -2490,7 +2501,7 @@ describe('TransactionModal', () => {
 						expect.objectContaining({
 							from_entity_id: 'saving-1',
 							to_entity_id: 'account-1',
-							amount: 10,
+							amount_minor: 1000,
 						}),
 					])
 				);
@@ -2523,11 +2534,11 @@ describe('TransactionModal', () => {
 				expect(batch).toHaveLength(2);
 				expect(batch).toEqual(
 					expect.arrayContaining([
-						expect.objectContaining({ amount: 400 }),
+						expect.objectContaining({ amount_minor: 40000 }),
 						expect.objectContaining({
 							from_entity_id: 'saving-1',
 							to_entity_id: 'account-1',
-							amount: 300,
+							amount_minor: 30000,
 						}),
 					])
 				);

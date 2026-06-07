@@ -117,7 +117,7 @@ describe('TransactionRow', () => {
 		id: 'tx-1',
 		from_entity_id: 'account-1',
 		to_entity_id: 'category-1',
-		amount: 150,
+		amount_minor: 15000,
 		currency: 'USD',
 		timestamp: new Date('2026-01-20T12:00:00Z').getTime(),
 	};

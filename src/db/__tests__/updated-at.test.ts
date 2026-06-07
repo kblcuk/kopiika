@@ -64,7 +64,7 @@ const baseTransaction = (id: string, overrides: Partial<Transaction> = {}): Tran
 	id,
 	from_entity_id: 'e1',
 	to_entity_id: 'e2',
-	amount: 10,
+	amount_minor: 1000,
 	currency: 'USD',
 	timestamp: Date.now(),
 	...overrides,
@@ -77,7 +77,7 @@ const baseTemplate = (
 	id,
 	from_entity_id: 'e1',
 	to_entity_id: 'e2',
-	amount: 50,
+	amount_minor: 5000,
 	currency: 'USD',
 	rule: JSON.stringify({ type: 'monthly' }),
 	start_date: Date.now(),
@@ -166,7 +166,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createTransaction(baseTransaction('t1'));
 			const before = await readTxn('t1');
 			await sleep(2);
-			await updateTransaction('t1', { amount: 25 });
+			await updateTransaction('t1', { amount_minor: 2500 });
 			const after = await readTxn('t1');
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 			expect(after?.created_at).toBe(before!.created_at as number);
@@ -224,9 +224,9 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createTransaction(baseTransaction('t1', { series_id: 's1', timestamp: ts }));
 			const before = await readTxn('t1');
 			await sleep(2);
-			await updateTransactionsBySeriesFuture('s1', ts - 1, { amount: 99 });
+			await updateTransactionsBySeriesFuture('s1', ts - 1, { amount_minor: 9900 });
 			const after = await readTxn('t1');
-			expect(after?.amount).toBe(99);
+			expect(after?.amount_minor).toBe(9900);
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 		});
 
@@ -250,7 +250,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createTransaction(baseTransaction('t1', { series_id: 'tpl-1' }));
 			const txTime = Date.now();
 			await sleep(2);
-			await replaceTransactionAtomic('t1', [baseTransaction('t2', { amount: 99 })], {
+			await replaceTransactionAtomic('t1', [baseTransaction('t2', { amount_minor: 9900 })], {
 				seriesExclusion: { templateId: 'tpl-1', timestamp: txTime },
 			});
 			const t2 = await readTxn('t2');
@@ -265,7 +265,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			entity_id: 'e1',
 			period: 'all-time',
 			period_start: '2026-01',
-			planned_amount: 100,
+			planned_amount_minor: 10000,
 			...overrides,
 		});
 
@@ -278,12 +278,12 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 		});
 
 		test('upsertPlan conflict bumps updated_at, keeps created_at', async () => {
-			await upsertPlan(basePlan({ planned_amount: 100 }));
+			await upsertPlan(basePlan({ planned_amount_minor: 10000 }));
 			const before = await getPlanForEntity('e1', '2026-01');
 			await sleep(2);
-			await upsertPlan(basePlan({ id: 'p2', planned_amount: 200 }));
+			await upsertPlan(basePlan({ id: 'p2', planned_amount_minor: 20000 }));
 			const after = await getPlanForEntity('e1', '2026-01');
-			expect(after?.planned_amount).toBe(200);
+			expect(after?.planned_amount_minor).toBe(20000);
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 			expect(after?.created_at).toBe(before!.created_at as number);
 		});
@@ -300,7 +300,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createRecurrenceTemplate(baseTemplate('tpl-1'));
 			const before = await getRecurrenceTemplateById('tpl-1');
 			await sleep(2);
-			await updateRecurrenceTemplate('tpl-1', { amount: 999 });
+			await updateRecurrenceTemplate('tpl-1', { amount_minor: 99900 });
 			const after = await getRecurrenceTemplateById('tpl-1');
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 			expect(after?.created_at).toBe(before!.created_at);
@@ -331,11 +331,11 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			// Cast through unknown to bypass the type-level guard — simulates
 			// a caller that bypasses our type system (e.g. `any`-typed JSON).
 			await updateTransaction('t1', {
-				amount: 99,
+				amount_minor: 9900,
 				created_at: 1,
 			} as unknown as Parameters<typeof updateTransaction>[1]);
 			const after = (await getAllTransactions()).find((t) => t.id === 't1')!;
-			expect(after.amount).toBe(99);
+			expect(after.amount_minor).toBe(9900);
 			expect(after.created_at).toBe(before.created_at as number);
 			expect(after.updated_at).toBeGreaterThan(before.updated_at as number);
 		});
@@ -345,11 +345,11 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			const before = await getRecurrenceTemplateById('tpl-1');
 			await sleep(2);
 			await updateRecurrenceTemplate('tpl-1', {
-				amount: 999,
+				amount_minor: 99900,
 				created_at: 1,
 			} as unknown as Parameters<typeof updateRecurrenceTemplate>[1]);
 			const after = await getRecurrenceTemplateById('tpl-1');
-			expect(after?.amount).toBe(999);
+			expect(after?.amount_minor).toBe(99900);
 			expect(after?.created_at).toBe(before!.created_at);
 		});
 
@@ -370,7 +370,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 		): MarketValueSnapshot => ({
 			id,
 			entity_id: 'e1',
-			amount: 1000,
+			amount_minor: 100000,
 			currency: 'USD',
 			date: Date.now(),
 			...overrides,
@@ -388,9 +388,9 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createMarketValueSnapshot(baseSnap('s1'));
 			const before = await getLatestMarketValueSnapshot('e1');
 			await sleep(2);
-			await updateMarketValueSnapshot('s1', { amount: 5555 });
+			await updateMarketValueSnapshot('s1', { amount_minor: 555500 });
 			const after = await getLatestMarketValueSnapshot('e1');
-			expect(after?.amount).toBe(5555);
+			expect(after?.amount_minor).toBe(555500);
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);
 			expect(after?.created_at).toBe(before!.created_at as number);
 		});

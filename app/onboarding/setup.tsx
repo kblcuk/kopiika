@@ -124,13 +124,13 @@ export default function SetupScreen() {
 					order: position,
 					is_investment: custom.type === 'account' ? custom.isInvestment : undefined,
 				});
-				if (custom.type !== 'account' && custom.plannedAmount != null) {
+				if (custom.type !== 'account' && custom.plannedAmountMinor != null) {
 					customPlans.push({
 						id: generateId(),
 						entity_id: entityId,
 						period: 'all-time',
 						period_start: period,
-						planned_amount: custom.plannedAmount,
+						planned_amount_minor: custom.plannedAmountMinor,
 					});
 				}
 			}

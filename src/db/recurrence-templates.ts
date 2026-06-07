@@ -49,7 +49,7 @@ export async function createRecurrenceTemplate(
 			id: template.id,
 			from_entity_id: template.from_entity_id,
 			to_entity_id: template.to_entity_id,
-			amount: template.amount,
+			amount_minor: template.amount_minor,
 			currency: template.currency,
 			note: template.note ?? null,
 			rule: template.rule,

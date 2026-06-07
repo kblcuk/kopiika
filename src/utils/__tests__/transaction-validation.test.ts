@@ -370,7 +370,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 100,
+					amount_minor: 10000,
 					currency: 'USD',
 				},
 				allEntities
@@ -379,12 +379,12 @@ describe('transaction-validation', () => {
 		});
 
 		it('rejects zero or negative amounts', () => {
-			for (const amount of [0, -1, NaN, Infinity]) {
+			for (const amount_minor of [0, -100, NaN, Infinity]) {
 				const result = validateTransaction(
 					{
 						from_entity_id: 'income-1',
 						to_entity_id: 'account-1',
-						amount,
+						amount_minor,
 						currency: 'USD',
 					},
 					allEntities
@@ -399,7 +399,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'account-1',
 					to_entity_id: 'account-1',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 				},
 				allEntities
@@ -410,7 +410,12 @@ describe('transaction-validation', () => {
 
 		it('rejects unknown source entity', () => {
 			const result = validateTransaction(
-				{ from_entity_id: 'ghost', to_entity_id: 'account-1', amount: 1, currency: 'USD' },
+				{
+					from_entity_id: 'ghost',
+					to_entity_id: 'account-1',
+					amount_minor: 100,
+					currency: 'USD',
+				},
 				allEntities
 			);
 			expect(result.ok).toBe(false);
@@ -419,7 +424,12 @@ describe('transaction-validation', () => {
 
 		it('rejects unknown destination entity', () => {
 			const result = validateTransaction(
-				{ from_entity_id: 'income-1', to_entity_id: 'ghost', amount: 1, currency: 'USD' },
+				{
+					from_entity_id: 'income-1',
+					to_entity_id: 'ghost',
+					amount_minor: 100,
+					currency: 'USD',
+				},
 				allEntities
 			);
 			expect(result.ok).toBe(false);
@@ -432,7 +442,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 				},
 				[deletedIncome, account1]
@@ -447,7 +457,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 				},
 				[income1, deletedAccount]
@@ -463,7 +473,7 @@ describe('transaction-validation', () => {
 			['saving-1', 'category-1'],
 		])('rejects invalid type pair %s → %s', (from, to) => {
 			const result = validateTransaction(
-				{ from_entity_id: from, to_entity_id: to, amount: 1, currency: 'USD' },
+				{ from_entity_id: from, to_entity_id: to, amount_minor: 100, currency: 'USD' },
 				allEntities
 			);
 			expect(result.ok).toBe(false);
@@ -475,7 +485,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'account-1',
 					to_entity_id: 'account-eur',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'USD',
 				},
 				allEntities
@@ -489,7 +499,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'income-1',
 					to_entity_id: 'account-1',
-					amount: 1,
+					amount_minor: 100,
 					currency: 'EUR',
 				},
 				allEntities
@@ -503,7 +513,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'account-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 				},
 				allEntities
@@ -516,7 +526,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'category-1',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 				},
 				allEntities
@@ -530,7 +540,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: 'account-1',
 					to_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 				},
 				allEntities
@@ -543,7 +553,7 @@ describe('transaction-validation', () => {
 				{
 					from_entity_id: BALANCE_ADJUSTMENT_ENTITY_ID,
 					to_entity_id: 'account-eur',
-					amount: 5,
+					amount_minor: 500,
 					currency: 'USD',
 				},
 				allEntities
@@ -558,7 +568,7 @@ describe('transaction-validation', () => {
 			id: 'tx-1',
 			from_entity_id: 'income-1',
 			to_entity_id: 'account-1',
-			amount: 100,
+			amount_minor: 10000,
 			currency: 'USD',
 			timestamp: 1_700_000_000_000,
 		};
@@ -568,11 +578,11 @@ describe('transaction-validation', () => {
 		});
 
 		it('accepts an amount-only patch', () => {
-			expect(validateUpdate(baseTx, { amount: 250 }, allEntities).ok).toBe(true);
+			expect(validateUpdate(baseTx, { amount_minor: 25000 }, allEntities).ok).toBe(true);
 		});
 
 		it('rejects amount patch that goes to zero', () => {
-			const result = validateUpdate(baseTx, { amount: 0 }, allEntities);
+			const result = validateUpdate(baseTx, { amount_minor: 0 }, allEntities);
 			expect(result.ok).toBe(false);
 			if (!result.ok) expect(result.code).toBe('INVALID_AMOUNT');
 		});
@@ -593,7 +603,7 @@ describe('transaction-validation', () => {
 			// User can still edit amount/note even after the entity was soft-deleted, as
 			// long as the patch does not change which entity is referenced on that side.
 			const deletedIncome: Entity = { ...income1, is_deleted: true };
-			const result = validateUpdate(baseTx, { amount: 5 }, [deletedIncome, account1]);
+			const result = validateUpdate(baseTx, { amount_minor: 500 }, [deletedIncome, account1]);
 			expect(result.ok).toBe(true);
 		});
 

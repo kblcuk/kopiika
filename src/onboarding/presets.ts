@@ -2,12 +2,15 @@ import type { Entity, EntityType, Plan } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
+import { toMinor } from '@/src/utils/money';
 
 export interface PresetChip {
 	type: EntityType;
 	name: string;
 	icon: string;
 	defaultSelected?: boolean;
+	// Authored as a major-unit number (e.g. 1500 = €1,500); converted to integer
+	// minor units (KII-120) at `createPlansForEntities`.
 	suggestedPlan?: number;
 }
 
@@ -114,18 +117,21 @@ export function createEntitiesFromPresets(picked: PresetChip[]): Entity[] {
 /**
  * Build plans for the given entities, looking up `suggestedPlan` per entity
  * via the supplied chip lookup. Entities without a chip lookup (or whose
- * chip has no `suggestedPlan`) get `planned_amount = 0`.
+ * chip has no `suggestedPlan`) get `planned_amount_minor = 0`.
  */
 export function createPlansForEntities(
 	entities: Entity[],
 	entityToPreset: Map<string, PresetChip>
 ): Plan[] {
 	const period = getCurrentPeriod();
-	return entities.map((entity) => ({
-		id: generateId(),
-		entity_id: entity.id,
-		period: 'all-time' as const,
-		period_start: period,
-		planned_amount: entityToPreset.get(entity.id)?.suggestedPlan ?? 0,
-	}));
+	return entities.map((entity) => {
+		const suggested = entityToPreset.get(entity.id)?.suggestedPlan;
+		return {
+			id: generateId(),
+			entity_id: entity.id,
+			period: 'all-time' as const,
+			period_start: period,
+			planned_amount_minor: suggested ? toMinor(suggested, DEFAULT_CURRENCY) : 0,
+		};
+	});
 }
