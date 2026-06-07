@@ -50,6 +50,13 @@
 		{
 			"matchPackageNames": ["oxlint", "oxfmt"],
 			"groupName": "oxc"
+		},
+		{
+			"matchManagers": ["bundler"],
+			"matchUpdateTypes": ["patch", "minor"],
+			"groupName": "ruby (build/release)",
+			"automerge": true,
+			"platformAutomerge": true
 		}
 	]
 }
