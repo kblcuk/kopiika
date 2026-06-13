@@ -35,6 +35,7 @@ import {
 	buildTransaction,
 	defaultIsConfirmed,
 } from '@/src/utils/transaction-builder';
+import { applyOperation } from '@/src/sync/apply-operation';
 import {
 	getNotifiableTransactions,
 	scheduleTransactionNotification,
@@ -641,51 +642,38 @@ export const useStore = create<AppState>((set, get) => ({
 
 	// Transaction actions
 	addTransaction: async (transaction) => {
-		// KII-132: entities snapshot taken before await — a concurrent entity
-		// delete races into a DB write with stale validation. Re-validate after
-		// the write, or push validation into the DB write itself.
-		ensureValid(validateTransaction(transaction, get().entities));
-
-		const txWithConfirm = {
-			...transaction,
-			is_confirmed: transaction.is_confirmed ?? defaultIsConfirmed(transaction.timestamp),
-		};
-		const stamped = await db.createTransaction(txWithConfirm);
-		set((state) => ({ transactions: [stamped, ...state.transactions] }));
+		const result = await applyOperation({ kind: 'transaction.create', transaction }, 'local', {
+			entities: get().entities,
+			transactions: get().transactions,
+		});
+		if (result.kind !== 'transaction.create') return;
+		set((state) => ({ transactions: [result.created, ...state.transactions] }));
 	},
 
 	createTransactionBatch: async (transactions) => {
 		if (transactions.length === 0) return;
 
 		const entities = get().entities;
-		// Validate every row before any DB write — fail fast so a bad row
-		// rejects the whole batch instead of leaking a partial split (KII-116).
-		const prepared: Transaction[] = transactions.map((tx) => {
-			ensureValid(validateTransaction(tx, entities));
-			return {
-				...tx,
-				is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
-			};
-		});
+		const result = await applyOperation(
+			{ kind: 'transaction.batch_create', transactions },
+			'local',
+			{ entities, transactions: get().transactions }
+		);
+		if (result.kind !== 'transaction.batch_create') return;
+		set((state) => ({ transactions: [...result.created, ...state.transactions] }));
 
-		const stamped = await db.createTransactionBatch(prepared);
-		set((state) => ({ transactions: [...stamped, ...state.transactions] }));
-
-		await scheduleNotificationsForTransactions(stamped, entities, set);
+		// Side effect — local only by construction (inbound ops call applyOperation
+		// directly and never reach this store action).
+		await scheduleNotificationsForTransactions(result.created, entities, set);
 	},
 
 	updateTransaction: async (id, updates) => {
-		const state = get();
-		const transaction = state.transactions.find((t) => t.id === id);
-		if (!transaction) {
-			console.warn(`Cannot update non-existent transaction: ${id}`);
-			return;
-		}
-
-		ensureValid(validateUpdate(transaction, updates, state.entities));
-
-		const stamped = await db.updateTransaction(id, updates);
-		if (!stamped) return;
+		const result = await applyOperation({ kind: 'transaction.update', id, updates }, 'local', {
+			entities: get().entities,
+			transactions: get().transactions,
+		});
+		if (result.kind !== 'transaction.update' || !result.updated) return;
+		const stamped = result.updated;
 		set((state) => ({
 			transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
 		}));
@@ -693,6 +681,7 @@ export const useStore = create<AppState>((set, get) => ({
 
 	deleteTransaction: async (id) => {
 		const transaction = get().transactions.find((t) => t.id === id);
+		// Side effect — local only by construction.
 		if (transaction?.notification_id) {
 			try {
 				await cancelNotification(transaction.notification_id);
@@ -700,7 +689,10 @@ export const useStore = create<AppState>((set, get) => ({
 				console.warn('Failed to cancel notification', e);
 			}
 		}
-		await db.deleteTransaction(id);
+		await applyOperation({ kind: 'transaction.delete', id }, 'local', {
+			entities: get().entities,
+			transactions: get().transactions,
+		});
 		set((state) => ({
 			transactions: state.transactions.filter((t) => t.id !== id),
 		}));
