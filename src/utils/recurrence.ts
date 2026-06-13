@@ -162,7 +162,9 @@ export function generateOccurrences(opts: GenerateOptions): number[] {
 
 	const horizonEnd = now + horizonDays * 24 * 60 * 60 * 1000;
 	const effectiveEnd = endDate != null ? Math.min(endDate, horizonEnd) : horizonEnd;
-	const exclusionSet = new Set(exclusions ?? []);
+	// Match exclusions by civil date, not raw timestamp: an exclusion stored
+	// under an old/DST-shifted ms value still drops the right calendar day.
+	const excludedCivilDates = new Set((exclusions ?? []).map(toCivilDate));
 
 	const timestamps: number[] = [];
 	let n = 0;
@@ -172,7 +174,7 @@ export function generateOccurrences(opts: GenerateOptions): number[] {
 		if (current > effectiveEnd) break;
 		if (endCount != null && n >= endCount) break;
 
-		if (!exclusionSet.has(current)) {
+		if (!excludedCivilDates.has(toCivilDate(current))) {
 			timestamps.push(current);
 		}
 

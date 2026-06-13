@@ -282,3 +282,24 @@ describe('occurrenceId', () => {
 		expect(occurrenceId('series-abc', '2026-07-01')).toBe('series-abc:2026-07-01');
 	});
 });
+
+describe('generateOccurrences — exclusions match by civil date', () => {
+	test('excludes an occurrence given an exclusion on the same day but a different time', () => {
+		const start = localTs(2026, 4, 1, 9); // daily at 09:00
+		// Exclusion stored at a DIFFERENT time-of-day on the SAME calendar day as
+		// the Apr 3 occurrence. Raw-timestamp matching would miss it; civil-date
+		// matching must drop Apr 3.
+		const exclusionDifferentTime = localTs(2026, 4, 3, 17);
+		const result = generateOccurrences({
+			rule: { type: 'daily' },
+			startDate: start,
+			horizonDays: 5,
+			now: start,
+			exclusions: [exclusionDifferentTime],
+		});
+		const civilDays = result.map(toCivilDate);
+		expect(civilDays).not.toContain('2026-04-03');
+		expect(civilDays).toContain('2026-04-02');
+		expect(civilDays).toContain('2026-04-04');
+	});
+});
