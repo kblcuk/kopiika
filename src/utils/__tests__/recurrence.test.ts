@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { generateOccurrences, horizonForFrequency, nextOccurrence } from '../recurrence';
+import {
+	generateOccurrences,
+	horizonForFrequency,
+	nextOccurrence,
+	toCivilDate,
+	occurrenceId,
+} from '../recurrence';
 
 // Helper: create a local-time timestamp for a specific date
 function localTs(year: number, month: number, day: number, hour = 9): number {
@@ -253,5 +259,26 @@ describe('generateOccurrences', () => {
 		// Mar 1 (past), Apr 1 (now), May 1, Jun 1 (within 90d of now)
 		expect(result[0]).toBe(start);
 		expect(result.length).toBe(4);
+	});
+});
+
+describe('toCivilDate', () => {
+	test('returns local YYYY-MM-DD for a timestamp', () => {
+		// localTs builds a local-time date, so toCivilDate must echo the same calendar day.
+		expect(toCivilDate(localTs(2026, 3, 9, 14))).toBe('2026-03-09');
+	});
+
+	test('pads single-digit month and day', () => {
+		expect(toCivilDate(localTs(2026, 1, 5, 0))).toBe('2026-01-05');
+	});
+
+	test('two timestamps on the same calendar day map to the same civil date', () => {
+		expect(toCivilDate(localTs(2026, 7, 1, 0))).toBe(toCivilDate(localTs(2026, 7, 1, 23)));
+	});
+});
+
+describe('occurrenceId', () => {
+	test('composes series id and civil date', () => {
+		expect(occurrenceId('series-abc', '2026-07-01')).toBe('series-abc:2026-07-01');
 	});
 });

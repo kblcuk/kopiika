@@ -1,6 +1,31 @@
 import type { RecurrenceFrequency, RecurrenceRule } from '@/src/types/recurrence';
 
 /**
+ * Local calendar day of a timestamp as `YYYY-MM-DD`. This is the canonical
+ * IDENTITY of a recurrence occurrence: dedup and exclusion matching key on this
+ * (not the raw ms value), so a DST hour-shift can never split one calendar day
+ * into two distinct occurrences. Uses local getters (not `toISOString`, which
+ * is UTC) so the civil day matches what the user sees.
+ */
+export function toCivilDate(timestamp: number): string {
+	const d = new Date(timestamp);
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
+/**
+ * Deterministic occurrence id: `${seriesId}:${YYYY-MM-DD}`. Assigned to rows a
+ * recurring occurrence materializes into (Plan B) and is the future sync key.
+ * NOTE: it is NOT the dedup key for pre-existing rows (those carry random ids);
+ * dedup computes `(series_id, toCivilDate(timestamp))` from the row itself.
+ */
+export function occurrenceId(seriesId: string, civilDate: string): string {
+	return `${seriesId}:${civilDate}`;
+}
+
+/**
  * Auto-derive how far ahead occurrences should be precomputed for a given
  * frequency. This used to be a user-facing picker ("Generate ahead: 1 month /
  * 3 months / 6 months / 1 year") — database plumbing leaking into the UI.
