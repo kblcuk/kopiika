@@ -3,6 +3,7 @@ import type { Entity, Transaction } from '@/src/types';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { applyOperation } from '../apply-operation';
+import { TransactionValidationError } from '@/src/utils/transaction-validation';
 
 const account: Entity = {
 	id: 'acc-1',
@@ -38,7 +39,7 @@ function makeTx(overrides: Partial<Transaction> = {}): Transaction {
 		currency: 'USD',
 		timestamp: 1700000000000,
 		...overrides,
-	} as Transaction;
+	};
 }
 
 describe('applyOperation — transaction.create', () => {
@@ -80,13 +81,13 @@ describe('applyOperation — transaction.create', () => {
 	test('throws on an invalid transaction (same source and destination)', async () => {
 		const entities = await seedEntities();
 
-		await expect(
+		expect(
 			applyOperation(
 				{ kind: 'transaction.create', transaction: makeTx({ to_entity_id: 'acc-1' }) },
 				'local',
 				{ entities, transactions: [] }
 			)
-		).rejects.toThrow();
+		).rejects.toThrow(TransactionValidationError);
 	});
 });
 
@@ -120,7 +121,7 @@ describe('applyOperation — transaction.batch_create', () => {
 	test('rejects the whole batch when any row is invalid', async () => {
 		const entities = await seedEntities();
 
-		await expect(
+		expect(
 			applyOperation(
 				{
 					kind: 'transaction.batch_create',
@@ -132,7 +133,7 @@ describe('applyOperation — transaction.batch_create', () => {
 				'local',
 				{ entities, transactions: [] }
 			)
-		).rejects.toThrow();
+		).rejects.toThrow(TransactionValidationError);
 
 		const all = await db.getAllTransactions();
 		expect(all.find((t) => t.id === 'tx-a')).toBeUndefined();
