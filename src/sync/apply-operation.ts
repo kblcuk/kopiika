@@ -44,6 +44,17 @@ export async function applyOperation(
 			const created = await db.createTransaction(withConfirm);
 			return { kind: 'transaction.create', created };
 		}
+		case 'transaction.batch_create': {
+			const prepared = op.transactions.map((tx) => {
+				ensureValid(validateTransaction(tx, ctx.entities as Entity[]));
+				return {
+					...tx,
+					is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
+				};
+			});
+			const created = await db.createTransactionBatch(prepared);
+			return { kind: 'transaction.batch_create', created };
+		}
 		default:
 			throw new Error(`applyOperation: unsupported op kind "${op.kind}"`);
 	}

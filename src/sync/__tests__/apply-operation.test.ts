@@ -89,3 +89,52 @@ describe('applyOperation — transaction.create', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('applyOperation — transaction.batch_create', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('persists every row and returns them stamped', async () => {
+		const entities = await seedEntities();
+
+		const result = await applyOperation(
+			{
+				kind: 'transaction.batch_create',
+				transactions: [
+					makeTx({ id: 'tx-a', amount_minor: 100 }),
+					makeTx({ id: 'tx-b', amount_minor: 200 }),
+				],
+			},
+			'local',
+			{ entities, transactions: [] }
+		);
+
+		if (result.kind !== 'transaction.batch_create') throw new Error('wrong kind');
+		expect(result.created.map((t) => t.id).sort()).toEqual(['tx-a', 'tx-b']);
+
+		const all = await db.getAllTransactions();
+		expect(all.filter((t) => t.id === 'tx-a' || t.id === 'tx-b')).toHaveLength(2);
+	});
+
+	test('rejects the whole batch when any row is invalid', async () => {
+		const entities = await seedEntities();
+
+		await expect(
+			applyOperation(
+				{
+					kind: 'transaction.batch_create',
+					transactions: [
+						makeTx({ id: 'tx-a' }),
+						makeTx({ id: 'tx-b', amount_minor: -5 }),
+					],
+				},
+				'local',
+				{ entities, transactions: [] }
+			)
+		).rejects.toThrow();
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'tx-a')).toBeUndefined();
+	});
+});
