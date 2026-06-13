@@ -174,3 +174,25 @@ describe('applyOperation — transaction.update', () => {
 		expect(result.updated).toBeNull();
 	});
 });
+
+describe('applyOperation — transaction.delete', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('removes the row from the database', async () => {
+		const entities = await seedEntities();
+		const created = await db.createTransaction(makeTx());
+
+		const result = await applyOperation(
+			{ kind: 'transaction.delete', id: created.id },
+			'local',
+			{ entities, transactions: [created] }
+		);
+
+		expect(result.kind).toBe('transaction.delete');
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === created.id)).toBeUndefined();
+	});
+});

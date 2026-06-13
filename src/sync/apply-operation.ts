@@ -65,7 +65,16 @@ export async function applyOperation(
 			const updated = await db.updateTransaction(op.id, op.updates);
 			return { kind: 'transaction.update', updated };
 		}
-		default:
-			throw new Error(`applyOperation: unsupported op kind "${op.kind}"`);
+		case 'transaction.delete': {
+			await db.deleteTransaction(
+				op.id,
+				op.seriesExclusion ? { seriesExclusion: op.seriesExclusion } : undefined
+			);
+			return { kind: 'transaction.delete' };
+		}
+		default: {
+			const _exhaustive: never = op;
+			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);
+		}
 	}
 }
