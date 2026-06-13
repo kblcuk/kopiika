@@ -301,712 +301,664 @@ async function backfillRecurrences(
 	}
 }
 
-export const useStore = create<AppState>((set, get) => ({
-	// Initial state
-	entities: [],
-	plans: [],
-	transactions: [],
-	recurrenceTemplates: [],
-	marketValueSnapshots: [],
-	currentPeriod: getCurrentPeriod(),
-	isLoading: true,
-	draggedEntity: null,
-	incomeVisible: false,
+export const useStore = create<AppState>((set, get) => {
+	// DRY helper — builds the read-only context snapshot applyOperation needs.
+	// Defined inside the creator so `get` is in scope; the resolved object is
+	// identical to the inline spread it replaces.
+	const buildApplyContext = () => ({
+		entities: get().entities,
+		transactions: get().transactions,
+	});
 
-	// Initialize from database
-	initialize: async () => {
-		if (initializePromise) {
-			return initializePromise;
-		}
+	return {
+		// Initial state
+		entities: [],
+		plans: [],
+		transactions: [],
+		recurrenceTemplates: [],
+		marketValueSnapshots: [],
+		currentPeriod: getCurrentPeriod(),
+		isLoading: true,
+		draggedEntity: null,
+		incomeVisible: false,
 
-		initializePromise = (async () => {
-			set({ isLoading: true });
-			try {
-				console.info('Hydrating store from database');
-				const [
-					entities,
-					plans,
-					transactions,
-					rawTemplates,
-					marketValueSnapshots,
-					exclusionsByTemplate,
-				] = await Promise.all([
-					db.getAllEntities(),
-					db.getAllPlans(),
-					db.getAllTransactions(),
-					db.getAllRecurrenceTemplates(),
-					db.getAllMarketValueSnapshots(),
-					db.getAllExclusionsByTemplate(),
-				]);
-				// KII-123: attach exclusions from the normalized table. Templates
-				// without any exclusions get an empty array so consumers never
-				// need to null-check.
-				const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
-					...t,
-					exclusions: exclusionsByTemplate.get(t.id) ?? [],
-				}));
+		// Initialize from database
+		initialize: async () => {
+			if (initializePromise) {
+				return initializePromise;
+			}
 
-				// Ensure balance adjustment system entity exists (may be missing after data reset)
-				if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
-					const systemEntity = createBalanceAdjustmentEntity();
-					await db.createEntity(systemEntity);
-					entities.push(systemEntity);
+			initializePromise = (async () => {
+				set({ isLoading: true });
+				try {
+					console.info('Hydrating store from database');
+					const [
+						entities,
+						plans,
+						transactions,
+						rawTemplates,
+						marketValueSnapshots,
+						exclusionsByTemplate,
+					] = await Promise.all([
+						db.getAllEntities(),
+						db.getAllPlans(),
+						db.getAllTransactions(),
+						db.getAllRecurrenceTemplates(),
+						db.getAllMarketValueSnapshots(),
+						db.getAllExclusionsByTemplate(),
+					]);
+					// KII-123: attach exclusions from the normalized table. Templates
+					// without any exclusions get an empty array so consumers never
+					// need to null-check.
+					const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+						...t,
+						exclusions: exclusionsByTemplate.get(t.id) ?? [],
+					}));
+
+					// Ensure balance adjustment system entity exists (may be missing after data reset)
+					if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
+						const systemEntity = createBalanceAdjustmentEntity();
+						await db.createEntity(systemEntity);
+						entities.push(systemEntity);
+					}
+
+					// Filter out orphaned plans that reference non-existent entities
+					const entityIds = new Set(entities.map((e) => e.id));
+					const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
+
+					set({
+						entities,
+						plans: validPlans,
+						transactions,
+						recurrenceTemplates,
+						marketValueSnapshots,
+						isLoading: false,
+					});
+
+					// Backfill any missing occurrences within the horizon window
+					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
+					lastBackfillAt = Date.now();
+				} catch (error) {
+					console.error('Failed to initialize store:', error);
+					set({ isLoading: false });
+					throw error;
+				} finally {
+					initializePromise = null;
 				}
+			})();
 
-				// Filter out orphaned plans that reference non-existent entities
-				const entityIds = new Set(entities.map((e) => e.id));
-				const validPlans = plans.filter((p) => entityIds.has(p.entity_id));
+			return initializePromise;
+		},
 
-				set({
-					entities,
-					plans: validPlans,
-					transactions,
-					recurrenceTemplates,
-					marketValueSnapshots,
-					isLoading: false,
-				});
-
-				// Backfill any missing occurrences within the horizon window
-				await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
-				lastBackfillAt = Date.now();
-			} catch (error) {
-				console.error('Failed to initialize store:', error);
-				set({ isLoading: false });
-				throw error;
-			} finally {
-				initializePromise = null;
+		// Replace all data atomically — used by CSV import.
+		replaceAllData: async (
+			newEntities,
+			newPlans,
+			newTransactions,
+			newRecurrenceTemplates,
+			newMarketValueSnapshots = []
+		) => {
+			// Cancel all scheduled notifications before replacing data
+			try {
+				await cancelAllNotifications();
+				await updateBadgeCount(0);
+			} catch (e) {
+				console.warn('Failed to cancel notifications on data replace', e);
 			}
-		})();
 
-		return initializePromise;
-	},
+			const drizzleDb = await db.getDrizzleDb();
 
-	// Replace all data atomically — used by CSV import.
-	replaceAllData: async (
-		newEntities,
-		newPlans,
-		newTransactions,
-		newRecurrenceTemplates,
-		newMarketValueSnapshots = []
-	) => {
-		// Cancel all scheduled notifications before replacing data
-		try {
-			await cancelAllNotifications();
-			await updateBadgeCount(0);
-		} catch (e) {
-			console.warn('Failed to cancel notifications on data replace', e);
-		}
+			// Wrap in transaction so a mid-import failure doesn't leave an empty DB
+			const now = Date.now();
+			await drizzleDb.transaction((tx) => {
+				// Delete in FK-safe order: snapshots → transactions → exclusions →
+				// recurrenceTemplates → plans → entities (KII-123 added exclusions).
+				tx.delete(schema.marketValueSnapshots).run();
+				tx.delete(schema.transactions).run();
+				tx.delete(schema.recurrenceExclusions).run();
+				tx.delete(schema.recurrenceTemplates).run();
+				tx.delete(schema.plans).run();
+				tx.delete(schema.entities).run();
 
-		const drizzleDb = await db.getDrizzleDb();
-
-		// Wrap in transaction so a mid-import failure doesn't leave an empty DB
-		const now = Date.now();
-		await drizzleDb.transaction((tx) => {
-			// Delete in FK-safe order: snapshots → transactions → exclusions →
-			// recurrenceTemplates → plans → entities (KII-123 added exclusions).
-			tx.delete(schema.marketValueSnapshots).run();
-			tx.delete(schema.transactions).run();
-			tx.delete(schema.recurrenceExclusions).run();
-			tx.delete(schema.recurrenceTemplates).run();
-			tx.delete(schema.plans).run();
-			tx.delete(schema.entities).run();
-
-			// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots.
-			// `created_at`/`updated_at` come from CSV when present (round-trip
-			// preserves write-time across export/import); otherwise stamp now.
-			for (const entity of newEntities) {
-				tx.insert(schema.entities)
-					.values({
-						id: entity.id,
-						type: entity.type,
-						name: entity.name,
-						currency: entity.currency,
-						icon: entity.icon ?? null,
-						color: entity.color ?? null,
-						row: entity.row,
-						position: entity.position,
-						order: entity.order ?? 0,
-						include_in_total: entity.include_in_total ?? true,
-						is_deleted: entity.is_deleted ?? false,
-						is_default: entity.is_default ?? false,
-						is_investment: entity.is_investment ?? false,
-						created_at: entity.created_at ?? now,
-						updated_at: entity.updated_at ?? now,
-					})
-					.run();
-			}
-			for (const plan of newPlans) {
-				tx.insert(schema.plans)
-					.values({
-						...plan,
-						created_at: plan.created_at ?? now,
-						updated_at: plan.updated_at ?? now,
-					})
-					.run();
-			}
-			for (const template of newRecurrenceTemplates) {
-				tx.insert(schema.recurrenceTemplates)
-					.values({
-						id: template.id,
-						from_entity_id: template.from_entity_id,
-						to_entity_id: template.to_entity_id,
-						amount_minor: template.amount_minor,
-						currency: template.currency,
-						note: template.note ?? null,
-						rule: template.rule,
-						start_date: template.start_date,
-						end_date: template.end_date ?? null,
-						end_count: template.end_count ?? null,
-						horizon: template.horizon,
-						is_deleted: template.is_deleted ?? false,
-						created_at: template.created_at,
-						updated_at: template.updated_at ?? template.created_at,
-					})
-					.run();
-				// KII-123: write exclusions into the normalized table. We do this
-				// inside the FK-safe insert window (templates already inserted in
-				// the loop above, so each exclusion's FK target exists).
-				for (const ts of template.exclusions ?? []) {
-					tx.insert(schema.recurrenceExclusions)
-						.values({ template_id: template.id, timestamp: ts })
-						.onConflictDoNothing()
+				// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots.
+				// `created_at`/`updated_at` come from CSV when present (round-trip
+				// preserves write-time across export/import); otherwise stamp now.
+				for (const entity of newEntities) {
+					tx.insert(schema.entities)
+						.values({
+							id: entity.id,
+							type: entity.type,
+							name: entity.name,
+							currency: entity.currency,
+							icon: entity.icon ?? null,
+							color: entity.color ?? null,
+							row: entity.row,
+							position: entity.position,
+							order: entity.order ?? 0,
+							include_in_total: entity.include_in_total ?? true,
+							is_deleted: entity.is_deleted ?? false,
+							is_default: entity.is_default ?? false,
+							is_investment: entity.is_investment ?? false,
+							created_at: entity.created_at ?? now,
+							updated_at: entity.updated_at ?? now,
+						})
 						.run();
 				}
-			}
-			for (const txn of newTransactions) {
-				tx.insert(schema.transactions)
-					.values({
-						id: txn.id,
-						from_entity_id: txn.from_entity_id,
-						to_entity_id: txn.to_entity_id,
-						amount_minor: txn.amount_minor,
-						currency: txn.currency,
-						timestamp: txn.timestamp,
-						note: txn.note ?? null,
-						series_id: txn.series_id ?? null,
-						is_confirmed: txn.is_confirmed ?? true,
-						created_at: txn.created_at ?? now,
-						updated_at: txn.updated_at ?? now,
-					})
-					.run();
-			}
-			for (const snapshot of newMarketValueSnapshots) {
-				tx.insert(schema.marketValueSnapshots)
-					.values({
-						...snapshot,
-						created_at: snapshot.created_at ?? now,
-						updated_at: snapshot.updated_at ?? now,
-					})
-					.run();
-			}
-		});
+				for (const plan of newPlans) {
+					tx.insert(schema.plans)
+						.values({
+							...plan,
+							created_at: plan.created_at ?? now,
+							updated_at: plan.updated_at ?? now,
+						})
+						.run();
+				}
+				for (const template of newRecurrenceTemplates) {
+					tx.insert(schema.recurrenceTemplates)
+						.values({
+							id: template.id,
+							from_entity_id: template.from_entity_id,
+							to_entity_id: template.to_entity_id,
+							amount_minor: template.amount_minor,
+							currency: template.currency,
+							note: template.note ?? null,
+							rule: template.rule,
+							start_date: template.start_date,
+							end_date: template.end_date ?? null,
+							end_count: template.end_count ?? null,
+							horizon: template.horizon,
+							is_deleted: template.is_deleted ?? false,
+							created_at: template.created_at,
+							updated_at: template.updated_at ?? template.created_at,
+						})
+						.run();
+					// KII-123: write exclusions into the normalized table. We do this
+					// inside the FK-safe insert window (templates already inserted in
+					// the loop above, so each exclusion's FK target exists).
+					for (const ts of template.exclusions ?? []) {
+						tx.insert(schema.recurrenceExclusions)
+							.values({ template_id: template.id, timestamp: ts })
+							.onConflictDoNothing()
+							.run();
+					}
+				}
+				for (const txn of newTransactions) {
+					tx.insert(schema.transactions)
+						.values({
+							id: txn.id,
+							from_entity_id: txn.from_entity_id,
+							to_entity_id: txn.to_entity_id,
+							amount_minor: txn.amount_minor,
+							currency: txn.currency,
+							timestamp: txn.timestamp,
+							note: txn.note ?? null,
+							series_id: txn.series_id ?? null,
+							is_confirmed: txn.is_confirmed ?? true,
+							created_at: txn.created_at ?? now,
+							updated_at: txn.updated_at ?? now,
+						})
+						.run();
+				}
+				for (const snapshot of newMarketValueSnapshots) {
+					tx.insert(schema.marketValueSnapshots)
+						.values({
+							...snapshot,
+							created_at: snapshot.created_at ?? now,
+							updated_at: snapshot.updated_at ?? now,
+						})
+						.run();
+				}
+			});
 
-		// Re-read all data from DB into store state
-		const [
-			entities,
-			plans,
-			transactions,
-			rawTemplates,
-			marketValueSnapshots,
-			exclusionsByTemplate,
-		] = await Promise.all([
-			db.getAllEntities(),
-			db.getAllPlans(),
-			db.getAllTransactions(),
-			db.getAllRecurrenceTemplates(),
-			db.getAllMarketValueSnapshots(),
-			db.getAllExclusionsByTemplate(),
-		]);
-		const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
-			...t,
-			exclusions: exclusionsByTemplate.get(t.id) ?? [],
-		}));
-		set({ entities, plans, transactions, recurrenceTemplates, marketValueSnapshots });
-	},
-
-	setCurrentPeriod: (period) => set({ currentPeriod: period }),
-	setDraggedEntity: (entity) => set({ draggedEntity: entity }),
-	toggleIncomeVisible: () => set((state) => ({ incomeVisible: !state.incomeVisible })),
-
-	// Entity actions
-	addEntity: async (entity) => {
-		const stamped = await db.createEntity(entity);
-		set((state) => ({ entities: [...state.entities, stamped] }));
-	},
-
-	updateEntity: async (entity) => {
-		const stamped = await db.updateEntity(entity);
-		set((state) => ({
-			entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
-		}));
-	},
-
-	updateEntityWithOptions: async (entity, options) => {
-		const stamped = await db.updateEntity(entity, options);
-		set((state) => ({
-			entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
-			marketValueSnapshots: options?.deleteMarketValueSnapshots
-				? state.marketValueSnapshots.filter((s) => s.entity_id !== entity.id)
-				: state.marketValueSnapshots,
-		}));
-	},
-
-	deleteEntity: async (id) => {
-		// Prevent deleting system entities
-		if (id === BALANCE_ADJUSTMENT_ENTITY_ID) {
-			console.warn('Cannot delete system entity');
-			return;
-		}
-
-		const state = get();
-		const entity = state.entities.find((e) => e.id === id);
-		if (!isEntityActive(entity)) {
-			return;
-		}
-
-		// Use deleteEntityAndReindex to close gaps
-		await db.deleteEntityAndReindex(id);
-
-		// Reload entities to get updated positions (deleteEntityAndReindex
-		// returns the touched rows, but we use the full select to keep ordering
-		// consistent with how `initialize` hydrates the store).
-		const updatedEntities = await db.getAllEntities();
-		// KII-132: `state` captured before await — non-functional set overwrites
-		// any concurrent `plans` mutation. Switch to functional updater.
-		set({
-			entities: updatedEntities,
-			plans: state.plans.filter((p) => p.entity_id !== id),
-		});
-	},
-
-	reorderEntitiesByIds: async (type, orderedIds, maxRows) => {
-		const state = get();
-
-		// Convert flat ordered list to row/position assignments
-		// Horizontal grid: items flow left-to-right (columns), then top-to-bottom (rows within column)
-		// Index i maps to: col = floor(i / maxRows), row = i % maxRows
-		// In DB: position = column index, row = row within that column
-		const updates: { id: string; row: number; position: number }[] = [];
-
-		for (const [i, id] of orderedIds.entries()) {
-			const entity = state.entities.find((e) => e.id === id && !e.is_deleted);
-			if (!entity || entity.type !== type) continue;
-
-			const position = Math.floor(i / maxRows); // column index
-			const row = i % maxRows; // row within column
-
-			// Only add to updates if position actually changed
-			if (entity.row !== row || entity.position !== position) {
-				updates.push({ id, row, position });
-			}
-		}
-
-		if (updates.length === 0) return;
-
-		// Batch update all positions, then mirror DB-stamped rows into state.
-		const stamped = await db.updateEntityPositions(updates);
-		const stampedMap = new Map(stamped.map((row) => [row.id, row]));
-		set((state) => ({
-			entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
-		}));
-	},
-
-	// Plan actions
-	setPlan: async (plan) => {
-		// Validate that the entity exists before setting the plan
-		const state = get();
-		const entityExists = hasActiveEntity(state.entities, plan.entity_id);
-		if (!entityExists) {
-			console.warn(`Cannot set plan for non-existent entity: ${plan.entity_id}`);
-			return;
-		}
-
-		const stamped = await db.upsertPlan(plan);
-		set((state) => {
-			const existingIndex = state.plans.findIndex((p) => p.id === stamped.id);
-			if (existingIndex >= 0) {
-				const newPlans = [...state.plans];
-				newPlans[existingIndex] = stamped;
-				return { plans: newPlans };
-			}
-			return { plans: [...state.plans, stamped] };
-		});
-	},
-
-	deletePlan: async (id) => {
-		await db.deletePlan(id);
-		set((state) => ({
-			plans: state.plans.filter((plan) => plan.id !== id),
-		}));
-	},
-
-	// Transaction actions
-	addTransaction: async (transaction) => {
-		const result = await applyOperation({ kind: 'transaction.create', transaction }, 'local', {
-			entities: get().entities,
-			transactions: get().transactions,
-		});
-		if (result.kind !== 'transaction.create') return;
-		set((state) => ({ transactions: [result.created, ...state.transactions] }));
-	},
-
-	createTransactionBatch: async (transactions) => {
-		if (transactions.length === 0) return;
-
-		const entities = get().entities;
-		const result = await applyOperation(
-			{ kind: 'transaction.batch_create', transactions },
-			'local',
-			{ entities, transactions: get().transactions }
-		);
-		if (result.kind !== 'transaction.batch_create') return;
-		set((state) => ({ transactions: [...result.created, ...state.transactions] }));
-
-		// Side effect — local only by construction (inbound ops call applyOperation
-		// directly and never reach this store action).
-		await scheduleNotificationsForTransactions(result.created, entities, set);
-	},
-
-	updateTransaction: async (id, updates) => {
-		const result = await applyOperation({ kind: 'transaction.update', id, updates }, 'local', {
-			entities: get().entities,
-			transactions: get().transactions,
-		});
-		if (result.kind !== 'transaction.update' || !result.updated) return;
-		const stamped = result.updated;
-		set((state) => ({
-			transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
-		}));
-	},
-
-	deleteTransaction: async (id) => {
-		const transaction = get().transactions.find((t) => t.id === id);
-		// Side effect — local only by construction.
-		if (transaction?.notification_id) {
-			try {
-				await cancelNotification(transaction.notification_id);
-			} catch (e) {
-				console.warn('Failed to cancel notification', e);
-			}
-		}
-		await applyOperation({ kind: 'transaction.delete', id }, 'local', {
-			entities: get().entities,
-			transactions: get().transactions,
-		});
-		set((state) => ({
-			transactions: state.transactions.filter((t) => t.id !== id),
-		}));
-	},
-
-	replaceTransactionWithSplit: async (originalId, rows) => {
-		const state = get();
-		const original = state.transactions.find((t) => t.id === originalId);
-		if (!original) {
-			console.warn(`Cannot split non-existent transaction: ${originalId}`);
-			return;
-		}
-		if (rows.length === 0) {
-			console.warn('replaceTransactionWithSplit called with no rows; aborting');
-			return;
-		}
-
-		// Validate + default is_confirmed for each row, same shape as createTransactionBatch.
-		const prepared: Transaction[] = rows.map((tx) => {
-			ensureValid(validateTransaction(tx, state.entities));
-			return {
-				...tx,
-				// Split children are never part of the parent series — strip unconditionally.
-				series_id: undefined,
-				is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
-			};
-		});
-
-		// Cancel the original's scheduled notification (if any) BEFORE mutating the DB
-		// so a system-side failure surfaces before we touch persistent state.
-		if (original.notification_id) {
-			try {
-				await cancelNotification(original.notification_id);
-			} catch (e) {
-				console.warn('Failed to cancel notification', e);
-			}
-		}
-
-		const seriesExclusion = original.series_id
-			? { templateId: original.series_id, timestamp: original.timestamp }
-			: undefined;
-
-		const stamped = await db.replaceTransactionAtomic(originalId, prepared, {
-			seriesExclusion,
-		});
-
-		set((s) => {
-			const transactionsNext = [
-				...stamped,
-				...s.transactions.filter((t) => t.id !== originalId),
-			];
-			let recurrenceTemplatesNext = s.recurrenceTemplates;
-			if (seriesExclusion) {
-				recurrenceTemplatesNext = s.recurrenceTemplates.map((t) => {
-					if (t.id !== seriesExclusion.templateId) return t;
-					const existing = t.exclusions ?? [];
-					// Idempotent merge — mirrors the DB's INSERT OR IGNORE.
-					if (existing.includes(seriesExclusion.timestamp)) return t;
-					return { ...t, exclusions: [...existing, seriesExclusion.timestamp] };
-				});
-			}
-			return {
-				transactions: transactionsNext,
-				recurrenceTemplates: recurrenceTemplatesNext,
-			};
-		});
-
-		await scheduleNotificationsForTransactions(stamped, get().entities, set);
-	},
-
-	// Recurrence actions
-	addRecurringTransaction: async (transaction, recurrence) => {
-		const state = get();
-		ensureValid(validateTransaction(transaction, state.entities));
-
-		const template = buildRecurringTemplate({
-			from_entity_id: transaction.from_entity_id,
-			to_entity_id: transaction.to_entity_id,
-			amount_minor: transaction.amount_minor,
-			currency: transaction.currency,
-			note: transaction.note ?? undefined,
-			timestamp: transaction.timestamp,
-			rule: recurrence.rule,
-			endDate: recurrence.endDate,
-			endCount: recurrence.endCount,
-			horizon: recurrence.horizon,
-		});
-		const templateId = template.id;
-
-		const stampedTemplate = await db.createRecurrenceTemplate(template);
-
-		const occurrences = generateOccurrences({
-			rule: recurrence.rule,
-			startDate: transaction.timestamp,
-			horizonDays: recurrence.horizon,
-			now: Date.now(),
-			endDate: recurrence.endDate,
-			endCount: recurrence.endCount,
-		});
-
-		const now = Date.now();
-		const txns: Transaction[] = occurrences.map((ts) =>
-			buildTransaction(
-				{
-					from_entity_id: transaction.from_entity_id,
-					to_entity_id: transaction.to_entity_id,
-					amount_minor: transaction.amount_minor,
-					currency: transaction.currency,
-					timestamp: ts,
-					note: transaction.note ?? undefined,
-					series_id: templateId,
-				},
-				now
-			)
-		);
-
-		const stampedTxns = txns.length > 0 ? await db.createTransactionBatch(txns) : [];
-		set((state) => ({
-			recurrenceTemplates: [...state.recurrenceTemplates, stampedTemplate],
-			transactions:
-				stampedTxns.length > 0
-					? [...stampedTxns, ...state.transactions]
-					: state.transactions,
-		}));
-
-		// Request permission on first recurring transaction (contextual ask)
-		const remindersEnabled = await getRemindersEnabled();
-		const hasAsked = await getHasRequestedPermission();
-		if (remindersEnabled && !hasAsked) {
-			const granted = await requestPermission();
-			await setHasRequestedPermission(true);
-			if (!granted) {
-				await setRemindersEnabled(false);
-			}
-		}
-
-		// Schedule notifications for future occurrences
-		if (stampedTxns.length > 0) {
-			await scheduleNotificationsForTransactions(stampedTxns, get().entities, set);
-		}
-	},
-
-	// Roll the horizon window forward on app foreground. `generateOccurrences`
-	// only materializes up to `now + horizonDays`, so without periodic re-runs
-	// an "until further notice" recurrence silently stops producing rows after
-	// the horizon elapses. Throttled to once per day (the smallest supported
-	// frequency) so a foreground bounce doesn't thrash the DB.
-	backfillRecurringIfStale: async () => {
-		const now = Date.now();
-		if (now - lastBackfillAt < BACKFILL_MIN_INTERVAL_MS) return;
-		const state = get();
-		await backfillRecurrences(
-			state.recurrenceTemplates,
-			state.transactions,
-			state.entities,
-			set
-		);
-		lastBackfillAt = now;
-	},
-
-	updateTransactionWithScope: async (id, updates, scope) => {
-		const state = get();
-		const transaction = state.transactions.find((t) => t.id === id);
-		if (!transaction) return;
-
-		if (scope === 'single' || !transaction.series_id) {
-			await get().updateTransaction(id, updates);
-			return;
-		}
-
-		// scope === 'future': update template + all future transactions
-		ensureValid(validateUpdate(transaction, updates, state.entities));
-
-		const seriesId = transaction.series_id;
-		const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
-
-		if (template) {
-			const templateUpdates: Partial<RecurrenceTemplate> = {};
-			if (updates.amount_minor !== undefined)
-				templateUpdates.amount_minor = updates.amount_minor;
-			if (updates.from_entity_id !== undefined)
-				templateUpdates.from_entity_id = updates.from_entity_id;
-			if (updates.to_entity_id !== undefined)
-				templateUpdates.to_entity_id = updates.to_entity_id;
-			if (updates.note !== undefined) templateUpdates.note = updates.note;
-
-			const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, templateUpdates);
-			const stampedTxns = await db.updateTransactionsBySeriesFuture(
-				seriesId,
-				transaction.timestamp,
-				updates
-			);
-			const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
-			set((state) => ({
-				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id
-						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-						: t
-				),
-				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
+			// Re-read all data from DB into store state
+			const [
+				entities,
+				plans,
+				transactions,
+				rawTemplates,
+				marketValueSnapshots,
+				exclusionsByTemplate,
+			] = await Promise.all([
+				db.getAllEntities(),
+				db.getAllPlans(),
+				db.getAllTransactions(),
+				db.getAllRecurrenceTemplates(),
+				db.getAllMarketValueSnapshots(),
+				db.getAllExclusionsByTemplate(),
+			]);
+			const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+				...t,
+				exclusions: exclusionsByTemplate.get(t.id) ?? [],
 			}));
-		}
-	},
+			set({ entities, plans, transactions, recurrenceTemplates, marketValueSnapshots });
+		},
 
-	deleteTransactionWithScope: async (id, scope) => {
-		const state = get();
-		const transaction = state.transactions.find((t) => t.id === id);
-		if (!transaction) return;
+		setCurrentPeriod: (period) => set({ currentPeriod: period }),
+		setDraggedEntity: (entity) => set({ draggedEntity: entity }),
+		toggleIncomeVisible: () => set((state) => ({ incomeVisible: !state.incomeVisible })),
 
-		if (scope === 'single' || !transaction.series_id) {
-			if (transaction.notification_id) {
+		// Entity actions
+		addEntity: async (entity) => {
+			const stamped = await db.createEntity(entity);
+			set((state) => ({ entities: [...state.entities, stamped] }));
+		},
+
+		updateEntity: async (entity) => {
+			const stamped = await db.updateEntity(entity);
+			set((state) => ({
+				entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
+			}));
+		},
+
+		updateEntityWithOptions: async (entity, options) => {
+			const stamped = await db.updateEntity(entity, options);
+			set((state) => ({
+				entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
+				marketValueSnapshots: options?.deleteMarketValueSnapshots
+					? state.marketValueSnapshots.filter((s) => s.entity_id !== entity.id)
+					: state.marketValueSnapshots,
+			}));
+		},
+
+		deleteEntity: async (id) => {
+			// Prevent deleting system entities
+			if (id === BALANCE_ADJUSTMENT_ENTITY_ID) {
+				console.warn('Cannot delete system entity');
+				return;
+			}
+
+			const state = get();
+			const entity = state.entities.find((e) => e.id === id);
+			if (!isEntityActive(entity)) {
+				return;
+			}
+
+			// Use deleteEntityAndReindex to close gaps
+			await db.deleteEntityAndReindex(id);
+
+			// Reload entities to get updated positions (deleteEntityAndReindex
+			// returns the touched rows, but we use the full select to keep ordering
+			// consistent with how `initialize` hydrates the store).
+			const updatedEntities = await db.getAllEntities();
+			// KII-132: `state` captured before await — non-functional set overwrites
+			// any concurrent `plans` mutation. Switch to functional updater.
+			set({
+				entities: updatedEntities,
+				plans: state.plans.filter((p) => p.entity_id !== id),
+			});
+		},
+
+		reorderEntitiesByIds: async (type, orderedIds, maxRows) => {
+			const state = get();
+
+			// Convert flat ordered list to row/position assignments
+			// Horizontal grid: items flow left-to-right (columns), then top-to-bottom (rows within column)
+			// Index i maps to: col = floor(i / maxRows), row = i % maxRows
+			// In DB: position = column index, row = row within that column
+			const updates: { id: string; row: number; position: number }[] = [];
+
+			for (const [i, id] of orderedIds.entries()) {
+				const entity = state.entities.find((e) => e.id === id && !e.is_deleted);
+				if (!entity || entity.type !== type) continue;
+
+				const position = Math.floor(i / maxRows); // column index
+				const row = i % maxRows; // row within column
+
+				// Only add to updates if position actually changed
+				if (entity.row !== row || entity.position !== position) {
+					updates.push({ id, row, position });
+				}
+			}
+
+			if (updates.length === 0) return;
+
+			// Batch update all positions, then mirror DB-stamped rows into state.
+			const stamped = await db.updateEntityPositions(updates);
+			const stampedMap = new Map(stamped.map((row) => [row.id, row]));
+			set((state) => ({
+				entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
+			}));
+		},
+
+		// Plan actions
+		setPlan: async (plan) => {
+			// Validate that the entity exists before setting the plan
+			const state = get();
+			const entityExists = hasActiveEntity(state.entities, plan.entity_id);
+			if (!entityExists) {
+				console.warn(`Cannot set plan for non-existent entity: ${plan.entity_id}`);
+				return;
+			}
+
+			const stamped = await db.upsertPlan(plan);
+			set((state) => {
+				const existingIndex = state.plans.findIndex((p) => p.id === stamped.id);
+				if (existingIndex >= 0) {
+					const newPlans = [...state.plans];
+					newPlans[existingIndex] = stamped;
+					return { plans: newPlans };
+				}
+				return { plans: [...state.plans, stamped] };
+			});
+		},
+
+		deletePlan: async (id) => {
+			await db.deletePlan(id);
+			set((state) => ({
+				plans: state.plans.filter((plan) => plan.id !== id),
+			}));
+		},
+
+		// Transaction actions
+		addTransaction: async (transaction) => {
+			const result = await applyOperation(
+				{ kind: 'transaction.create', transaction },
+				'local',
+				buildApplyContext()
+			);
+			// Narrowing only: applyOperation returns the OpResult matching the op kind,
+			// so this guard never trips at runtime — it exists to narrow the union for TS.
+			if (result.kind !== 'transaction.create') return;
+			set((state) => ({ transactions: [result.created, ...state.transactions] }));
+		},
+
+		createTransactionBatch: async (transactions) => {
+			if (transactions.length === 0) return;
+
+			const ctx = buildApplyContext();
+			const result = await applyOperation(
+				{ kind: 'transaction.batch_create', transactions },
+				'local',
+				ctx
+			);
+			if (result.kind !== 'transaction.batch_create') return;
+			set((state) => ({ transactions: [...result.created, ...state.transactions] }));
+
+			// Side effect — local only by construction (inbound ops call applyOperation
+			// directly and never reach this store action).
+			await scheduleNotificationsForTransactions(result.created, ctx.entities, set);
+		},
+
+		updateTransaction: async (id, updates) => {
+			const result = await applyOperation(
+				{ kind: 'transaction.update', id, updates },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'transaction.update' || !result.updated) return;
+			const stamped = result.updated;
+			set((state) => ({
+				transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
+			}));
+		},
+
+		deleteTransaction: async (id) => {
+			const transaction = get().transactions.find((t) => t.id === id);
+			// Side effect — local only by construction.
+			if (transaction?.notification_id) {
 				try {
 					await cancelNotification(transaction.notification_id);
 				} catch (e) {
 					console.warn('Failed to cancel notification', e);
 				}
 			}
-			if (transaction.series_id) {
-				// KII-123: delete + exclusion-insert in a single SQLite tx so a
-				// crash between them can't strand the row (deleted) and the
-				// exclusion (missing) — which would let backfillRecurrences
-				// silently resurrect the occurrence on the next launch.
-				const seriesId = transaction.series_id;
-				const exclusionTs = transaction.timestamp;
-				await db.deleteTransaction(id, {
-					seriesExclusion: { templateId: seriesId, timestamp: exclusionTs },
-				});
-				set((state) => ({
-					transactions: state.transactions.filter((t) => t.id !== id),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
-						if (t.id !== seriesId) return t;
-						const existing = t.exclusions ?? [];
-						if (existing.includes(exclusionTs)) return t;
-						return { ...t, exclusions: [...existing, exclusionTs] };
-					}),
-				}));
-			} else {
-				await db.deleteTransaction(id);
-				set((state) => ({
-					transactions: state.transactions.filter((t) => t.id !== id),
-				}));
-			}
-			return;
-		}
-
-		// scope === 'future'
-		const seriesId = transaction.series_id;
-
-		// Cancel notifications for all future transactions in this series
-		const futureTxs = state.transactions.filter(
-			(t) =>
-				t.series_id === seriesId &&
-				t.timestamp >= transaction.timestamp &&
-				t.notification_id
-		);
-		for (const tx of futureTxs) {
-			try {
-				await cancelNotification(tx.notification_id!);
-			} catch (e) {
-				console.warn('Failed to cancel notification', e);
-			}
-		}
-
-		await db.deleteTransactionsBySeriesFuture(seriesId, transaction.timestamp);
-
-		const remaining = state.transactions.filter(
-			(t) => t.series_id === seriesId && t.timestamp < transaction.timestamp
-		);
-
-		if (remaining.length === 0) {
-			const stampedTemplate = await db.softDeleteRecurrenceTemplate(seriesId);
+			await applyOperation({ kind: 'transaction.delete', id }, 'local', buildApplyContext());
 			set((state) => ({
-				transactions: state.transactions.filter(
-					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
-				),
-				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id
-						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-						: t
-				),
+				transactions: state.transactions.filter((t) => t.id !== id),
 			}));
-		} else {
-			const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
-			const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, {
-				end_date: lastRemaining,
+		},
+
+		replaceTransactionWithSplit: async (originalId, rows) => {
+			const state = get();
+			const original = state.transactions.find((t) => t.id === originalId);
+			if (!original) {
+				console.warn(`Cannot split non-existent transaction: ${originalId}`);
+				return;
+			}
+			if (rows.length === 0) {
+				console.warn('replaceTransactionWithSplit called with no rows; aborting');
+				return;
+			}
+
+			// Validate + default is_confirmed for each row, same shape as createTransactionBatch.
+			const prepared: Transaction[] = rows.map((tx) => {
+				ensureValid(validateTransaction(tx, state.entities));
+				return {
+					...tx,
+					// Split children are never part of the parent series — strip unconditionally.
+					series_id: undefined,
+					is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
+				};
 			});
+
+			// Cancel the original's scheduled notification (if any) BEFORE mutating the DB
+			// so a system-side failure surfaces before we touch persistent state.
+			if (original.notification_id) {
+				try {
+					await cancelNotification(original.notification_id);
+				} catch (e) {
+					console.warn('Failed to cancel notification', e);
+				}
+			}
+
+			const seriesExclusion = original.series_id
+				? { templateId: original.series_id, timestamp: original.timestamp }
+				: undefined;
+
+			const stamped = await db.replaceTransactionAtomic(originalId, prepared, {
+				seriesExclusion,
+			});
+
+			set((s) => {
+				const transactionsNext = [
+					...stamped,
+					...s.transactions.filter((t) => t.id !== originalId),
+				];
+				let recurrenceTemplatesNext = s.recurrenceTemplates;
+				if (seriesExclusion) {
+					recurrenceTemplatesNext = s.recurrenceTemplates.map((t) => {
+						if (t.id !== seriesExclusion.templateId) return t;
+						const existing = t.exclusions ?? [];
+						// Idempotent merge — mirrors the DB's INSERT OR IGNORE.
+						if (existing.includes(seriesExclusion.timestamp)) return t;
+						return { ...t, exclusions: [...existing, seriesExclusion.timestamp] };
+					});
+				}
+				return {
+					transactions: transactionsNext,
+					recurrenceTemplates: recurrenceTemplatesNext,
+				};
+			});
+
+			await scheduleNotificationsForTransactions(stamped, get().entities, set);
+		},
+
+		// Recurrence actions
+		addRecurringTransaction: async (transaction, recurrence) => {
+			const state = get();
+			ensureValid(validateTransaction(transaction, state.entities));
+
+			const template = buildRecurringTemplate({
+				from_entity_id: transaction.from_entity_id,
+				to_entity_id: transaction.to_entity_id,
+				amount_minor: transaction.amount_minor,
+				currency: transaction.currency,
+				note: transaction.note ?? undefined,
+				timestamp: transaction.timestamp,
+				rule: recurrence.rule,
+				endDate: recurrence.endDate,
+				endCount: recurrence.endCount,
+				horizon: recurrence.horizon,
+			});
+			const templateId = template.id;
+
+			const stampedTemplate = await db.createRecurrenceTemplate(template);
+
+			const occurrences = generateOccurrences({
+				rule: recurrence.rule,
+				startDate: transaction.timestamp,
+				horizonDays: recurrence.horizon,
+				now: Date.now(),
+				endDate: recurrence.endDate,
+				endCount: recurrence.endCount,
+			});
+
+			const now = Date.now();
+			const txns: Transaction[] = occurrences.map((ts) =>
+				buildTransaction(
+					{
+						from_entity_id: transaction.from_entity_id,
+						to_entity_id: transaction.to_entity_id,
+						amount_minor: transaction.amount_minor,
+						currency: transaction.currency,
+						timestamp: ts,
+						note: transaction.note ?? undefined,
+						series_id: templateId,
+					},
+					now
+				)
+			);
+
+			const stampedTxns = txns.length > 0 ? await db.createTransactionBatch(txns) : [];
 			set((state) => ({
-				transactions: state.transactions.filter(
-					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
-				),
-				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-					stampedTemplate && t.id === stampedTemplate.id
-						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-						: t
-				),
+				recurrenceTemplates: [...state.recurrenceTemplates, stampedTemplate],
+				transactions:
+					stampedTxns.length > 0
+						? [...stampedTxns, ...state.transactions]
+						: state.transactions,
 			}));
-		}
-	},
 
-	deactivateTemplatesForEntity: async (entityId) => {
-		const state = get();
-		const now = Date.now();
-		const templates = state.recurrenceTemplates.filter(
-			(t) => !t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
-		);
+			// Request permission on first recurring transaction (contextual ask)
+			const remindersEnabled = await getRemindersEnabled();
+			const hasAsked = await getHasRequestedPermission();
+			if (remindersEnabled && !hasAsked) {
+				const granted = await requestPermission();
+				await setHasRequestedPermission(true);
+				if (!granted) {
+					await setRemindersEnabled(false);
+				}
+			}
 
-		// Cancel notifications for future transactions being deleted
-		if (templates.length > 0) {
-			const templateIds = new Set(templates.map((t) => t.id));
+			// Schedule notifications for future occurrences
+			if (stampedTxns.length > 0) {
+				await scheduleNotificationsForTransactions(stampedTxns, get().entities, set);
+			}
+		},
+
+		// Roll the horizon window forward on app foreground. `generateOccurrences`
+		// only materializes up to `now + horizonDays`, so without periodic re-runs
+		// an "until further notice" recurrence silently stops producing rows after
+		// the horizon elapses. Throttled to once per day (the smallest supported
+		// frequency) so a foreground bounce doesn't thrash the DB.
+		backfillRecurringIfStale: async () => {
+			const now = Date.now();
+			if (now - lastBackfillAt < BACKFILL_MIN_INTERVAL_MS) return;
+			const state = get();
+			await backfillRecurrences(
+				state.recurrenceTemplates,
+				state.transactions,
+				state.entities,
+				set
+			);
+			lastBackfillAt = now;
+		},
+
+		updateTransactionWithScope: async (id, updates, scope) => {
+			const state = get();
+			const transaction = state.transactions.find((t) => t.id === id);
+			if (!transaction) return;
+
+			if (scope === 'single' || !transaction.series_id) {
+				await get().updateTransaction(id, updates);
+				return;
+			}
+
+			// scope === 'future': update template + all future transactions
+			ensureValid(validateUpdate(transaction, updates, state.entities));
+
+			const seriesId = transaction.series_id;
+			const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
+
+			if (template) {
+				const templateUpdates: Partial<RecurrenceTemplate> = {};
+				if (updates.amount_minor !== undefined)
+					templateUpdates.amount_minor = updates.amount_minor;
+				if (updates.from_entity_id !== undefined)
+					templateUpdates.from_entity_id = updates.from_entity_id;
+				if (updates.to_entity_id !== undefined)
+					templateUpdates.to_entity_id = updates.to_entity_id;
+				if (updates.note !== undefined) templateUpdates.note = updates.note;
+
+				const stampedTemplate = await db.updateRecurrenceTemplate(
+					seriesId,
+					templateUpdates
+				);
+				const stampedTxns = await db.updateTransactionsBySeriesFuture(
+					seriesId,
+					transaction.timestamp,
+					updates
+				);
+				const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
+				set((state) => ({
+					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+						stampedTemplate && t.id === stampedTemplate.id
+							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+							: t
+					),
+					transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
+				}));
+			}
+		},
+
+		deleteTransactionWithScope: async (id, scope) => {
+			const state = get();
+			const transaction = state.transactions.find((t) => t.id === id);
+			if (!transaction) return;
+
+			if (scope === 'single' || !transaction.series_id) {
+				if (transaction.notification_id) {
+					try {
+						await cancelNotification(transaction.notification_id);
+					} catch (e) {
+						console.warn('Failed to cancel notification', e);
+					}
+				}
+				if (transaction.series_id) {
+					// KII-123: delete + exclusion-insert in a single SQLite tx so a
+					// crash between them can't strand the row (deleted) and the
+					// exclusion (missing) — which would let backfillRecurrences
+					// silently resurrect the occurrence on the next launch.
+					const seriesId = transaction.series_id;
+					const exclusionTs = transaction.timestamp;
+					await db.deleteTransaction(id, {
+						seriesExclusion: { templateId: seriesId, timestamp: exclusionTs },
+					});
+					set((state) => ({
+						transactions: state.transactions.filter((t) => t.id !== id),
+						recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+							if (t.id !== seriesId) return t;
+							const existing = t.exclusions ?? [];
+							if (existing.includes(exclusionTs)) return t;
+							return { ...t, exclusions: [...existing, exclusionTs] };
+						}),
+					}));
+				} else {
+					await db.deleteTransaction(id);
+					set((state) => ({
+						transactions: state.transactions.filter((t) => t.id !== id),
+					}));
+				}
+				return;
+			}
+
+			// scope === 'future'
+			const seriesId = transaction.series_id;
+
+			// Cancel notifications for all future transactions in this series
 			const futureTxs = state.transactions.filter(
 				(t) =>
-					t.series_id &&
-					templateIds.has(t.series_id) &&
-					t.timestamp >= now &&
+					t.series_id === seriesId &&
+					t.timestamp >= transaction.timestamp &&
 					t.notification_id
 			);
 			for (const tx of futureTxs) {
@@ -1016,157 +968,222 @@ export const useStore = create<AppState>((set, get) => ({
 					console.warn('Failed to cancel notification', e);
 				}
 			}
-		}
 
-		const stampedTemplates: RecurrenceTemplate[] = [];
-		for (const template of templates) {
-			await db.deleteTransactionsBySeriesFuture(template.id, now);
-			const stamped = await db.softDeleteRecurrenceTemplate(template.id);
-			if (stamped) stampedTemplates.push(stamped);
-		}
+			await db.deleteTransactionsBySeriesFuture(seriesId, transaction.timestamp);
 
-		if (templates.length > 0) {
-			const templateIds = new Set(templates.map((t) => t.id));
-			const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
-			set((state) => ({
-				transactions: state.transactions.filter(
-					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
-				),
-				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
-					const stamped = stampedMap.get(t.id);
-					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
-				}),
-			}));
-		}
-	},
+			const remaining = state.transactions.filter(
+				(t) => t.series_id === seriesId && t.timestamp < transaction.timestamp
+			);
 
-	// Confirmation actions
-	confirmTransaction: async (id) => {
-		const transaction = get().transactions.find((t) => t.id === id);
-		if (transaction?.notification_id) {
-			try {
-				await cancelNotification(transaction.notification_id);
-			} catch (e) {
-				console.warn('Failed to cancel notification', e);
+			if (remaining.length === 0) {
+				const stampedTemplate = await db.softDeleteRecurrenceTemplate(seriesId);
+				set((state) => ({
+					transactions: state.transactions.filter(
+						(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
+					),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+						stampedTemplate && t.id === stampedTemplate.id
+							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+							: t
+					),
+				}));
+			} else {
+				const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
+				const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, {
+					end_date: lastRemaining,
+				});
+				set((state) => ({
+					transactions: state.transactions.filter(
+						(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
+					),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+						stampedTemplate && t.id === stampedTemplate.id
+							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+							: t
+					),
+				}));
 			}
-		}
-		const stamped = await db.confirmTransaction(id);
-		if (stamped) {
-			set((state) => ({
-				transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
-			}));
-		}
-		await syncBadgeCount(get);
-	},
+		},
 
-	confirmAllDueTransactions: async () => {
-		const now = Date.now();
-		const dueTxs = get().transactions.filter(
-			(t) => t.is_confirmed === false && t.timestamp <= now
-		);
-		if (dueTxs.length === 0) return;
+		deactivateTemplatesForEntity: async (entityId) => {
+			const state = get();
+			const now = Date.now();
+			const templates = state.recurrenceTemplates.filter(
+				(t) =>
+					!t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
+			);
 
-		// Cancel notifications for transactions being confirmed
-		for (const tx of dueTxs) {
-			if (tx.notification_id) {
+			// Cancel notifications for future transactions being deleted
+			if (templates.length > 0) {
+				const templateIds = new Set(templates.map((t) => t.id));
+				const futureTxs = state.transactions.filter(
+					(t) =>
+						t.series_id &&
+						templateIds.has(t.series_id) &&
+						t.timestamp >= now &&
+						t.notification_id
+				);
+				for (const tx of futureTxs) {
+					try {
+						await cancelNotification(tx.notification_id!);
+					} catch (e) {
+						console.warn('Failed to cancel notification', e);
+					}
+				}
+			}
+
+			const stampedTemplates: RecurrenceTemplate[] = [];
+			for (const template of templates) {
+				await db.deleteTransactionsBySeriesFuture(template.id, now);
+				const stamped = await db.softDeleteRecurrenceTemplate(template.id);
+				if (stamped) stampedTemplates.push(stamped);
+			}
+
+			if (templates.length > 0) {
+				const templateIds = new Set(templates.map((t) => t.id));
+				const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
+				set((state) => ({
+					transactions: state.transactions.filter(
+						(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
+					),
+					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+						const stamped = stampedMap.get(t.id);
+						return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
+					}),
+				}));
+			}
+		},
+
+		// Confirmation actions
+		confirmTransaction: async (id) => {
+			const transaction = get().transactions.find((t) => t.id === id);
+			if (transaction?.notification_id) {
 				try {
-					await cancelNotification(tx.notification_id);
+					await cancelNotification(transaction.notification_id);
 				} catch (e) {
 					console.warn('Failed to cancel notification', e);
 				}
 			}
-		}
+			const stamped = await db.confirmTransaction(id);
+			if (stamped) {
+				set((state) => ({
+					transactions: state.transactions.map((t) =>
+						t.id === stamped.id ? stamped : t
+					),
+				}));
+			}
+			await syncBadgeCount(get);
+		},
 
-		const dueIds = dueTxs.map((t) => t.id);
-		const stamped = await db.confirmTransactionsBatch(dueIds);
-		const stampedMap = new Map(stamped.map((t) => [t.id, t]));
-		set((state) => ({
-			transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
-		}));
-		await syncBadgeCount(get);
-	},
-
-	// Default account — atomic clear-and-set in a single DB transaction (KII-113).
-	setDefaultAccount: async (accountId) => {
-		const stamped = await db.setDefaultAccount(accountId);
-		const stampedMap = new Map(stamped.map((e) => [e.id, e]));
-		set((state) => ({
-			entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
-		}));
-	},
-
-	// Savings reservation — computes delta from current net and creates a transaction
-	reserveToSaving: async (accountEntityId, savingEntityId, desiredTotalMinor) => {
-		const state = get();
-		const account = state.entities.find((e) => e.id === accountEntityId);
-		const saving = state.entities.find((e) => e.id === savingEntityId);
-		if (!account || !saving) {
-			throw new Error(
-				`Cannot reserve with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
+		confirmAllDueTransactions: async () => {
+			const now = Date.now();
+			const dueTxs = get().transactions.filter(
+				(t) => t.is_confirmed === false && t.timestamp <= now
 			);
-		}
+			if (dueTxs.length === 0) return;
 
-		const currentNetMinor = getReservationForPair(
-			state.transactions,
-			accountEntityId,
-			savingEntityId
-		);
-		const deltaMinor = desiredTotalMinor - currentNetMinor;
+			// Cancel notifications for transactions being confirmed
+			for (const tx of dueTxs) {
+				if (tx.notification_id) {
+					try {
+						await cancelNotification(tx.notification_id);
+					} catch (e) {
+						console.warn('Failed to cancel notification', e);
+					}
+				}
+			}
 
-		// KII-120: integer minor units, so the threshold is "no change" (delta=0).
-		// The old `< 0.005` paper-over from the float era is no longer needed.
-		if (deltaMinor === 0) return;
+			const dueIds = dueTxs.map((t) => t.id);
+			const stamped = await db.confirmTransactionsBatch(dueIds);
+			const stampedMap = new Map(stamped.map((t) => [t.id, t]));
+			set((state) => ({
+				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
+			}));
+			await syncBadgeCount(get);
+		},
 
-		const transaction: Transaction = {
-			id: generateId(),
-			from_entity_id: deltaMinor > 0 ? accountEntityId : savingEntityId,
-			to_entity_id: deltaMinor > 0 ? savingEntityId : accountEntityId,
-			amount_minor: Math.abs(deltaMinor),
-			currency: account.currency,
-			timestamp: Date.now(),
-		};
+		// Default account — atomic clear-and-set in a single DB transaction (KII-113).
+		setDefaultAccount: async (accountId) => {
+			const stamped = await db.setDefaultAccount(accountId);
+			const stampedMap = new Map(stamped.map((e) => [e.id, e]));
+			set((state) => ({
+				entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
+			}));
+		},
 
-		// KII-132: same stale-entities-snapshot pattern as `addTransaction`.
-		ensureValid(validateTransaction(transaction, state.entities));
+		// Savings reservation — computes delta from current net and creates a transaction
+		reserveToSaving: async (accountEntityId, savingEntityId, desiredTotalMinor) => {
+			const state = get();
+			const account = state.entities.find((e) => e.id === accountEntityId);
+			const saving = state.entities.find((e) => e.id === savingEntityId);
+			if (!account || !saving) {
+				throw new Error(
+					`Cannot reserve with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
+				);
+			}
 
-		const stamped = await db.createTransaction(transaction);
-		set((s) => ({ transactions: [stamped, ...s.transactions] }));
-	},
+			const currentNetMinor = getReservationForPair(
+				state.transactions,
+				accountEntityId,
+				savingEntityId
+			);
+			const deltaMinor = desiredTotalMinor - currentNetMinor;
 
-	// Market value snapshot actions
-	addMarketValueSnapshot: async (snapshot) => {
-		const stamped = await db.createMarketValueSnapshot(snapshot);
-		set((state) => ({
-			marketValueSnapshots: [stamped, ...state.marketValueSnapshots],
-		}));
-	},
+			// KII-120: integer minor units, so the threshold is "no change" (delta=0).
+			// The old `< 0.005` paper-over from the float era is no longer needed.
+			if (deltaMinor === 0) return;
 
-	updateMarketValueSnapshot: async (id, updates) => {
-		const stamped = await db.updateMarketValueSnapshot(id, updates);
-		if (!stamped) return;
-		set((state) => ({
-			marketValueSnapshots: state.marketValueSnapshots.map((s) =>
-				s.id === stamped.id ? stamped : s
-			),
-		}));
-	},
+			const transaction: Transaction = {
+				id: generateId(),
+				from_entity_id: deltaMinor > 0 ? accountEntityId : savingEntityId,
+				to_entity_id: deltaMinor > 0 ? savingEntityId : accountEntityId,
+				amount_minor: Math.abs(deltaMinor),
+				currency: account.currency,
+				timestamp: Date.now(),
+			};
 
-	deleteMarketValueSnapshot: async (id) => {
-		await db.deleteMarketValueSnapshot(id);
-		set((state) => ({
-			marketValueSnapshots: state.marketValueSnapshots.filter((s) => s.id !== id),
-		}));
-	},
+			// KII-132: same stale-entities-snapshot pattern as `addTransaction`.
+			ensureValid(validateTransaction(transaction, state.entities));
 
-	deleteAllMarketValueSnapshots: async (entityId) => {
-		await db.deleteAllMarketValueSnapshots(entityId);
-		set((state) => ({
-			marketValueSnapshots: state.marketValueSnapshots.filter(
-				(s) => s.entity_id !== entityId
-			),
-		}));
-	},
-}));
+			const stamped = await db.createTransaction(transaction);
+			set((s) => ({ transactions: [stamped, ...s.transactions] }));
+		},
+
+		// Market value snapshot actions
+		addMarketValueSnapshot: async (snapshot) => {
+			const stamped = await db.createMarketValueSnapshot(snapshot);
+			set((state) => ({
+				marketValueSnapshots: [stamped, ...state.marketValueSnapshots],
+			}));
+		},
+
+		updateMarketValueSnapshot: async (id, updates) => {
+			const stamped = await db.updateMarketValueSnapshot(id, updates);
+			if (!stamped) return;
+			set((state) => ({
+				marketValueSnapshots: state.marketValueSnapshots.map((s) =>
+					s.id === stamped.id ? stamped : s
+				),
+			}));
+		},
+
+		deleteMarketValueSnapshot: async (id) => {
+			await db.deleteMarketValueSnapshot(id);
+			set((state) => ({
+				marketValueSnapshots: state.marketValueSnapshots.filter((s) => s.id !== id),
+			}));
+		},
+
+		deleteAllMarketValueSnapshots: async (entityId) => {
+			await db.deleteAllMarketValueSnapshots(entityId);
+			set((state) => ({
+				marketValueSnapshots: state.marketValueSnapshots.filter(
+					(s) => s.entity_id !== entityId
+				),
+			}));
+		},
+	};
+});
 
 // Selectors - using useShallow and useMemo to prevent infinite loops
 
