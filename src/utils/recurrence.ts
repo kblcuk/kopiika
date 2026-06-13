@@ -57,86 +57,66 @@ export function horizonForFrequency(freq: RecurrenceFrequency): number {
 }
 
 /**
- * Compute the next occurrence timestamp from a given timestamp using the rule.
- * All date math is in local time to avoid DST shifts.
+ * Add `n` recurrence intervals to a base timestamp, preserving the base's local
+ * time-of-day. Uses the local component constructor `new Date(y, m, d, h, …)`
+ * so the result is the target CIVIL date at the same wall-clock time — DST-safe
+ * by construction (no epoch-offset mutation that could drift an hour across a
+ * DST boundary). Monthly/yearly clamp the day to the target month's last day
+ * (Jan 31 → Feb 28), always derived from the base day to avoid cumulative drift.
  */
-export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): number {
-	const d = new Date(fromTimestamp);
+function addIntervals(baseTimestamp: number, n: number, rule: RecurrenceRule): number {
+	const base = new Date(baseTimestamp);
+	const y = base.getFullYear();
+	const mon = base.getMonth();
+	const day = base.getDate();
+	const h = base.getHours();
+	const min = base.getMinutes();
+	const s = base.getSeconds();
+	const ms = base.getMilliseconds();
 
 	switch (rule.type) {
 		case 'daily':
-			// KII-132: `setDate(+1)` operates in local time and can drift across
-			// DST boundaries (a "daily" rule crossing spring/fall DST will
-			// silently shift by an hour). Add a DST-boundary regression test
-			// and consider snapping to local midnight before computing.
-			d.setDate(d.getDate() + 1);
-			break;
+			return new Date(y, mon, day + n, h, min, s, ms).getTime();
 		case 'weekly':
-			d.setDate(d.getDate() + 7);
-			break;
+			return new Date(y, mon, day + n * 7, h, min, s, ms).getTime();
 		case 'monthly': {
-			const originalDay = d.getDate();
-			d.setMonth(d.getMonth() + 1, 1);
-			const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-			d.setDate(Math.min(originalDay, maxDay));
-			break;
+			const target = new Date(y, mon + n, 1, h, min, s, ms);
+			const maxDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+			return new Date(
+				target.getFullYear(),
+				target.getMonth(),
+				Math.min(day, maxDay),
+				h,
+				min,
+				s,
+				ms
+			).getTime();
 		}
 		case 'yearly': {
-			const origMonth = d.getMonth();
-			const origDay = d.getDate();
-			d.setFullYear(d.getFullYear() + 1, origMonth, 1);
-			const maxDay = new Date(d.getFullYear(), origMonth + 1, 0).getDate();
-			d.setDate(Math.min(origDay, maxDay));
-			break;
+			const maxDay = new Date(y + n, mon + 1, 0).getDate();
+			return new Date(y + n, mon, Math.min(day, maxDay), h, min, s, ms).getTime();
 		}
 		default: {
-			const _exhaustive: string = rule.type;
-			throw new Error(`Unsupported recurrence type: ${_exhaustive}`);
+			const _exhaustive: never = rule.type as never;
+			throw new Error(`Unsupported recurrence type: ${_exhaustive as string}`);
 		}
 	}
-
-	return d.getTime();
 }
 
 /**
- * Compute the Nth occurrence from a start date, always deriving from the
- * original start date to avoid cumulative day-of-month clamping drift.
- * E.g. monthly from Jan 31: Jan 31 → Feb 28 → Mar 31 → Apr 30 (not Mar 28).
+ * Compute the next occurrence one interval after `fromTimestamp`, preserving
+ * local time-of-day. DST-safe (see addIntervals).
+ */
+export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): number {
+	return addIntervals(fromTimestamp, 1, rule);
+}
+
+/**
+ * Compute the Nth occurrence from a start date, always derived from the original
+ * start (not chained) to avoid cumulative day-of-month clamping drift.
  */
 function nthOccurrence(startDate: number, n: number, rule: RecurrenceRule): number {
-	if (n === 0) return startDate;
-
-	const start = new Date(startDate);
-	const d = new Date(startDate);
-
-	switch (rule.type) {
-		case 'daily':
-			d.setDate(start.getDate() + n);
-			break;
-		case 'weekly':
-			d.setDate(start.getDate() + n * 7);
-			break;
-		case 'monthly': {
-			const originalDay = start.getDate();
-			d.setMonth(start.getMonth() + n, 1);
-			const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-			d.setDate(Math.min(originalDay, maxDay));
-			break;
-		}
-		case 'yearly': {
-			const origMonth = start.getMonth();
-			const origDay = start.getDate();
-			d.setFullYear(start.getFullYear() + n, origMonth, 1);
-			const maxDay = new Date(d.getFullYear(), origMonth + 1, 0).getDate();
-			d.setDate(Math.min(origDay, maxDay));
-			break;
-		}
-		default: {
-			throw new Error(`Unsupported recurrence type: ${rule.type as string}`);
-		}
-	}
-
-	return d.getTime();
+	return addIntervals(startDate, n, rule);
 }
 
 interface GenerateOptions {

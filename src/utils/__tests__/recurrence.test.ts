@@ -303,3 +303,41 @@ describe('generateOccurrences — exclusions match by civil date', () => {
 		expect(civilDays).toContain('2026-04-04');
 	});
 });
+
+describe('generateOccurrences — civil-date identity', () => {
+	test('daily occurrences land on consecutive civil dates across a US spring-forward boundary', () => {
+		// US DST 2026 springs forward Sun Mar 8. A daily rule from Mar 6 must
+		// produce Mar 6,7,8,9,10 as civil dates — no day skipped or doubled.
+		const start = localTs(2026, 3, 6, 9);
+		const result = generateOccurrences({
+			rule: { type: 'daily' },
+			startDate: start,
+			horizonDays: 4,
+			now: start,
+		});
+		expect(result.map(toCivilDate)).toEqual([
+			'2026-03-06',
+			'2026-03-07',
+			'2026-03-08',
+			'2026-03-09',
+			'2026-03-10',
+		]);
+	});
+
+	test('monthly from Jan 31 yields civil dates with month-end clamping, no drift', () => {
+		const start = localTs(2026, 1, 31, 9);
+		const result = generateOccurrences({
+			rule: { type: 'monthly' },
+			startDate: start,
+			horizonDays: 119,
+			now: start,
+		});
+		// Jan 31 → Feb 28 → Mar 31 → Apr 30 (always derived from the original day).
+		expect(result.map(toCivilDate)).toEqual([
+			'2026-01-31',
+			'2026-02-28',
+			'2026-03-31',
+			'2026-04-30',
+		]);
+	});
+});
