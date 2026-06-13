@@ -55,6 +55,16 @@ export async function applyOperation(
 			const created = await db.createTransactionBatch(prepared);
 			return { kind: 'transaction.batch_create', created };
 		}
+		case 'transaction.update': {
+			const existing = ctx.transactions.find((t) => t.id === op.id);
+			if (!existing) {
+				console.warn(`applyOperation: cannot update unknown transaction: ${op.id}`);
+				return { kind: 'transaction.update', updated: null };
+			}
+			ensureValid(validateUpdate(existing as never, op.updates, ctx.entities as Entity[]));
+			const updated = await db.updateTransaction(op.id, op.updates);
+			return { kind: 'transaction.update', updated };
+		}
 		default:
 			throw new Error(`applyOperation: unsupported op kind "${op.kind}"`);
 	}

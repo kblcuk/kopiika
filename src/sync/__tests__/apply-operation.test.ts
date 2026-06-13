@@ -138,3 +138,39 @@ describe('applyOperation — transaction.batch_create', () => {
 		expect(all.find((t) => t.id === 'tx-a')).toBeUndefined();
 	});
 });
+
+describe('applyOperation — transaction.update', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('applies the patch and returns the stamped row', async () => {
+		const entities = await seedEntities();
+		const created = await db.createTransaction(makeTx({ amount_minor: 1000 }));
+
+		const result = await applyOperation(
+			{ kind: 'transaction.update', id: created.id, updates: { amount_minor: 5000 } },
+			'local',
+			{ entities, transactions: [created] }
+		);
+
+		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
+		expect(result.updated?.amount_minor).toBe(5000);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === created.id)?.amount_minor).toBe(5000);
+	});
+
+	test('returns updated:null when the transaction is unknown', async () => {
+		const entities = await seedEntities();
+
+		const result = await applyOperation(
+			{ kind: 'transaction.update', id: 'missing', updates: { amount_minor: 5000 } },
+			'local',
+			{ entities, transactions: [] }
+		);
+
+		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
+		expect(result.updated).toBeNull();
+	});
+});
