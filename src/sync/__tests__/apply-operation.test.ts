@@ -162,6 +162,21 @@ describe('applyOperation — transaction.update', () => {
 		expect(all.find((t) => t.id === created.id)?.amount_minor).toBe(5000);
 	});
 
+	test('applies a note-only patch without touching the amount', async () => {
+		const entities = await seedEntities();
+		const created = await db.createTransaction(makeTx({ amount_minor: 1000 }));
+
+		const result = await applyOperation(
+			{ kind: 'transaction.update', id: created.id, updates: { note: 'lunch' } },
+			'local',
+			{ entities, transactions: [created] }
+		);
+
+		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
+		expect(result.updated?.note).toBe('lunch');
+		expect(result.updated?.amount_minor).toBe(1000);
+	});
+
 	test('returns updated:null when the transaction is unknown', async () => {
 		const entities = await seedEntities();
 
@@ -173,6 +188,7 @@ describe('applyOperation — transaction.update', () => {
 
 		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
 		expect(result.updated).toBeNull();
+		expect(await db.getAllTransactions()).toHaveLength(0);
 	});
 });
 

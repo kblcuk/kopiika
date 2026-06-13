@@ -1,5 +1,5 @@
 import * as db from '@/src/db';
-import type { Entity } from '@/src/types';
+import type { Entity, Transaction } from '@/src/types';
 import {
 	ensureValid,
 	validateTransaction,
@@ -15,7 +15,7 @@ import type { Op, OpResult, OpSource } from './ops';
  */
 export interface ApplyContext {
 	entities: Entity[];
-	transactions: { id: string; from_entity_id: string; to_entity_id: string }[];
+	transactions: Transaction[];
 }
 
 /**
@@ -35,7 +35,7 @@ export async function applyOperation(
 
 	switch (op.kind) {
 		case 'transaction.create': {
-			ensureValid(validateTransaction(op.transaction, ctx.entities as Entity[]));
+			ensureValid(validateTransaction(op.transaction, ctx.entities));
 			const withConfirm = {
 				...op.transaction,
 				is_confirmed:
@@ -46,7 +46,7 @@ export async function applyOperation(
 		}
 		case 'transaction.batch_create': {
 			const prepared = op.transactions.map((tx) => {
-				ensureValid(validateTransaction(tx, ctx.entities as Entity[]));
+				ensureValid(validateTransaction(tx, ctx.entities));
 				return {
 					...tx,
 					is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
@@ -61,7 +61,7 @@ export async function applyOperation(
 				console.warn(`applyOperation: cannot update unknown transaction: ${op.id}`);
 				return { kind: 'transaction.update', updated: null };
 			}
-			ensureValid(validateUpdate(existing as never, op.updates, ctx.entities as Entity[]));
+			ensureValid(validateUpdate(existing, op.updates, ctx.entities));
 			const updated = await db.updateTransaction(op.id, op.updates);
 			return { kind: 'transaction.update', updated };
 		}
