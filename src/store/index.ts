@@ -14,7 +14,7 @@ import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
-import { generateOccurrences } from '@/src/utils/recurrence';
+import { generateOccurrences, occurrenceId, toCivilDate } from '@/src/utils/recurrence';
 import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
@@ -254,40 +254,45 @@ async function backfillRecurrences(
 		}
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
-		const exclusions = template.exclusions ?? [];
 
-		const expectedTimestamps = generateOccurrences({
+		// Materialize only occurrences whose date has passed (≤ now). Future
+		// occurrences are derived virtually (deriveVirtualOccurrences), never
+		// stored. horizonDays: 0 bounds generateOccurrences at `now`.
+		const dueTimestamps = generateOccurrences({
 			rule,
 			startDate: template.start_date,
-			horizonDays: template.horizon,
+			horizonDays: 0,
 			now,
 			endDate: template.end_date,
 			endCount: template.end_count,
-			exclusions,
+			exclusions: template.exclusions,
 		});
 
-		const existingTimestamps = new Set(
-			existingTransactions.filter((t) => t.series_id === template.id).map((t) => t.timestamp)
+		const existingCivil = new Set(
+			existingTransactions
+				.filter((t) => t.series_id === template.id)
+				.map((t) => toCivilDate(t.timestamp))
 		);
 
-		for (const ts of expectedTimestamps) {
-			if (!existingTimestamps.has(ts)) {
-				newTransactions.push(
-					buildTransaction(
-						{
-							from_entity_id: template.from_entity_id,
-							to_entity_id: template.to_entity_id,
-							amount_minor: template.amount_minor,
-							currency: template.currency,
-							timestamp: ts,
-							note: template.note ?? undefined,
-							series_id: template.id,
-							is_confirmed: false,
-						},
-						now
-					)
-				);
-			}
+		for (const ts of dueTimestamps) {
+			const civil = toCivilDate(ts);
+			if (existingCivil.has(civil)) continue;
+			newTransactions.push(
+				buildTransaction(
+					{
+						id: occurrenceId(template.id, civil),
+						from_entity_id: template.from_entity_id,
+						to_entity_id: template.to_entity_id,
+						amount_minor: template.amount_minor,
+						currency: template.currency,
+						timestamp: ts,
+						note: template.note ?? undefined,
+						series_id: template.id,
+						is_confirmed: false,
+					},
+					now
+				)
+			);
 		}
 	}
 
@@ -296,7 +301,9 @@ async function backfillRecurrences(
 		set((state) => ({
 			transactions: [...stamped, ...state.transactions],
 		}));
-		// Schedule notifications for future unconfirmed transactions
+		// Past-due rows are all ≤ now, so this is a no-op for them
+		// (getNotifiableTransactions filters to future unconfirmed rows);
+		// retained for safety / parity with other write paths.
 		await scheduleNotificationsForTransactions(stamped, entities, set);
 	}
 }
@@ -845,11 +852,12 @@ export const useStore = create<AppState>((set, get) => {
 			}
 		},
 
-		// Roll the horizon window forward on app foreground. `generateOccurrences`
-		// only materializes up to `now + horizonDays`, so without periodic re-runs
-		// an "until further notice" recurrence silently stops producing rows after
-		// the horizon elapses. Throttled to once per day (the smallest supported
-		// frequency) so a foreground bounce doesn't thrash the DB.
+		// Materialize past-due occurrences since the last run. Because
+		// backfillRecurrences passes horizonDays: 0, `generateOccurrences` is
+		// bounded at `now` — no future phantom rows are written (future
+		// occurrences are derived on demand). Throttled to once per day (the
+		// shortest recurrence period) so an app foreground bounce doesn't thrash
+		// the DB.
 		backfillRecurringIfStale: async () => {
 			const now = Date.now();
 			if (now - lastBackfillAt < BACKFILL_MIN_INTERVAL_MS) return;
