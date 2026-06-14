@@ -146,6 +146,7 @@ describe('HistoryScreen search params', () => {
 			entities: [mockAccount, mockCategory],
 			plans: [],
 			transactions: [mockTransaction],
+			recurrenceTemplates: [],
 			currentPeriod: '2026-01',
 			isLoading: false,
 		});
@@ -1024,6 +1025,45 @@ describe('HistoryScreen search params', () => {
 					date: new Date(2026, 0, 10).setHours(0, 0, 0, 0),
 				});
 			});
+		});
+	});
+
+	it('shows a derived future occurrence in the Upcoming section (KII-136)', async () => {
+		// Template has no materialized rows — the Upcoming section can ONLY appear
+		// if deriveVirtualOccurrences is wired into the screen.
+		const templateStart = new Date('2026-01-20T12:00:00Z').getTime();
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			transactions: [],
+			recurrenceTemplates: [
+				{
+					id: 'tpl-daily',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount_minor: 4242,
+					currency: 'USD',
+					rule: JSON.stringify({ type: 'daily' }),
+					start_date: templateStart,
+					end_date: null,
+					end_count: null,
+					horizon: 90,
+					exclusions: [],
+					note: undefined,
+					created_at: templateStart,
+					is_deleted: false,
+				},
+			],
+			plans: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		setPendingHistoryFilter({ period: '2026-01' });
+
+		const { getByText } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByText('Upcoming')).toBeTruthy();
 		});
 	});
 
