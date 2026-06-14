@@ -113,7 +113,7 @@ export async function deleteTransaction(
 	// exclusion never written — and the next `backfillRecurrences` would
 	// silently resurrect the occurrence.
 	const { templateId, timestamp } = options.seriesExclusion;
-	await db.transaction((tx) => {
+	db.transaction((tx) => {
 		tx.delete(transactions).where(eq(transactions.id, id)).run();
 		// Mirrors replaceTransactionAtomic: verify the template exists so a
 		// missing FK target produces a specific error rather than a raw
@@ -279,7 +279,7 @@ export async function createTransactionBatch(txns: Transaction[]): Promise<Trans
 	if (txns.length === 0) return [];
 	const db = await getDrizzleDb();
 	const now = Date.now();
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		const rows: Transaction[] = [];
 		for (const txn of txns) {
 			const [row] = tx
@@ -367,7 +367,7 @@ export async function replaceTransactionAtomic(
 ): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	const now = Date.now();
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		tx.delete(transactions).where(eq(transactions.id, idToDelete)).run();
 
 		if (options?.seriesExclusion) {

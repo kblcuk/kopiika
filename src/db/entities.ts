@@ -63,7 +63,7 @@ export async function updateEntity(
 	options?: { deleteMarketValueSnapshots?: boolean }
 ): Promise<Entity> {
 	const db = await getDrizzleDb();
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		const [row] = tx
 			.update(entities)
 			.set({
@@ -108,7 +108,7 @@ async function softDeleteEntity(id: string): Promise<Entity | null> {
 		return null;
 	}
 
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		const [row] = tx
 			.update(entities)
 			.set({ is_deleted: true, updated_at: Date.now() })
@@ -142,7 +142,7 @@ export async function updateEntityPositions(
 	if (updates.length === 0) return [];
 	const db = await getDrizzleDb();
 	const now = Date.now();
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		const stamped: Entity[] = [];
 		for (const update of updates) {
 			const [row] = tx
@@ -186,7 +186,7 @@ async function reindexRow(type: EntityType, row: number): Promise<Entity[]> {
 export async function setDefaultAccount(accountId: string | null): Promise<Entity[]> {
 	const db = await getDrizzleDb();
 	const now = Date.now();
-	return await db.transaction((tx) => {
+	return db.transaction((tx) => {
 		const clearConditions = [eq(entities.type, 'account'), eq(entities.is_default, true)];
 		if (accountId) clearConditions.push(ne(entities.id, accountId));
 		const cleared = tx
