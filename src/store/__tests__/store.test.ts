@@ -1,5 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
+import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import { useStore, getEntitiesWithBalance, _resetBackfillTimestampForTests } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
@@ -4332,18 +4333,16 @@ describe('Store Data Integrity', () => {
 			useStore.setState({ entities: [acc, cat], transactions: [], recurrenceTemplates: [] });
 
 			const future = Date.now() + 7 * 86_400_000; // starts in 7 days
-			await useStore
-				.getState()
-				.addRecurringTransaction(
-					{
-						from_entity_id: 'acc2',
-						to_entity_id: 'cat2',
-						amount_minor: 800,
-						currency: 'USD',
-						timestamp: future,
-					},
-					{ rule: { type: 'monthly' }, horizon: 180, endDate: null, endCount: null }
-				);
+			await useStore.getState().addRecurringTransaction(
+				{
+					from_entity_id: 'acc2',
+					to_entity_id: 'cat2',
+					amount_minor: 800,
+					currency: 'USD',
+					timestamp: future,
+				},
+				{ rule: { type: 'monthly' }, horizon: 180, endDate: null, endCount: null }
+			);
 
 			// Template created…
 			expect(
@@ -5418,5 +5417,47 @@ describe('Store Data Integrity', () => {
 			// Materialized rows are unconfirmed.
 			expect(rows.every((t) => t.is_confirmed === false)).toBe(true);
 		});
+	});
+
+	test('getEntitiesWithBalance counts derived virtual occurrences in upcoming', async () => {
+		const acc: Entity = {
+			id: 'accU',
+			type: 'account',
+			name: 'A',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const cat: Entity = {
+			id: 'catU',
+			type: 'category',
+			name: 'C',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+		const now = Date.now();
+		const period = getCurrentPeriod();
+		const { end } = getPeriodRange(period);
+		// A point strictly after now but still inside the current period — robust
+		// against month-boundary days where now + 1 day would cross into the next
+		// period and drop out of the upcoming window.
+		const upcomingTs = Math.floor((now + end) / 2);
+		const virtual: Transaction = {
+			id: 'tmplU:x',
+			from_entity_id: 'accU',
+			to_entity_id: 'catU',
+			amount_minor: 2500,
+			currency: 'USD',
+			timestamp: upcomingTs,
+			series_id: 'tmplU',
+			is_confirmed: false,
+			isVirtual: true,
+		};
+		const result = getEntitiesWithBalance([acc, cat], [], [virtual], period, 'category');
+		const groceries = result.find((e) => e.id === 'catU')!;
+		expect(groceries.upcoming).toBeCloseTo(2500, 0);
 	});
 });
