@@ -385,7 +385,10 @@ export const useStore = create<AppState>((set, get) => {
 						isLoading: false,
 					});
 
-					// Backfill any missing occurrences within the horizon window
+					// Legacy materialized future occurrences are removed by migration
+					// 0021 (runs before hydration), so the rows loaded above are already
+					// free of phantom future rows.
+					// Backfill any missing past-due occurrences.
 					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
 					lastBackfillAt = Date.now();
 				} catch (error) {
