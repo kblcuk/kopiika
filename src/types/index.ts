@@ -54,6 +54,10 @@ export type Transaction = Omit<
 	notification_id?: string | null;
 	created_at?: number;
 	updated_at?: number;
+	/** In-memory ONLY — never persisted. Set on derived future recurrence
+	 * occurrences so the UI can materialize them on edit/delete/confirm. DB
+	 * write paths must never read or write this. */
+	isVirtual?: boolean;
 };
 
 export type MarketValueSnapshot = {
