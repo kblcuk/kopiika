@@ -45,6 +45,8 @@ export const TransactionRow = memo(function TransactionRow({
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
 	const confirmTransaction = useStore((state) => state.confirmTransaction);
+	const materializeOccurrence = useStore((state) => state.materializeOccurrence);
+	const excludeOccurrence = useStore((state) => state.excludeOccurrence);
 
 	const translateX = useSharedValue(0);
 	const deleteOpacity = useSharedValue(0);
@@ -74,7 +76,17 @@ export const TransactionRow = memo(function TransactionRow({
 		};
 		if (transaction.series_id) {
 			showSeriesScopeAlert('delete', (scope) => {
-				void runDelete(() => deleteTransactionWithScope(transaction.id, scope));
+				void runDelete(async () => {
+					// Single-scope delete of a virtual occurrence is just an exclusion —
+					// no row exists, so skip the materialize-then-delete round-trip.
+					if (transaction.isVirtual && scope === 'single') {
+						return excludeOccurrence(transaction);
+					}
+					// Future-scope on a virtual occurrence still needs a real row for the
+					// id-based scoped delete (delete row + record exclusion).
+					if (transaction.isVirtual) await materializeOccurrence(transaction);
+					return deleteTransactionWithScope(transaction.id, scope);
+				});
 			});
 		} else {
 			Alert.alert(
@@ -92,11 +104,33 @@ export const TransactionRow = memo(function TransactionRow({
 				]
 			);
 		}
-	}, [transaction, fromLabel, toLabel, deleteTransaction, deleteTransactionWithScope]);
+	}, [
+		transaction,
+		fromLabel,
+		toLabel,
+		deleteTransaction,
+		deleteTransactionWithScope,
+		materializeOccurrence,
+		excludeOccurrence,
+	]);
 
 	const handleEdit = useCallback(() => {
 		onEdit(transaction);
 	}, [onEdit, transaction]);
+
+	const handleConfirm = useCallback(async () => {
+		// Confirming a virtual occurrence materializes it into a real row first,
+		// then confirms that row via the normal id-based path. Materialization is a
+		// DB write that can fail, so surface errors the same way the delete path
+		// does rather than silently dropping the confirm.
+		try {
+			if (transaction.isVirtual) await materializeOccurrence(transaction);
+			await confirmTransaction(transaction.id);
+		} catch (error) {
+			console.error('Failed to confirm transaction:', error);
+			Alert.alert('Confirm failed', 'Could not confirm this transaction. Please try again.');
+		}
+	}, [transaction, materializeOccurrence, confirmTransaction]);
 
 	// The Confirm pill uses its own RNGH Tap so the row's tap can defer to it
 	// via requireExternalGestureToFail. Using a plain Pressable here was
@@ -107,7 +141,7 @@ export const TransactionRow = memo(function TransactionRow({
 		.runOnJS(true)
 		.hitSlop(8)
 		.onEnd(() => {
-			confirmTransaction(transaction.id);
+			void handleConfirm();
 		});
 
 	const tapGesture = Gesture.Tap()

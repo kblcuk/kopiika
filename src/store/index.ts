@@ -123,6 +123,8 @@ interface AppState {
 	) => Promise<void>;
 	deleteTransactionWithScope: (id: string, scope: 'single' | 'future') => Promise<void>;
 	deactivateTemplatesForEntity: (entityId: string) => Promise<void>;
+	materializeOccurrence: (occurrence: Transaction) => Promise<Transaction>;
+	excludeOccurrence: (occurrence: Transaction) => Promise<void>;
 
 	// Confirmation actions
 	confirmTransaction: (id: string) => Promise<void>;
@@ -418,7 +420,7 @@ export const useStore = create<AppState>((set, get) => {
 
 			// Wrap in transaction so a mid-import failure doesn't leave an empty DB
 			const now = Date.now();
-			await drizzleDb.transaction((tx) => {
+			drizzleDb.transaction((tx) => {
 				// Delete in FK-safe order: snapshots → transactions → exclusions →
 				// recurrenceTemplates → plans → entities (KII-123 added exclusions).
 				tx.delete(schema.marketValueSnapshots).run();
@@ -668,6 +670,54 @@ export const useStore = create<AppState>((set, get) => {
 			// so this guard never trips at runtime — it exists to narrow the union for TS.
 			if (result.kind !== 'transaction.create') return;
 			set((state) => ({ transactions: [result.created, ...state.transactions] }));
+		},
+
+		materializeOccurrence: async (occurrence) => {
+			// A virtual occurrence (derived, isVirtual: true) has no DB row. Insert
+			// one with its deterministic id so the normal id-based edit/delete/
+			// confirm paths can operate on a real row. Idempotent against in-memory
+			// state: if the store already tracks this id, return that row instead of
+			// re-inserting (all write paths flow through this state, so this also
+			// avoids a duplicate-id INSERT against the DB).
+			const existing = get().transactions.find((t) => t.id === occurrence.id);
+			if (existing) return existing;
+
+			const row = buildTransaction(
+				{
+					id: occurrence.id,
+					from_entity_id: occurrence.from_entity_id,
+					to_entity_id: occurrence.to_entity_id,
+					amount_minor: occurrence.amount_minor,
+					currency: occurrence.currency,
+					timestamp: occurrence.timestamp,
+					note: occurrence.note ?? undefined,
+					series_id: occurrence.series_id ?? undefined,
+					is_confirmed: occurrence.is_confirmed ?? false,
+				},
+				Date.now()
+			);
+			const stamped = await db.createTransaction(row);
+			set((state) => ({ transactions: [stamped, ...state.transactions] }));
+			return stamped;
+		},
+
+		excludeOccurrence: async (occurrence) => {
+			// Deleting a single virtual (future) occurrence is purely an exclusion:
+			// there is no materialized row to remove, so record the skip directly
+			// rather than materialize-then-delete. Derivation then omits this civil
+			// date. (Edit/confirm still materialize, since they need a real row.)
+			const seriesId = occurrence.series_id;
+			if (!seriesId) return;
+			const exclusionTs = occurrence.timestamp;
+			await db.addExclusion(seriesId, exclusionTs);
+			set((state) => ({
+				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+					if (t.id !== seriesId) return t;
+					const existing = t.exclusions ?? [];
+					if (existing.includes(exclusionTs)) return t;
+					return { ...t, exclusions: [...existing, exclusionTs] };
+				}),
+			}));
 		},
 
 		createTransactionBatch: async (transactions) => {
