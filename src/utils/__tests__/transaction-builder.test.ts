@@ -379,3 +379,29 @@ describe('transaction-builder', () => {
 		});
 	});
 });
+
+describe('buildTransaction explicit id', () => {
+	test('uses the provided id when given', () => {
+		const tx = buildTransaction({
+			id: 'series-1:2026-07-01',
+			from_entity_id: 'a',
+			to_entity_id: 'b',
+			amount_minor: 100,
+			currency: 'USD',
+			timestamp: 1_800_000_000_000,
+		});
+		expect(tx.id).toBe('series-1:2026-07-01');
+	});
+
+	test('generates an id when none is provided', () => {
+		const tx = buildTransaction({
+			from_entity_id: 'a',
+			to_entity_id: 'b',
+			amount_minor: 100,
+			currency: 'USD',
+			timestamp: 1_800_000_000_000,
+		});
+		expect(typeof tx.id).toBe('string');
+		expect(tx.id.length).toBeGreaterThan(0);
+	});
+});

@@ -20,6 +20,9 @@ import type { MutationInput } from './transaction-validation';
  */
 
 export interface TransactionDraft extends MutationInput {
+	/** Explicit row id. When omitted, a fresh id is generated. Used for
+	 * deterministic recurrence-occurrence ids (`${series_id}:${YYYY-MM-DD}`). */
+	id?: string;
 	timestamp: number;
 	note?: string;
 	series_id?: string;
@@ -45,7 +48,7 @@ export function defaultIsConfirmed(timestamp: number, now: number = Date.now()):
 
 export function buildTransaction(draft: TransactionDraft, now: number = Date.now()): Transaction {
 	const tx: Transaction = {
-		id: generateId(),
+		id: draft.id ?? generateId(),
 		from_entity_id: draft.from_entity_id,
 		to_entity_id: draft.to_entity_id,
 		amount_minor: draft.amount_minor,
