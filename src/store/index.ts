@@ -797,43 +797,22 @@ export const useStore = create<AppState>((set, get) => {
 				endCount: recurrence.endCount,
 				horizon: recurrence.horizon,
 			});
-			const templateId = template.id;
-
 			const stampedTemplate = await db.createRecurrenceTemplate(template);
 
-			const occurrences = generateOccurrences({
-				rule: recurrence.rule,
-				startDate: transaction.timestamp,
-				horizonDays: recurrence.horizon,
-				now: Date.now(),
-				endDate: recurrence.endDate,
-				endCount: recurrence.endCount,
-			});
-
-			const now = Date.now();
-			const txns: Transaction[] = occurrences.map((ts) =>
-				buildTransaction(
-					{
-						from_entity_id: transaction.from_entity_id,
-						to_entity_id: transaction.to_entity_id,
-						amount_minor: transaction.amount_minor,
-						currency: transaction.currency,
-						timestamp: ts,
-						note: transaction.note ?? undefined,
-						series_id: templateId,
-					},
-					now
-				)
-			);
-
-			const stampedTxns = txns.length > 0 ? await db.createTransactionBatch(txns) : [];
 			set((state) => ({
 				recurrenceTemplates: [...state.recurrenceTemplates, stampedTemplate],
-				transactions:
-					stampedTxns.length > 0
-						? [...stampedTxns, ...state.transactions]
-						: state.transactions,
 			}));
+
+			// A template whose first occurrence is already due (start ≤ now) should
+			// materialize immediately as an unconfirmed past-due row; future
+			// occurrences are derived on demand, never stored. backfillRecurrences
+			// (unthrottled) handles past-due materialization + its own dedup.
+			await backfillRecurrences(
+				[{ ...stampedTemplate, exclusions: [] }],
+				get().transactions,
+				get().entities,
+				set
+			);
 
 			// Request permission on first recurring transaction (contextual ask)
 			const remindersEnabled = await getRemindersEnabled();
@@ -844,11 +823,6 @@ export const useStore = create<AppState>((set, get) => {
 				if (!granted) {
 					await setRemindersEnabled(false);
 				}
-			}
-
-			// Schedule notifications for future occurrences
-			if (stampedTxns.length > 0) {
-				await scheduleNotificationsForTransactions(stampedTxns, get().entities, set);
 			}
 		},
 
