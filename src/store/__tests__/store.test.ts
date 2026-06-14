@@ -4248,7 +4248,7 @@ describe('Store Data Integrity', () => {
 			expect(getHasRequestedPermission()).resolves.toBe(false);
 		});
 
-		test('auto-confirms first occurrence if it is for today', async () => {
+		test("materializes today's occurrence as an unconfirmed row, none in the future", async () => {
 			const entities = [
 				{
 					id: 'entity-1',
@@ -4297,16 +4297,64 @@ describe('Store Data Integrity', () => {
 			const state = useStore.getState();
 			const seriesTxns = state.transactions.filter((t) => t.series_id);
 
-			// First occurrence (today) should be confirmed
-			const todayTxn = seriesTxns.find((t) => t.timestamp === now);
-			expect(todayTxn?.is_confirmed).toBe(true);
+			// The due occurrence (today) is materialized as an unconfirmed row —
+			// user confirms it via the normal badge/confirmAll flow.
+			expect(seriesTxns.length).toBe(1);
+			const todayTxn = seriesTxns[0]!;
+			expect(todayTxn.is_confirmed).toBe(false);
 
-			// Future occurrences should not be confirmed
+			// No future phantom rows — future occurrences are derived on demand.
 			const futureTxns = seriesTxns.filter((t) => t.timestamp > now);
-			expect(futureTxns.length).toBeGreaterThan(0);
-			for (const txn of futureTxns) {
-				expect(txn.is_confirmed).toBe(false);
-			}
+			expect(futureTxns.length).toBe(0);
+		});
+
+		test('addRecurringTransaction does not materialize future occurrences', async () => {
+			const acc: Entity = {
+				id: 'acc2',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const cat: Entity = {
+				id: 'cat2',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+				order: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+			useStore.setState({ entities: [acc, cat], transactions: [], recurrenceTemplates: [] });
+
+			const future = Date.now() + 7 * 86_400_000; // starts in 7 days
+			await useStore
+				.getState()
+				.addRecurringTransaction(
+					{
+						from_entity_id: 'acc2',
+						to_entity_id: 'cat2',
+						amount_minor: 800,
+						currency: 'USD',
+						timestamp: future,
+					},
+					{ rule: { type: 'monthly' }, horizon: 180, endDate: null, endCount: null }
+				);
+
+			// Template created…
+			expect(
+				useStore.getState().recurrenceTemplates.some((t) => t.from_entity_id === 'acc2')
+			).toBe(true);
+			// …but NO future transaction rows materialized for it.
+			const seriesId = useStore
+				.getState()
+				.recurrenceTemplates.find((t) => t.from_entity_id === 'acc2')!.id;
+			const rows = (await db.getAllTransactions()).filter((t) => t.series_id === seriesId);
+			expect(rows).toEqual([]);
 		});
 	});
 
