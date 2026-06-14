@@ -308,6 +308,9 @@ describe('generateOccurrences — civil-date identity', () => {
 	test('daily occurrences land on consecutive civil dates across a US spring-forward boundary', () => {
 		// US DST 2026 springs forward Sun Mar 8. A daily rule from Mar 6 must
 		// produce Mar 6,7,8,9,10 as civil dates — no day skipped or doubled.
+		// NOTE: only meaningful when the runner TZ observes DST (e.g.
+		// America/New_York); in a UTC CI host this passes vacuously. The real
+		// guard is the local component-constructor in addIntervals, not this test.
 		const start = localTs(2026, 3, 6, 9);
 		const result = generateOccurrences({
 			rule: { type: 'daily' },

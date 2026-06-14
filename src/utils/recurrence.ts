@@ -106,6 +106,11 @@ function addIntervals(baseTimestamp: number, n: number, rule: RecurrenceRule): n
 /**
  * Compute the next occurrence one interval after `fromTimestamp`, preserving
  * local time-of-day. DST-safe (see addIntervals).
+ *
+ * For generating a whole series, prefer `generateOccurrences` (which derives
+ * each step from the original start). Chaining `nextOccurrence` on its own
+ * result accumulates monthly day-of-month clamp drift (e.g. Jan 31 → Feb 28 →
+ * Mar 28 instead of Mar 31).
  */
 export function nextOccurrence(fromTimestamp: number, rule: RecurrenceRule): number {
 	return addIntervals(fromTimestamp, 1, rule);
