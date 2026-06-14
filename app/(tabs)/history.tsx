@@ -30,6 +30,8 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
+import { toCivilDate } from '@/src/utils/recurrence';
+import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { colors } from '@/src/theme/colors';
@@ -135,6 +137,7 @@ export default function HistoryScreen() {
 	const {
 		transactions,
 		entities,
+		recurrenceTemplates,
 		marketValueSnapshots,
 		updateMarketValueSnapshot,
 		deleteMarketValueSnapshot,
@@ -142,6 +145,7 @@ export default function HistoryScreen() {
 		useShallow((state) => ({
 			transactions: state.transactions,
 			entities: state.entities,
+			recurrenceTemplates: state.recurrenceTemplates,
 			marketValueSnapshots: state.marketValueSnapshots,
 			updateMarketValueSnapshot: state.updateMarketValueSnapshot,
 			deleteMarketValueSnapshot: state.deleteMarketValueSnapshot,
@@ -171,11 +175,24 @@ export default function HistoryScreen() {
 		const now = Date.now();
 		const query = deferredSearch.trim().toLowerCase();
 
+		const exclusionsByTemplate = new Map(
+			recurrenceTemplates.map((t) => [t.id, new Set((t.exclusions ?? []).map(toCivilDate))])
+		);
+		const virtual = deriveVirtualOccurrences(
+			recurrenceTemplates,
+			exclusionsByTemplate,
+			transactions,
+			start,
+			end,
+			now
+		);
+		const candidates = [...transactions, ...virtual];
+
 		const filtered: Transaction[] = [];
 		const upcoming: Transaction[] = [];
 		const unconfirmed: Transaction[] = [];
 
-		for (const tx of transactions) {
+		for (const tx of candidates) {
 			// Entity filter
 			if (
 				selectedEntityId &&
@@ -216,7 +233,7 @@ export default function HistoryScreen() {
 			upcomingTransactions: upcoming,
 			unconfirmedTransactions: unconfirmed,
 		};
-	}, [transactions, deferredPeriod, selectedEntityId, deferredSearch]);
+	}, [transactions, deferredPeriod, selectedEntityId, deferredSearch, recurrenceTemplates]);
 
 	const sections = useMemo(() => {
 		const pastSections = groupTransactionsByDay(filteredTransactions);
