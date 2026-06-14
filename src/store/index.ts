@@ -15,6 +15,7 @@ import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
 import { generateId } from '@/src/utils/ids';
 import { generateOccurrences, occurrenceId, toCivilDate } from '@/src/utils/recurrence';
+import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
@@ -1299,26 +1300,53 @@ export function useUnconfirmedCount(): number {
 
 // React hook that wraps the pure function
 export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
-	const { entities, plans, transactions, currentPeriod, marketValueSnapshots } = useStore(
+	const {
+		entities,
+		plans,
+		transactions,
+		currentPeriod,
+		marketValueSnapshots,
+		recurrenceTemplates,
+	} = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
 			currentPeriod: state.currentPeriod,
 			marketValueSnapshots: state.marketValueSnapshots,
+			recurrenceTemplates: state.recurrenceTemplates,
 		}))
 	);
 
-	return useMemo(
-		() =>
-			getEntitiesWithBalance(
-				entities,
-				plans,
-				transactions,
-				currentPeriod,
-				type,
-				marketValueSnapshots
-			),
-		[entities, plans, transactions, currentPeriod, type, marketValueSnapshots]
-	);
+	return useMemo(() => {
+		const { start, end } = getPeriodRange(currentPeriod);
+		const now = Date.now();
+		const exclusionsByTemplate = new Map(
+			recurrenceTemplates.map((t) => [t.id, new Set((t.exclusions ?? []).map(toCivilDate))])
+		);
+		const virtual = deriveVirtualOccurrences(
+			recurrenceTemplates,
+			exclusionsByTemplate,
+			transactions,
+			start,
+			end,
+			now
+		);
+		return getEntitiesWithBalance(
+			entities,
+			plans,
+			[...transactions, ...virtual],
+			currentPeriod,
+			type,
+			marketValueSnapshots
+		);
+	}, [
+		entities,
+		plans,
+		transactions,
+		currentPeriod,
+		type,
+		marketValueSnapshots,
+		recurrenceTemplates,
+	]);
 }
