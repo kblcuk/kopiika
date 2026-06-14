@@ -152,14 +152,16 @@ Avoid adding these without a clear product decision:
 
 ## Recurrence and Series
 
-Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair) and a generation horizon (how many days ahead to pre-generate). The horizon is auto-derived from frequency (daily/weekly → 90d, monthly → 180d, yearly → 400d) so the next occurrence is always materialized. Backfill runs on app init and again when the app returns to the foreground (throttled to once every 24 hours), so "Never"-ending recurrences keep producing rows as long as the user opens the app at least once per horizon window.
+Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair). **Future occurrences are not stored** — they are derived on demand (KII-136). `deriveVirtualOccurrences` (`src/utils/recurrence-derivation.ts`) produces virtual `Transaction`s for the viewed period, each with a transient `isVirtual` flag and a deterministic id `${series_id}:${YYYY-MM-DD}`. The balance hook and History screen merge `[...real, ...virtual]` through the same shared selector before filtering, so the two surfaces never drift; dedup keys on `(series_id, civil date)` against the real rows, so a materialized occurrence suppresses its virtual twin.
+
+`backfillRecurrences` (app init + throttled foreground, once per 24h) materializes only **past-due** occurrences (date `≤ now`) as real unconfirmed rows, with deterministic ids and civil-date dedup. Future occurrences are never written. (The `horizon` column is retained for schema/CSV compatibility but no longer bounds materialization.) On first launch after upgrade, `cleanupLegacyFutureOccurrences` deletes legacy phantom future rows (`series_id` set, `timestamp > now`, unconfirmed) so they don't double-count against derived occurrences.
 
 Series scope rules:
 
-- **Edit/delete single**: modifies or soft-deletes one occurrence; inserts a row into `recurrence_exclusions` so the backfill skips that timestamp on the next pass
-- **Edit/delete all future**: updates the template itself and regenerates from the current date forward; past occurrences are untouched
+- **Edit/delete/confirm single**: a virtual (future) occurrence is first materialized into a real row by its deterministic id (`materializeOccurrence`), then the normal id-based action runs — calendar-app "exception" model. Delete-single materializes then deletes with `recurrence_exclusions` recorded, netting to an exclusion so derivation skips that civil date.
+- **Edit/delete all future**: updates the template itself; past occurrences are untouched and future ones re-derive from the changed template
 - **Month-end handling**: monthly recurrences on the 29th–31st clamp to the last day of shorter months (Feb 28/29, Apr 30, etc.)
-- **First occurrence**: occurrences dated today or earlier are confirmed immediately; future occurrences start unconfirmed
+- **First occurrence**: an occurrence dated today or earlier materializes as an **unconfirmed** past-due row (confirmed via the normal badge / "Confirm All" flow); future occurrences stay virtual until their date passes
 
 ## Transaction Confirmation
 
