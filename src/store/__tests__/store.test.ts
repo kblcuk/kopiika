@@ -5271,10 +5271,13 @@ describe('Store Data Integrity', () => {
 			await seedTemplate();
 			// `lastBackfillAt` was reset to 0, so the freshness check passes.
 			await useStore.getState().backfillRecurringIfStale();
-			const count = useStore.getState().transactions.length;
-			// 10 days back + 90-day horizon ≈ 100 daily rows; assert "many" instead
-			// of an exact figure to avoid DST/timezone brittleness on the boundary.
-			expect(count).toBeGreaterThan(50);
+			const txs = useStore.getState().transactions;
+			const count = txs.length;
+			// Template starts 10 days ago; with past-due-only backfill (horizonDays: 0)
+			// we expect ~10-11 daily rows (one per day up to today), not future rows.
+			expect(count).toBeGreaterThan(5);
+			// No future rows — all timestamps must be ≤ now.
+			expect(txs.every((t) => t.timestamp <= Date.now())).toBe(true);
 		});
 
 		test('is throttled within 24h of the previous run', async () => {
@@ -5297,15 +5300,75 @@ describe('Store Data Integrity', () => {
 			await seedTemplate();
 			await useStore.getState().backfillRecurringIfStale();
 			const afterFirst = useStore.getState().transactions.length;
+			expect(afterFirst).toBeGreaterThan(0);
 
-			// Wipe in-memory transactions to simulate a fresh window with new gaps.
-			useStore.setState({ transactions: [] });
-
-			// Simulate 24h+ elapsed by resetting the throttle.
+			// Simulate 24h+ elapsed by resetting the throttle. Keep in-memory state
+			// intact (as it would be after a re-initialize from DB), so the civil-date
+			// dedup correctly identifies existing rows and adds nothing new.
 			_resetBackfillTimestampForTests();
 			await useStore.getState().backfillRecurringIfStale();
 
+			// No new rows — deterministic ids mean no duplicates are inserted.
 			expect(useStore.getState().transactions.length).toBe(afterFirst);
+		});
+
+		test('backfillRecurrences materializes only past-due occurrences with deterministic ids', async () => {
+			const acc: Entity = {
+				id: 'pd-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+				order: 0,
+			};
+			const cat: Entity = {
+				id: 'pd-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+				order: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			const now = Date.now();
+			const threeDaysAgo = now - 3 * 86_400_000;
+			const template: RecurrenceTemplate = {
+				id: 'tmpl-pd',
+				from_entity_id: 'pd-acc',
+				to_entity_id: 'pd-cat',
+				amount_minor: 500,
+				currency: 'USD',
+				note: undefined,
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: threeDaysAgo,
+				end_date: null,
+				end_count: null,
+				horizon: 90,
+				created_at: threeDaysAgo,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+
+			useStore.setState({
+				recurrenceTemplates: [template],
+				entities: [acc, cat],
+				transactions: [],
+			});
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+
+			const rows = (await db.getAllTransactions()).filter((t) => t.series_id === 'tmpl-pd');
+			// All materialized rows are in the past or now — no future phantom rows.
+			expect(rows.every((t) => t.timestamp <= Date.now())).toBe(true);
+			expect(rows.length).toBeGreaterThan(0);
+			// Deterministic ids of the form `${series}:${YYYY-MM-DD}`.
+			expect(rows.every((t) => t.id.startsWith('tmpl-pd:'))).toBe(true);
+			// Materialized rows are unconfirmed.
+			expect(rows.every((t) => t.is_confirmed === false)).toBe(true);
 		});
 	});
 });
