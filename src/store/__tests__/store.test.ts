@@ -5419,6 +5419,122 @@ describe('Store Data Integrity', () => {
 		});
 	});
 
+	test('materializeOccurrence inserts a real row with the deterministic id, idempotently', async () => {
+		const acc: Entity = {
+			id: 'accM',
+			type: 'account',
+			name: 'A',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const cat: Entity = {
+			id: 'catM',
+			type: 'category',
+			name: 'C',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+		await db.createEntity(acc);
+		await db.createEntity(cat);
+		useStore.setState({ entities: [acc, cat], transactions: [] });
+
+		const future = Date.now() + 3 * 86_400_000;
+		const virtual: Transaction = {
+			id: 'tmplM:zzz',
+			from_entity_id: 'accM',
+			to_entity_id: 'catM',
+			amount_minor: 999,
+			currency: 'USD',
+			timestamp: future,
+			series_id: 'tmplM',
+			is_confirmed: false,
+			isVirtual: true,
+		};
+
+		const first = await useStore.getState().materializeOccurrence(virtual);
+		expect(first.id).toBe('tmplM:zzz');
+		expect(first.isVirtual).toBeUndefined();
+		expect(useStore.getState().transactions.some((t) => t.id === 'tmplM:zzz')).toBe(true);
+
+		// Idempotent: calling again returns the existing row, no duplicate.
+		const second = await useStore.getState().materializeOccurrence(virtual);
+		expect(second.id).toBe('tmplM:zzz');
+		expect((await db.getAllTransactions()).filter((t) => t.id === 'tmplM:zzz')).toHaveLength(1);
+	});
+
+	test('excludeOccurrence records an exclusion without materializing a row', async () => {
+		const acc: Entity = {
+			id: 'accX',
+			type: 'account',
+			name: 'A',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			order: 0,
+		};
+		const cat: Entity = {
+			id: 'catX',
+			type: 'category',
+			name: 'C',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+			order: 1,
+		};
+		await db.createEntity(acc);
+		await db.createEntity(cat);
+		const template: RecurrenceTemplate = {
+			id: 'tmplX',
+			from_entity_id: 'accX',
+			to_entity_id: 'catX',
+			amount_minor: 700,
+			currency: 'USD',
+			note: undefined,
+			rule: JSON.stringify({ type: 'daily' }),
+			start_date: Date.now(),
+			end_date: null,
+			end_count: null,
+			horizon: 90,
+			created_at: Date.now(),
+			exclusions: [],
+		};
+		await db.createRecurrenceTemplate(template);
+		useStore.setState({
+			recurrenceTemplates: [template],
+			entities: [acc, cat],
+			transactions: [],
+		});
+
+		const occurrenceTs = Date.now() + 2 * 86_400_000;
+		const virtual: Transaction = {
+			id: `tmplX:${occurrenceTs}`,
+			from_entity_id: 'accX',
+			to_entity_id: 'catX',
+			amount_minor: 700,
+			currency: 'USD',
+			timestamp: occurrenceTs,
+			series_id: 'tmplX',
+			is_confirmed: false,
+			isVirtual: true,
+		};
+
+		await useStore.getState().excludeOccurrence(virtual);
+
+		// No transaction row was created (neither in state nor DB)…
+		expect(useStore.getState().transactions).toHaveLength(0);
+		expect((await db.getAllTransactions()).filter((t) => t.series_id === 'tmplX')).toHaveLength(
+			0
+		);
+		// …and the exclusion is recorded in both DB and in-memory state.
+		expect(await db.getExclusionsForTemplate('tmplX')).toContain(occurrenceTs);
+		const stateTemplate = useStore.getState().recurrenceTemplates.find((t) => t.id === 'tmplX');
+		expect(stateTemplate?.exclusions).toContain(occurrenceTs);
+	});
+
 	test('getEntitiesWithBalance counts derived virtual occurrences in upcoming', async () => {
 		const acc: Entity = {
 			id: 'accU',

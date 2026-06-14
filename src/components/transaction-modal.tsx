@@ -122,6 +122,8 @@ export function TransactionModal({
 	const updateTransactionWithScope = useStore((state) => state.updateTransactionWithScope);
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
+	const materializeOccurrence = useStore((state) => state.materializeOccurrence);
+	const excludeOccurrence = useStore((state) => state.excludeOccurrence);
 	const replaceTransactionWithSplit = useStore((state) => state.replaceTransactionWithSplit);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
 
@@ -406,7 +408,17 @@ export function TransactionModal({
 			showSeriesScopeAlert('delete', (scope) => {
 				void KeyboardController.dismiss();
 				onClose();
-				void runDelete(() => deleteTransactionWithScope(existingTransaction.id, scope));
+				void runDelete(async () => {
+					// Single-scope delete of a virtual occurrence is just an exclusion —
+					// no row exists, so skip the materialize-then-delete round-trip.
+					if (existingTransaction.isVirtual && scope === 'single') {
+						return excludeOccurrence(existingTransaction);
+					}
+					// Future-scope still needs a real row for the id-based scoped delete.
+					if (existingTransaction.isVirtual)
+						await materializeOccurrence(existingTransaction);
+					return deleteTransactionWithScope(existingTransaction.id, scope);
+				});
 			});
 		} else {
 			Alert.alert('Delete Transaction', 'Are you sure you want to delete this transaction?', [
@@ -422,7 +434,14 @@ export function TransactionModal({
 				},
 			]);
 		}
-	}, [existingTransaction, deleteTransaction, deleteTransactionWithScope, onClose]);
+	}, [
+		existingTransaction,
+		deleteTransaction,
+		deleteTransactionWithScope,
+		materializeOccurrence,
+		excludeOccurrence,
+		onClose,
+	]);
 
 	// ── Cancel ────────────────────────────────────────────────────────────────
 
@@ -477,6 +496,13 @@ export function TransactionModal({
 		const resolvedAmount = amountExpr.resolve();
 
 		try {
+			// Editing a virtual occurrence: materialize it into a real row first so
+			// every downstream edit path (split, scoped update, plain update) acts on
+			// a persisted row addressed by its deterministic id.
+			if (existingTransaction?.isVirtual) {
+				await materializeOccurrence(existingTransaction);
+			}
+
 			const timestamp = isEditing
 				? selectedDate.getTime()
 				: normalizeCreateTimestamp(selectedDate);
