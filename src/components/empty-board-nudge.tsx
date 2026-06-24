@@ -49,7 +49,9 @@ export function EmptyBoardNudge({
 					</Text>
 					<Pressable
 						testID={TestIDs.emptyBoardNudge.dismiss}
-						onPress={dismiss}
+						onPress={() => {
+							void dismiss();
+						}}
 						hitSlop={12}
 					>
 						<X size={14} color={colors.ink.muted} />
@@ -78,7 +80,13 @@ export function EmptyBoardNudge({
 					Drag an income onto an account to record getting paid. Or use + for any
 					transaction.
 				</Text>
-				<Pressable testID={TestIDs.emptyBoardNudge.dismiss} onPress={dismiss} hitSlop={12}>
+				<Pressable
+					testID={TestIDs.emptyBoardNudge.dismiss}
+					onPress={() => {
+						void dismiss();
+					}}
+					hitSlop={12}
+				>
 					<X size={14} color={colors.ink.muted} />
 				</Pressable>
 			</View>

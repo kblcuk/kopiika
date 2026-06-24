@@ -173,6 +173,24 @@ export default function SettingsScreen() {
 	};
 
 	const confirmReplace = (data: ParsedImportData) => {
+		const runReplace = async () => {
+			try {
+				await replaceAllData(
+					data.entities,
+					data.plans,
+					data.transactions,
+					data.recurrenceTemplates,
+					data.marketValueSnapshots
+				);
+				Alert.alert('Import Complete', 'All data has been replaced.');
+			} catch (error) {
+				console.error('Failed to import data', error);
+				Alert.alert(
+					'Import Failed',
+					'An error occurred during import. Your previous data should be intact.'
+				);
+			}
+		};
 		Alert.alert(
 			'Replace All Data?',
 			`This will replace all existing data with ${data.entities.length} entities, ${data.plans.length} plans, ${data.transactions.length} transactions, ${data.recurrenceTemplates.length} recurring rules, and ${data.marketValueSnapshots.length} market value snapshots.\n\nThis cannot be undone.`,
@@ -181,23 +199,8 @@ export default function SettingsScreen() {
 				{
 					text: 'Replace',
 					style: 'destructive',
-					onPress: async () => {
-						try {
-							await replaceAllData(
-								data.entities,
-								data.plans,
-								data.transactions,
-								data.recurrenceTemplates,
-								data.marketValueSnapshots
-							);
-							Alert.alert('Import Complete', 'All data has been replaced.');
-						} catch (error) {
-							console.error('Failed to import data', error);
-							Alert.alert(
-								'Import Failed',
-								'An error occurred during import. Your previous data should be intact.'
-							);
-						}
+					onPress: () => {
+						void runReplace();
 					},
 				},
 			]
@@ -248,6 +251,20 @@ export default function SettingsScreen() {
 	};
 
 	const handleResetData = () => {
+		const runReset = async () => {
+			try {
+				await cancelAllNotifications();
+				await updateBadgeCount(0);
+				resetDrizzleDb();
+				await initialize();
+			} catch (error) {
+				console.error('Failed to reset data', error);
+				Alert.alert(
+					'Reset Failed',
+					'Could not reload the app data after reset. Please restart the app and try again.'
+				);
+			}
+		};
 		Alert.alert(
 			'Reset All Data',
 			'This will delete all your entities, plans, and transactions. This cannot be undone.',
@@ -256,19 +273,8 @@ export default function SettingsScreen() {
 				{
 					text: 'Reset',
 					style: 'destructive',
-					onPress: async () => {
-						try {
-							await cancelAllNotifications();
-							await updateBadgeCount(0);
-							resetDrizzleDb();
-							await initialize();
-						} catch (error) {
-							console.error('Failed to reset data', error);
-							Alert.alert(
-								'Reset Failed',
-								'Could not reload the app data after reset. Please restart the app and try again.'
-							);
-						}
+					onPress: () => {
+						void runReset();
 					},
 				},
 			]

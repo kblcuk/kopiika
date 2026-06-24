@@ -145,6 +145,7 @@
 					}
 				],
 				"@typescript-eslint/no-extra-non-null-assertion": "warn",
+				"typescript/no-misused-promises": "error",
 				"no-unused-vars": [
 					"warn",
 					{
