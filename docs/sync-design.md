@@ -2,10 +2,10 @@
 
 ## Status
 
-Draft, 2026-05-03. Supersedes the architecture refactor scope in
-[architecture-layering-proposal.md](architecture-layering-proposal.md). The original proposal
-remains as historical context; this doc is the actionable plan for the work tracked under
-[KII-96](https://linear.app/kopiika/issue/KII-96).
+Draft, 2026-05-03. This is the actionable plan for the work tracked under
+[KII-96](https://linear.app/kopiika/issue/KII-96). It supersedes an earlier architecture-layering
+refactor proposal; that proposal's steps are summarized and reconciled in
+[Mapping Back to the Layering Proposal](#mapping-back-to-the-layering-proposal) below.
 
 ## Goals
 

@@ -81,7 +81,7 @@ export async function expectNoTransactionModal() {
 }
 
 // Tap an element, retrying until a follow-up element becomes visible. Sync is
-// disabled suite-wide (see e2e/CLAUDE.md), so taps issued mid-animation are
+// disabled suite-wide (see e2e/README.md), so taps issued mid-animation are
 // silently dropped — this replaces the fixed 500 ms sleeps that used to guard
 // each tap. attemptInterval is set above the ~400 ms modal/picker animation
 // duration so a successful first tap has time to settle before we'd retry —
@@ -200,7 +200,7 @@ let hasInstalled = false;
 // Installs once per jest worker (delete + reinstall), then cold-starts the
 // existing binary on subsequent suites. Saves ~12-15 s per suite. Tests that
 // share the worker accumulate transaction state — assertions must use deltas.
-// Sync is disabled globally — see e2e/CLAUDE.md (home screen has continuous
+// Sync is disabled globally — see e2e/README.md (home screen has continuous
 // layout work, so Detox sync would never settle).
 export async function launchAppFast() {
 	if (hasInstalled) {

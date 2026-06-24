@@ -33,7 +33,7 @@ Offline-first personal finance app for monthly planning vs reality. Built with E
 
 ## AI-Assisted Development
 
-One of the goals of this project was to go all-in with AI-assisted development. I spec features — sometimes high-level product requirements, sometimes more detailed technical decisions (library choices, architectural approaches) — and let AI handle the implementation. The [AGENTS.md](AGENTS.md) file configures the AI workflow, and `docs/architecture.md` serves as the shared context that keeps both human and AI aligned on product intent and domain rules.
+One of the goals of this project was to go all-in with AI-assisted development. I spec features — sometimes high-level product requirements, sometimes more detailed technical decisions (library choices, architectural approaches) — and let AI handle the implementation. `docs/architecture.md` serves as the shared context that keeps both human and AI aligned on product intent and domain rules.
 
 ## Prerequisites
 
@@ -149,7 +149,7 @@ Full testing guidance: [docs/testing.md](docs/testing.md).
 
 ## Core Concepts
 
-The domain model has four entity types — **income**, **account**, **category**, and **saving** — connected by immutable **transactions**. Balances are always derived, never stored. Savings reservations are tracked as `account <-> saving` transactions. Recurring transactions are managed through **recurrence templates** that pre-generate future occurrences. Investment account market values live in separate snapshots, while purchased price still comes from transaction flow. Drag-and-drop is the primary interaction.
+The domain model has four entity types — **income**, **account**, **category**, and **saving** — connected by immutable **transactions**. Balances are always derived, never stored. Savings reservations are tracked as `account <-> saving` transactions. Recurring transactions are driven by **recurrence templates** — future occurrences are derived on demand rather than stored, while past-due occurrences materialize as unconfirmed transactions. Investment account market values live in separate snapshots, while purchased price still comes from transaction flow. Drag-and-drop is the primary interaction.
 
 Full domain rules and data architecture: [docs/architecture.md](docs/architecture.md).
 
@@ -172,15 +172,16 @@ Full release guide: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Documentation
 
-| Document                                             | Content                                                             |
-| ---------------------------------------------------- | ------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md)                               | AI agent workflow, commands, coding conventions, testing guidelines |
-| [docs/architecture.md](docs/architecture.md)         | Product intent, domain model, data architecture, interaction rules  |
-| [docs/testing.md](docs/testing.md)                   | Test layers, placement, guardrails, and E2E decision flow           |
-| [docs/RELEASING.md](docs/RELEASING.md)               | Release flow, signing, store uploads, build cleanup, secrets        |
-| [e2e/CLAUDE.md](e2e/CLAUDE.md)                       | Detox testing level matrix, helpers, device notes, and commands     |
-| [docs/privacy-policy.html](docs/privacy-policy.html) | Published privacy policy source                                     |
-| [CHANGELOG.md](CHANGELOG.md)                         | Auto-generated release notes from conventional commits              |
+| Document                                             | Content                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------ |
+| [docs/architecture.md](docs/architecture.md)         | Product intent, domain model, data architecture, interaction rules |
+| [docs/testing.md](docs/testing.md)                   | Test layers, placement, guardrails, and E2E decision flow          |
+| [docs/RELEASING.md](docs/RELEASING.md)               | Release flow, signing, store uploads, build cleanup, secrets       |
+| [docs/sync-design.md](docs/sync-design.md)           | Household sync design (KII-96): op-log, crypto, conflict policy    |
+| [e2e/README.md](e2e/README.md)                       | Detox testing level matrix, helpers, device notes, and commands    |
+| [drizzle/README.md](drizzle/README.md)               | Database migration workflow (drizzle-kit rules)                    |
+| [docs/privacy-policy.html](docs/privacy-policy.html) | Published privacy policy source                                    |
+| [CHANGELOG.md](CHANGELOG.md)                         | Auto-generated release notes from conventional commits             |
 
 ## Tech Stack
 

@@ -38,4 +38,4 @@ Do not add E2E tests for validation matrices, picker filtering, balance math, mo
 
 ## E2E Details
 
-Read [../e2e/CLAUDE.md](../e2e/CLAUDE.md) before adding or changing Detox tests. It contains the full testing-level matrix, test ID rules, fixture seeding details, synchronization notes, device configuration, platform-specific drag guidance, the delta-vs-absolute-amount rule for shared sessions, and single-file / single-test commands (including the `mise run e2e:ios` wrapper).
+Read [../e2e/README.md](../e2e/README.md) before adding or changing Detox tests. It contains the full testing-level matrix, test ID rules, fixture seeding details, synchronization notes, device configuration, platform-specific drag guidance, the delta-vs-absolute-amount rule for shared sessions, and single-file / single-test commands (including the `mise run e2e:ios` wrapper).
