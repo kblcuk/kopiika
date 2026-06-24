@@ -74,7 +74,7 @@ e2e/
 │   ├── test-ids.ts         # All testID strings, central source of truth
 │   └── animationSetup.ts   # Re-enables Android animations after each launch
 ├── jest.config.js          # Jest/Detox runner config
-└── CLAUDE.md               # This file
+└── README.md               # This file
 ```
 
 ## Before Writing Tests
