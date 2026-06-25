@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.22](https://codeberg.org/kblcuk/kopiika/compare/v0.3.21...v0.3.22) (2026-06-25)
+
+
+### Features
+
+* **builder:** allow explicit transaction id for deterministic occurrence ids (KII-136) ([65d61f6](https://codeberg.org/kblcuk/kopiika/commit/65d61f65aedf0d2c14740b9a1dbcd1ce9e01ca8b))
+* **recurrence:** add civil-date identity helpers (KII-136) ([7ced4eb](https://codeberg.org/kblcuk/kopiika/commit/7ced4eb7082dd1decc656ff84e1f019323789be9))
+* **recurrence:** add deriveVirtualOccurrences selector (KII-136) ([bd3712a](https://codeberg.org/kblcuk/kopiika/commit/bd3712a1fd32b1a4c39e369de73350ac7309a6c0))
+* **recurrence:** addRecurringTransaction creates template only, no future rows (KII-136) ([3b8f410](https://codeberg.org/kblcuk/kopiika/commit/3b8f41079900a35d4c847dba03aa7eab6df5a978))
+* **recurrence:** clean up legacy materialized future occurrences on launch (KII-136) ([263534c](https://codeberg.org/kblcuk/kopiika/commit/263534c8469b43f1e596d1b78a3e9f2a61213580))
+* **recurrence:** derive upcoming occurrences into entity balances (KII-136) ([2b84606](https://codeberg.org/kblcuk/kopiika/commit/2b84606e0d650d07edff2383de18abc011560674))
+* **recurrence:** derive upcoming occurrences into history screen (KII-136) ([146719e](https://codeberg.org/kblcuk/kopiika/commit/146719e877985b83bc8b194c0a5f55954708fd37))
+* **recurrence:** match exclusions by civil date (KII-136) ([0312ff5](https://codeberg.org/kblcuk/kopiika/commit/0312ff56611d979398124190c4055f518d2a0680))
+* **recurrence:** materialize only past-due occurrences (KII-136) ([7a0c2ec](https://codeberg.org/kblcuk/kopiika/commit/7a0c2ecfe50486fd937cca8974d1abdaa16bb943))
+* **recurrence:** materialize virtual occurrence on edit/delete/confirm (KII-136) ([b5f9ca5](https://codeberg.org/kblcuk/kopiika/commit/b5f9ca56796bc8cac02ba3f2ebb91493bf6bef0d))
+* **sync:** add applyOperation chokepoint with transaction.create (KII-99) ([7b3343e](https://codeberg.org/kblcuk/kopiika/commit/7b3343e5d455e1350e83768a1682584871cffe1b))
+* **sync:** handle transaction.batch_create in applyOperation (KII-99) ([86d2504](https://codeberg.org/kblcuk/kopiika/commit/86d2504f41542fd0a0c73a4e1c4e9ddfd5a028a4))
+* **sync:** handle transaction.delete in applyOperation (KII-99) ([4b36b35](https://codeberg.org/kblcuk/kopiika/commit/4b36b352f12a58db393b772c2096dd93dbeef8a2))
+* **sync:** handle transaction.update in applyOperation (KII-99) ([583fb76](https://codeberg.org/kblcuk/kopiika/commit/583fb76217575cda95162e337284ee44eb5ad038))
+* **types:** add transient isVirtual flag to Transaction (KII-136) ([f7ad8ed](https://codeberg.org/kblcuk/kopiika/commit/f7ad8ed13a91db0f702f8526383a45fa44cef01b))
+
+
+### Bug Fixes
+
+* **db:** remove redundant await on synchronous drizzle transaction callbacks ([92316eb](https://codeberg.org/kblcuk/kopiika/commit/92316ebe6d479f592a4e43dfdd62b7f048b9e15d))
+* enforce no-misused-promises and fix async handler leaks ([cb28260](https://codeberg.org/kblcuk/kopiika/commit/cb2826028824506e9b78706937cc152a746eab93))
+* **sync:** require full transaction rows in ApplyContext; drop unsafe cast (KII-99) ([a1fea02](https://codeberg.org/kblcuk/kopiika/commit/a1fea023a2de099a20b81521e3830d26800d744b))
+
 ## [0.3.21](https://codeberg.org/kblcuk/kopiika/compare/v0.3.20...v0.3.21) (2026-06-07)
 
 ## [0.3.20](https://codeberg.org/kblcuk/kopiika/compare/v0.3.19...v0.3.20) (2026-06-05)
