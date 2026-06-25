@@ -11,9 +11,15 @@ import {
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { Text } from '@/src/components/text';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
+import { useEntityCreateFlow } from '@/src/hooks/use-entity-create-flow';
+import { useEntityDetailFlow } from '@/src/hooks/use-entity-detail-flow';
+import { useReservationFlow } from '@/src/hooks/use-reservation-flow';
+import { useSectionEditModes } from '@/src/hooks/use-section-edit-modes';
+import { useTransactionFlow } from '@/src/hooks/use-transaction-flow';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
-import type { EntityType, EntityWithBalance, Transaction } from '@/src/types';
+import type { EntityWithBalance } from '@/src/types';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
+import { resolveDropFlow } from '@/src/utils/drop-flow';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import { setPendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { useRouter } from 'expo-router';
@@ -69,35 +75,8 @@ export default function HomeScreen() {
 	const categories = useEntitiesWithBalance('category');
 	const savings = useEntitiesWithBalance('saving');
 
-	// Transaction modal state
-	const [modalVisible, setModalVisible] = useState(false);
-	const [fromEntity, setFromEntity] = useState<EntityWithBalance | null>(null);
-	const [toEntity, setToEntity] = useState<EntityWithBalance | null>(null);
-
-	// Reservation modal state (account → saving)
-	const [reservationModalVisible, setReservationModalVisible] = useState(false);
-	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
-	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
-
-	// Refund picker state — originalFrom/originalTo reflect the direction of original transactions
-	const [refundPickerVisible, setRefundPickerVisible] = useState(false);
-	const [refundOriginalFrom, setRefundOriginalFrom] = useState<EntityWithBalance | null>(null);
-	const [refundOriginalTo, setRefundOriginalTo] = useState<EntityWithBalance | null>(null);
-	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-
-	// Detail modal state
-	const [detailModalVisible, setDetailModalVisible] = useState(false);
-	const [detailEntity, setDetailEntity] = useState<EntityWithBalance | null>(null);
-
-	// Create modal state
-	const [createModalVisible, setCreateModalVisible] = useState(false);
-	const [createEntityType, setCreateEntityType] = useState<EntityType | null>(null);
-
 	// Section edit modes - when true, taps open the detail modal and drags reorder locally.
-	const [incomeEditMode, setIncomeEditMode] = useState(false);
-	const [accountsEditMode, setAccountsEditMode] = useState(false);
-	const [categoriesEditMode, setCategoriesEditMode] = useState(false);
-	const [savingsEditMode, setSavingsEditMode] = useState(false);
+	const editModes = useSectionEditModes();
 
 	// Reset initial layout flag when entities change
 	useEffect(() => {
@@ -110,165 +89,63 @@ export default function HomeScreen() {
 		[income, accounts, categories, savings]
 	);
 
+	// Each board flow owns its own modal state; the drop dispatch below routes a
+	// completed drag to the right one via the pure resolveDropFlow.
+	const transactionFlow = useTransactionFlow({ allEntities });
+	const reservationFlow = useReservationFlow();
+	const detailFlow = useEntityDetailFlow();
+	const createFlow = useEntityCreateFlow();
+
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
 			setDraggedEntity(entity);
 			// Reorder-mode drags rely on Sortable.Grid's built-in auto-scroll;
 			// activating the hook would race it on the source section's ScrollView.
-			const isReorder =
-				(entity.type === 'income' && incomeEditMode) ||
-				(entity.type === 'account' && accountsEditMode) ||
-				(entity.type === 'category' && categoriesEditMode) ||
-				(entity.type === 'saving' && savingsEditMode);
-			if (isReorder) return;
+			if (editModes.isEditing(entity.type)) return;
 			setDragSourceIndex(SECTION_INDEX[entity.type]);
 			startAutoScroll();
 		},
-		[
-			setDraggedEntity,
-			setDragSourceIndex,
-			startAutoScroll,
-			incomeEditMode,
-			accountsEditMode,
-			categoriesEditMode,
-			savingsEditMode,
-		]
+		[setDraggedEntity, setDragSourceIndex, startAutoScroll, editModes]
 	);
 
 	const handleDragEnd = useCallback(
 		(entity: EntityWithBalance, targetId: string | null) => {
+			// Drag teardown (gesture/auto-scroll mechanics) stays here; the pure
+			// resolveDropFlow decides what the drop *means* and we dispatch to the
+			// owning flow. No-ops on null/self targets via the 'none' branch.
 			setDraggedEntity(null);
 			stopAutoScroll();
 
-			// If no target, drag was cancelled or same-type reorder was handled by grid
-			if (!targetId) {
-				return;
+			const target = targetId ? (allEntities.find((e) => e.id === targetId) ?? null) : null;
+			const flow = resolveDropFlow(entity, target);
+			switch (flow.kind) {
+				case 'none':
+					return;
+				case 'transaction':
+					transactionFlow.open(flow.from, flow.to);
+					return;
+				case 'refund':
+					transactionFlow.openRefund(flow.originalFrom, flow.originalTo);
+					return;
+				case 'reservation':
+					reservationFlow.open(flow.account, flow.saving);
+					return;
 			}
-			const targetEntity = allEntities.find((e) => e.id === targetId);
-			if (!targetEntity) {
-				return;
-			}
-			// Ignore if dropped on itself
-			if (entity.id === targetId) {
-				return;
-			}
-
-			// Category → Account: open refund picker (original: account → category)
-			if (entity.type === 'category' && targetEntity.type === 'account') {
-				setRefundOriginalFrom(targetEntity);
-				setRefundOriginalTo(entity);
-				setRefundPickerVisible(true);
-				return;
-			}
-
-			// Account → Income: open refund picker (original: income → account)
-			if (entity.type === 'account' && targetEntity.type === 'income') {
-				setRefundOriginalFrom(targetEntity);
-				setRefundOriginalTo(entity);
-				setRefundPickerVisible(true);
-				return;
-			}
-
-			// Account → Saving: open reservation modal instead of transaction
-			if (entity.type === 'account' && targetEntity.type === 'saving') {
-				setReservationAccount(entity);
-				setReservationSaving(targetEntity);
-				setReservationModalVisible(true);
-				return;
-			}
-
-			// Grid passes targetId only when the drag should open a money-moving flow.
-			// Local reorders are handled inside the grid and come back as null.
-			setFromEntity(entity);
-			setToEntity(targetEntity);
-			setModalVisible(true);
 		},
-		[setDraggedEntity, stopAutoScroll, allEntities]
+		[setDraggedEntity, stopAutoScroll, allEntities, transactionFlow, reservationFlow]
 	);
-
-	const handleCloseModal = useCallback(() => {
-		setModalVisible(false);
-		setFromEntity(null);
-		setToEntity(null);
-		setEditingTransaction(null);
-		setRefundOriginalFrom(null);
-		setRefundOriginalTo(null);
-	}, []);
-
-	const handleCloseReservationModal = useCallback(() => {
-		setReservationModalVisible(false);
-		setReservationAccount(null);
-		setReservationSaving(null);
-	}, []);
-
-	const handleRefundSelect = useCallback(
-		(transaction: Transaction) => {
-			setRefundPickerVisible(false);
-			// Open edit modal for the selected transaction
-			const from = allEntities.find((e) => e.id === transaction.from_entity_id) ?? null;
-			const to = allEntities.find((e) => e.id === transaction.to_entity_id) ?? null;
-			setFromEntity(from);
-			setToEntity(to);
-			setEditingTransaction(transaction);
-			setModalVisible(true);
-		},
-		[allEntities]
-	);
-
-	const handleCloseRefundPicker = useCallback(() => {
-		setRefundPickerVisible(false);
-		setRefundOriginalFrom(null);
-		setRefundOriginalTo(null);
-	}, []);
 
 	const handleTap = useCallback(
 		(entity: EntityWithBalance) => {
-			const editModeByType = {
-				income: incomeEditMode,
-				account: accountsEditMode,
-				category: categoriesEditMode,
-				saving: savingsEditMode,
-			};
-			if (editModeByType[entity.type]) {
-				setFromEntity(null);
-				setToEntity(null);
-				setDetailEntity(entity);
-				setDetailModalVisible(true);
+			if (editModes.isEditing(entity.type)) {
+				detailFlow.open(entity);
 				return;
 			}
 			setPendingHistoryFilter({ entityId: entity.id });
 			router.push('/history');
 		},
-		[router, incomeEditMode, accountsEditMode, categoriesEditMode, savingsEditMode]
+		[router, detailFlow, editModes]
 	);
-
-	const handleCloseDetailModal = useCallback(() => {
-		setDetailModalVisible(false);
-		setDetailEntity(null);
-	}, []);
-
-	const handleAdd = useCallback((type: EntityType) => {
-		setCreateEntityType(type);
-		setCreateModalVisible(true);
-	}, []);
-
-	const handleCloseCreateModal = useCallback(() => {
-		setCreateModalVisible(false);
-		setCreateEntityType(null);
-	}, []);
-
-	const handleToggleCategoriesEditMode = useCallback(() => {
-		setCategoriesEditMode((prev) => !prev);
-	}, []);
-	const handleToggleIncomeEditMode = useCallback(() => {
-		setIncomeEditMode((prev) => !prev);
-	}, []);
-	const handleToggleAccountsEditMode = useCallback(() => {
-		setAccountsEditMode((prev) => !prev);
-	}, []);
-	const handleToggleSavingsEditMode = useCallback(() => {
-		setSavingsEditMode((prev) => !prev);
-	}, []);
 
 	// Re-measure drop zones when scrolling ends to account for position changes
 	const handleScrollEnd = useCallback(() => {
@@ -375,10 +252,7 @@ export default function HomeScreen() {
 			<EmptyBoardNudge
 				entityCount={userEntityCount}
 				transactionCount={transactions.length}
-				onAddEntity={() => {
-					setCreateEntityType('account');
-					setCreateModalVisible(true);
-				}}
+				onAddEntity={() => createFlow.open('account')}
 			/>
 
 			{/* PortalProvider ensures dragged items render above all other content */}
@@ -421,11 +295,13 @@ export default function HomeScreen() {
 									onDragStart={handleDragStart}
 									onDragEnd={handleDragEnd}
 									onTap={handleTap}
-									onAdd={handleAdd}
+									onAdd={createFlow.open}
 									dropZonesDisabled={!incomeVisible}
-									dragBehavior={incomeEditMode ? 'reorder' : 'transaction'}
-									editMode={incomeEditMode}
-									onToggleEditMode={handleToggleIncomeEditMode}
+									dragBehavior={
+										editModes.modes.income ? 'reorder' : 'transaction'
+									}
+									editMode={editModes.modes.income}
+									onToggleEditMode={editModes.toggle.income}
 									updateDragTouch={updateDragTouch}
 									sectionScrollRef={sectionRefs[0]}
 									sectionIndex={0}
@@ -441,10 +317,10 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onAdd={handleAdd}
-							dragBehavior={accountsEditMode ? 'reorder' : 'transaction'}
-							editMode={accountsEditMode}
-							onToggleEditMode={handleToggleAccountsEditMode}
+							onAdd={createFlow.open}
+							dragBehavior={editModes.modes.account ? 'reorder' : 'transaction'}
+							editMode={editModes.modes.account}
+							onToggleEditMode={editModes.toggle.account}
 							updateDragTouch={updateDragTouch}
 							sectionScrollRef={sectionRefs[1]}
 							sectionIndex={1}
@@ -458,11 +334,11 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onAdd={handleAdd}
+							onAdd={createFlow.open}
 							maxRows={3}
-							dragBehavior={categoriesEditMode ? 'reorder' : 'transaction'}
-							editMode={categoriesEditMode}
-							onToggleEditMode={handleToggleCategoriesEditMode}
+							dragBehavior={editModes.modes.category ? 'reorder' : 'transaction'}
+							editMode={editModes.modes.category}
+							onToggleEditMode={editModes.toggle.category}
 							updateDragTouch={updateDragTouch}
 							sectionScrollRef={sectionRefs[2]}
 							sectionIndex={2}
@@ -476,10 +352,10 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
-							onAdd={handleAdd}
-							dragBehavior={savingsEditMode ? 'reorder' : 'transaction'}
-							editMode={savingsEditMode}
-							onToggleEditMode={handleToggleSavingsEditMode}
+							onAdd={createFlow.open}
+							dragBehavior={editModes.modes.saving ? 'reorder' : 'transaction'}
+							editMode={editModes.modes.saving}
+							onToggleEditMode={editModes.toggle.saving}
 							updateDragTouch={updateDragTouch}
 							sectionScrollRef={sectionRefs[3]}
 							sectionIndex={3}
@@ -499,44 +375,19 @@ export default function HomeScreen() {
 			</Sortable.PortalProvider>
 
 			{/* Transaction Modal */}
-			<TransactionModal
-				visible={modalVisible}
-				fromEntity={fromEntity}
-				toEntity={toEntity}
-				onClose={handleCloseModal}
-				existingTransaction={editingTransaction ?? undefined}
-			/>
+			<TransactionModal {...transactionFlow.transactionModalProps} />
 
 			{/* Refund Picker Modal (category → account, account → income) */}
-			<RefundPickerModal
-				visible={refundPickerVisible}
-				originalFrom={refundOriginalFrom}
-				originalTo={refundOriginalTo}
-				onSelect={handleRefundSelect}
-				onClose={handleCloseRefundPicker}
-			/>
+			<RefundPickerModal {...transactionFlow.refundPickerProps} />
 
 			{/* Reservation Modal (account → saving) */}
-			<ReservationModal
-				visible={reservationModalVisible}
-				account={reservationAccount}
-				saving={reservationSaving}
-				onClose={handleCloseReservationModal}
-			/>
+			<ReservationModal {...reservationFlow.reservationModalProps} />
 
 			{/* Entity Detail Modal */}
-			<EntityDetailModal
-				visible={detailModalVisible}
-				entity={detailEntity}
-				onClose={handleCloseDetailModal}
-			/>
+			<EntityDetailModal {...detailFlow.detailModalProps} />
 
 			{/* Entity Create Modal */}
-			<EntityCreateModal
-				visible={createModalVisible}
-				entityType={createEntityType}
-				onClose={handleCloseCreateModal}
-			/>
+			<EntityCreateModal {...createFlow.createModalProps} />
 		</SafeAreaView>
 	);
 }

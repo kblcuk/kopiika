@@ -313,6 +313,16 @@ describe('HomeScreen entity interactions', () => {
 			expect(mockPush).not.toHaveBeenCalled();
 		});
 	});
+
+	it('toggling a section edit mode flips its drag behavior to reorder', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		expect(getByTestId('account-drag-behavior')).toHaveTextContent('transaction');
+
+		fireEvent.press(getByTestId('account-edit-toggle'));
+
+		expect(getByTestId('account-drag-behavior')).toHaveTextContent('reorder');
+	});
 });
 
 // Characterization tests for handleDragEnd's drop routing. These assert the
