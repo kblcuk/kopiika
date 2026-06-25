@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 import HomeScreen from '../(tabs)/index';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
@@ -7,6 +7,15 @@ import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import type { EntityWithBalance } from '@/src/types';
 
 const mockPush = jest.fn();
+
+// Captured from the mocked SortableEntityGrid so drag-routing tests can fire a
+// drop directly (the screen passes the same handlers to every section).
+const mockDragHandlers: {
+	onDragStart?: (entity: any) => void;
+	onDragEnd?: (entity: any, targetId: string | null) => void;
+} = {};
+// Captured from the mocked RefundPickerModal to drive the refund→edit handoff.
+let mockRefundOnSelect: ((transaction: any) => void) | undefined;
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: mockPush }),
@@ -62,7 +71,7 @@ jest.mock('react-native-reanimated', () => {
 		useSharedValue: (val: any) => ({ value: val }),
 		useScrollOffset: () => ({ value: 0 }),
 		useAnimatedScrollHandler: () => jest.fn(),
-		useFrameCallback: jest.fn(),
+		useFrameCallback: () => ({ setActive: jest.fn() }),
 		scrollTo: jest.fn(),
 		runOnJS: (fn: any) => fn,
 		makeMutable: (val: any) => ({ value: val }),
@@ -98,30 +107,55 @@ jest.mock('@/src/components', () => {
 		SortableEntityGrid: ({
 			entities,
 			onTap,
+			onDragStart,
+			onDragEnd,
 			onToggleEditMode,
 			editMode,
 			type,
 			dragBehavior,
-		}: any) => (
-			<View>
-				{onToggleEditMode ? (
-					<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
-						<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
-					</Pressable>
-				) : null}
-				<Text testID={`${type}-drag-behavior`}>{dragBehavior}</Text>
-				<Sortable.Grid
-					data={entities}
-					renderItem={({ item }: { item: any }) => (
-						<Sortable.Touchable onTap={() => onTap?.(item)}>
-							<Text testID={`entity-${item.id}`}>{item.name}</Text>
-						</Sortable.Touchable>
-					)}
-				/>
-			</View>
-		),
+		}: any) => {
+			// Every section receives the same screen-level handlers; capture them
+			// so tests can simulate a drop without a real gesture.
+			mockDragHandlers.onDragStart = onDragStart;
+			mockDragHandlers.onDragEnd = onDragEnd;
+			return (
+				<View>
+					{onToggleEditMode ? (
+						<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
+							<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
+						</Pressable>
+					) : null}
+					<Text testID={`${type}-drag-behavior`}>{dragBehavior}</Text>
+					<Sortable.Grid
+						data={entities}
+						renderItem={({ item }: { item: any }) => (
+							<Sortable.Touchable onTap={() => onTap?.(item)}>
+								<Text testID={`entity-${item.id}`}>{item.name}</Text>
+							</Sortable.Touchable>
+						)}
+					/>
+				</View>
+			);
+		},
 		SummaryHeader: () => null,
-		TransactionModal: () => null,
+		TransactionModal: ({
+			visible,
+			fromEntity,
+			toEntity,
+			existingTransaction,
+		}: {
+			visible: boolean;
+			fromEntity: { id: string } | null;
+			toEntity: { id: string } | null;
+			existingTransaction?: { id: string };
+		}) =>
+			visible ? (
+				<View testID="transaction-modal">
+					<Text testID="transaction-modal-from">{fromEntity?.id ?? ''}</Text>
+					<Text testID="transaction-modal-to">{toEntity?.id ?? ''}</Text>
+					<Text testID="transaction-modal-existing">{existingTransaction?.id ?? ''}</Text>
+				</View>
+			) : null,
 		EntityDetailModal: ({
 			visible,
 			entity,
@@ -136,8 +170,40 @@ jest.mock('@/src/components', () => {
 			) : null,
 		EntityCreateModal: () => null,
 		EmptyBoardNudge: () => null,
-		ReservationModal: () => null,
-		RefundPickerModal: () => null,
+		ReservationModal: ({
+			visible,
+			account,
+			saving,
+		}: {
+			visible: boolean;
+			account: { id: string } | null;
+			saving: { id: string } | null;
+		}) =>
+			visible ? (
+				<View testID="reservation-modal">
+					<Text testID="reservation-account">{account?.id ?? ''}</Text>
+					<Text testID="reservation-saving">{saving?.id ?? ''}</Text>
+				</View>
+			) : null,
+		RefundPickerModal: ({
+			visible,
+			originalFrom,
+			originalTo,
+			onSelect,
+		}: {
+			visible: boolean;
+			originalFrom: { id: string } | null;
+			originalTo: { id: string } | null;
+			onSelect: (transaction: any) => void;
+		}) => {
+			mockRefundOnSelect = onSelect;
+			return visible ? (
+				<View testID="refund-picker">
+					<Text testID="refund-original-from">{originalFrom?.id ?? ''}</Text>
+					<Text testID="refund-original-to">{originalTo?.id ?? ''}</Text>
+				</View>
+			) : null;
+		},
 	};
 });
 
@@ -246,5 +312,191 @@ describe('HomeScreen entity interactions', () => {
 			expect(queryByTestId('entity-detail-modal')).toBeTruthy();
 			expect(mockPush).not.toHaveBeenCalled();
 		});
+	});
+});
+
+// Characterization tests for handleDragEnd's drop routing. These assert the
+// observable outcome (which flow modal opens) for each entity-type pair, so they
+// hold identically before and after the routing logic moves into use-board-flows.
+describe('HomeScreen drag-drop routing', () => {
+	const income: EntityWithBalance = {
+		id: 'inc-1',
+		type: 'income',
+		name: 'Salary',
+		currency: 'EUR',
+		icon: 'banknote',
+		order: 0,
+		row: 0,
+		position: 0,
+		actual: 0,
+		planned: 0,
+		remaining: 0,
+		upcoming: 0,
+	};
+	const account: EntityWithBalance = {
+		id: 'acc-1',
+		type: 'account',
+		name: 'Checking',
+		currency: 'EUR',
+		icon: 'wallet',
+		order: 1,
+		row: 0,
+		position: 0,
+		actual: 1000,
+		planned: 1000,
+		remaining: 0,
+		upcoming: 0,
+	};
+	const category: EntityWithBalance = {
+		id: 'cat-1',
+		type: 'category',
+		name: 'Groceries',
+		currency: 'EUR',
+		icon: 'shopping-cart',
+		order: 2,
+		row: 0,
+		position: 0,
+		actual: 100,
+		planned: 500,
+		remaining: 400,
+		upcoming: 0,
+	};
+	const saving: EntityWithBalance = {
+		id: 'sav-1',
+		type: 'saving',
+		name: 'Emergency',
+		currency: 'EUR',
+		icon: 'piggy-bank',
+		order: 3,
+		row: 0,
+		position: 0,
+		actual: 0,
+		planned: 2000,
+		remaining: 2000,
+		upcoming: 0,
+	};
+
+	const drop = (entity: EntityWithBalance, targetId: string | null) => {
+		act(() => {
+			mockDragHandlers.onDragEnd?.(entity, targetId);
+		});
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		mockDragHandlers.onDragStart = undefined;
+		mockDragHandlers.onDragEnd = undefined;
+		mockRefundOnSelect = undefined;
+		useStore.setState({
+			entities: [income, account, category, saving],
+			plans: [],
+			transactions: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			incomeVisible: true,
+			initialize: jest.fn(),
+			addEntity: jest.fn(),
+			setPlan: jest.fn(),
+			setDraggedEntity: jest.fn(),
+			toggleIncomeVisible: jest.fn(),
+		});
+		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
+			if (type === 'income') return [income];
+			if (type === 'account') return [account];
+			if (type === 'category') return [category];
+			if (type === 'saving') return [saving];
+			return [];
+		});
+	});
+
+	it('account → category: opens the transaction modal from account to category', () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		drop(account, category.id);
+
+		expect(queryByTestId('transaction-modal')).toBeTruthy();
+		expect(getByTestId('transaction-modal-from')).toHaveTextContent('acc-1');
+		expect(getByTestId('transaction-modal-to')).toHaveTextContent('cat-1');
+		expect(queryByTestId('refund-picker')).toBeNull();
+		expect(queryByTestId('reservation-modal')).toBeNull();
+	});
+
+	it('category → account: opens the refund picker (reversed account → category)', () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		drop(category, account.id);
+
+		expect(queryByTestId('refund-picker')).toBeTruthy();
+		expect(getByTestId('refund-original-from')).toHaveTextContent('acc-1');
+		expect(getByTestId('refund-original-to')).toHaveTextContent('cat-1');
+		expect(queryByTestId('transaction-modal')).toBeNull();
+	});
+
+	it('account → income: opens the refund picker (reversed income → account)', () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		drop(account, income.id);
+
+		expect(queryByTestId('refund-picker')).toBeTruthy();
+		expect(getByTestId('refund-original-from')).toHaveTextContent('inc-1');
+		expect(getByTestId('refund-original-to')).toHaveTextContent('acc-1');
+		expect(queryByTestId('transaction-modal')).toBeNull();
+	});
+
+	it('account → saving: opens the reservation modal, not the transaction modal', () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		drop(account, saving.id);
+
+		expect(queryByTestId('reservation-modal')).toBeTruthy();
+		expect(getByTestId('reservation-account')).toHaveTextContent('acc-1');
+		expect(getByTestId('reservation-saving')).toHaveTextContent('sav-1');
+		expect(queryByTestId('transaction-modal')).toBeNull();
+	});
+
+	it('drop on itself: opens no flow modal', () => {
+		const { queryByTestId } = render(<HomeScreen />);
+
+		drop(account, account.id);
+
+		expect(queryByTestId('transaction-modal')).toBeNull();
+		expect(queryByTestId('refund-picker')).toBeNull();
+		expect(queryByTestId('reservation-modal')).toBeNull();
+	});
+
+	it('drop with no target: opens no flow modal', () => {
+		const { queryByTestId } = render(<HomeScreen />);
+
+		drop(account, null);
+
+		expect(queryByTestId('transaction-modal')).toBeNull();
+		expect(queryByTestId('refund-picker')).toBeNull();
+		expect(queryByTestId('reservation-modal')).toBeNull();
+	});
+
+	it('refund select: hands the chosen transaction off to the transaction modal', () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		// Open the refund picker via category → account.
+		drop(category, account.id);
+		expect(queryByTestId('refund-picker')).toBeTruthy();
+
+		// Picking a transaction closes the picker and opens the edit modal carrying it.
+		const chosen = {
+			id: 'txn-99',
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount: 42,
+		};
+		act(() => {
+			mockRefundOnSelect?.(chosen);
+		});
+
+		expect(queryByTestId('refund-picker')).toBeNull();
+		expect(queryByTestId('transaction-modal')).toBeTruthy();
+		expect(getByTestId('transaction-modal-existing')).toHaveTextContent('txn-99');
+		expect(getByTestId('transaction-modal-from')).toHaveTextContent('acc-1');
+		expect(getByTestId('transaction-modal-to')).toHaveTextContent('cat-1');
 	});
 });
