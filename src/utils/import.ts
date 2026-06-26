@@ -684,6 +684,19 @@ export function parseImportCsv(content: string): ParseResult {
 	// values (back-compat). New exports never produce both, but a hand-edited
 	// or partial-merge CSV could — `Set` collapses duplicates.
 	const templateIds = new Set(recurrenceTemplates.map((t) => t.id));
+
+	// A transaction's `series_id` has no FK, so it can reference a template that
+	// is absent from this file — exports omit soft-deleted templates (the store
+	// only loads active ones), templates get dropped for a missing entity, and
+	// hand-edited CSVs are unconstrained. Keeping the dangling id would orphan the
+	// row in the DB, where it can no longer be deleted or split ("recurrence
+	// template … not found"). Sever the dead link, keeping the row as a one-off.
+	for (const tx of transactions) {
+		if (tx.series_id && !templateIds.has(tx.series_id)) {
+			tx.series_id = null;
+		}
+	}
+
 	const exclusionRows = parseSection(sections.recurrenceExclusions);
 	const exclusionsByTemplate = parseRecurrenceExclusions(exclusionRows, templateIds, errors);
 	for (const template of recurrenceTemplates) {

@@ -614,6 +614,59 @@ rt1,e-gone,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,170674
 		expect(result.droppable).toEqual([]);
 	});
 
+	// A transaction can carry a series_id whose template is absent from the file
+	// (e.g. export omits soft-deleted templates, or the template row was dropped
+	// for a missing entity). Keeping the dangling series_id would orphan the row:
+	// `series_id` has no FK, so it survives into the DB and then can't be
+	// deleted/split ("recurrence template … not found"). Sever the dead link on
+	// import instead, keeping the transaction as a plain one-off.
+	test('clears series_id on a transaction whose template is not in the import', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount_minor
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,5000,EUR,1706745600000,,ghost-template,false
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.transactions).toHaveLength(1);
+		expect(result.data.transactions[0]!.id).toBe('t1');
+		expect(result.data.transactions[0]!.series_id).toBeNull();
+	});
+
+	test('keeps series_id when its template is present in the import', () => {
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount_minor
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,5000,EUR,1706745600000,,rt1,false
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt1,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.transactions[0]!.series_id).toBe('rt1');
+	});
+
 	test('rejects recurrence_template with malformed rule JSON', () => {
 		const csv = `# ENTITIES
 id,type,name,currency,icon,color,order,row,position,include_in_total
