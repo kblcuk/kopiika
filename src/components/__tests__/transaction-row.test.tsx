@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 
 import { TransactionRow } from '../transaction-row';
@@ -284,6 +285,116 @@ describe('TransactionRow', () => {
 		expect(onEdit).not.toHaveBeenCalled();
 
 		(Gesture as any).Tap = originalTap;
+	});
+
+	// KII-136: deleting a single occurrence of a recurring series. A virtual
+	// (future) occurrence is a pure exclusion (no row to delete); a materialized
+	// occurrence goes through the id-based scoped delete. These exercise the full
+	// swipe → scope-alert → store-action wiring that the gesture E2E can't unit-check.
+	describe('swipe-to-delete a recurring occurrence', () => {
+		// Override Gesture.Pan to capture its onUpdate/onEnd so a test can simulate a
+		// full left-swipe past the delete threshold.
+		const installPanCapture = () => {
+			const captured: { onUpdate?: (e: any) => void; onEnd?: () => void } = {};
+			const originalPan = Gesture.Pan;
+			(Gesture as any).Pan = jest.fn().mockReturnValue({
+				activeOffsetX() {
+					return this;
+				},
+				onUpdate(cb: (e: any) => void) {
+					captured.onUpdate = cb;
+					return this;
+				},
+				onEnd(cb: () => void) {
+					captured.onEnd = cb;
+					return this;
+				},
+			});
+			return { captured, restore: () => ((Gesture as any).Pan = originalPan) };
+		};
+
+		// Drag left past DELETE_THRESHOLD (-80) and release.
+		const swipeToDelete = (captured: { onUpdate?: (e: any) => void; onEnd?: () => void }) => {
+			act(() => {
+				captured.onUpdate?.({ translationX: -100 });
+				captured.onEnd?.();
+			});
+		};
+
+		afterEach(() => {
+			(Alert.alert as jest.Mock | undefined)?.mockRestore?.();
+		});
+
+		it('materialized occurrence: "This one only" calls deleteTransactionWithScope(single)', () => {
+			const deleteTransactionWithScope = jest.fn().mockResolvedValue(undefined);
+			const excludeOccurrence = jest.fn().mockResolvedValue(undefined);
+			const materializeOccurrence = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				deleteTransactionWithScope,
+				excludeOccurrence,
+				materializeOccurrence,
+			});
+
+			jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+				buttons?.find((b) => b.text === 'This one only')?.onPress?.();
+			});
+
+			const { restore, captured } = installPanCapture();
+			render(
+				<TransactionRow
+					transaction={{ ...transaction, series_id: 'series-1' }}
+					entityMap={entityMap}
+					onEdit={jest.fn()}
+					index={0}
+				/>
+			);
+
+			swipeToDelete(captured);
+
+			expect(deleteTransactionWithScope).toHaveBeenCalledWith('tx-1', 'single');
+			expect(excludeOccurrence).not.toHaveBeenCalled();
+			expect(materializeOccurrence).not.toHaveBeenCalled();
+
+			restore();
+		});
+
+		it('virtual occurrence: "This one only" records an exclusion without deleting a row', () => {
+			const deleteTransactionWithScope = jest.fn().mockResolvedValue(undefined);
+			const excludeOccurrence = jest.fn().mockResolvedValue(undefined);
+			const materializeOccurrence = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				deleteTransactionWithScope,
+				excludeOccurrence,
+				materializeOccurrence,
+			});
+
+			jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+				buttons?.find((b) => b.text === 'This one only')?.onPress?.();
+			});
+
+			const virtualOccurrence: Transaction = {
+				...transaction,
+				series_id: 'series-1',
+				isVirtual: true,
+			};
+			const { restore, captured } = installPanCapture();
+			render(
+				<TransactionRow
+					transaction={virtualOccurrence}
+					entityMap={entityMap}
+					onEdit={jest.fn()}
+					index={0}
+				/>
+			);
+
+			swipeToDelete(captured);
+
+			expect(excludeOccurrence).toHaveBeenCalledWith(virtualOccurrence);
+			expect(deleteTransactionWithScope).not.toHaveBeenCalled();
+			expect(materializeOccurrence).not.toHaveBeenCalled();
+
+			restore();
+		});
 	});
 
 	it('does not call onEdit when the row is read-only', () => {

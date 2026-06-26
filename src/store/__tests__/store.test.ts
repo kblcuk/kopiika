@@ -6,6 +6,8 @@ import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
+import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
+import { toCivilDate } from '@/src/utils/recurrence';
 import {
 	getHasRequestedPermission,
 	setHasRequestedPermission,
@@ -1019,6 +1021,53 @@ describe('Store Data Integrity', () => {
 			for (const c of newChildren) {
 				expect(c.series_id == null).toBe(true);
 			}
+		});
+
+		test('splits an orphaned occurrence whose template is gone', async () => {
+			await seedAccountCategory();
+
+			// A recurring occurrence whose template no longer exists (series_id has
+			// no FK — e.g. an export/import round-trip dropped the template). The
+			// split must still succeed instead of failing with "template not found".
+			const occurrenceTs = Date.now();
+			const original: Transaction = {
+				id: 'orphan-split',
+				from_entity_id: 'acct-1',
+				to_entity_id: 'cat-1',
+				amount_minor: 2500,
+				currency: 'USD',
+				timestamp: occurrenceTs,
+				series_id: 'ghost-template',
+			};
+			await db.createTransaction(original);
+			useStore.setState({ transactions: [original], recurrenceTemplates: [] });
+
+			const children: Transaction[] = [
+				{
+					id: 'os1',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-1',
+					amount_minor: 1500,
+					currency: 'USD',
+					timestamp: occurrenceTs,
+				},
+				{
+					id: 'os2',
+					from_entity_id: 'acct-1',
+					to_entity_id: 'cat-2',
+					amount_minor: 1000,
+					currency: 'USD',
+					timestamp: occurrenceTs,
+				},
+			];
+
+			await useStore.getState().replaceTransactionWithSplit('orphan-split', children);
+
+			const ids = new Set(useStore.getState().transactions.map((t) => t.id));
+			expect(ids.has('orphan-split')).toBe(false);
+			expect(ids.has('os1')).toBe(true);
+			expect(ids.has('os2')).toBe(true);
+			expect((await db.getAllTransactions()).map((t) => t.id)).not.toContain('orphan-split');
 		});
 
 		test('warns and no-ops when called for a non-existent transaction', async () => {
@@ -5013,6 +5062,195 @@ describe('Store Data Integrity', () => {
 				useStore.getState().recurrenceTemplates.find((item) => item.id === template.id)
 					?.exclusions ?? []
 			).toEqual([deletedTimestamp]);
+		});
+
+		test('deleting a single occurrence whose template is gone still removes the row', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// A recurring occurrence whose series template no longer exists.
+			// series_id has no FK constraint, so this orphaned state is representable
+			// (e.g. after a partial import or template removal). The row shows up in
+			// "Needs Confirmation" (is_confirmed: false, past-due) and the user swipes
+			// to delete it.
+			const orphan: Transaction = {
+				id: 'orphan-occurrence',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: Date.now() - 86_400_000,
+				series_id: 'ghost-template',
+				is_confirmed: false,
+			};
+			await db.createTransaction(orphan);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [orphan],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			// Deleting a single occurrence must succeed even though the template is
+			// missing — there is no series left to resurrect it, so the exclusion is
+			// moot. Today this rejects with "recurrence template ghost-template not
+			// found", which surfaces as the "Could not delete" alert.
+			await useStore.getState().deleteTransactionWithScope('orphan-occurrence', 'single');
+
+			expect(useStore.getState().transactions.map((t) => t.id)).not.toContain(
+				'orphan-occurrence'
+			);
+			expect((await db.getAllTransactions()).map((t) => t.id)).not.toContain(
+				'orphan-occurrence'
+			);
+		});
+
+		test('deleting a single future (virtual) occurrence removes it from the derived list and it stays gone', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Anchor everything to "now" so the derivation produces *future* virtual
+			// occurrences (KII-136: future occurrences are derived, never materialized).
+			const now = Date.now();
+			const DAY = 86_400_000;
+			const template: RecurrenceTemplate = {
+				id: 'series-virtual-delete',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: now - 2 * DAY,
+				horizon: 30,
+				created_at: now,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [],
+				recurrenceTemplates: [{ ...template }],
+				marketValueSnapshots: [],
+			});
+
+			const rangeStart = now;
+			const rangeEnd = now + 7 * DAY;
+			const deriveForState = () => {
+				const tmpl = useStore.getState().recurrenceTemplates;
+				const exclusionsByTemplate = new Map(
+					tmpl.map((t) => [t.id, new Set((t.exclusions ?? []).map(toCivilDate))])
+				);
+				return deriveVirtualOccurrences(
+					tmpl,
+					exclusionsByTemplate,
+					useStore.getState().transactions,
+					rangeStart,
+					rangeEnd,
+					now
+				);
+			};
+
+			const before = deriveForState();
+			// Pick the occurrence three days out — the one the user swipes to delete.
+			const target = before.find(
+				(o) => toCivilDate(o.timestamp) === toCivilDate(now + 3 * DAY)
+			);
+			expect(target).toBeDefined();
+			expect(target!.isVirtual).toBe(true);
+
+			// This is exactly what the row/modal delete handler does for a virtual
+			// occurrence with scope 'single': record an exclusion, no row to delete.
+			await useStore.getState().excludeOccurrence(target!);
+
+			const after = deriveForState();
+			const targetCivil = toCivilDate(now + 3 * DAY);
+			// The deleted occurrence must be gone…
+			expect(after.map((o) => toCivilDate(o.timestamp))).not.toContain(targetCivil);
+			// …and its neighbours must survive.
+			expect(after.map((o) => toCivilDate(o.timestamp))).toContain(
+				toCivilDate(now + 2 * DAY)
+			);
+			expect(after.map((o) => toCivilDate(o.timestamp))).toContain(
+				toCivilDate(now + 4 * DAY)
+			);
+			// Exactly one fewer occurrence than before.
+			expect(after.length).toBe(before.length - 1);
+
+			// And the exclusion is durably recorded in the DB (survives a reload).
+			expect(await db.getExclusionsForTemplate(template.id)).toContain(target!.timestamp);
+		});
+
+		test('deleting a single past-due (materialized) occurrence is not resurrected by a later backfill', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+			// The shared beforeEach does not reset recurrenceTemplates, so clear it
+			// here to keep this series the only template in the store.
+			useStore.setState({
+				entities: [account, category],
+				transactions: [],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			const now = Date.now();
+			const DAY = 86_400_000;
+			// Daily series starting 5 days ago → backfill materializes the past-due
+			// occurrences as unconfirmed rows (the ones shown in the list).
+			await useStore.getState().addRecurringTransaction(
+				{
+					from_entity_id: account.id,
+					to_entity_id: category.id,
+					amount_minor: 10000,
+					currency: 'USD',
+					timestamp: now - 5 * DAY,
+				},
+				{ rule: { type: 'daily' }, horizon: 30 }
+			);
+
+			const templates = useStore.getState().recurrenceTemplates;
+			expect(templates).toHaveLength(1);
+			const seriesId = templates[0]!.id;
+			const materialized = useStore
+				.getState()
+				.transactions.filter((t) => t.series_id === seriesId)
+				.sort((a, b) => a.timestamp - b.timestamp);
+			// Sanity: backfill created the past-due rows.
+			expect(materialized.length).toBeGreaterThanOrEqual(3);
+
+			// Delete the middle past-due occurrence, single scope (a real row → not virtual).
+			const target = materialized[2]!;
+			expect(target.isVirtual).toBeFalsy();
+			const targetCivil = toCivilDate(target.timestamp);
+			await useStore.getState().deleteTransactionWithScope(target.id, 'single');
+
+			// Gone from the store and the DB right after delete.
+			expect(useStore.getState().transactions.map((t) => t.id)).not.toContain(target.id);
+			expect((await db.getTransactionsBySeriesId(seriesId)).map((t) => t.id)).not.toContain(
+				target.id
+			);
+
+			// Now force another backfill (simulates an app foreground). The deleted
+			// occurrence must NOT come back.
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+
+			const afterCivilDates = (await db.getTransactionsBySeriesId(seriesId)).map((t) =>
+				toCivilDate(t.timestamp)
+			);
+			expect(afterCivilDates).not.toContain(targetCivil);
 		});
 
 		test('deleteTransactionWithScope future soft-deletes the template when no occurrences remain', async () => {

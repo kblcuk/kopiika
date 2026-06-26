@@ -1317,7 +1317,7 @@ describe('transactions.ts', () => {
 			expect(await getExclusionsForTemplate(templateId)).toContain(1500);
 		});
 
-		test('rolls back when seriesExclusion references a non-existent template', async () => {
+		test('replaces the orphaned row and skips the exclusion when the template is missing', async () => {
 			const original: Transaction = {
 				id: 'orig-no-tmpl',
 				from_entity_id: 'account-1',
@@ -1348,18 +1348,23 @@ describe('transactions.ts', () => {
 				},
 			];
 
-			await expect(
-				replaceTransactionAtomic('orig-no-tmpl', children, {
-					seriesExclusion: { templateId: 'tmpl-missing', timestamp: 4000 },
-				})
-			).rejects.toThrow(/recurrence template tmpl-missing not found/);
+			// `series_id` has no FK, so a split target can be an occurrence whose
+			// template is gone (e.g. after an export/import round-trip dropped it).
+			// The split must still go through: the children carry no series_id, and
+			// with no series left the exclusion is moot, so skip it rather than
+			// rejecting the whole replace.
+			await replaceTransactionAtomic('orig-no-tmpl', children, {
+				seriesExclusion: { templateId: 'tmpl-missing', timestamp: 4000 },
+			});
 
-			// Delete must have rolled back
 			const all = await getAllTransactions();
 			const ids = new Set(all.map((t) => t.id));
-			expect(ids.has('orig-no-tmpl')).toBe(true);
-			expect(ids.has('child-rb-1')).toBe(false);
-			expect(ids.has('child-rb-2')).toBe(false);
+			expect(ids.has('orig-no-tmpl')).toBe(false);
+			expect(ids.has('child-rb-1')).toBe(true);
+			expect(ids.has('child-rb-2')).toBe(true);
+
+			const { getExclusionsForTemplate } = await import('../recurrence-exclusions');
+			expect(await getExclusionsForTemplate('tmpl-missing')).toEqual([]);
 		});
 	});
 
@@ -1400,7 +1405,7 @@ describe('transactions.ts', () => {
 			expect(await getExclusionsForTemplate('tmpl-del-1')).toEqual([7000]);
 		});
 
-		test('rolls back the delete when the seriesExclusion template is missing', async () => {
+		test('deletes the orphaned row and skips the exclusion when the template is missing', async () => {
 			await createTransaction({
 				id: 'occ-del-2',
 				from_entity_id: 'account-1',
@@ -1411,15 +1416,19 @@ describe('transactions.ts', () => {
 				series_id: 'tmpl-gone',
 			});
 
-			await expect(
-				deleteTransaction('occ-del-2', {
-					seriesExclusion: { templateId: 'tmpl-gone', timestamp: 8000 },
-				})
-			).rejects.toThrow(/recurrence template tmpl-gone not found/);
+			// `series_id` has no FK, so an occurrence can outlive its template. The
+			// delete must still succeed: with no series left there is nothing to
+			// resurrect the row, so the exclusion is moot and is skipped rather than
+			// rejecting the whole delete (which surfaced as "Could not delete").
+			await deleteTransaction('occ-del-2', {
+				seriesExclusion: { templateId: 'tmpl-gone', timestamp: 8000 },
+			});
 
-			// The delete must have rolled back together with the failed insert.
 			const all = await getAllTransactions();
-			expect(all.find((t) => t.id === 'occ-del-2')).toBeDefined();
+			expect(all.find((t) => t.id === 'occ-del-2')).toBeUndefined();
+
+			const { getExclusionsForTemplate } = await import('../recurrence-exclusions');
+			expect(await getExclusionsForTemplate('tmpl-gone')).toEqual([]);
 		});
 
 		test('plain deleteTransaction (no series) still works', async () => {

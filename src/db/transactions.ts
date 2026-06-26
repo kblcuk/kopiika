@@ -115,16 +115,22 @@ export async function deleteTransaction(
 	const { templateId, timestamp } = options.seriesExclusion;
 	db.transaction((tx) => {
 		tx.delete(transactions).where(eq(transactions.id, id)).run();
-		// Mirrors replaceTransactionAtomic: verify the template exists so a
-		// missing FK target produces a specific error rather than a raw
-		// constraint failure on the INSERT.
+		// The exclusion only matters while the series still exists — it stops
+		// derivation/backfill from resurrecting this civil date. `series_id` has
+		// no FK, so an occurrence can outlive its template (e.g. a partial import
+		// or template removal). When the template is gone there is no series left
+		// to resurrect the row, so skip the exclusion (and avoid a raw FK failure
+		// on the INSERT) rather than rejecting the whole delete.
 		const existing = tx
 			.select({ id: recurrenceTemplates.id })
 			.from(recurrenceTemplates)
 			.where(eq(recurrenceTemplates.id, templateId))
 			.all();
 		if (existing.length === 0) {
-			throw new Error(`deleteTransaction: recurrence template ${templateId} not found`);
+			console.warn(
+				`deleteTransaction: recurrence template ${templateId} not found; deleting orphaned occurrence without recording an exclusion`
+			);
+			return;
 		}
 		tx.insert(recurrenceExclusions)
 			.values({ template_id: templateId, timestamp })
@@ -372,25 +378,29 @@ export async function replaceTransactionAtomic(
 
 		if (options?.seriesExclusion) {
 			const { templateId, timestamp } = options.seriesExclusion;
-			// Verify the template still exists so a missing FK target triggers a
-			// rollback here rather than as a constraint error on the INSERT —
-			// keeps the error message specific (KII-123).
+			// The exclusion only matters while the series still exists. `series_id`
+			// has no FK, so a split target can be an occurrence whose template is
+			// gone (e.g. an export/import round-trip dropped it). When the template
+			// is missing there is no series left to resurrect the date, so skip the
+			// exclusion (and avoid a raw FK failure on the INSERT) rather than
+			// rejecting the whole replace. Mirrors `deleteTransaction`.
 			const existingTemplate = tx
 				.select({ id: recurrenceTemplates.id })
 				.from(recurrenceTemplates)
 				.where(eq(recurrenceTemplates.id, templateId))
 				.all();
 			if (existingTemplate.length === 0) {
-				throw new Error(
-					`replaceTransactionAtomic: recurrence template ${templateId} not found`
+				console.warn(
+					`replaceTransactionAtomic: recurrence template ${templateId} not found; replacing orphaned occurrence without recording an exclusion`
 				);
+			} else {
+				// Single INSERT, idempotent via the composite PK — no read-modify-write
+				// race with concurrent confirm/delete flows (KII-123).
+				tx.insert(recurrenceExclusions)
+					.values({ template_id: templateId, timestamp })
+					.onConflictDoNothing()
+					.run();
 			}
-			// Single INSERT, idempotent via the composite PK — no read-modify-write
-			// race with concurrent confirm/delete flows (KII-123).
-			tx.insert(recurrenceExclusions)
-				.values({ template_id: templateId, timestamp })
-				.onConflictDoNothing()
-				.run();
 		}
 
 		const inserted: Transaction[] = [];
