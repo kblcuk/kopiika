@@ -24,6 +24,7 @@ jest.mock('react-native-gesture-handler', () => {
 				},
 			}),
 			Tap: () => ({
+				_callback: () => {},
 				maxDuration() {
 					return this;
 				},
@@ -40,12 +41,12 @@ jest.mock('react-native-gesture-handler', () => {
 					return this;
 				},
 				onEnd(callback: () => void) {
-					(this as any)._callback = callback;
+					this._callback = callback;
 					return this;
 				},
 				// Helper to trigger the callback in tests
 				fire() {
-					(this as any)._callback();
+					this._callback();
 				},
 			}),
 			Exclusive: (...gestures: any[]) => ({
@@ -188,7 +189,7 @@ describe('TransactionRow', () => {
 
 		// Re-mock specifically for this test to capture the callback
 		const originalTap = Gesture.Tap;
-		(Gesture as any).Tap = jest.fn().mockReturnValue({
+		Gesture.Tap = jest.fn().mockReturnValue({
 			maxDuration: jest.fn().mockReturnThis(),
 			maxDistance: jest.fn().mockReturnThis(),
 			runOnJS: jest.fn().mockReturnThis(),
@@ -212,7 +213,7 @@ describe('TransactionRow', () => {
 		if (tapCallback) tapCallback();
 		expect(onEdit).toHaveBeenCalledWith(transaction);
 
-		(Gesture as any).Tap = originalTap;
+		Gesture.Tap = originalTap;
 	});
 
 	// KII-106: the row's tap gesture must defer to the Confirm pill's tap,
@@ -222,7 +223,7 @@ describe('TransactionRow', () => {
 	it('Confirm pill: row tap requires the pill gesture to fail (KII-106)', () => {
 		const requireExternalGestureToFail = jest.fn().mockReturnThis();
 		const originalTap = Gesture.Tap;
-		(Gesture as any).Tap = jest.fn().mockReturnValue({
+		Gesture.Tap = jest.fn().mockReturnValue({
 			maxDuration: jest.fn().mockReturnThis(),
 			maxDistance: jest.fn().mockReturnThis(),
 			runOnJS: jest.fn().mockReturnThis(),
@@ -243,7 +244,7 @@ describe('TransactionRow', () => {
 
 		expect(requireExternalGestureToFail).toHaveBeenCalled();
 
-		(Gesture as any).Tap = originalTap;
+		Gesture.Tap = originalTap;
 	});
 
 	it('Confirm pill: firing its gesture confirms the tx without opening edit', () => {
@@ -255,7 +256,7 @@ describe('TransactionRow', () => {
 		// then the row.
 		const tapCallbacks: (() => void)[] = [];
 		const originalTap = Gesture.Tap;
-		(Gesture as any).Tap = jest.fn().mockImplementation(() => ({
+		Gesture.Tap = jest.fn().mockImplementation(() => ({
 			maxDuration: jest.fn().mockReturnThis(),
 			maxDistance: jest.fn().mockReturnThis(),
 			runOnJS: jest.fn().mockReturnThis(),
@@ -284,7 +285,7 @@ describe('TransactionRow', () => {
 		expect(confirmTransactionSpy).toHaveBeenCalledWith('tx-1');
 		expect(onEdit).not.toHaveBeenCalled();
 
-		(Gesture as any).Tap = originalTap;
+		Gesture.Tap = originalTap;
 	});
 
 	// KII-136: deleting a single occurrence of a recurring series. A virtual
@@ -297,7 +298,7 @@ describe('TransactionRow', () => {
 		const installPanCapture = () => {
 			const captured: { onUpdate?: (e: any) => void; onEnd?: () => void } = {};
 			const originalPan = Gesture.Pan;
-			(Gesture as any).Pan = jest.fn().mockReturnValue({
+			Gesture.Pan = jest.fn().mockReturnValue({
 				activeOffsetX() {
 					return this;
 				},
@@ -310,7 +311,7 @@ describe('TransactionRow', () => {
 					return this;
 				},
 			});
-			return { captured, restore: () => ((Gesture as any).Pan = originalPan) };
+			return { captured, restore: () => (Gesture.Pan = originalPan) };
 		};
 
 		// Drag left past DELETE_THRESHOLD (-80) and release.
