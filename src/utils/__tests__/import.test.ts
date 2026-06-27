@@ -642,6 +642,41 @@ id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_da
 		expect(result.data.transactions).toHaveLength(1);
 		expect(result.data.transactions[0]!.id).toBe('t1');
 		expect(result.data.transactions[0]!.series_id).toBeNull();
+		// The dropped recurrence link must be surfaced, not silently severed
+		// (import contract: "Never silently drop user data on import").
+		expect(result.droppable).toContainEqual(
+			expect.objectContaining({ kind: 'transaction', id: 't1' })
+		);
+	});
+
+	test('clears series_id when its template is present but soft-deleted', () => {
+		// The store only loads active templates, so a row pointing at a
+		// soft-deleted template would render as recurring with an invisible
+		// series. Severing keys off active templates, matching what the store
+		// will actually have after import.
+		const csv = `# ENTITIES
+id,type,name,currency,icon,color,order,row,position,include_in_total
+e1,account,"Main",EUR,,,0,0,0,true
+e2,category,"Groceries",EUR,,,0,0,1,true
+
+# PLANS
+id,entity_id,period,period_start,planned_amount_minor
+
+# TRANSACTIONS
+id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,5000,EUR,1706745600000,,rt-dead,false
+
+# RECURRENCE_TEMPLATES
+id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_date,end_count,horizon,exclusions,is_deleted,created_at
+rt-dead,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,true,1706745500000`;
+
+		const result = parseImportCsv(csv);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.transactions[0]!.series_id).toBeNull();
+		expect(result.droppable).toContainEqual(
+			expect.objectContaining({ kind: 'transaction', id: 't1' })
+		);
 	});
 
 	test('keeps series_id when its template is present in the import', () => {

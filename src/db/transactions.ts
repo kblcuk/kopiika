@@ -11,6 +11,28 @@ import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizz
  */
 export type TransactionUpdate = Omit<Partial<Transaction>, 'id' | 'created_at' | 'updated_at'>;
 
+/** The transaction handle drizzle passes to a `db.transaction((tx) => …)` callback. */
+type DrizzleTx = Parameters<
+	Parameters<Awaited<ReturnType<typeof getDrizzleDb>>['transaction']>[0]
+>[0];
+
+/**
+ * Whether a recurrence template row exists, probed inside an open transaction.
+ * `series_id` has no FK, so an occurrence can outlive its template; both the
+ * delete and split paths use this to decide whether recording a series
+ * exclusion is still meaningful (a gone template has no series left to
+ * resurrect the date). Shared so the two call sites can't drift.
+ */
+function recurrenceTemplateExists(tx: DrizzleTx, templateId: string): boolean {
+	return (
+		tx
+			.select({ id: recurrenceTemplates.id })
+			.from(recurrenceTemplates)
+			.where(eq(recurrenceTemplates.id, templateId))
+			.all().length > 0
+	);
+}
+
 export async function getAllTransactions(): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	return await db.select().from(transactions).orderBy(desc(transactions.timestamp));
@@ -121,12 +143,7 @@ export async function deleteTransaction(
 		// or template removal). When the template is gone there is no series left
 		// to resurrect the row, so skip the exclusion (and avoid a raw FK failure
 		// on the INSERT) rather than rejecting the whole delete.
-		const existing = tx
-			.select({ id: recurrenceTemplates.id })
-			.from(recurrenceTemplates)
-			.where(eq(recurrenceTemplates.id, templateId))
-			.all();
-		if (existing.length === 0) {
+		if (!recurrenceTemplateExists(tx, templateId)) {
 			console.warn(
 				`deleteTransaction: recurrence template ${templateId} not found; deleting orphaned occurrence without recording an exclusion`
 			);
@@ -384,12 +401,7 @@ export async function replaceTransactionAtomic(
 			// is missing there is no series left to resurrect the date, so skip the
 			// exclusion (and avoid a raw FK failure on the INSERT) rather than
 			// rejecting the whole replace. Mirrors `deleteTransaction`.
-			const existingTemplate = tx
-				.select({ id: recurrenceTemplates.id })
-				.from(recurrenceTemplates)
-				.where(eq(recurrenceTemplates.id, templateId))
-				.all();
-			if (existingTemplate.length === 0) {
+			if (!recurrenceTemplateExists(tx, templateId)) {
 				console.warn(
 					`replaceTransactionAtomic: recurrence template ${templateId} not found; replacing orphaned occurrence without recording an exclusion`
 				);

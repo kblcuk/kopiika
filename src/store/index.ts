@@ -915,6 +915,13 @@ export const useStore = create<AppState>((set, get) => {
 			const seriesId = transaction.series_id;
 			const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
 
+			// `series_id` has no FK, so an occurrence can outlive its template (e.g. an
+			// import dropped it). Update the template only when it still exists, but
+			// always apply the edit to this occurrence and the future ones — with no
+			// series left there is nothing else to update, so skipping the rows would
+			// silently drop the user's edit rather than rejecting it. Mirrors the
+			// delete/split orphan tolerance.
+			let stampedTemplate: RecurrenceTemplate | null = null;
 			if (template) {
 				const templateUpdates: Partial<RecurrenceTemplate> = {};
 				if (updates.amount_minor !== undefined)
@@ -925,25 +932,30 @@ export const useStore = create<AppState>((set, get) => {
 					templateUpdates.to_entity_id = updates.to_entity_id;
 				if (updates.note !== undefined) templateUpdates.note = updates.note;
 
-				const stampedTemplate = await db.updateRecurrenceTemplate(
-					seriesId,
-					templateUpdates
+				stampedTemplate = await db.updateRecurrenceTemplate(seriesId, templateUpdates);
+			} else {
+				console.warn(
+					`updateTransactionWithScope: recurrence template ${seriesId} not found; updating future occurrences without touching a template`
 				);
-				const stampedTxns = await db.updateTransactionsBySeriesFuture(
-					seriesId,
-					transaction.timestamp,
-					updates
-				);
-				const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
-				set((state) => ({
-					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-						stampedTemplate && t.id === stampedTemplate.id
-							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-							: t
-					),
-					transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
-				}));
 			}
+
+			const stampedTxns = await db.updateTransactionsBySeriesFuture(
+				seriesId,
+				transaction.timestamp,
+				updates
+			);
+			const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
+			const updatedTemplate = stampedTemplate;
+			set((state) => ({
+				recurrenceTemplates: updatedTemplate
+					? state.recurrenceTemplates.map((t) =>
+							t.id === updatedTemplate.id
+								? { ...updatedTemplate, exclusions: t.exclusions ?? [] }
+								: t
+						)
+					: state.recurrenceTemplates,
+				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
+			}));
 		},
 
 		deleteTransactionWithScope: async (id, scope) => {

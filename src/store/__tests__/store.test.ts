@@ -4854,6 +4854,66 @@ describe('Store Data Integrity', () => {
 			).toEqual([excludedTimestamp]);
 		});
 
+		test('updateTransactionWithScope future still applies to the rows when the template is gone', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Two materialized occurrences sharing an orphaned series_id (the template
+			// row no longer exists — series_id has no FK, e.g. after an import dropped
+			// the template). "Update all future" must still write to the surviving
+			// occurrences instead of silently no-opping. Mirrors the delete/split
+			// orphan tolerance fixed in this branch.
+			const earlier: Transaction = {
+				id: 'orphan-update-1',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-01').getTime(),
+				series_id: 'ghost-template',
+			};
+			const later: Transaction = {
+				id: 'orphan-update-2',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date('2026-02-01').getTime(),
+				series_id: 'ghost-template',
+			};
+			await db.createTransactionBatch([earlier, later]);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [earlier, later],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			await useStore
+				.getState()
+				.updateTransactionWithScope('orphan-update-2', { amount_minor: 25000 }, 'future');
+
+			const dbSeries = await db.getTransactionsBySeriesId('ghost-template');
+			// The earlier occurrence is untouched…
+			expect(dbSeries.find((t) => t.id === 'orphan-update-1')).toMatchObject({
+				amount_minor: 10000,
+			});
+			// …the selected one and onward are updated.
+			expect(dbSeries.find((t) => t.id === 'orphan-update-2')).toMatchObject({
+				amount_minor: 25000,
+			});
+			// Store mirror agrees with the DB.
+			const storeLater = useStore
+				.getState()
+				.transactions.find((t) => t.id === 'orphan-update-2');
+			expect(storeLater?.amount_minor).toBe(25000);
+		});
+
 		test('deleteTransactionWithScope future truncates the series from the selected occurrence', async () => {
 			const account = makeEntity('account-1', 'account');
 			const category = makeEntity('category-1', 'category');
@@ -5110,6 +5170,55 @@ describe('Store Data Integrity', () => {
 			);
 		});
 
+		test('deleting future occurrences whose template is gone removes the rows and no-ops the soft-delete', async () => {
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+
+			// Two materialized occurrences sharing an orphaned series_id (template
+			// row gone). "Delete this and all future" must remove the selected row
+			// and the later one; softDeleteRecurrenceTemplate on the missing template
+			// returns null and the state map is a no-op rather than throwing.
+			const earlier: Transaction = {
+				id: 'orphan-future-1',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-01').getTime(),
+				series_id: 'ghost-template',
+			};
+			const later: Transaction = {
+				id: 'orphan-future-2',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date('2026-02-01').getTime(),
+				series_id: 'ghost-template',
+			};
+			await db.createTransactionBatch([earlier, later]);
+
+			useStore.setState({
+				entities: [account, category],
+				plans: [],
+				transactions: [earlier, later],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			});
+
+			await useStore.getState().deleteTransactionWithScope('orphan-future-1', 'future');
+
+			const remainingIds = useStore.getState().transactions.map((t) => t.id);
+			expect(remainingIds).not.toContain('orphan-future-1');
+			expect(remainingIds).not.toContain('orphan-future-2');
+			expect((await db.getTransactionsBySeriesId('ghost-template')).map((t) => t.id)).toEqual(
+				[]
+			);
+		});
+
 		test('deleting a single future (virtual) occurrence removes it from the derived list and it stays gone', async () => {
 			const account = makeEntity('account-1', 'account');
 			const category = makeEntity('category-1', 'category');
@@ -5225,21 +5334,25 @@ describe('Store Data Integrity', () => {
 			const seriesId = templates[0]!.id;
 			const materialized = useStore
 				.getState()
-				.transactions.filter((t) => t.series_id === seriesId)
-				.sort((a, b) => a.timestamp - b.timestamp);
+				.transactions.filter((t) => t.series_id === seriesId);
 			// Sanity: backfill created the past-due rows.
 			expect(materialized.length).toBeGreaterThanOrEqual(3);
 
-			// Delete the middle past-due occurrence, single scope (a real row → not virtual).
-			const target = materialized[2]!;
-			expect(target.isVirtual).toBeFalsy();
-			const targetCivil = toCivilDate(target.timestamp);
-			await useStore.getState().deleteTransactionWithScope(target.id, 'single');
+			// Delete a specific past-due occurrence — the one three days before now,
+			// which the daily series (started 5 days ago) definitely materialized.
+			// Pin by civil date rather than sort index so reordering can't silently
+			// retarget the test.
+			const targetCivilDay = toCivilDate(now - 3 * DAY);
+			const target = materialized.find((t) => toCivilDate(t.timestamp) === targetCivilDay);
+			expect(target).toBeDefined();
+			expect(target!.isVirtual).toBeFalsy();
+			const targetCivil = toCivilDate(target!.timestamp);
+			await useStore.getState().deleteTransactionWithScope(target!.id, 'single');
 
 			// Gone from the store and the DB right after delete.
-			expect(useStore.getState().transactions.map((t) => t.id)).not.toContain(target.id);
+			expect(useStore.getState().transactions.map((t) => t.id)).not.toContain(target!.id);
 			expect((await db.getTransactionsBySeriesId(seriesId)).map((t) => t.id)).not.toContain(
-				target.id
+				target!.id
 			);
 
 			// Now force another backfill (simulates an app foreground). The deleted

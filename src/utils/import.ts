@@ -686,13 +686,24 @@ export function parseImportCsv(content: string): ParseResult {
 	const templateIds = new Set(recurrenceTemplates.map((t) => t.id));
 
 	// A transaction's `series_id` has no FK, so it can reference a template that
-	// is absent from this file — exports omit soft-deleted templates (the store
-	// only loads active ones), templates get dropped for a missing entity, and
-	// hand-edited CSVs are unconstrained. Keeping the dangling id would orphan the
-	// row in the DB, where it can no longer be deleted or split ("recurrence
-	// template … not found"). Sever the dead link, keeping the row as a one-off.
+	// is not an *active* series in this file — exports omit soft-deleted templates
+	// (the store only loads active ones), templates get dropped for a missing
+	// entity, and hand-edited CSVs are unconstrained. Keying off active templates
+	// matches what the store will actually load: a row pointing at an absent or
+	// soft-deleted template would otherwise render as recurring with an invisible
+	// series and could no longer be deleted or split ("recurrence template … not
+	// found"). Sever the dead link, keeping the row as a one-off — but surface it
+	// via `droppable` rather than silently mutating user data (import contract).
+	const activeTemplateIds = new Set(
+		recurrenceTemplates.filter((t) => !t.is_deleted).map((t) => t.id)
+	);
 	for (const tx of transactions) {
-		if (tx.series_id && !templateIds.has(tx.series_id)) {
+		if (tx.series_id && !activeTemplateIds.has(tx.series_id)) {
+			droppable.push({
+				kind: 'transaction',
+				id: tx.id,
+				reason: `series_id "${tx.series_id}" references a recurrence template that is absent or deleted in this import; imported as a one-off`,
+			});
 			tx.series_id = null;
 		}
 	}
