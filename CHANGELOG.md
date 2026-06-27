@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.23](https://codeberg.org/kblcuk/kopiika/compare/v0.3.22...v0.3.23) (2026-06-27)
+
+
+### Bug Fixes
+
+* **import:** clear dangling series_id to stop orphaning recurring rows ([7421146](https://codeberg.org/kblcuk/kopiika/commit/7421146a7acab337bc0edba82b50ac0024838beb))
+* **recurrence:** complete orphaned-occurrence handling across edit and import ([cd4b8aa](https://codeberg.org/kblcuk/kopiika/commit/cd4b8aa73a0c87dfc78305b197f67a819f396771))
+* **recurrence:** let delete/split tolerate a missing series template ([b49d793](https://codeberg.org/kblcuk/kopiika/commit/b49d79394f06aeaf8c37dc836925c8e19c807e90))
+* **tests:** remove some of the unneeded any castings ([e4a2c1e](https://codeberg.org/kblcuk/kopiika/commit/e4a2c1ed91566fdd4b94fd6770529e21ab43a175))
+
 ## [0.3.22](https://codeberg.org/kblcuk/kopiika/compare/v0.3.21...v0.3.22) (2026-06-25)
 
 
