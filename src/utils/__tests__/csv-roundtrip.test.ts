@@ -88,7 +88,12 @@ const FULL_FIXTURE = {
 			currency: 'EUR',
 			timestamp: 1706745600000,
 			note: 'Weekly "groceries", with comma',
-			series_id: 'rt1',
+			// References the *active* template (rt2): import severs series_id that
+			// points at an absent or soft-deleted template (keeping the row as a
+			// one-off + reporting it via `droppable`), so only a live series
+			// round-trips losslessly. rt1 below stays soft-deleted but unreferenced,
+			// preserving is_deleted/exclusion serialization coverage.
+			series_id: 'rt2',
 			is_confirmed: false,
 		},
 		{
