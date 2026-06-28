@@ -5,19 +5,23 @@ import { SortableEntityGrid } from '../sortable-entity-grid';
 import type { EntityWithBalance } from '@/src/types';
 
 // Capture Sortable.Grid's callbacks so tests can invoke them directly
-let capturedGridProps: Record<string, any> = {};
+type GridMockProps = {
+	onDragStart: (e: { key: string }) => void;
+	onDragEnd: (e: { data: EntityWithBalance[] }) => void;
+};
+let capturedGridProps = {} as GridMockProps;
 
 jest.mock('react-native-sortables', () => {
 	const { View } = jest.requireActual('react-native');
 	return {
 		__esModule: true,
 		default: {
-			Grid: (props: any) => {
+			Grid: (props: GridMockProps) => {
 				capturedGridProps = props;
 				return <View />;
 			},
-			Handle: ({ children }: any) => <View>{children}</View>,
-			Touchable: ({ children }: any) => <View>{children}</View>,
+			Handle: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+			Touchable: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
 		},
 	};
 });
@@ -28,12 +32,12 @@ jest.mock('react-native-reanimated', () => {
 		__esModule: true,
 		default: { View, ScrollView },
 		useAnimatedRef: () => ({ current: null }),
-		makeMutable: (val: any) => ({ value: val }),
-		useSharedValue: (val: any) => ({ value: val }),
+		makeMutable: <T,>(val: T) => ({ value: val }),
+		useSharedValue: <T,>(val: T) => ({ value: val }),
 		useAnimatedReaction: jest.fn(),
 		useAnimatedStyle: () => ({}),
-		withTiming: (val: any) => val,
-		withSpring: (val: any) => val,
+		withTiming: <T,>(val: T) => val,
+		withSpring: <T,>(val: T) => val,
 	};
 });
 
@@ -57,7 +61,7 @@ jest.mock('@/src/utils/drop-zone', () => ({
 
 jest.mock('@/src/store', () => ({
 	useStore: Object.assign(
-		(selector: any) =>
+		<T,>(selector: (state: { reorderEntitiesByIds: jest.Mock }) => T) =>
 			selector({
 				reorderEntitiesByIds: jest.fn(),
 			}),
@@ -120,7 +124,7 @@ describe('SortableEntityGrid drag lifecycle (KII-76)', () => {
 			rafCallbacks.push(cb as () => void);
 			return rafCallbacks.length;
 		});
-		capturedGridProps = {};
+		capturedGridProps = {} as GridMockProps;
 	});
 
 	afterEach(() => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, type AlertButton } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
@@ -1656,7 +1656,7 @@ describe('TransactionModal', () => {
 
 			// Simulate pressing "Delete" in the alert
 			const destructiveButton = alertSpy.mock.calls[0]![2]?.find(
-				(btn: any) => btn.style === 'destructive'
+				(btn: AlertButton) => btn.style === 'destructive'
 			);
 			destructiveButton?.onPress?.();
 

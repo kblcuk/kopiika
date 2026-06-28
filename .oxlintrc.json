@@ -129,6 +129,7 @@
 		{
 			"files": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
 			"rules": {
+				"typescript/no-explicit-any": "error",
 				"@typescript-eslint/array-type": [
 					"warn",
 					{

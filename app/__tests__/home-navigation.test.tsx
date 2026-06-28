@@ -4,18 +4,18 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import HomeScreen from '../(tabs)/index';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
-import type { EntityWithBalance } from '@/src/types';
+import type { EntityWithBalance, EntityType, Transaction } from '@/src/types';
 
 const mockPush = jest.fn();
 
 // Captured from the mocked SortableEntityGrid so drag-routing tests can fire a
 // drop directly (the screen passes the same handlers to every section).
 const mockDragHandlers: {
-	onDragStart?: (entity: any) => void;
-	onDragEnd?: (entity: any, targetId: string | null) => void;
+	onDragStart?: (entity: EntityWithBalance) => void;
+	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 } = {};
 // Captured from the mocked RefundPickerModal to drive the refund→edit handoff.
-let mockRefundOnSelect: ((transaction: any) => void) | undefined;
+let mockRefundOnSelect: ((transaction: Transaction) => void) | undefined;
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: mockPush }),
@@ -33,13 +33,13 @@ jest.mock('react-native-sortables', () => {
 				data,
 				renderItem,
 			}: {
-				data: any[];
-				renderItem: (a: { item: any }) => React.ReactNode;
+				data: EntityWithBalance[];
+				renderItem: (a: { item: EntityWithBalance }) => React.ReactNode;
 			}) => (
 				<View>
 					{data
-						.filter((item: any) => item.id !== '__add_button__')
-						.map((item: any) => (
+						.filter((item) => item.id !== '__add_button__')
+						.map((item) => (
 							<View key={item.id}>{renderItem({ item })}</View>
 						))}
 				</View>
@@ -68,17 +68,17 @@ jest.mock('react-native-reanimated', () => {
 		__esModule: true,
 		default: { View: RN.View, ScrollView: RN.ScrollView },
 		useAnimatedRef: () => ({ current: null }),
-		useSharedValue: (val: any) => ({ value: val }),
+		useSharedValue: <T,>(val: T) => ({ value: val }),
 		useScrollOffset: () => ({ value: 0 }),
 		useAnimatedScrollHandler: () => jest.fn(),
 		useFrameCallback: () => ({ setActive: jest.fn() }),
 		scrollTo: jest.fn(),
-		runOnJS: (fn: any) => fn,
-		makeMutable: (val: any) => ({ value: val }),
+		runOnJS: <T,>(fn: T) => fn,
+		makeMutable: <T,>(val: T) => ({ value: val }),
 		useAnimatedReaction: jest.fn(),
 		useAnimatedStyle: () => ({}),
-		withTiming: (val: any) => val,
-		withSpring: (val: any) => val,
+		withTiming: <T,>(val: T) => val,
+		withSpring: <T,>(val: T) => val,
 		Easing: { out: () => (x: number) => x, cubic: (x: number) => x },
 	};
 });
@@ -113,7 +113,16 @@ jest.mock('@/src/components', () => {
 			editMode,
 			type,
 			dragBehavior,
-		}: any) => {
+		}: {
+			entities: EntityWithBalance[];
+			onTap?: (entity: EntityWithBalance) => void;
+			onDragStart?: (entity: EntityWithBalance) => void;
+			onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
+			onToggleEditMode?: () => void;
+			editMode?: boolean;
+			type: EntityType;
+			dragBehavior?: 'transaction' | 'reorder';
+		}) => {
 			// Every section receives the same screen-level handlers; capture them
 			// so tests can simulate a drop without a real gesture.
 			mockDragHandlers.onDragStart = onDragStart;
@@ -128,7 +137,7 @@ jest.mock('@/src/components', () => {
 					<Text testID={`${type}-drag-behavior`}>{dragBehavior}</Text>
 					<Sortable.Grid
 						data={entities}
-						renderItem={({ item }: { item: any }) => (
+						renderItem={({ item }: { item: EntityWithBalance }) => (
 							<Sortable.Touchable onTap={() => onTap?.(item)}>
 								<Text testID={`entity-${item.id}`}>{item.name}</Text>
 							</Sortable.Touchable>
@@ -194,7 +203,7 @@ jest.mock('@/src/components', () => {
 			visible: boolean;
 			originalFrom: { id: string } | null;
 			originalTo: { id: string } | null;
-			onSelect: (transaction: any) => void;
+			onSelect: (transaction: Transaction) => void;
 		}) => {
 			mockRefundOnSelect = onSelect;
 			return visible ? (
@@ -493,11 +502,13 @@ describe('HomeScreen drag-drop routing', () => {
 		expect(queryByTestId('refund-picker')).toBeTruthy();
 
 		// Picking a transaction closes the picker and opens the edit modal carrying it.
-		const chosen = {
+		const chosen: Transaction = {
 			id: 'txn-99',
 			from_entity_id: 'acc-1',
 			to_entity_id: 'cat-1',
-			amount: 42,
+			amount_minor: 4200,
+			currency: 'EUR',
+			timestamp: 1735689600000,
 		};
 		act(() => {
 			mockRefundOnSelect?.(chosen);

@@ -7,7 +7,7 @@ import { colors } from '@/src/theme/colors';
 const TRACK_TEST_ID = 'progress-bar-track';
 const FILL_TEST_ID = 'progress-bar-fill';
 
-function getFillWidth(getByTestId: (id: string) => any): string | number {
+function getFillWidth(getByTestId: ReturnType<typeof render>['getByTestId']): string | number {
 	const fill = getByTestId(FILL_TEST_ID);
 	const style = Array.isArray(fill.props.style)
 		? Object.assign({}, ...fill.props.style)
@@ -15,7 +15,9 @@ function getFillWidth(getByTestId: (id: string) => any): string | number {
 	return style.width;
 }
 
-function getTrackBackground(getByTestId: (id: string) => any): string | undefined {
+function getTrackBackground(
+	getByTestId: ReturnType<typeof render>['getByTestId']
+): string | undefined {
 	const track = getByTestId(TRACK_TEST_ID);
 	const style = Array.isArray(track.props.style)
 		? Object.assign({}, ...track.props.style)

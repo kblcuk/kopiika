@@ -8,7 +8,7 @@ jest.retryTimes(1);
 // Must be done in beforeAll (not at module level) — Detox worker is ready by then.
 beforeAll(() => {
 	const original = device.launchApp.bind(device);
-	(device as any).launchApp = async (...args: Parameters<typeof device.launchApp>) => {
+	device.launchApp = async (...args: Parameters<typeof device.launchApp>) => {
 		await original(...args);
 		if (device.getPlatform() === 'android') {
 			try {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, type AlertButton } from 'react-native';
 import { EntityDetailModal } from '../entity-detail-modal';
 import {
 	setupStoreForTest,
@@ -459,7 +459,7 @@ describe('EntityDetailModal', () => {
 
 			// Mock Alert.alert to auto-confirm
 			(Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
-				const deleteButton = buttons.find((b: any) => b.text === 'Delete');
+				const deleteButton = buttons.find((b: AlertButton) => b.text === 'Delete');
 				if (deleteButton && deleteButton.onPress) {
 					deleteButton.onPress();
 				}
@@ -1471,7 +1471,7 @@ describe('EntityDetailModal', () => {
 
 			(Alert.alert as jest.Mock).mockImplementation((title, _message, buttons) => {
 				if (title === 'Turn Off Investment Account?') {
-					const confirmButton = buttons?.find((b: any) => b.text === 'Confirm');
+					const confirmButton = buttons?.find((b: AlertButton) => b.text === 'Confirm');
 					confirmButton?.onPress?.();
 				}
 			});
@@ -1515,7 +1515,7 @@ describe('EntityDetailModal', () => {
 
 			(Alert.alert as jest.Mock).mockImplementation((title, _message, buttons) => {
 				if (title === 'Turn Off Investment Account?') {
-					const confirmButton = buttons?.find((b: any) => b.text === 'Confirm');
+					const confirmButton = buttons?.find((b: AlertButton) => b.text === 'Confirm');
 					confirmButton?.onPress?.();
 				}
 			});

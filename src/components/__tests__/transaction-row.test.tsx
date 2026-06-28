@@ -49,11 +49,11 @@ jest.mock('react-native-gesture-handler', () => {
 					this._callback();
 				},
 			}),
-			Exclusive: (...gestures: any[]) => ({
+			Exclusive: (...gestures: { fire?: () => void }[]) => ({
 				// Simple mock: just return the first one or a combined object
 				...gestures[0],
 				fireTap() {
-					gestures.find((g) => g.fire)?.fire();
+					gestures.find((g) => g.fire)?.fire?.();
 				},
 			}),
 		},
@@ -185,7 +185,7 @@ describe('TransactionRow', () => {
 
 	it('calls onEdit when the row is tapped', () => {
 		const onEdit = jest.fn();
-		let tapCallback: any;
+		let tapCallback: (() => void) | undefined;
 
 		// Re-mock specifically for this test to capture the callback
 		const originalTap = Gesture.Tap;
@@ -296,13 +296,16 @@ describe('TransactionRow', () => {
 		// Override Gesture.Pan to capture its onUpdate/onEnd so a test can simulate a
 		// full left-swipe past the delete threshold.
 		const installPanCapture = () => {
-			const captured: { onUpdate?: (e: any) => void; onEnd?: () => void } = {};
+			const captured: {
+				onUpdate?: (e: { translationX: number }) => void;
+				onEnd?: () => void;
+			} = {};
 			const originalPan = Gesture.Pan;
 			Gesture.Pan = jest.fn().mockReturnValue({
 				activeOffsetX() {
 					return this;
 				},
-				onUpdate(cb: (e: any) => void) {
+				onUpdate(cb: (e: { translationX: number }) => void) {
 					captured.onUpdate = cb;
 					return this;
 				},
@@ -315,7 +318,10 @@ describe('TransactionRow', () => {
 		};
 
 		// Drag left past DELETE_THRESHOLD (-80) and release.
-		const swipeToDelete = (captured: { onUpdate?: (e: any) => void; onEnd?: () => void }) => {
+		const swipeToDelete = (captured: {
+			onUpdate?: (e: { translationX: number }) => void;
+			onEnd?: () => void;
+		}) => {
 			act(() => {
 				captured.onUpdate?.({ translationX: -100 });
 				captured.onEnd?.();
