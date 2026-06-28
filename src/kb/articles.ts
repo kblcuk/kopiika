@@ -10,9 +10,6 @@ import { Recurring } from './articles/recurring';
 import { Splits } from './articles/splits';
 import { InvestmentAccounts } from './articles/investment-accounts';
 
-export type { KbArticleMeta, KbArticleId } from './articles-meta';
-export { KB_ARTICLES_META, findArticleMeta } from './articles-meta';
-
 const BODY_MAP: Record<KbArticleId, ComponentType> = {
 	'core-loop': CoreLoop,
 	'entity-types': EntityTypes,

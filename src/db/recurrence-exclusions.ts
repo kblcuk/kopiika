@@ -2,11 +2,6 @@ import { eq } from 'drizzle-orm';
 import { getDrizzleDb } from './drizzle-client';
 import { recurrenceExclusions } from './drizzle-schema';
 
-export interface RecurrenceExclusion {
-	template_id: string;
-	timestamp: number;
-}
-
 /**
  * Insert (template_id, timestamp). Idempotent thanks to the composite PK +
  * INSERT OR IGNORE — calling twice with the same args is a no-op and produces

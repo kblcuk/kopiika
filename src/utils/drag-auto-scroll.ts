@@ -33,8 +33,6 @@ export const SECTION_INDEX: Record<EntityType, number> = {
 	saving: 3,
 };
 
-export const SECTION_COUNT = Object.keys(SECTION_INDEX).length;
-
 /**
  * Pick the section index whose visible bounds contain `touchY` and which has
  * horizontal scroll headroom. Returns -1 if no section qualifies.

@@ -1,4 +1,4 @@
-import { eq, max, and, ne, inArray } from 'drizzle-orm';
+import { eq, max, and, ne } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { entities, marketValueSnapshots, plans } from './drizzle-schema';
@@ -236,12 +236,4 @@ export async function deleteEntityAndReindex(entityId: string): Promise<{
 	const deleted = await softDeleteEntity(entityId);
 	const reindexed = await reindexRow(entity.type, entity.row);
 	return { deleted, reindexed };
-}
-
-// Utility for callers that need to bulk-fetch entities by id (e.g. the
-// store mirroring batch updates back into state).
-export async function getEntitiesByIds(ids: string[]): Promise<Entity[]> {
-	if (ids.length === 0) return [];
-	const db = await getDrizzleDb();
-	return await db.select().from(entities).where(inArray(entities.id, ids));
 }

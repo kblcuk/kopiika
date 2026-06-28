@@ -62,7 +62,7 @@ export function buildTransaction(draft: TransactionDraft, now: number = Date.now
 	return tx;
 }
 
-export interface SplitRowInput {
+interface SplitRowInput {
 	/** `null` rows are dropped silently (used by partially-filled split UI). */
 	toEntityId: string | null;
 	/** User-typed string, locale-normalized; ignored for the anchor (index 0). */
@@ -135,7 +135,7 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	return rows;
 }
 
-export interface FundedReservation {
+interface FundedReservation {
 	savingEntityId: string;
 	fundAmountMinor: number;
 }

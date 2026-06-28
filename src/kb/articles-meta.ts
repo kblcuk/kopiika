@@ -73,7 +73,3 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 		related: ['entity-types'],
 	},
 ];
-
-export function findArticleMeta(id: string): KbArticleMeta | undefined {
-	return KB_ARTICLES_META.find((a) => a.id === id);
-}

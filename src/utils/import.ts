@@ -15,7 +15,7 @@ export interface ParsedImportData {
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
-export type DroppableItem = {
+type DroppableItem = {
 	kind: 'transaction' | 'recurrenceTemplate';
 	id: string;
 	reason: string;
