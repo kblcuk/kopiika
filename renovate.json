@@ -19,10 +19,6 @@
 			"platformAutomerge": true
 		},
 		{
-			"matchPackageNames": ["expo", "expo-*", "@expo/*"],
-			"groupName": "expo"
-		},
-		{
 			"matchPackageNames": [
 				"react",
 				"react-dom",
@@ -57,6 +53,11 @@
 			"groupName": "ruby (build/release)",
 			"automerge": true,
 			"platformAutomerge": true
+		},
+		{
+			"description": "Group the entire Expo SDK together. Uses Renovate's monorepo membership (source repo) so SDK-coupled stragglers like babel-preset-expo, eslint-config-expo and jest-expo move with expo. Placed last so it wins the group over the test-toolchain rule (jest-expo also matches jest-*).",
+			"matchSourceUrls": ["https://github.com/expo/expo"],
+			"groupName": "expo"
 		}
 	]
 }
