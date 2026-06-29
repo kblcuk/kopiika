@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { TransactionModal } from '@/src/components';
 

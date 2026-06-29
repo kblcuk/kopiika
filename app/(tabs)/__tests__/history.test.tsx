@@ -11,16 +11,13 @@ import type { Entity, Transaction } from '@/src/types';
 
 const fixedNow = new Date('2026-01-15T12:00:00Z').getTime();
 
+// Expose a handle to re-trigger focus on the mounted component
+let triggerFocus: (() => void) | null = null;
+
 // Stub expo-router so its JSX-laden internals don't load in the headless
 // test environment. The screen no longer reads URL params anyway.
 jest.mock('expo-router', () => ({
 	useLocalSearchParams: () => ({}),
-}));
-
-// Expose a handle to re-trigger focus on the mounted component
-let triggerFocus: (() => void) | null = null;
-
-jest.mock('@react-navigation/native', () => ({
 	useFocusEffect: (createCallback: () => (() => void) | void) => {
 		const React = jest.requireActual('react');
 		React.useEffect(() => {

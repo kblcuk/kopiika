@@ -12,7 +12,7 @@ import {
 import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Search, X, CheckCheck } from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
