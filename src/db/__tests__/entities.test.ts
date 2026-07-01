@@ -33,7 +33,6 @@ describe('entities.ts', () => {
 				color: '#4CAF50',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await createEntity(entity);
@@ -56,7 +55,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			await createEntity(entity);
@@ -82,7 +80,6 @@ describe('entities.ts', () => {
 					type: t,
 					name: `Test ${t}`,
 					currency: 'USD',
-					order: i,
 					row: 0,
 					position: i,
 				};
@@ -110,7 +107,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 				{
 					id: '2',
@@ -119,7 +115,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '3',
@@ -128,7 +123,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '4',
@@ -137,7 +131,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 			];
 
@@ -169,7 +162,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '2',
@@ -178,7 +170,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '3',
@@ -187,7 +178,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 				{
 					id: '4',
@@ -196,7 +186,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 				{
 					id: '5',
@@ -205,7 +194,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '6',
@@ -214,7 +202,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -252,7 +239,6 @@ describe('entities.ts', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await createEntity(entity);
@@ -279,7 +265,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await createEntity(original);
@@ -293,7 +278,6 @@ describe('entities.ts', () => {
 				color: '#FF0000',
 				row: 0,
 				position: 5,
-				order: 5,
 			};
 
 			await updateEntity(updated);
@@ -318,7 +302,6 @@ describe('entities.ts', () => {
 				color: '#000000',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await createEntity(original);
@@ -330,7 +313,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await updateEntity(updated);
@@ -350,7 +332,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await createEntity(entity);
@@ -377,7 +358,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await createEntity(entity);
 
@@ -410,7 +390,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const account: Entity = {
 				id: 'account-delete-test',
@@ -419,7 +398,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const transaction: Transaction = {
 				id: 'tx-delete-test',
@@ -451,7 +429,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const category: Entity = {
 				id: 'cat-combo',
@@ -460,7 +437,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await createEntity(income);
 			await createEntity(category);
@@ -498,7 +474,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const account: Entity = {
 				id: 'acc-res',
@@ -507,7 +482,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const saving: Entity = {
 				id: 'sav-res',
@@ -516,7 +490,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await createEntity(income);
 			await createEntity(account);
@@ -547,7 +520,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 				is_investment: true,
 			};
 			await createEntity(account);
@@ -573,7 +545,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const saving: Entity = {
 				id: 'sav-del',
@@ -582,7 +553,6 @@ describe('entities.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await createEntity(account);
 			await createEntity(saving);
@@ -620,7 +590,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: '2',
@@ -629,7 +598,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 5,
-					order: 5,
 				},
 				{
 					id: '3',
@@ -638,7 +606,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 2,
-					order: 2,
 				},
 				{
 					id: '4',
@@ -647,7 +614,6 @@ describe('entities.ts', () => {
 					currency: 'USD',
 					row: 0,
 					position: 10,
-					order: 10,
 				},
 			];
 
@@ -674,7 +640,6 @@ describe('entities.ts', () => {
 			currency: 'USD',
 			row,
 			position,
-			order: position,
 		});
 
 		test('applies all row/position updates', async () => {

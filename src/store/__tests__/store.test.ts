@@ -45,7 +45,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-temp',
@@ -54,7 +53,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -106,7 +104,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-2',
@@ -115,7 +112,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -203,7 +199,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({ entities: [entity] });
@@ -236,7 +231,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const plan: Plan = {
@@ -279,7 +273,6 @@ describe('Store Data Integrity', () => {
 						currency: 'USD',
 						row: 0,
 						position: 0,
-						order: 0,
 					},
 				],
 			});
@@ -312,7 +305,6 @@ describe('Store Data Integrity', () => {
 						currency: 'USD',
 						row: 0,
 						position: 0,
-						order: 0,
 					},
 				],
 			});
@@ -344,7 +336,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-2',
@@ -353,7 +344,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -395,7 +385,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-groceries',
@@ -404,7 +393,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-fuel',
@@ -413,7 +401,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 			];
 			for (const e of entities) await db.createEntity(e);
@@ -706,7 +693,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-groc',
@@ -715,7 +701,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-fuel',
@@ -724,7 +709,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 				{
 					id: 'sav-buf',
@@ -733,7 +717,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 			for (const e of entities) await db.createEntity(e);
@@ -823,7 +806,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-1',
@@ -832,7 +814,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'cat-2',
@@ -841,7 +822,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 1,
-					order: 1,
 				},
 			];
 			for (const e of entities) await db.createEntity(e);
@@ -962,7 +942,6 @@ describe('Store Data Integrity', () => {
 				start_date: 1_000_000,
 				end_date: null,
 				end_count: null,
-				horizon: 90,
 				created_at: 0,
 			};
 			await db.createRecurrenceTemplate(template);
@@ -1118,7 +1097,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-2',
@@ -1127,7 +1105,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -1180,7 +1157,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const account: Entity = {
 				id: 'account-1',
@@ -1189,7 +1165,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 			const transaction: Transaction = {
 				id: 'tx-1',
@@ -1224,7 +1199,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -1234,7 +1208,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -1244,7 +1217,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			// Create plans for current period (2026-01)
@@ -1363,7 +1335,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const saving: Entity = {
@@ -1373,7 +1344,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const income: Entity = {
@@ -1383,7 +1353,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			// Create all-time plan for saving
@@ -1483,7 +1452,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			// Create plan with period='all-time'
@@ -1543,7 +1511,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -1553,7 +1520,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -1563,7 +1529,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const saving: Entity = {
@@ -1573,7 +1538,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			// Create entities in store
@@ -1712,7 +1676,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -1722,7 +1685,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const saving: Entity = {
@@ -1732,7 +1694,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({
@@ -1827,7 +1788,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -1837,7 +1797,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({
@@ -1924,7 +1883,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -1934,7 +1892,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({
@@ -2000,7 +1957,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -2010,7 +1966,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({
@@ -2083,7 +2038,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -2093,7 +2047,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const category: Entity = {
@@ -2103,7 +2056,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 2,
-				order: 2,
 			};
 
 			const saving: Entity = {
@@ -2113,7 +2065,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 3,
-				order: 3,
 			};
 
 			// Set up plans - all plans use 'all-time' period
@@ -2247,7 +2198,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -2257,7 +2207,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const category: Entity = {
@@ -2267,7 +2216,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 2,
-				order: 2,
 			};
 
 			const saving: Entity = {
@@ -2277,7 +2225,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 3,
-				order: 3,
 			};
 
 			// December 2025 transactions (previous month)
@@ -2389,7 +2336,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const saving: Entity = {
@@ -2399,7 +2345,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			// Category has all-time plan (the standard)
@@ -2483,7 +2428,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -2493,7 +2437,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const tx: Transaction = {
@@ -2547,7 +2490,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const categoryPlan: Plan = {
@@ -2589,7 +2531,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const cat2: Entity = {
@@ -2599,7 +2540,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const cat3: Entity = {
@@ -2609,7 +2549,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 2,
-				order: 2,
 			};
 
 			const plan1: Plan = {
@@ -2693,7 +2632,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -2703,7 +2641,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			// Income -> Account (money out from income = positive)
@@ -2756,7 +2693,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account: Entity = {
@@ -2766,7 +2702,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const category: Entity = {
@@ -2776,7 +2711,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 2,
-				order: 2,
 			};
 
 			// Income -> Account (money in = positive)
@@ -2829,7 +2763,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const category: Entity = {
@@ -2839,7 +2772,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const saving: Entity = {
@@ -2849,7 +2781,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 2,
-				order: 2,
 			};
 
 			// Account -> Category (should count)
@@ -2925,7 +2856,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await db.createEntity(account);
 
@@ -2978,7 +2908,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			// Set up store
@@ -3020,7 +2949,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await db.createEntity(account);
@@ -3075,7 +3003,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const account2: Entity = {
@@ -3085,7 +3012,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			await db.createEntity(account1);
@@ -3164,7 +3090,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			await db.createEntity(account);
 			await useStore.getState().initialize();
@@ -3192,7 +3117,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const income: Entity = {
@@ -3202,7 +3126,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			await db.createEntity(account);
@@ -3256,7 +3179,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const account: Entity = {
 				id: 'acc-1',
@@ -3265,7 +3187,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 			const tx: Transaction = {
 				id: 'tx-past',
@@ -3301,7 +3222,6 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'EUR',
-				order: 0,
 				row: 0,
 				position: 0,
 			};
@@ -3370,7 +3290,6 @@ describe('Store Data Integrity', () => {
 				type: 'account',
 				name: 'Checking',
 				currency: 'EUR',
-				order: 0,
 				row: 0,
 				position: 0,
 			};
@@ -3431,7 +3350,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'acc-1',
@@ -3440,7 +3358,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 1,
-				order: 1,
 			},
 			{
 				id: 'cat-1',
@@ -3449,7 +3366,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 2,
-				order: 2,
 			},
 			{
 				id: 'sav-1',
@@ -3458,7 +3374,6 @@ describe('Store Data Integrity', () => {
 				currency: 'EUR',
 				row: 0,
 				position: 3,
-				order: 3,
 			},
 		];
 
@@ -3786,7 +3701,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 
 		const saving1: Entity = {
@@ -3796,7 +3710,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 
 		const saving2: Entity = {
@@ -3806,7 +3719,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 
 		async function setupSavingEntities() {
@@ -3891,7 +3803,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			const txns: Transaction[] = [
@@ -3955,7 +3866,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 
 			const txns: Transaction[] = [
@@ -4014,7 +3924,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const accountEntity: Entity = {
 			id: 'account-1',
@@ -4023,7 +3932,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const categoryEntity: Entity = {
 			id: 'category-1',
@@ -4032,7 +3940,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 
 		beforeEach(async () => {
@@ -4258,7 +4165,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-2',
@@ -4267,7 +4173,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -4291,7 +4196,6 @@ describe('Store Data Integrity', () => {
 					rule: { type: 'monthly' },
 					endDate: null,
 					endCount: null,
-					horizon: 90,
 				}
 			);
 
@@ -4307,7 +4211,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 				{
 					id: 'entity-2',
@@ -4316,7 +4219,6 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					row: 0,
 					position: 0,
-					order: 0,
 				},
 			];
 
@@ -4340,7 +4242,6 @@ describe('Store Data Integrity', () => {
 					rule: { type: 'monthly' },
 					endDate: null,
 					endCount: null,
-					horizon: 90,
 				}
 			);
 
@@ -4366,7 +4267,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const cat: Entity = {
 				id: 'cat2',
@@ -4375,7 +4275,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 			await db.createEntity(acc);
 			await db.createEntity(cat);
@@ -4390,7 +4289,7 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					timestamp: future,
 				},
-				{ rule: { type: 'monthly' }, horizon: 180, endDate: null, endCount: null }
+				{ rule: { type: 'monthly' }, endDate: null, endCount: null }
 			);
 
 			// Template created…
@@ -4418,7 +4317,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 			...overrides,
 		});
 
@@ -4448,7 +4346,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-10').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 
@@ -4520,9 +4417,9 @@ describe('Store Data Integrity', () => {
 		});
 
 		test('reorderEntitiesByIds persists drag-and-drop row and position changes', async () => {
-			const category1 = makeEntity('cat-1', 'category', { row: 0, position: 0, order: 0 });
-			const category2 = makeEntity('cat-2', 'category', { row: 1, position: 0, order: 1 });
-			const category3 = makeEntity('cat-3', 'category', { row: 0, position: 1, order: 2 });
+			const category1 = makeEntity('cat-1', 'category', { row: 0, position: 0 });
+			const category2 = makeEntity('cat-2', 'category', { row: 1, position: 0 });
+			const category3 = makeEntity('cat-3', 'category', { row: 0, position: 1 });
 
 			for (const entity of [category1, category2, category3]) {
 				await db.createEntity(entity);
@@ -4718,7 +4615,6 @@ describe('Store Data Integrity', () => {
 				note: 'Original',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -4804,7 +4700,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -4929,7 +4824,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -5000,7 +4894,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -5060,7 +4953,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -5238,7 +5130,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'daily' }),
 				start_date: now - 2 * DAY,
-				horizon: 30,
 				created_at: now,
 				exclusions: [],
 			};
@@ -5326,7 +5217,7 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					timestamp: now - 5 * DAY,
 				},
-				{ rule: { type: 'daily' }, horizon: 30 }
+				{ rule: { type: 'daily' } }
 			);
 
 			const templates = useStore.getState().recurrenceTemplates;
@@ -5381,7 +5272,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			const transactions: Transaction[] = [
@@ -5442,7 +5332,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: new Date('2026-01-01').getTime(),
-				horizon: 90,
 				created_at: now,
 			};
 			const transactions: Transaction[] = [
@@ -5501,7 +5390,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 			is_investment: true,
 		};
 
@@ -5512,7 +5400,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 			is_investment: false,
 		};
 
@@ -5624,7 +5511,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const category: Entity = {
 			id: 'bf-cat',
@@ -5633,7 +5519,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 0,
 		};
 
 		const seedTemplate = async (): Promise<RecurrenceTemplate> => {
@@ -5649,7 +5534,6 @@ describe('Store Data Integrity', () => {
 				start_date: Date.now() - 10 * 24 * 60 * 60 * 1000, // 10 days ago
 				end_date: null,
 				end_count: null,
-				horizon: 90,
 				created_at: Date.now(),
 			};
 			await db.createRecurrenceTemplate(template);
@@ -5718,7 +5602,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 			const cat: Entity = {
 				id: 'pd-cat',
@@ -5727,7 +5610,6 @@ describe('Store Data Integrity', () => {
 				currency: 'USD',
 				row: 0,
 				position: 1,
-				order: 1,
 			};
 			await db.createEntity(acc);
 			await db.createEntity(cat);
@@ -5745,7 +5627,6 @@ describe('Store Data Integrity', () => {
 				start_date: threeDaysAgo,
 				end_date: null,
 				end_count: null,
-				horizon: 90,
 				created_at: threeDaysAgo,
 				exclusions: [],
 			};
@@ -5778,7 +5659,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const cat: Entity = {
 			id: 'catM',
@@ -5787,7 +5667,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 		await db.createEntity(acc);
 		await db.createEntity(cat);
@@ -5825,7 +5704,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const cat: Entity = {
 			id: 'catX',
@@ -5834,7 +5712,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 		await db.createEntity(acc);
 		await db.createEntity(cat);
@@ -5849,7 +5726,6 @@ describe('Store Data Integrity', () => {
 			start_date: Date.now(),
 			end_date: null,
 			end_count: null,
-			horizon: 90,
 			created_at: Date.now(),
 			exclusions: [],
 		};
@@ -5894,7 +5770,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		const cat: Entity = {
 			id: 'catU',
@@ -5903,7 +5778,6 @@ describe('Store Data Integrity', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 		const now = Date.now();
 		const period = getCurrentPeriod();

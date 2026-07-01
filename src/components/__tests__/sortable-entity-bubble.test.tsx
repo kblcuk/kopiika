@@ -86,7 +86,6 @@ describe('SortableEntityBubble', () => {
 		name: 'Emergency fund buffer',
 		currency: 'EUR',
 		icon: 'shield',
-		order: 0,
 		row: 0,
 		position: 0,
 		// KII-120: minor units (EUR cents).
@@ -127,7 +126,6 @@ describe('SortableEntityBubble', () => {
 			name: 'Salary',
 			currency: 'EUR',
 			icon: 'briefcase',
-			order: 0,
 			row: 0,
 			position: 0,
 			// KII-120: minor units.
@@ -196,7 +194,6 @@ describe('SortableEntityBubble', () => {
 			name: 'Main account',
 			currency: 'EUR',
 			icon: 'wallet',
-			order: 0,
 			row: 0,
 			position: 0,
 			// KII-120: minor units.
@@ -237,7 +234,6 @@ describe('SortableEntityBubble', () => {
 			name: 'Brokerage',
 			currency: 'USD',
 			icon: 'trending-up',
-			order: 0,
 			row: 0,
 			position: 0,
 			// KII-120: minor units.

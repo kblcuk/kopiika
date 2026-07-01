@@ -10,7 +10,6 @@ export const ENTITY_HEADERS = [
 	'currency',
 	'icon',
 	'color',
-	'order',
 	'row',
 	'position',
 	'include_in_total',
@@ -58,7 +57,6 @@ export const RECURRENCE_TEMPLATE_HEADERS = [
 	'start_date',
 	'end_date',
 	'end_count',
-	'horizon',
 	'is_deleted',
 	'created_at',
 ] as const;

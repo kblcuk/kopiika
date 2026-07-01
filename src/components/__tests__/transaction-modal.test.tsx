@@ -28,7 +28,6 @@ describe('TransactionModal', () => {
 		type: 'account',
 		name: 'Checking',
 		currency: 'USD',
-		order: 0,
 		row: 0,
 		position: 0,
 		actual: 1000,
@@ -42,7 +41,6 @@ describe('TransactionModal', () => {
 		type: 'category',
 		name: 'Groceries',
 		currency: 'USD',
-		order: 0,
 		row: 0,
 		position: 0,
 		actual: 100,
@@ -138,7 +136,6 @@ describe('TransactionModal', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
-				order: 0,
 				row: 0,
 				position: 0,
 			};
@@ -147,7 +144,6 @@ describe('TransactionModal', () => {
 				type: 'account',
 				name: 'Old Checking',
 				currency: 'USD',
-				order: 1,
 				row: 0,
 				position: 1,
 				is_deleted: true,
@@ -566,7 +562,6 @@ describe('TransactionModal', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
-				order: 0,
 				row: 0,
 				position: 0,
 				// KII-120: minor units.
@@ -595,7 +590,6 @@ describe('TransactionModal', () => {
 				type: 'saving',
 				name: 'Vacation',
 				currency: 'USD',
-				order: 0,
 				row: 0,
 				position: 0,
 				actual: 200,
@@ -636,7 +630,6 @@ describe('TransactionModal', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
-				order: 0,
 				row: 0,
 				position: 0,
 				// KII-120: minor units.
@@ -765,7 +758,6 @@ describe('TransactionModal', () => {
 				type: 'income',
 				name: 'Salary',
 				currency: 'USD',
-				order: 0,
 				row: 0,
 				position: 0,
 				// KII-120: minor units.
@@ -805,7 +797,6 @@ describe('TransactionModal', () => {
 			type: 'category',
 			name: 'Pets',
 			currency: 'USD',
-			order: 1,
 			row: 1,
 			position: 0,
 			actual: 20,
@@ -876,7 +867,6 @@ describe('TransactionModal', () => {
 				type: 'account',
 				name: 'Savings',
 				currency: 'USD',
-				order: 1,
 				row: 0,
 				position: 1,
 				actual: 500,
@@ -1689,7 +1679,6 @@ describe('TransactionModal', () => {
 			type: 'account',
 			name: 'Savings',
 			currency: 'USD',
-			order: 1,
 			row: 1,
 			position: 1,
 		};
@@ -1699,7 +1688,6 @@ describe('TransactionModal', () => {
 			type: 'category',
 			name: 'Transport',
 			currency: 'USD',
-			order: 1,
 			row: 2,
 			position: 1,
 		};
@@ -1709,7 +1697,6 @@ describe('TransactionModal', () => {
 			type: 'income',
 			name: 'Salary',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2109,7 +2096,6 @@ describe('TransactionModal', () => {
 			type: 'income',
 			name: 'Salary',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2118,7 +2104,6 @@ describe('TransactionModal', () => {
 			type: 'account',
 			name: 'Checking',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2127,7 +2112,6 @@ describe('TransactionModal', () => {
 			type: 'category',
 			name: 'Groceries',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2282,7 +2266,6 @@ describe('TransactionModal', () => {
 			type: 'income',
 			name: 'Salary',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2291,7 +2274,6 @@ describe('TransactionModal', () => {
 			type: 'account',
 			name: 'Main Card',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 			is_default: true,
@@ -2301,7 +2283,6 @@ describe('TransactionModal', () => {
 			type: 'account',
 			name: 'Savings',
 			currency: 'USD',
-			order: 1,
 			row: 0,
 			position: 1,
 		};
@@ -2310,7 +2291,6 @@ describe('TransactionModal', () => {
 			type: 'category',
 			name: 'Groceries',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -2422,7 +2402,6 @@ describe('TransactionModal', () => {
 			type: 'saving',
 			name: 'Cats savings',
 			currency: 'USD',
-			order: 0,
 			row: 0,
 			position: 0,
 		};

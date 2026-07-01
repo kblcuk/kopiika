@@ -134,8 +134,8 @@ describe('migration 0018: add_updated_at (KII-126)', () => {
 	test('FK constraints are preserved across table-rebuild', () => {
 		const db = openWithMigrationsUpTo('zzz_never');
 		db.run('PRAGMA foreign_keys = ON');
-		db.run(`INSERT INTO entities (id, type, name, currency, "order", row, position)
-			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0, 0)`);
+		db.run(`INSERT INTO entities (id, type, name, currency, row, position)
+			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0)`);
 		// Inserting a transaction that references a non-existent entity must
 		// throw — proves FKs survived the rebuild.
 		expect(() =>

@@ -17,7 +17,6 @@ describe('transaction-validation', () => {
 		type: 'income',
 		name: 'Salary',
 		currency: 'USD',
-		order: 0,
 		row: 0,
 		position: 0,
 	};
@@ -27,7 +26,6 @@ describe('transaction-validation', () => {
 		type: 'income',
 		name: 'Freelance',
 		currency: 'USD',
-		order: 1,
 		row: 0,
 		position: 1,
 	};
@@ -37,7 +35,6 @@ describe('transaction-validation', () => {
 		type: 'account',
 		name: 'Checking',
 		currency: 'USD',
-		order: 0,
 		row: 1,
 		position: 0,
 	};
@@ -47,7 +44,6 @@ describe('transaction-validation', () => {
 		type: 'account',
 		name: 'Savings Account',
 		currency: 'USD',
-		order: 1,
 		row: 1,
 		position: 1,
 	};
@@ -57,7 +53,6 @@ describe('transaction-validation', () => {
 		type: 'account',
 		name: 'Euro Account',
 		currency: 'EUR',
-		order: 2,
 		row: 1,
 		position: 2,
 	};
@@ -67,7 +62,6 @@ describe('transaction-validation', () => {
 		type: 'category',
 		name: 'Groceries',
 		currency: 'USD',
-		order: 0,
 		row: 2,
 		position: 0,
 	};
@@ -77,7 +71,6 @@ describe('transaction-validation', () => {
 		type: 'category',
 		name: 'Transport',
 		currency: 'USD',
-		order: 1,
 		row: 2,
 		position: 1,
 	};
@@ -87,7 +80,6 @@ describe('transaction-validation', () => {
 		type: 'saving',
 		name: 'Vacation',
 		currency: 'USD',
-		order: 0,
 		row: 3,
 		position: 0,
 	};
@@ -97,7 +89,6 @@ describe('transaction-validation', () => {
 		type: 'account',
 		name: 'Balance Adjustment',
 		currency: 'USD',
-		order: 0,
 		row: 0,
 		position: -1,
 	};

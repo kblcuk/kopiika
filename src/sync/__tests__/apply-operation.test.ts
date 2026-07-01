@@ -13,7 +13,6 @@ const account: Entity = {
 	currency: 'USD',
 	row: 0,
 	position: 0,
-	order: 0,
 };
 const category: Entity = {
 	id: 'cat-1',
@@ -22,7 +21,6 @@ const category: Entity = {
 	currency: 'USD',
 	row: 0,
 	position: 1,
-	order: 1,
 };
 
 async function seedEntities(): Promise<Entity[]> {
@@ -225,7 +223,6 @@ describe('applyOperation — transaction.delete', () => {
 			currency: 'USD',
 			timestamp: 1700000000000,
 			rule: { type: 'monthly' },
-			horizon: 30,
 		});
 		await db.createRecurrenceTemplate(template);
 

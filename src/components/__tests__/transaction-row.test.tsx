@@ -102,7 +102,6 @@ describe('TransactionRow', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const category: Entity = {
@@ -112,7 +111,6 @@ describe('TransactionRow', () => {
 		currency: 'USD',
 		row: 0,
 		position: 1,
-		order: 1,
 	};
 
 	const transaction: Transaction = {

@@ -107,7 +107,6 @@ export function createEntitiesFromPresets(picked: PresetChip[]): Entity[] {
 			icon: chip.icon,
 			row,
 			position,
-			order: position,
 		});
 	}
 

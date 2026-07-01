@@ -11,7 +11,6 @@ describe('useSummary', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockAccount: Entity = {
@@ -21,7 +20,6 @@ describe('useSummary', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockAccount2: Entity = {
@@ -31,7 +29,6 @@ describe('useSummary', () => {
 		currency: 'USD',
 		row: 0,
 		position: 1,
-		order: 1,
 	};
 
 	const mockCategory: Entity = {
@@ -41,7 +38,6 @@ describe('useSummary', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const currentPeriod = '2026-01';
@@ -151,7 +147,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 
 		const tx1: Transaction = {
@@ -191,7 +186,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 
 		const plan1: Plan = {
@@ -269,7 +263,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 
 		const plan1: Plan = {
@@ -330,7 +323,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 2,
-			order: 2,
 			include_in_total: false,
 		};
 
@@ -371,7 +363,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 2,
-			order: 2,
 			is_investment: true,
 		};
 
@@ -411,7 +402,6 @@ describe('useSummary', () => {
 			currency: 'USD',
 			row: 0,
 			position: 1,
-			order: 1,
 		};
 
 		const plan1: Plan = {

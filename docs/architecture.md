@@ -32,7 +32,7 @@ The authoritative model is:
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
 - `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` links to a recurrence template; `is_confirmed` gates whether future-dated/past-due scheduled transactions are applied to balances; `notification_id` stores the scheduled local reminder id when reminders are enabled
 - `market_value_snapshots`: optional manual valuation history for investment accounts; purchased price still comes from transactions, while market value comes from the latest snapshot
-- `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count, generation horizon
+- `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count
 - `recurrence_exclusions`: normalized list of skipped occurrence timestamps per template, with a composite `(template_id, timestamp)` primary key so concurrent edits union cleanly (KII-123, sync-friendly)
 
 Derived values belong in selectors, not persisted state:
@@ -154,7 +154,7 @@ Avoid adding these without a clear product decision:
 
 Recurring transactions are template-driven. A `recurrence_template` stores the rule (frequency, amount, entity pair). **Future occurrences are not stored** — they are derived on demand (KII-136). `deriveVirtualOccurrences` (`src/utils/recurrence-derivation.ts`) produces virtual `Transaction`s for the viewed period, each with a transient `isVirtual` flag and a deterministic id `${series_id}:${YYYY-MM-DD}`. The balance hook and History screen merge `[...real, ...virtual]` through the same shared selector before filtering, so the two surfaces never drift; dedup keys on `(series_id, civil date)` against the real rows, so a materialized occurrence suppresses its virtual twin.
 
-`backfillRecurrences` (app init + throttled foreground, once per 24h) materializes only **past-due** occurrences (date `≤ now`) as real unconfirmed rows, with deterministic ids and civil-date dedup. Future occurrences are never written. (The `horizon` column is retained for schema/CSV compatibility but no longer bounds materialization.) On first launch after upgrade, `cleanupLegacyFutureOccurrences` deletes legacy phantom future rows (`series_id` set, `timestamp > now`, unconfirmed) so they don't double-count against derived occurrences.
+`backfillRecurrences` (app init + throttled foreground, once per 24h) materializes only **past-due** occurrences (date `≤ now`) as real unconfirmed rows, with deterministic ids and civil-date dedup. Future occurrences are never written. (The former `horizon` column — "days ahead to generate" — was dropped in KII-139 once de-materialization made it dead weight; `deriveVirtualOccurrences` computes its own horizon from the viewed range.) On first launch after upgrade, `cleanupLegacyFutureOccurrences` deletes legacy phantom future rows (`series_id` set, `timestamp > now`, unconfirmed) so they don't double-count against derived occurrences.
 
 Series scope rules:
 

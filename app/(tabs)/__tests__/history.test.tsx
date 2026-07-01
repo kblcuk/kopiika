@@ -81,7 +81,6 @@ describe('HistoryScreen search params', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockAccount2: Entity = {
@@ -91,7 +90,6 @@ describe('HistoryScreen search params', () => {
 		currency: 'USD',
 		row: 0,
 		position: 1,
-		order: 1,
 	};
 
 	const mockCategory: Entity = {
@@ -101,7 +99,6 @@ describe('HistoryScreen search params', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockSaving: Entity = {
@@ -111,7 +108,6 @@ describe('HistoryScreen search params', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockSaving2: Entity = {
@@ -121,7 +117,6 @@ describe('HistoryScreen search params', () => {
 		currency: 'USD',
 		row: 0,
 		position: 1,
-		order: 1,
 	};
 
 	const mockTransaction: Transaction = {
@@ -838,7 +833,6 @@ describe('HistoryScreen search params', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 			is_investment: true,
 		};
 
@@ -1043,7 +1037,6 @@ describe('HistoryScreen search params', () => {
 					start_date: templateStart,
 					end_date: null,
 					end_count: null,
-					horizon: 90,
 					exclusions: [],
 					note: undefined,
 					created_at: templateStart,

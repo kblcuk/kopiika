@@ -44,7 +44,6 @@ export const entities = sqliteTable(
 		currency: text('currency').notNull(),
 		icon: text('icon'),
 		color: text('color'),
-		order: integer('order').notNull(),
 		row: integer('row').notNull(),
 		position: integer('position').notNull(),
 		include_in_total: integer('include_in_total', { mode: 'boolean' }).notNull().default(true),
@@ -135,7 +134,6 @@ export const recurrenceTemplates = sqliteTable(
 		start_date: integer('start_date').notNull(),
 		end_date: integer('end_date'),
 		end_count: integer('end_count'),
-		horizon: integer('horizon').notNull(), // days ahead to generate
 		is_deleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 		// Pre-existing column (app-supplied). No SQL default — kept as-is to
 		// avoid migration churn. New tables use the shared `createdAt()` helper.

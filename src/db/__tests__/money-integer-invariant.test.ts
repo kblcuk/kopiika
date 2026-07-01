@@ -27,7 +27,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'income',
 			name: 'Salary',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -36,7 +35,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'account',
 			name: 'Checking',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 1,
 		};
@@ -64,7 +62,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'category',
 			name: 'Groceries',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -90,7 +87,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'account',
 			name: 'Checking',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -99,7 +95,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'category',
 			name: 'Rent',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 1,
 		};
@@ -116,7 +111,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			start_date: Date.now(),
 			end_date: null,
 			end_count: null,
-			horizon: 60,
 			created_at: Date.now(),
 		};
 		const persisted = await createRecurrenceTemplate(template);
@@ -137,7 +131,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'income',
 			name: 'Salary',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 0,
 		};
@@ -146,7 +139,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'account',
 			name: 'Checking',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 1,
 		};
@@ -183,7 +175,6 @@ describe('KII-120 integer-minor-unit invariant', () => {
 			type: 'account',
 			name: 'Brokerage',
 			currency: 'EUR',
-			order: 0,
 			row: 0,
 			position: 0,
 			is_investment: true,

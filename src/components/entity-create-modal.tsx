@@ -148,7 +148,6 @@ export function EntityCreateModal({
 			currency: DEFAULT_CURRENCY,
 			icon: selectedIcon,
 			color: selectedColor,
-			order: nextPosition,
 			row: targetRow,
 			position: nextPosition,
 			is_investment: entityType === 'account' ? isInvestment : undefined,

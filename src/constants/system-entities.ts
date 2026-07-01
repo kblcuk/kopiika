@@ -18,7 +18,6 @@ export function createBalanceAdjustmentEntity(): Entity {
 		name: 'Balance Adjustments',
 		currency: DEFAULT_CURRENCY,
 		icon: 'refresh-cw',
-		order: 0,
 		row: 0,
 		position: -1, // Negative position ensures it appears first if accidentally shown
 		is_deleted: false,

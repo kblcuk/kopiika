@@ -112,7 +112,6 @@ interface AppState {
 			rule: RecurrenceRule;
 			endDate?: number | null;
 			endCount?: number | null;
-			horizon: number;
 		}
 	) => Promise<void>;
 	backfillRecurringIfStale: () => Promise<void>;
@@ -447,7 +446,6 @@ export const useStore = create<AppState>((set, get) => {
 							color: entity.color ?? null,
 							row: entity.row,
 							position: entity.position,
-							order: entity.order ?? 0,
 							include_in_total: entity.include_in_total ?? true,
 							is_deleted: entity.is_deleted ?? false,
 							is_default: entity.is_default ?? false,
@@ -479,7 +477,6 @@ export const useStore = create<AppState>((set, get) => {
 							start_date: template.start_date,
 							end_date: template.end_date ?? null,
 							end_count: template.end_count ?? null,
-							horizon: template.horizon,
 							is_deleted: template.is_deleted ?? false,
 							created_at: template.created_at,
 							updated_at: template.updated_at ?? template.created_at,
@@ -849,7 +846,6 @@ export const useStore = create<AppState>((set, get) => {
 				rule: recurrence.rule,
 				endDate: recurrence.endDate,
 				endCount: recurrence.endCount,
-				horizon: recurrence.horizon,
 			});
 			const stampedTemplate = await db.createRecurrenceTemplate(template);
 

@@ -56,7 +56,6 @@ const baseEntity = (id: string, overrides: Partial<Entity> = {}): Entity => ({
 	currency: 'USD',
 	row: 0,
 	position: 0,
-	order: 0,
 	...overrides,
 });
 
@@ -81,7 +80,6 @@ const baseTemplate = (
 	currency: 'USD',
 	rule: JSON.stringify({ type: 'monthly' }),
 	start_date: Date.now(),
-	horizon: 30,
 	created_at: Date.now(),
 	...overrides,
 });

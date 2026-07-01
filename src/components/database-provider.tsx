@@ -101,10 +101,10 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 		};
 	}, [isReady]);
 
-	// Roll the recurrence horizon forward when the user returns to the app.
+	// Materialize newly past-due recurrences when the user returns to the app.
 	// `initialize` only runs once on cold start, so a long-lived warm process
-	// would otherwise stop materializing "Never"-ending recurrences past the
-	// horizon. The store action self-throttles to once per day.
+	// would otherwise never materialize occurrences that fall due while it
+	// stays open. The store action self-throttles to once per day.
 	useEffect(() => {
 		if (!isReady) return;
 		const sub = AppState.addEventListener('change', (next) => {

@@ -38,7 +38,6 @@ export function createMockEntity(
 	return {
 		name: `Test ${overrides.type}`,
 		currency: 'USD',
-		order: 0,
 		row: 0,
 		position: 0,
 		...overrides,

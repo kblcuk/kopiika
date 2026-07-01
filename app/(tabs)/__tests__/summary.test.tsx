@@ -34,7 +34,6 @@ describe('SummaryScreen', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockSaving: Entity = {
@@ -44,7 +43,6 @@ describe('SummaryScreen', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockAccount: Entity = {
@@ -54,7 +52,6 @@ describe('SummaryScreen', () => {
 		currency: 'USD',
 		row: 0,
 		position: 0,
-		order: 0,
 	};
 
 	const mockPlan: Plan = {
@@ -351,7 +348,6 @@ describe('SummaryScreen', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			};
 
 			useStore.setState({

@@ -10,7 +10,6 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { PageSheetModal } from './page-sheet-modal';
 import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
 import type { RecurrenceFrequency } from '@/src/types/recurrence';
-import { horizonForFrequency } from '@/src/utils/recurrence';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import {
@@ -614,7 +613,6 @@ export function TransactionModal({
 								repeatEndMode === 'count' && repeatEndCount
 									? parseInt(repeatEndCount, 10)
 									: null,
-							horizon: horizonForFrequency(repeatFrequency),
 						}
 					);
 

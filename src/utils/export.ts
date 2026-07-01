@@ -21,7 +21,6 @@ function entitiesToCsv(entities: Entity[]): string {
 			e.currency,
 			e.icon ?? '',
 			e.color ?? '',
-			e.order ?? 0,
 			e.row,
 			e.position,
 			e.include_in_total !== false,
@@ -72,7 +71,6 @@ function recurrenceTemplatesToCsv(templates: RecurrenceTemplate[]): string {
 			t.start_date,
 			t.end_date ?? '',
 			t.end_count ?? '',
-			t.horizon,
 			t.is_deleted === true,
 			t.created_at,
 		].join(',')

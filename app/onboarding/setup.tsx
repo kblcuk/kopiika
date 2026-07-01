@@ -121,7 +121,6 @@ export default function SetupScreen() {
 					color: custom.color,
 					row: targetRow,
 					position,
-					order: position,
 					is_investment: custom.type === 'account' ? custom.isInvestment : undefined,
 				});
 				if (custom.type !== 'account' && custom.plannedAmountMinor != null) {

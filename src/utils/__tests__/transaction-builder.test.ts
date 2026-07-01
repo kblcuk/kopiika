@@ -344,7 +344,6 @@ describe('transaction-builder', () => {
 				rule: { type: 'monthly' },
 				endDate: 200,
 				endCount: 12,
-				horizon: 90,
 				now: 50,
 			});
 			expect(template).toMatchObject({
@@ -357,7 +356,6 @@ describe('transaction-builder', () => {
 				start_date: 100,
 				end_date: 200,
 				end_count: 12,
-				horizon: 90,
 				created_at: 50,
 			});
 			expect(template.id.length).toBeGreaterThan(0);
@@ -371,7 +369,6 @@ describe('transaction-builder', () => {
 				currency: 'USD',
 				timestamp: 1,
 				rule: { type: 'weekly' },
-				horizon: 30,
 				now: 1,
 			});
 			expect(template.end_date).toBeNull();

@@ -56,7 +56,6 @@ export async function createRecurrenceTemplate(
 			start_date: template.start_date,
 			end_date: template.end_date ?? null,
 			end_count: template.end_count ?? null,
-			horizon: template.horizon,
 			is_deleted: template.is_deleted ?? false,
 			created_at: template.created_at,
 			updated_at: template.updated_at ?? template.created_at,

@@ -11,7 +11,6 @@ const account1: Entity = {
 	type: 'account',
 	name: 'Checking',
 	currency: 'USD',
-	order: 0,
 	row: 0,
 	position: 0,
 };
@@ -20,7 +19,6 @@ const account2: Entity = {
 	type: 'account',
 	name: 'Cash',
 	currency: 'USD',
-	order: 1,
 	row: 0,
 	position: 1,
 };
@@ -29,7 +27,6 @@ const saving1: Entity = {
 	type: 'saving',
 	name: 'Vacation',
 	currency: 'USD',
-	order: 0,
 	row: 0,
 	position: 0,
 };
@@ -38,7 +35,6 @@ const saving2: Entity = {
 	type: 'saving',
 	name: 'Emergency',
 	currency: 'USD',
-	order: 1,
 	row: 0,
 	position: 1,
 };
@@ -47,7 +43,6 @@ const category1: Entity = {
 	type: 'category',
 	name: 'Food',
 	currency: 'USD',
-	order: 0,
 	row: 0,
 	position: 0,
 };

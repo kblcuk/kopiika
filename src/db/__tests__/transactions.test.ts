@@ -37,7 +37,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'account-1',
@@ -46,7 +45,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'category-1',
@@ -55,7 +53,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'saving-1',
@@ -64,7 +61,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 		];
 
@@ -330,7 +326,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 10,
-				order: 10,
 			});
 
 			const result = await getTransactionsForEntity('new-entity');
@@ -1275,7 +1270,6 @@ describe('transactions.ts', () => {
 				start_date: 500,
 				end_date: null,
 				end_count: null,
-				horizon: 90,
 				created_at: 0,
 			});
 
@@ -1383,7 +1377,6 @@ describe('transactions.ts', () => {
 				currency: 'USD',
 				rule: JSON.stringify({ type: 'monthly' }),
 				start_date: 500,
-				horizon: 90,
 				created_at: 0,
 			});
 			await createTransaction({

@@ -20,7 +20,6 @@ function dailyTemplate(over: Partial<RecurrenceTemplate> = {}): RecurrenceTempla
 		start_date: localTs(2026, 4, 1),
 		end_date: null,
 		end_count: null,
-		horizon: 90,
 		created_at: localTs(2026, 4, 1),
 		...over,
 	};

@@ -18,7 +18,6 @@ describe('plans.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'entity-2',
@@ -27,7 +26,6 @@ describe('plans.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 			{
 				id: 'entity-3',
@@ -36,7 +34,6 @@ describe('plans.ts', () => {
 				currency: 'USD',
 				row: 0,
 				position: 0,
-				order: 0,
 			},
 		];
 

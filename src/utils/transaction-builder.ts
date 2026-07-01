@@ -182,7 +182,6 @@ export interface BuildRecurringTemplateArgs {
 	rule: RecurrenceRule;
 	endDate?: number | null;
 	endCount?: number | null;
-	horizon: number;
 	now?: number;
 }
 
@@ -198,7 +197,6 @@ export function buildRecurringTemplate(args: BuildRecurringTemplateArgs): Recurr
 		start_date: args.timestamp,
 		end_date: args.endDate ?? null,
 		end_count: args.endCount ?? null,
-		horizon: args.horizon,
 		created_at: args.now ?? Date.now(),
 	};
 }

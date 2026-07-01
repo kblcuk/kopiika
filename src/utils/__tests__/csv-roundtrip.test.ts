@@ -16,7 +16,6 @@ const FULL_FIXTURE = {
 			currency: 'EUR',
 			icon: 'refresh-cw',
 			color: null,
-			order: 0,
 			row: 0,
 			position: -1,
 			include_in_total: true,
@@ -31,7 +30,6 @@ const FULL_FIXTURE = {
 			currency: 'EUR',
 			icon: 'landmark',
 			color: '#4CAF50',
-			order: 1,
 			row: 0,
 			position: 0,
 			include_in_total: false,
@@ -46,7 +44,6 @@ const FULL_FIXTURE = {
 			currency: 'EUR',
 			icon: 'shopping-cart',
 			color: '#FF9800',
-			order: 2,
 			row: 1,
 			position: 0,
 			include_in_total: true,
@@ -61,7 +58,6 @@ const FULL_FIXTURE = {
 			currency: 'EUR',
 			icon: null,
 			color: null,
-			order: 3,
 			row: 0,
 			position: 1,
 			include_in_total: true,
@@ -120,7 +116,6 @@ const FULL_FIXTURE = {
 			start_date: 1706745600000,
 			end_date: 1730000000000,
 			end_count: 12,
-			horizon: 90,
 			// KII-123: exclusions now round-trip through a dedicated
 			// `# RECURRENCE_EXCLUSIONS` CSV section keyed by `template_id` +
 			// `timestamp`. Mentions in this fixture also serve the parser-
@@ -140,7 +135,6 @@ const FULL_FIXTURE = {
 			start_date: 1706745600000,
 			end_date: null,
 			end_count: null,
-			horizon: 30,
 			// No exclusions on this template — left undefined so we cover the
 			// "template with empty exclusion set" round-trip path.
 			exclusions: undefined,
@@ -170,11 +164,16 @@ describe('csv roundtrip', () => {
 		expect(result.data.marketValueSnapshots).toEqual(FULL_FIXTURE.marketValueSnapshots);
 	});
 
-	test('KII-123 back-compat: legacy CSV with inline `exclusions` JSON column still imports', () => {
+	test('KII-123/KII-139 back-compat: legacy CSV with inline `exclusions`, `order`, and `horizon` columns still imports', () => {
 		// Pre-KII-123 exports embedded exclusions as a JSON array directly on the
 		// recurrence_templates row. Users with backup CSVs on disk must still be
 		// able to round-trip them. The importer parses the legacy column and
 		// merges it into the template's in-memory `exclusions` array.
+		//
+		// KII-139: this legacy CSV also carries the dropped `entities.order` and
+		// `recurrence_templates.horizon` columns. Header-keyed parsing must
+		// ignore them rather than error, and they must not leak onto the parsed
+		// in-memory objects.
 		const legacyCsv = [
 			'# ENTITIES',
 			'id,type,name,currency,icon,color,order,row,position,include_in_total,is_deleted,is_default,is_investment',
@@ -199,5 +198,8 @@ describe('csv roundtrip', () => {
 		expect(result.data.recurrenceTemplates[0]!.exclusions).toEqual([
 			1706832000000, 1707436800000,
 		]);
+		// KII-139: dropped columns are silently ignored, not carried through.
+		expect(result.data.entities[0]!).not.toHaveProperty('order');
+		expect(result.data.recurrenceTemplates[0]!).not.toHaveProperty('horizon');
 	});
 });

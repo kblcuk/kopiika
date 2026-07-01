@@ -99,7 +99,6 @@ export default function E2EFixtureScreen() {
 						icon: e.icon ?? 'circle',
 						row,
 						position,
-						order: 0,
 					});
 				}
 

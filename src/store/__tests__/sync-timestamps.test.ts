@@ -23,7 +23,6 @@ const baseEntity = (id: string, overrides: Partial<Entity> = {}): Entity => ({
 	currency: 'USD',
 	row: 0,
 	position: 0,
-	order: 0,
 	...overrides,
 });
 

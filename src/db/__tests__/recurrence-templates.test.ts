@@ -24,7 +24,6 @@ const makeEntity = (id: string, type: Entity['type']): Entity => ({
 	currency: 'USD',
 	row: 0,
 	position: 0,
-	order: 0,
 });
 
 const baseTemplate: RecurrenceTemplate = {
@@ -35,7 +34,6 @@ const baseTemplate: RecurrenceTemplate = {
 	currency: 'USD',
 	rule: JSON.stringify({ type: 'monthly' }),
 	start_date: Date.now(),
-	horizon: 90,
 	created_at: Date.now(),
 };
 

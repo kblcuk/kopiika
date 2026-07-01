@@ -23,6 +23,7 @@ import m0018 from './0018_add_updated_at.sql';
 import m0019 from './0019_recurrence_exclusions_table.sql';
 import m0020 from './0020_money_to_minor_units.sql';
 import m0021 from './0021_cleanup_legacy_future_occurrences.sql';
+import m0022 from './0022_drop-unused-columns.sql';
 
 export default {
 	journal,
@@ -49,5 +50,6 @@ export default {
 		m0019,
 		m0020,
 		m0021,
+		m0022,
 	},
 };

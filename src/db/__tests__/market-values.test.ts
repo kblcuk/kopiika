@@ -27,7 +27,6 @@ describe('market-values.ts', () => {
 			currency: 'USD',
 			row: 0,
 			position: 0,
-			order: 0,
 		};
 		await createEntity(entity);
 		return entity;

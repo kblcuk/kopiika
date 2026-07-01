@@ -85,13 +85,13 @@ describe('migration 0019: recurrence_exclusions_table (KII-123)', () => {
 
 	test('composite PK rejects duplicate (template_id, timestamp) inserts (set-union semantics)', () => {
 		const db = openWithMigrationsUpTo('zzz_never');
-		db.run(`INSERT INTO entities (id, type, name, currency, "order", row, position)
-			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0, 0)`);
-		db.run(`INSERT INTO entities (id, type, name, currency, "order", row, position)
-			VALUES ('e2', 'category', 'Groceries', 'EUR', 0, 1, 0)`);
+		db.run(`INSERT INTO entities (id, type, name, currency, row, position)
+			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0)`);
+		db.run(`INSERT INTO entities (id, type, name, currency, row, position)
+			VALUES ('e2', 'category', 'Groceries', 'EUR', 1, 0)`);
 		db.run(`INSERT INTO recurrence_templates
-			(id, from_entity_id, to_entity_id, amount_minor, currency, rule, start_date, horizon, created_at)
-			VALUES ('tpl', 'e1', 'e2', 5000, 'EUR', '{"type":"monthly"}', 1700000000000, 30, 1700000000000)`);
+			(id, from_entity_id, to_entity_id, amount_minor, currency, rule, start_date, created_at)
+			VALUES ('tpl', 'e1', 'e2', 5000, 'EUR', '{"type":"monthly"}', 1700000000000, 1700000000000)`);
 
 		db.run(`INSERT INTO recurrence_exclusions (template_id, timestamp) VALUES ('tpl', 1000)`);
 		// INSERT OR IGNORE on the composite PK is the API surface the app uses;
@@ -110,13 +110,13 @@ describe('migration 0019: recurrence_exclusions_table (KII-123)', () => {
 	test('hard-deleting a template cascades to its exclusions', () => {
 		const db = openWithMigrationsUpTo('zzz_never');
 		db.run('PRAGMA foreign_keys = ON');
-		db.run(`INSERT INTO entities (id, type, name, currency, "order", row, position)
-			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0, 0)`);
-		db.run(`INSERT INTO entities (id, type, name, currency, "order", row, position)
-			VALUES ('e2', 'category', 'Groceries', 'EUR', 0, 1, 0)`);
+		db.run(`INSERT INTO entities (id, type, name, currency, row, position)
+			VALUES ('e1', 'account', 'Cash', 'EUR', 0, 0)`);
+		db.run(`INSERT INTO entities (id, type, name, currency, row, position)
+			VALUES ('e2', 'category', 'Groceries', 'EUR', 1, 0)`);
 		db.run(`INSERT INTO recurrence_templates
-			(id, from_entity_id, to_entity_id, amount_minor, currency, rule, start_date, horizon, created_at)
-			VALUES ('tpl', 'e1', 'e2', 5000, 'EUR', '{"type":"monthly"}', 1700000000000, 30, 1700000000000)`);
+			(id, from_entity_id, to_entity_id, amount_minor, currency, rule, start_date, created_at)
+			VALUES ('tpl', 'e1', 'e2', 5000, 'EUR', '{"type":"monthly"}', 1700000000000, 1700000000000)`);
 		db.run(`INSERT INTO recurrence_exclusions (template_id, timestamp) VALUES ('tpl', 1000)`);
 		db.run(`INSERT INTO recurrence_exclusions (template_id, timestamp) VALUES ('tpl', 2000)`);
 

@@ -195,12 +195,11 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			continue;
 		}
 
-		const order = Number(row.order || '0');
 		const rowNum = Number(row.row || '0');
 		const position = Number(row.position || '0');
 
-		if (isNaN(order) || isNaN(rowNum) || isNaN(position)) {
-			errors.push(`Entity row ${lineNum}: order/row/position must be numbers`);
+		if (isNaN(rowNum) || isNaN(position)) {
+			errors.push(`Entity row ${lineNum}: row/position must be numbers`);
 			continue;
 		}
 
@@ -211,7 +210,6 @@ function parseEntities(rows: Record<string, string>[], errors: string[]): Entity
 			currency: row.currency,
 			icon: row.icon || null,
 			color: row.color || null,
-			order,
 			row: rowNum,
 			position,
 			include_in_total: row.include_in_total !== 'false',
@@ -454,7 +452,6 @@ function parseRecurrenceTemplates(
 			'currency',
 			'rule',
 			'start_date',
-			'horizon',
 			'created_at',
 		]) {
 			if (!row[field]) missing.push(field);
@@ -476,7 +473,6 @@ function parseRecurrenceTemplates(
 
 		const amount_minor = Number(row.amount_minor);
 		const start_date = Number(row.start_date);
-		const horizon = Number(row.horizon);
 		const created_at = Number(row.created_at);
 		if (!Number.isInteger(amount_minor)) {
 			errors.push(
@@ -484,9 +480,9 @@ function parseRecurrenceTemplates(
 			);
 			continue;
 		}
-		if (isNaN(start_date) || isNaN(horizon) || isNaN(created_at)) {
+		if (isNaN(start_date) || isNaN(created_at)) {
 			errors.push(
-				`Recurrence template row ${lineNum}: start_date/horizon/created_at must be numbers`
+				`Recurrence template row ${lineNum}: start_date/created_at must be numbers`
 			);
 			continue;
 		}
@@ -590,7 +586,6 @@ function parseRecurrenceTemplates(
 			start_date,
 			end_date,
 			end_count,
-			horizon,
 			exclusions: legacyExclusions,
 			is_deleted: row.is_deleted === 'true',
 			created_at,
