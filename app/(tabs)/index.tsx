@@ -99,6 +99,13 @@ export default function HomeScreen() {
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
 			setDraggedEntity(entity);
+			// Refresh drop-zone rects at the start of every drag. They're cached
+			// from the grid's measured origin, but a full remeasure only fires
+			// once at launch (guarded) or on scroll — so any layout shift since
+			// (e.g. an entity added/removed collapsing sections) leaves them stale
+			// and findDropTarget misses. Measuring here guarantees they're current
+			// for the drop that's about to happen.
+			remeasureAllDropZones();
 			// Reorder-mode drags rely on Sortable.Grid's built-in auto-scroll;
 			// activating the hook would race it on the source section's ScrollView.
 			if (editModes.isEditing(entity.type)) return;
