@@ -26,7 +26,7 @@ module.exports = {
 	devices: {
 		simulator: {
 			type: 'ios.simulator',
-			device: { type: 'iPhone 17 Pro Max' },
+			device: { type: 'iPhone 16e' },
 		},
 		emulator: {
 			type: 'android.emulator',

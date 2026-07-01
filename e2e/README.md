@@ -201,6 +201,7 @@ This app's home screen has continuous layout work from entity bubbles and amount
 - `waitFor` uses pure polling instead of waiting for idle — you **must** provide explicit `withTimeout()` on every `waitFor` call.
 - Never `await element(...).tap()` without a preceding `waitFor(...).toBeVisible().withTimeout(N)` — there is no auto-wait to catch you.
 - `setTimeout` delays (e.g. 500 ms for pageSheet animations) remain necessary — without sync, Detox cannot detect when an animation finishes.
+- A **single `tap()` issued while the app is mid-transition is silently dropped** — e.g. tapping a tab bar button right after `seedFixture`'s `router.dismiss()`, or a modal's Cancel button the instant it slides in. Don't `tap()`-then-`waitFor` across a transition; use `tapUntilVisible` / `tapUntilGone` (in `support/helpers.ts`), which re-fire the tap until the follow-up element appears/disappears. Re-tapping is idempotent on these paths, so it's safe when the first tap does land.
 
 **How to tell if sync is the problem:** if a test hangs and Detox logs "The app is busy with the following tasks", the app has continuous work preventing sync from settling. The fix is to keep sync off (already done at suite level) and use explicit `waitFor` timeouts.
 
@@ -244,6 +245,7 @@ await seedFixture({
 
 - `seedFixture` navigates away and back — wait for `homeScreen` is already handled inside it.
 - Only available in `EXPO_PUBLIC_E2E=true` builds.
+- DB state is **not** wiped between tests in a worker, and `jest.retryTimes(1)` re-runs a failing body — so a re-seed accumulates duplicate rows. If a test asserts on exactly the rows it seeds (unique names, single Confirm pill, etc.), pass `clearTransactions: true` so the seed is idempotent across retries. Use `clearEntities: true` similarly for entity-count-sensitive tests.
 
 ## DnD (Drag-and-Drop) Gestures
 
@@ -301,6 +303,8 @@ Amount text varies by device locale: some return `"43.21"`, others `"43,21"`. `g
 | `createTransaction(from, to, amount)`       | Full [+] button happy path                     |
 | `createTransactionViaDnD(from, to, amount)` | Full DnD happy path                            |
 | `dnd(from, to)`                             | Raw DnD gesture without completing a form      |
+| `tapUntilVisible(tap, expect)`              | Re-tap until a follow-up element appears       |
+| `tapUntilGone(tap, expect)`                 | Re-tap until a follow-up element disappears    |
 
 Add new helpers to the file they are first needed in; move to a shared `helpers.ts` only when used across multiple test files.
 

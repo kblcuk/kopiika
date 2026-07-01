@@ -636,7 +636,6 @@ export default function HistoryScreen() {
 					initialNumToRender={10}
 					maxToRenderPerBatch={6}
 					windowSize={5}
-					removeClippedSubviews
 					onScrollToIndexFailed={handleScrollToIndexFailed}
 					className="flex-1"
 					style={isStale ? { opacity: 0.6 } : undefined}

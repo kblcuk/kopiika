@@ -6,6 +6,8 @@ import {
 	expectAmount,
 	getAmount,
 	launchAppFast,
+	tapUntilGone,
+	tapUntilVisible,
 } from '../support/helpers';
 import { seedFixture } from '../support/fixture';
 
@@ -27,10 +29,12 @@ describe('History', () => {
 	});
 
 	async function openHistoryTab() {
-		await element(by.id(TestIDs.historyTabButton)).tap();
-		await waitFor(element(by.id(TestIDs.historyScreen)))
-			.toBeVisible()
-			.withTimeout(5000);
+		// Retry the tab tap until the history screen appears. Sync is disabled
+		// suite-wide, so a single tap issued while the app is still settling — e.g.
+		// mid-`router.dismiss()` after `seedFixture`'s deep-link — is silently
+		// dropped and the screen never opens. Re-tapping an already-active tab is
+		// a no-op, so this is safe on the paths where the first tap lands.
+		await tapUntilVisible(by.id(TestIDs.historyTabButton), by.id(TestIDs.historyScreen));
 		// History screen may already be mounted (React Navigation keeps tabs alive)
 		// and useDeferredValue in history.tsx defers the row render by one cycle —
 		// callers waitFor a specific row, which handles the deferral naturally.
@@ -95,6 +99,77 @@ describe('History', () => {
 		await expectAmount('Groceries', balanceAfterCreate + 20);
 	});
 
+	// Regression: `removeClippedSubviews` on the history SectionList detached
+	// off-screen rows from the native view tree; when a row scrolled back in,
+	// its RNGH tap gesture was dead and tapping no longer opened the edit modal.
+	// Worked on first render (visible rows freshly mounted) but broke after any
+	// scroll — intermittently, depending on which rows got clipped/recycled.
+	// Unit tests can't catch it (RNGH is mocked); the first edit test above taps
+	// the top row without scrolling. This seeds enough rows to push a uniquely
+	// named target well past initialNumToRender (=10), scrolls to it, and taps.
+	it('History edit after scroll: a virtualized (recycled) row stays tappable', async () => {
+		await seedFixture({
+			// Clear first so the unique ScrollTarget row exists exactly once even
+			// when jest re-runs this body on retry — otherwise a second seed adds a
+			// duplicate and the scroll-to-target matcher hits "multiple elements".
+			clearTransactions: true,
+			entities: [{ type: 'category', name: 'ScrollTarget' }],
+			transactions: [
+				// Oldest timestamp => bottom of today's group, beyond the initial
+				// render window, so it is only mounted once scrolled into view.
+				{
+					from: 'Main Card',
+					to: 'ScrollTarget',
+					amount: 42,
+					isConfirmed: true,
+					timestampOffsetMs: -30 * 60 * 1000,
+				},
+				// Filler rows above the target — all confirmed and inside the
+				// current-month period. Newer than the target (smaller offsets), so
+				// the target sorts to the bottom of the day group.
+				...Array.from({ length: 18 }, (_, i) => ({
+					from: 'Main Card',
+					to: 'Groceries',
+					amount: 10 + i,
+					isConfirmed: true,
+					timestampOffsetMs: -(29 - i) * 60 * 1000,
+				})),
+			],
+		});
+
+		await openHistoryTab();
+
+		const target = element(by.text('ScrollTarget').withAncestor(by.id(TestIDs.historyScreen)));
+
+		// The target starts off-screen (clipped/unrendered). Scroll the list down
+		// until it appears, then tap it — this is the row a real user can't edit
+		// when the gesture is dead.
+		await waitFor(target)
+			.toBeVisible()
+			.whileElement(by.id('history-transaction-list'))
+			.scroll(400, 'down');
+
+		await target.tap();
+
+		// The edit modal only opens if the recycled row's tap gesture still fires.
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.toBeVisible()
+			.withTimeout(5000);
+
+		// Dismiss so the tab bar is hittable for the next test. Retry the cancel
+		// tap: the modal has only just slid in, and a single tap fired mid-
+		// animation is dropped with sync disabled, leaving the modal open.
+		await tapUntilGone(
+			by.id(TestIDs.transaction.cancelButton),
+			by.id(TestIDs.transaction.amountInput)
+		);
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.not.toExist()
+			.withTimeout(5000);
+
+		await returnToHome();
+	});
+
 	// ── Confirm pill on recurring transaction (KII-106) ─────────────────────
 
 	// On Android, the Confirm pill (a RN Pressable) used to compete with the
@@ -103,6 +178,10 @@ describe('History', () => {
 	// gesture-composition wiring; this guards the real on-device gesture race.
 	it('History confirm pill: tapping does not open "Edit Recurring Transaction" dialog', async () => {
 		await seedFixture({
+			// Clear first so exactly one unconfirmed row (one Confirm pill) exists,
+			// even on a jest retry — a re-seed would otherwise leave a second pill
+			// and the post-confirm `not.toExist` assertion could never pass.
+			clearTransactions: true,
 			transactions: [
 				{
 					from: 'Main Card',

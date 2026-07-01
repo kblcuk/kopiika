@@ -112,6 +112,38 @@ export async function tapUntilVisible(
 	throw lastError ?? new Error('tapUntilVisible: timed out');
 }
 
+// Inverse of tapUntilVisible: tap an element, retrying until a follow-up element
+// disappears (e.g. dismissing a modal via its cancel button). Sync is disabled
+// suite-wide, so a single tap issued while a sheet is still sliding in is
+// silently dropped and the modal never closes — retrying re-fires once the sheet
+// is interactive. Re-tapping after the modal is already gone is a no-op since the
+// tapMatcher no longer resolves (the tap error is swallowed).
+export async function tapUntilGone(
+	tapMatcher: Detox.NativeMatcher,
+	expectMatcher: Detox.NativeMatcher,
+	{
+		totalTimeout = 8000,
+		attemptInterval = 600,
+	}: { totalTimeout?: number; attemptInterval?: number } = {}
+) {
+	const deadline = Date.now() + totalTimeout;
+	let lastError: unknown;
+	while (Date.now() < deadline) {
+		try {
+			await element(tapMatcher).tap();
+		} catch (e) {
+			lastError = e;
+		}
+		try {
+			await waitFor(element(expectMatcher)).not.toBeVisible().withTimeout(attemptInterval);
+			return;
+		} catch (e) {
+			lastError = e;
+		}
+	}
+	throw lastError ?? new Error('tapUntilGone: timed out');
+}
+
 // Full [+] button happy path: open modal → pick from → pick to → enter amount → save.
 export async function createTransaction(fromName: string, toName: string, amount: string) {
 	await element(by.id(TestIDs.addTransactionButton)).tap();

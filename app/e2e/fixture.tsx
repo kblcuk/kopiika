@@ -42,6 +42,15 @@ type FixturePayload = {
 	 * grid fits in a smaller viewport.
 	 */
 	clearEntities?: boolean;
+	/**
+	 * When true, deletes every existing transaction before seeding. Tests in a
+	 * jest worker share DB state (no relaunch wipes it), and `jest.retryTimes`
+	 * re-runs the body on failure — so a seedFixture test that doesn't clear
+	 * accumulates duplicate rows on retry, turning unique-row assertions into
+	 * "multiple elements found". Set this for tests that assert on exactly the
+	 * rows they seed.
+	 */
+	clearTransactions?: boolean;
 };
 
 export default function E2EFixtureScreen() {
@@ -60,7 +69,16 @@ export default function E2EFixtureScreen() {
 				// the DB AND update the in-memory arrays. Direct db.* calls would
 				// persist but the home screen wouldn't reflect the changes, since
 				// the store hydrates only at app launch.
-				const { addEntity, addTransaction, deleteEntity } = useStore.getState();
+				const { addEntity, addTransaction, deleteEntity, deleteTransaction } =
+					useStore.getState();
+
+				if (payload.clearTransactions) {
+					// Snapshot ids first — deleteTransaction mutates the store array.
+					const ids = useStore.getState().transactions.map((t) => t.id);
+					for (const id of ids) {
+						await deleteTransaction(id);
+					}
+				}
 
 				if (payload.clearEntities) {
 					const existing = useStore.getState().entities;
@@ -107,13 +125,14 @@ export default function E2EFixtureScreen() {
 						series_id: tx.seriesId,
 						is_confirmed: tx.isConfirmed,
 					};
+					// addTransaction writes the DB AND prepends the created row to the
+					// in-memory store, so the History/Home screens reflect the seed
+					// without an app relaunch. Do NOT also setState the raw row here:
+					// that double-inserts the same id, and since the history list does
+					// no id-dedup (candidates = [...transactions, ...virtual]) the
+					// SectionList renders two rows per seeded transaction — breaking
+					// unique-row matchers ("multiple elements found").
 					await addTransaction(transaction);
-					// Push into the in-memory store so the History/Home screens see
-					// the seeded transaction without an app relaunch — entity bubbles
-					// re-render from `useStore`, not the DB.
-					useStore.setState((state) => ({
-						transactions: [transaction, ...state.transactions],
-					}));
 				}
 			} catch (e) {
 				console.error('[E2E fixture] seed error:', e);

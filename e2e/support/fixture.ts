@@ -30,6 +30,14 @@ export type FixturePayload = {
 	 * automatic across suites.
 	 */
 	clearEntities?: boolean;
+	/**
+	 * Deletes every existing transaction before seeding. Tests share DB state
+	 * within a jest worker and `jest.retryTimes` re-runs the body on failure,
+	 * so without this a re-seed accumulates duplicate rows — breaking unique-row
+	 * assertions with "multiple elements found". Set this for tests that assert
+	 * on exactly the rows they seed.
+	 */
+	clearTransactions?: boolean;
 };
 
 /**
