@@ -96,39 +96,20 @@ export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURREN
 
 	if (!cleaned) return NaN;
 
-	const lastDot = cleaned.lastIndexOf('.');
-	const lastComma = cleaned.lastIndexOf(',');
+	const lastSep = Math.max(cleaned.lastIndexOf('.'), cleaned.lastIndexOf(','));
+	const hasBoth = cleaned.includes('.') && cleaned.includes(',');
+	const digitsAfter = cleaned.length - lastSep - 1;
 
-	let result: number;
+	// The last separator is the decimal point when both separators are present
+	// (grouping + decimal, e.g. 1.234,56 or 1,234.56) or a lone separator has
+	// ≤2 trailing digits (e.g. 1,15). Otherwise it's a thousands separator.
+	const isDecimal = lastSep !== -1 && (hasBoth || digitsAfter <= 2);
 
-	if (lastDot === -1 && lastComma === -1) {
-		// No separators - just a whole number
-		result = parseFloat(cleaned);
-	} else if (lastDot === -1) {
-		// Only commas - comma is decimal if followed by 1-2 digits at end
-		const afterComma = cleaned.length - lastComma - 1;
-		if (afterComma <= 2) {
-			result = parseFloat(cleaned.replace(',', '.'));
-		} else {
-			// Otherwise it's a thousands separator
-			result = parseFloat(cleaned.replace(/,/g, ''));
-		}
-	} else if (lastComma === -1) {
-		// Only dots - dot is decimal if followed by 1-2 digits at end
-		const afterDot = cleaned.length - lastDot - 1;
-		if (afterDot <= 2) {
-			result = parseFloat(cleaned);
-		} else {
-			// Otherwise it's a thousands separator (European style without decimals)
-			result = parseFloat(cleaned.replace(/\./g, ''));
-		}
-	} else if (lastComma > lastDot) {
-		// Both separators, comma last: European format 1.234,56
-		result = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
-	} else {
-		// Both separators, dot last: US format 1,234.56
-		result = parseFloat(cleaned.replace(/,/g, ''));
-	}
+	const digits = cleaned.replace(/[.,]/g, '');
+	const cut = digits.length - digitsAfter;
+	const result = isDecimal
+		? parseFloat(`${digits.slice(0, cut)}.${digits.slice(cut)}`)
+		: parseFloat(digits);
 
 	return isNegative ? -result : result;
 }
