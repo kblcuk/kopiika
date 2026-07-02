@@ -730,6 +730,49 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
+	it('matches amount regardless of decimal separator (dot vs comma) (KII-137)', async () => {
+		// tx-a renders as "44.31" in the test locale (en-US, dot decimal). A user
+		// on a comma-decimal locale types "44,3"; the search must still match by
+		// normalizing the separator before comparing. The mirror case (comma-
+		// formatted amount, dot query) is the originally reported bug.
+		const tx1: Transaction = {
+			id: 'tx-a',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 4431,
+			currency: 'USD',
+			timestamp: fixedNow - 60_000,
+		};
+
+		const tx2: Transaction = {
+			id: 'tx-b',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 2000,
+			currency: 'USD',
+			timestamp: fixedNow - 120_000,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [tx1, tx2],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		setPendingHistoryFilter({ period: '2026-01' });
+
+		const { getByPlaceholderText, getByTestId, queryByTestId } = render(<HistoryScreen />);
+
+		fireEvent.changeText(getByPlaceholderText('Search by note or amount'), '44,3');
+
+		await waitFor(() => {
+			expect(getByTestId('row-tx-a')).toBeTruthy();
+			expect(queryByTestId('row-tx-b')).toBeNull();
+		});
+	});
+
 	it('shows all transactions when search is cleared', async () => {
 		const tx1: Transaction = {
 			id: 'tx-a',

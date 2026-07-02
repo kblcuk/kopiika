@@ -56,6 +56,16 @@ export function formatAmountForInput(
 	}).format(major);
 }
 
+// KII-137: substring-match a search query against a formatted amount string,
+// treating dot and comma as the same decimal separator. formatAmount renders
+// with the device locale's separator (e.g. "30,50" in EU locales), so a user
+// typing either "30.5" or "30,5" must match. Normalizing both sides makes the
+// comparison separator-agnostic in either direction.
+export function amountMatchesSearch(formattedAmount: string, query: string): boolean {
+	const normalize = (s: string) => s.replace(/,/g, '.');
+	return normalize(formattedAmount).includes(normalize(query));
+}
+
 // Format period for display
 export function formatPeriod(period: string): string {
 	const [year, month] = period.split('-').map(Number) as [number, number];

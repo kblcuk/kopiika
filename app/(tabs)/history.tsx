@@ -24,6 +24,7 @@ import { ReservationSummary } from '@/src/components/reservation-summary';
 import { TransactionRow } from '@/src/components/transaction-row';
 import { TransactionModal } from '@/src/components/transaction-modal';
 import {
+	amountMatchesSearch,
 	formatAmount,
 	formatAmountForInput,
 	parseAmountToMinor,
@@ -206,11 +207,13 @@ export default function HistoryScreen() {
 			if (tx.timestamp < start || tx.timestamp > end) continue;
 
 			// Search filter — match note (case-insensitive) or amount (partial,
-			// matched against the formatted major-unit string the user sees)
+			// matched against the formatted major-unit string the user sees).
+			// Amount matching is separator-agnostic so dot and comma both work
+			// regardless of the device locale's decimal separator (KII-137).
 			if (
 				query &&
 				!tx.note?.toLowerCase().includes(query) &&
-				!formatAmount(tx.amount_minor, tx.currency).includes(query)
+				!amountMatchesSearch(formatAmount(tx.amount_minor, tx.currency), query)
 			) {
 				continue;
 			}

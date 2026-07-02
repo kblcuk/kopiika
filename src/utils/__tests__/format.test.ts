@@ -1,4 +1,5 @@
 import {
+	amountMatchesSearch,
 	formatAmount,
 	formatAmountForInput,
 	getProgressPercent,
@@ -162,6 +163,28 @@ describe('formatAmountForInput with currency precision', () => {
 	test('BHD keeps 3 dp', () => {
 		// 12346 minor = 12.346 BHD
 		expect(formatAmountForInput(12346, 'BHD')).toMatch(/^12[.,]346$/);
+	});
+});
+
+describe('amountMatchesSearch (KII-137)', () => {
+	test('matches when query and formatted amount use the same separator', () => {
+		expect(amountMatchesSearch('30.50', '30.5')).toBe(true);
+		expect(amountMatchesSearch('30,50', '30,5')).toBe(true);
+	});
+
+	test('matches a dot query against a comma-formatted amount', () => {
+		// Originally reported bug: EU locale renders "30,50", user types "30.5".
+		expect(amountMatchesSearch('30,50', '30.5')).toBe(true);
+	});
+
+	test('matches a comma query against a dot-formatted amount', () => {
+		// Mirror case: en-US locale renders "44.31", user types "44,3".
+		expect(amountMatchesSearch('44.31', '44,3')).toBe(true);
+	});
+
+	test('does not match a different amount', () => {
+		expect(amountMatchesSearch('20.00', '30.5')).toBe(false);
+		expect(amountMatchesSearch('20,00', '30,5')).toBe(false);
 	});
 });
 
