@@ -103,6 +103,29 @@ xcrun simctl shutdown booted && xcrun simctl erase booted
 # Android — uninstall, or just clear data without uninstalling
 adb uninstall com.kblcuk.kopiika
 adb shell pm clear com.kblcuk.kopiika
+
+# Android — factory-reset the emulator entirely (all apps + settings)
+emulator -list-avds                    # find the AVD name
+emulator -avd <AVD_NAME> -wipe-data    # boots with wiped userdata
+```
+
+### Rebuild from a pristine native project
+
+`ios/` and `android/` are gitignored prebuild artifacts. If native code, a
+dependency, or `app.json` changed — or a stale JS bundle survives a normal
+rebuild — regenerate them from the repo before rebuilding:
+
+```sh
+# Regenerate both native projects from app.json + config
+bun run expo prebuild --clean
+
+# ...or a single platform
+bun run expo prebuild --clean --platform ios
+bun run expo prebuild --clean --platform android
+
+# Then rebuild + deploy the dev build
+bun run ios
+bun run android
 ```
 
 ### Reinstall a pre-built app without rebuilding
