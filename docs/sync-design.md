@@ -193,6 +193,8 @@ Editing UX:
 
 ## Operation Model
 
+As of KII-134, the authoritative op union lives in `src/sync/ops.ts` and supersedes the sketch below where they differ: (1) `recurrence.update` split into `update_future`, `exclude`, and `deactivate`; (2) `market_value.snapshot` expanded to `{create,update,delete,delete_all}`; (3) `transaction.confirm` takes `ids[]` not a single id; (4) `plan.delete` keys by plan id not entity id. Additions like `transaction.split` and `import.replace_all` are also implemented.
+
 ### The Op union
 
 ```ts

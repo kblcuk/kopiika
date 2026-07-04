@@ -280,7 +280,7 @@ async function backfillRecurrences(
 		const result = await applyOperation(
 			{ kind: 'transaction.batch_create', transactions: newTransactions },
 			'local',
-			{ entities, transactions: existingTransactions, recurrenceTemplates: templates }
+			{ entities, transactions: existingTransactions, recurrenceTemplates: templates } // templates is the backfill subset, unused by transaction.batch_create today; revisit if that op kind ever reads templates
 		);
 		if (result.kind !== 'transaction.batch_create') return;
 		const stamped = result.created;
@@ -597,6 +597,7 @@ export const useStore = create<AppState>((set, get) => {
 				'local',
 				buildApplyContext()
 			);
+			// Must return a Transaction, so silent return is not an option; branch is unreachable.
 			if (result.kind !== 'transaction.create') {
 				throw new Error('applyOperation returned mismatched result for transaction.create');
 			}

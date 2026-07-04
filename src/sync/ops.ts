@@ -12,8 +12,8 @@ export type OpSource = 'local' | 'inbound';
 
 /**
  * In-memory operation union. NOT yet a persisted wire format — only the shape
- * the chokepoint dispatches on. Transaction and entity families for now; plan,
- * reservation, recurrence, and import variants land in follow-up PRs.
+ * the chokepoint dispatches on. Covers all local mutation kinds as of KII-134:
+ * transaction, entity, plan, reservation, recurrence, market_value, and import.
  */
 export type Op =
 	| { kind: 'transaction.create'; transaction: Transaction }
