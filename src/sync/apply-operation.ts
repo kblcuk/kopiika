@@ -166,6 +166,10 @@ export async function applyOperation(
 			});
 			return { kind: 'transaction.split', created };
 		}
+		case 'recurrence.exclude': {
+			await db.addExclusion(op.seriesId, op.timestamp);
+			return { kind: 'recurrence.exclude' };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

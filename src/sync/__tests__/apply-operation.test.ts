@@ -655,3 +655,31 @@ describe('applyOperation — reservation.set', () => {
 		).rejects.toThrow('Cannot reserve with non-existent entities');
 	});
 });
+
+describe('applyOperation — recurrence.exclude', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('records an exclusion for the series', async () => {
+		await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 500,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+		await db.createRecurrenceTemplate(template);
+
+		const result = await applyOperation(
+			{ kind: 'recurrence.exclude', seriesId: template.id, timestamp: 1702600000000 },
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		expect(result.kind).toBe('recurrence.exclude');
+		expect(await db.getExclusionsForTemplate(template.id)).toContain(1702600000000);
+	});
+});

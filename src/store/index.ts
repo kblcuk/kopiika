@@ -690,9 +690,16 @@ export const useStore = create<AppState>((set, get) => {
 				},
 				Date.now()
 			);
-			const stamped = await db.createTransaction(row);
-			set((state) => ({ transactions: [stamped, ...state.transactions] }));
-			return stamped;
+			const result = await applyOperation(
+				{ kind: 'transaction.create', transaction: row },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'transaction.create') {
+				throw new Error('applyOperation returned mismatched result for transaction.create');
+			}
+			set((state) => ({ transactions: [result.created, ...state.transactions] }));
+			return result.created;
 		},
 
 		excludeOccurrence: async (occurrence) => {
@@ -703,7 +710,12 @@ export const useStore = create<AppState>((set, get) => {
 			const seriesId = occurrence.series_id;
 			if (!seriesId) return;
 			const exclusionTs = occurrence.timestamp;
-			await db.addExclusion(seriesId, exclusionTs);
+			const result = await applyOperation(
+				{ kind: 'recurrence.exclude', seriesId, timestamp: exclusionTs },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'recurrence.exclude') return;
 			set((state) => ({
 				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
 					if (t.id !== seriesId) return t;

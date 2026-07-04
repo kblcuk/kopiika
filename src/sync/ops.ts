@@ -44,7 +44,8 @@ export type Op =
 			originalId: string;
 			rows: Transaction[];
 			seriesExclusion?: { templateId: string; timestamp: number };
-	  };
+	  }
+	| { kind: 'recurrence.exclude'; seriesId: string; timestamp: number };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -58,4 +59,5 @@ export type OpResult =
 	| { kind: 'plan.set'; plan: Plan | null }
 	| { kind: 'plan.delete' }
 	| { kind: 'reservation.set'; created: Transaction | null }
-	| { kind: 'transaction.split'; created: Transaction[] };
+	| { kind: 'transaction.split'; created: Transaction[] }
+	| { kind: 'recurrence.exclude' };
