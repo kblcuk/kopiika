@@ -38,6 +38,12 @@ export type Op =
 			accountEntityId: string;
 			savingEntityId: string;
 			desiredTotalMinor: number;
+	  }
+	| {
+			kind: 'transaction.split';
+			originalId: string;
+			rows: Transaction[];
+			seriesExclusion?: { templateId: string; timestamp: number };
 	  };
 
 export type OpResult =
@@ -51,4 +57,5 @@ export type OpResult =
 	| { kind: 'entity.delete'; entities: Entity[] | null }
 	| { kind: 'plan.set'; plan: Plan | null }
 	| { kind: 'plan.delete' }
-	| { kind: 'reservation.set'; created: Transaction | null };
+	| { kind: 'reservation.set'; created: Transaction | null }
+	| { kind: 'transaction.split'; created: Transaction[] };

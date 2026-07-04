@@ -151,6 +151,21 @@ export async function applyOperation(
 			const created = await db.createTransaction(transaction);
 			return { kind: 'reservation.set', created };
 		}
+		case 'transaction.split': {
+			const prepared: Transaction[] = op.rows.map((tx) => {
+				ensureValid(validateTransaction(tx, ctx.entities));
+				return {
+					...tx,
+					// Split children are never part of the parent series — strip unconditionally.
+					series_id: undefined,
+					is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
+				};
+			});
+			const created = await db.replaceTransactionAtomic(op.originalId, prepared, {
+				seriesExclusion: op.seriesExclusion,
+			});
+			return { kind: 'transaction.split', created };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

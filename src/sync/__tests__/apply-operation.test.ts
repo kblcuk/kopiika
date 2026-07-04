@@ -255,6 +255,98 @@ describe('applyOperation — transaction.delete', () => {
 	});
 });
 
+describe('applyOperation — transaction.split', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('replaces the original with the split rows atomically', async () => {
+		const entities = await seedEntities();
+		const original = await db.createTransaction(
+			makeTx({ id: 'split-orig', amount_minor: 3000 })
+		);
+
+		const result = await applyOperation(
+			{
+				kind: 'transaction.split',
+				originalId: 'split-orig',
+				rows: [
+					makeTx({ id: 'split-a', amount_minor: 1000 }),
+					makeTx({ id: 'split-b', amount_minor: 2000 }),
+				],
+			},
+			'local',
+			{ entities, transactions: [original], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'transaction.split') throw new Error('wrong kind');
+		expect(result.created.map((t) => t.id).sort()).toEqual(['split-a', 'split-b']);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'split-orig')).toBeUndefined();
+		expect(all.filter((t) => t.id === 'split-a' || t.id === 'split-b')).toHaveLength(2);
+	});
+
+	test('strips series_id from split children', async () => {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 500,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+		await db.createRecurrenceTemplate(template);
+		const original = await db.createTransaction(
+			makeTx({ id: 'split-rec', series_id: template.id })
+		);
+
+		const result = await applyOperation(
+			{
+				kind: 'transaction.split',
+				originalId: 'split-rec',
+				rows: [makeTx({ id: 'split-c', series_id: template.id })],
+				seriesExclusion: { templateId: template.id, timestamp: original.timestamp },
+			},
+			'local',
+			{ entities, transactions: [original], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'transaction.split') throw new Error('wrong kind');
+		expect(result.created[0]!.series_id ?? null).toBeNull();
+
+		const exclusions = await db.getExclusionsForTemplate(template.id);
+		expect(exclusions).toContain(original.timestamp);
+	});
+
+	test('rejects the whole split when any row is invalid; original survives', async () => {
+		const entities = await seedEntities();
+		const original = await db.createTransaction(
+			makeTx({ id: 'split-bad', amount_minor: 3000 })
+		);
+
+		expect(
+			applyOperation(
+				{
+					kind: 'transaction.split',
+					originalId: 'split-bad',
+					rows: [
+						makeTx({ id: 'split-x', amount_minor: 1000 }),
+						makeTx({ id: 'split-y', amount_minor: -1 }),
+					],
+				},
+				'local',
+				{ entities, transactions: [original], recurrenceTemplates: [] }
+			)
+		).rejects.toThrow(TransactionValidationError);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'split-bad')).toBeDefined();
+		expect(all.find((t) => t.id === 'split-x')).toBeUndefined();
+	});
+});
+
 describe('applyOperation — entity.create / entity.update / entity.delete', () => {
 	beforeEach(() => {
 		resetDrizzleDb();

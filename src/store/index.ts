@@ -26,11 +26,7 @@ import {
 	validateTransaction,
 	validateUpdate,
 } from '@/src/utils/transaction-validation';
-import {
-	buildRecurringTemplate,
-	buildTransaction,
-	defaultIsConfirmed,
-} from '@/src/utils/transaction-builder';
+import { buildRecurringTemplate, buildTransaction } from '@/src/utils/transaction-builder';
 import { applyOperation } from '@/src/sync/apply-operation';
 import {
 	getNotifiableTransactions,
@@ -776,19 +772,9 @@ export const useStore = create<AppState>((set, get) => {
 				return;
 			}
 
-			// Validate + default is_confirmed for each row, same shape as createTransactionBatch.
-			const prepared: Transaction[] = rows.map((tx) => {
-				ensureValid(validateTransaction(tx, state.entities));
-				return {
-					...tx,
-					// Split children are never part of the parent series — strip unconditionally.
-					series_id: undefined,
-					is_confirmed: tx.is_confirmed ?? defaultIsConfirmed(tx.timestamp),
-				};
-			});
-
 			// Cancel the original's scheduled notification (if any) BEFORE mutating the DB
 			// so a system-side failure surfaces before we touch persistent state.
+			// Side effect — local only by construction.
 			if (original.notification_id) {
 				try {
 					await cancelNotification(original.notification_id);
@@ -801,9 +787,13 @@ export const useStore = create<AppState>((set, get) => {
 				? { templateId: original.series_id, timestamp: original.timestamp }
 				: undefined;
 
-			const stamped = await db.replaceTransactionAtomic(originalId, prepared, {
-				seriesExclusion,
-			});
+			const result = await applyOperation(
+				{ kind: 'transaction.split', originalId, rows, seriesExclusion },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'transaction.split') return;
+			const stamped = result.created;
 
 			set((s) => {
 				const transactionsNext = [
