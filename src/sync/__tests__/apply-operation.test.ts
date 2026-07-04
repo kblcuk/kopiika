@@ -5,6 +5,7 @@ import * as db from '@/src/db';
 import { buildRecurringTemplate } from '@/src/utils/transaction-builder';
 import { applyOperation } from '../apply-operation';
 import { TransactionValidationError } from '@/src/utils/transaction-validation';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 const account: Entity = {
 	id: 'acc-1',
@@ -251,5 +252,102 @@ describe('applyOperation — transaction.delete', () => {
 		// Exclusion row must have been recorded.
 		const exclusions = await db.getExclusionsForTemplate(template.id);
 		expect(exclusions).toContain(exclusionTs);
+	});
+});
+
+describe('applyOperation — entity.create / entity.update / entity.delete', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('entity.create persists and returns the stamped entity', async () => {
+		const result = await applyOperation({ kind: 'entity.create', entity: account }, 'local', {
+			entities: [],
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'entity.create') throw new Error('wrong kind');
+		expect(result.created.id).toBe('acc-1');
+		expect(await db.getEntityById('acc-1')).not.toBeNull();
+	});
+
+	test('entity.update applies the full-row update', async () => {
+		await db.createEntity(account);
+
+		const result = await applyOperation(
+			{ kind: 'entity.update', entity: { ...account, name: 'Renamed' } },
+			'local',
+			{ entities: [account], transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'entity.update') throw new Error('wrong kind');
+		expect(result.updated.name).toBe('Renamed');
+		expect((await db.getEntityById('acc-1'))?.name).toBe('Renamed');
+	});
+
+	test('entity.update with deleteMarketValueSnapshots removes the snapshots', async () => {
+		const investment: Entity = { ...account, id: 'inv-1', is_investment: true };
+		await db.createEntity(investment);
+		await db.createMarketValueSnapshot({
+			id: 'mv-1',
+			entity_id: 'inv-1',
+			amount_minor: 100000,
+			currency: 'USD',
+			date: 1700000000000,
+		});
+
+		await applyOperation(
+			{
+				kind: 'entity.update',
+				entity: { ...investment, is_investment: false },
+				options: { deleteMarketValueSnapshots: true },
+			},
+			'local',
+			{ entities: [investment], transactions: [], recurrenceTemplates: [] }
+		);
+
+		expect(await db.getMarketValueSnapshots('inv-1')).toHaveLength(0);
+	});
+
+	test('entity.delete soft-deletes and returns the re-read entity list', async () => {
+		await db.createEntity(account);
+		await db.createEntity(category);
+
+		const result = await applyOperation({ kind: 'entity.delete', id: 'acc-1' }, 'local', {
+			entities: [account, category],
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'entity.delete') throw new Error('wrong kind');
+		expect(result.entities).not.toBeNull();
+		expect(result.entities!.find((e) => e.id === 'acc-1')?.is_deleted).toBe(true);
+		expect(result.entities!.find((e) => e.id === 'cat-1')?.is_deleted).not.toBe(true);
+	});
+
+	test('entity.delete refuses the system entity and returns null', async () => {
+		const result = await applyOperation(
+			{ kind: 'entity.delete', id: BALANCE_ADJUSTMENT_ENTITY_ID },
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'entity.delete') throw new Error('wrong kind');
+		expect(result.entities).toBeNull();
+	});
+
+	test('entity.delete of an already-deleted entity is a null no-op', async () => {
+		const dead: Entity = { ...account, id: 'dead-1', is_deleted: true };
+		await db.createEntity(dead);
+
+		const result = await applyOperation({ kind: 'entity.delete', id: 'dead-1' }, 'local', {
+			entities: [dead],
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'entity.delete') throw new Error('wrong kind');
+		expect(result.entities).toBeNull();
 	});
 });

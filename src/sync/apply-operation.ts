@@ -7,6 +7,8 @@ import {
 	validateUpdate,
 } from '@/src/utils/transaction-validation';
 import { defaultIsConfirmed } from '@/src/utils/transaction-builder';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { isEntityActive } from '@/src/utils/entity-display';
 import type { Op, OpResult, OpSource } from './ops';
 
 /**
@@ -73,6 +75,29 @@ export async function applyOperation(
 				op.seriesExclusion ? { seriesExclusion: op.seriesExclusion } : undefined
 			);
 			return { kind: 'transaction.delete' };
+		}
+		case 'entity.create': {
+			const created = await db.createEntity(op.entity);
+			return { kind: 'entity.create', created };
+		}
+		case 'entity.update': {
+			const updated = await db.updateEntity(op.entity, op.options);
+			return { kind: 'entity.update', updated };
+		}
+		case 'entity.delete': {
+			if (op.id === BALANCE_ADJUSTMENT_ENTITY_ID) {
+				console.warn('Cannot delete system entity');
+				return { kind: 'entity.delete', entities: null };
+			}
+			const entity = ctx.entities.find((e) => e.id === op.id);
+			if (!isEntityActive(entity)) {
+				return { kind: 'entity.delete', entities: null };
+			}
+			// deleteEntityAndReindex closes position gaps; re-read the full list to
+			// keep ordering consistent with how `initialize` hydrates the store.
+			await db.deleteEntityAndReindex(op.id);
+			const entities = await db.getAllEntities();
+			return { kind: 'entity.delete', entities };
 		}
 		default: {
 			const _exhaustive: never = op;

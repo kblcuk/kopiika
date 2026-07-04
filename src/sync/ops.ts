@@ -1,4 +1,4 @@
-import type { Transaction } from '@/src/types';
+import type { Entity, Transaction } from '@/src/types';
 
 /**
  * Origin of an operation. Reserved for future use (KII-99): `inbound` ops will
@@ -11,7 +11,7 @@ export type OpSource = 'local' | 'inbound';
 
 /**
  * In-memory operation union. NOT yet a persisted wire format — only the shape
- * the chokepoint dispatches on. Transaction family only for now; entity, plan,
+ * the chokepoint dispatches on. Transaction and entity families for now; plan,
  * reservation, recurrence, and import variants land in follow-up PRs.
  */
 export type Op =
@@ -22,10 +22,20 @@ export type Op =
 			kind: 'transaction.delete';
 			id: string;
 			seriesExclusion?: { templateId: string; timestamp: number };
-	  };
+	  }
+	| { kind: 'entity.create'; entity: Entity }
+	| {
+			kind: 'entity.update';
+			entity: Entity;
+			options?: { deleteMarketValueSnapshots?: boolean };
+	  }
+	| { kind: 'entity.delete'; id: string };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
 	| { kind: 'transaction.batch_create'; created: Transaction[] }
 	| { kind: 'transaction.update'; updated: Transaction | null }
-	| { kind: 'transaction.delete' };
+	| { kind: 'transaction.delete' }
+	| { kind: 'entity.create'; created: Entity }
+	| { kind: 'entity.update'; updated: Entity }
+	| { kind: 'entity.delete'; entities: Entity[] | null };

@@ -550,19 +550,36 @@ export const useStore = create<AppState>((set, get) => {
 
 		// Entity actions
 		addEntity: async (entity) => {
-			const stamped = await db.createEntity(entity);
-			set((state) => ({ entities: [...state.entities, stamped] }));
+			const result = await applyOperation(
+				{ kind: 'entity.create', entity },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'entity.create') return;
+			set((state) => ({ entities: [...state.entities, result.created] }));
 		},
 
 		updateEntity: async (entity) => {
-			const stamped = await db.updateEntity(entity);
+			const result = await applyOperation(
+				{ kind: 'entity.update', entity },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'entity.update') return;
+			const stamped = result.updated;
 			set((state) => ({
 				entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
 			}));
 		},
 
 		updateEntityWithOptions: async (entity, options) => {
-			const stamped = await db.updateEntity(entity, options);
+			const result = await applyOperation(
+				{ kind: 'entity.update', entity, options },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'entity.update') return;
+			const stamped = result.updated;
 			set((state) => ({
 				entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
 				marketValueSnapshots: options?.deleteMarketValueSnapshots
@@ -572,31 +589,20 @@ export const useStore = create<AppState>((set, get) => {
 		},
 
 		deleteEntity: async (id) => {
-			// Prevent deleting system entities
-			if (id === BALANCE_ADJUSTMENT_ENTITY_ID) {
-				console.warn('Cannot delete system entity');
-				return;
-			}
-
-			const state = get();
-			const entity = state.entities.find((e) => e.id === id);
-			if (!isEntityActive(entity)) {
-				return;
-			}
-
-			// Use deleteEntityAndReindex to close gaps
-			await db.deleteEntityAndReindex(id);
-
-			// Reload entities to get updated positions (deleteEntityAndReindex
-			// returns the touched rows, but we use the full select to keep ordering
-			// consistent with how `initialize` hydrates the store).
-			const updatedEntities = await db.getAllEntities();
-			// KII-132: `state` captured before await — non-functional set overwrites
-			// any concurrent `plans` mutation. Switch to functional updater.
-			set({
-				entities: updatedEntities,
+			// Guards (system entity, already-inactive) live in applyOperation now.
+			const result = await applyOperation(
+				{ kind: 'entity.delete', id },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'entity.delete' || result.entities === null) return;
+			const nextEntities = result.entities;
+			// KII-132: functional updater so a concurrent `plans` mutation isn't
+			// clobbered by a stale pre-await snapshot.
+			set((state) => ({
+				entities: nextEntities,
 				plans: state.plans.filter((p) => p.entity_id !== id),
-			});
+			}));
 		},
 
 		reorderEntitiesByIds: async (type, orderedIds, maxRows) => {
