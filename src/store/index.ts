@@ -487,6 +487,9 @@ export const useStore = create<AppState>((set, get) => {
 			}));
 		},
 
+		// LOCAL-ONLY (never an op): row/position are per-device fields per the
+		// KII-96 field-locality decision — they never sync, so this action
+		// deliberately bypasses applyOperation.
 		reorderEntitiesByIds: async (type, orderedIds, maxRows) => {
 			const state = get();
 
@@ -1022,7 +1025,9 @@ export const useStore = create<AppState>((set, get) => {
 			await syncBadgeCount(get);
 		},
 
-		// Default account — atomic clear-and-set in a single DB transaction (KII-113).
+		// LOCAL-ONLY (never an op): is_default is a per-device field per the
+		// KII-96 field-locality decision — atomic clear-and-set in a single DB
+		// transaction (KII-113), deliberately outside applyOperation.
 		setDefaultAccount: async (accountId) => {
 			const stamped = await db.setDefaultAccount(accountId);
 			const stampedMap = new Map(stamped.map((e) => [e.id, e]));
