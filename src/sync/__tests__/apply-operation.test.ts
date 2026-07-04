@@ -449,3 +449,117 @@ describe('applyOperation — transaction.confirm', () => {
 		expect(result.confirmed).toHaveLength(0);
 	});
 });
+
+describe('applyOperation — reservation.set', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	const saving: Entity = {
+		id: 'sav-1',
+		type: 'saving',
+		name: 'Vacation',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+	};
+
+	async function seedReservationEntities(): Promise<Entity[]> {
+		await db.createEntity(account);
+		await db.createEntity(saving);
+		return [account, saving];
+	}
+
+	test('creates an account→saving transaction for a positive delta', async () => {
+		const entities = await seedReservationEntities();
+
+		const result = await applyOperation(
+			{
+				kind: 'reservation.set',
+				accountEntityId: 'acc-1',
+				savingEntityId: 'sav-1',
+				desiredTotalMinor: 5000,
+			},
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'reservation.set') throw new Error('wrong kind');
+		expect(result.created?.from_entity_id).toBe('acc-1');
+		expect(result.created?.to_entity_id).toBe('sav-1');
+		expect(result.created?.amount_minor).toBe(5000);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === result.created!.id)?.amount_minor).toBe(5000);
+	});
+
+	test('creates a saving→account transaction when lowering the target', async () => {
+		const entities = await seedReservationEntities();
+		const existing = await db.createTransaction(
+			makeTx({
+				id: 'resv-1',
+				from_entity_id: 'acc-1',
+				to_entity_id: 'sav-1',
+				amount_minor: 8000,
+			})
+		);
+
+		const result = await applyOperation(
+			{
+				kind: 'reservation.set',
+				accountEntityId: 'acc-1',
+				savingEntityId: 'sav-1',
+				desiredTotalMinor: 3000,
+			},
+			'local',
+			{ entities, transactions: [existing], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'reservation.set') throw new Error('wrong kind');
+		expect(result.created?.from_entity_id).toBe('sav-1');
+		expect(result.created?.to_entity_id).toBe('acc-1');
+		expect(result.created?.amount_minor).toBe(5000);
+	});
+
+	test('is a null no-op when the target equals the current net', async () => {
+		const entities = await seedReservationEntities();
+		const existing = await db.createTransaction(
+			makeTx({
+				id: 'resv-2',
+				from_entity_id: 'acc-1',
+				to_entity_id: 'sav-1',
+				amount_minor: 4000,
+			})
+		);
+
+		const result = await applyOperation(
+			{
+				kind: 'reservation.set',
+				accountEntityId: 'acc-1',
+				savingEntityId: 'sav-1',
+				desiredTotalMinor: 4000,
+			},
+			'local',
+			{ entities, transactions: [existing], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'reservation.set') throw new Error('wrong kind');
+		expect(result.created).toBeNull();
+		expect(await db.getAllTransactions()).toHaveLength(1);
+	});
+
+	test('throws when an entity is missing', async () => {
+		expect(
+			applyOperation(
+				{
+					kind: 'reservation.set',
+					accountEntityId: 'ghost',
+					savingEntityId: 'sav-1',
+					desiredTotalMinor: 100,
+				},
+				'local',
+				{ entities: [], transactions: [], recurrenceTemplates: [] }
+			)
+		).rejects.toThrow('Cannot reserve with non-existent entities');
+	});
+});

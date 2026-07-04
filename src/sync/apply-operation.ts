@@ -9,6 +9,8 @@ import {
 import { defaultIsConfirmed } from '@/src/utils/transaction-builder';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { isEntityActive } from '@/src/utils/entity-display';
+import { generateId } from '@/src/utils/ids';
+import { getReservationForPair } from '@/src/utils/savings-transactions';
 import type { Op, OpResult, OpSource } from './ops';
 
 /**
@@ -117,6 +119,37 @@ export async function applyOperation(
 		case 'plan.delete': {
 			await db.deletePlan(op.id);
 			return { kind: 'plan.delete' };
+		}
+		case 'reservation.set': {
+			const account = ctx.entities.find((e) => e.id === op.accountEntityId);
+			const saving = ctx.entities.find((e) => e.id === op.savingEntityId);
+			if (!account || !saving) {
+				throw new Error(
+					`Cannot reserve with non-existent entities: account=${op.accountEntityId}, saving=${op.savingEntityId}`
+				);
+			}
+
+			// Intent semantics: the op carries the target total; the delta against
+			// the local view is computed at apply time (LWW on target, KII-96).
+			const currentNetMinor = getReservationForPair(
+				ctx.transactions,
+				op.accountEntityId,
+				op.savingEntityId
+			);
+			const deltaMinor = op.desiredTotalMinor - currentNetMinor;
+			if (deltaMinor === 0) return { kind: 'reservation.set', created: null };
+
+			const transaction: Transaction = {
+				id: generateId(),
+				from_entity_id: deltaMinor > 0 ? op.accountEntityId : op.savingEntityId,
+				to_entity_id: deltaMinor > 0 ? op.savingEntityId : op.accountEntityId,
+				amount_minor: Math.abs(deltaMinor),
+				currency: account.currency,
+				timestamp: Date.now(),
+			};
+			ensureValid(validateTransaction(transaction, ctx.entities));
+			const created = await db.createTransaction(transaction);
+			return { kind: 'reservation.set', created };
 		}
 		default: {
 			const _exhaustive: never = op;

@@ -32,7 +32,13 @@ export type Op =
 	  }
 	| { kind: 'entity.delete'; id: string }
 	| { kind: 'plan.set'; plan: Plan }
-	| { kind: 'plan.delete'; id: string };
+	| { kind: 'plan.delete'; id: string }
+	| {
+			kind: 'reservation.set';
+			accountEntityId: string;
+			savingEntityId: string;
+			desiredTotalMinor: number;
+	  };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -44,4 +50,5 @@ export type OpResult =
 	| { kind: 'entity.update'; updated: Entity }
 	| { kind: 'entity.delete'; entities: Entity[] | null }
 	| { kind: 'plan.set'; plan: Plan | null }
-	| { kind: 'plan.delete' };
+	| { kind: 'plan.delete' }
+	| { kind: 'reservation.set'; created: Transaction | null };

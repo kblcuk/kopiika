@@ -13,7 +13,6 @@ import type { RecurrenceTemplate, RecurrenceRule } from '@/src/types/recurrence'
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
 import * as schema from '@/src/db/drizzle-schema';
-import { generateId } from '@/src/utils/ids';
 import { generateOccurrences, occurrenceId, toCivilDate } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { formatAmount } from '@/src/utils/format';
@@ -21,10 +20,7 @@ import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
-import {
-	getReservationForPair,
-	getTotalReservedForAccount,
-} from '@/src/utils/savings-transactions';
+import { getTotalReservedForAccount } from '@/src/utils/savings-transactions';
 import {
 	ensureValid,
 	validateTransaction,
@@ -1164,41 +1160,16 @@ export const useStore = create<AppState>((set, get) => {
 			}));
 		},
 
-		// Savings reservation — computes delta from current net and creates a transaction
+		// Savings reservation — the op carries the intent (target total); delta
+		// computation and row construction live in applyOperation.
 		reserveToSaving: async (accountEntityId, savingEntityId, desiredTotalMinor) => {
-			const state = get();
-			const account = state.entities.find((e) => e.id === accountEntityId);
-			const saving = state.entities.find((e) => e.id === savingEntityId);
-			if (!account || !saving) {
-				throw new Error(
-					`Cannot reserve with non-existent entities: account=${accountEntityId}, saving=${savingEntityId}`
-				);
-			}
-
-			const currentNetMinor = getReservationForPair(
-				state.transactions,
-				accountEntityId,
-				savingEntityId
+			const result = await applyOperation(
+				{ kind: 'reservation.set', accountEntityId, savingEntityId, desiredTotalMinor },
+				'local',
+				buildApplyContext()
 			);
-			const deltaMinor = desiredTotalMinor - currentNetMinor;
-
-			// KII-120: integer minor units, so the threshold is "no change" (delta=0).
-			// The old `< 0.005` paper-over from the float era is no longer needed.
-			if (deltaMinor === 0) return;
-
-			const transaction: Transaction = {
-				id: generateId(),
-				from_entity_id: deltaMinor > 0 ? accountEntityId : savingEntityId,
-				to_entity_id: deltaMinor > 0 ? savingEntityId : accountEntityId,
-				amount_minor: Math.abs(deltaMinor),
-				currency: account.currency,
-				timestamp: Date.now(),
-			};
-
-			// KII-132: same stale-entities-snapshot pattern as `addTransaction`.
-			ensureValid(validateTransaction(transaction, state.entities));
-
-			const stamped = await db.createTransaction(transaction);
+			if (result.kind !== 'reservation.set' || !result.created) return;
+			const stamped = result.created;
 			set((s) => ({ transactions: [stamped, ...s.transactions] }));
 		},
 
