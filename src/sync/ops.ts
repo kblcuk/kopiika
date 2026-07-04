@@ -23,6 +23,7 @@ export type Op =
 			id: string;
 			seriesExclusion?: { templateId: string; timestamp: number };
 	  }
+	| { kind: 'transaction.confirm'; ids: string[] }
 	| { kind: 'entity.create'; entity: Entity }
 	| {
 			kind: 'entity.update';
@@ -38,6 +39,7 @@ export type OpResult =
 	| { kind: 'transaction.batch_create'; created: Transaction[] }
 	| { kind: 'transaction.update'; updated: Transaction | null }
 	| { kind: 'transaction.delete' }
+	| { kind: 'transaction.confirm'; confirmed: Transaction[] }
 	| { kind: 'entity.create'; created: Entity }
 	| { kind: 'entity.update'; updated: Entity }
 	| { kind: 'entity.delete'; entities: Entity[] | null }

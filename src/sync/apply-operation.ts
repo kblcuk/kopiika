@@ -76,6 +76,10 @@ export async function applyOperation(
 			);
 			return { kind: 'transaction.delete' };
 		}
+		case 'transaction.confirm': {
+			const confirmed = await db.confirmTransactionsBatch(op.ids);
+			return { kind: 'transaction.confirm', confirmed };
+		}
 		case 'entity.create': {
 			const created = await db.createEntity(op.entity);
 			return { kind: 'entity.create', created };

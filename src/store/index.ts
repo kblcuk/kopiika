@@ -1103,6 +1103,7 @@ export const useStore = create<AppState>((set, get) => {
 		// Confirmation actions
 		confirmTransaction: async (id) => {
 			const transaction = get().transactions.find((t) => t.id === id);
+			// Side effect — local only by construction.
 			if (transaction?.notification_id) {
 				try {
 					await cancelNotification(transaction.notification_id);
@@ -1110,14 +1111,16 @@ export const useStore = create<AppState>((set, get) => {
 					console.warn('Failed to cancel notification', e);
 				}
 			}
-			const stamped = await db.confirmTransaction(id);
-			if (stamped) {
-				set((state) => ({
-					transactions: state.transactions.map((t) =>
-						t.id === stamped.id ? stamped : t
-					),
-				}));
-			}
+			const result = await applyOperation(
+				{ kind: 'transaction.confirm', ids: [id] },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'transaction.confirm') return;
+			const stampedMap = new Map(result.confirmed.map((t) => [t.id, t]));
+			set((state) => ({
+				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
+			}));
 			await syncBadgeCount(get);
 		},
 
@@ -1128,7 +1131,7 @@ export const useStore = create<AppState>((set, get) => {
 			);
 			if (dueTxs.length === 0) return;
 
-			// Cancel notifications for transactions being confirmed
+			// Cancel notifications for transactions being confirmed — local only.
 			for (const tx of dueTxs) {
 				if (tx.notification_id) {
 					try {
@@ -1139,9 +1142,13 @@ export const useStore = create<AppState>((set, get) => {
 				}
 			}
 
-			const dueIds = dueTxs.map((t) => t.id);
-			const stamped = await db.confirmTransactionsBatch(dueIds);
-			const stampedMap = new Map(stamped.map((t) => [t.id, t]));
+			const result = await applyOperation(
+				{ kind: 'transaction.confirm', ids: dueTxs.map((t) => t.id) },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'transaction.confirm') return;
+			const stampedMap = new Map(result.confirmed.map((t) => [t.id, t]));
 			set((state) => ({
 				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 			}));

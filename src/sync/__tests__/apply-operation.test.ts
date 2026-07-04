@@ -410,3 +410,42 @@ describe('applyOperation — plan.set / plan.delete', () => {
 		expect(await db.getAllPlans()).toHaveLength(0);
 	});
 });
+
+describe('applyOperation — transaction.confirm', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('confirms exactly the listed ids', async () => {
+		const entities = await seedEntities();
+		const a = await db.createTransaction(makeTx({ id: 'conf-a', is_confirmed: false }));
+		const b = await db.createTransaction(makeTx({ id: 'conf-b', is_confirmed: false }));
+
+		const result = await applyOperation(
+			{ kind: 'transaction.confirm', ids: ['conf-a'] },
+			'local',
+			{ entities, transactions: [a, b], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'transaction.confirm') throw new Error('wrong kind');
+		expect(result.confirmed.map((t) => t.id)).toEqual(['conf-a']);
+		expect(result.confirmed[0]!.is_confirmed).toBe(true);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'conf-a')?.is_confirmed).toBe(true);
+		expect(all.find((t) => t.id === 'conf-b')?.is_confirmed).toBe(false);
+	});
+
+	test('unknown ids are skipped, not errors', async () => {
+		const entities = await seedEntities();
+
+		const result = await applyOperation(
+			{ kind: 'transaction.confirm', ids: ['missing'] },
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'transaction.confirm') throw new Error('wrong kind');
+		expect(result.confirmed).toHaveLength(0);
+	});
+});
