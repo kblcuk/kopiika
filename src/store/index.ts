@@ -1026,46 +1026,48 @@ export const useStore = create<AppState>((set, get) => {
 				(t) =>
 					!t.is_deleted && (t.from_entity_id === entityId || t.to_entity_id === entityId)
 			);
+			if (templates.length === 0) return;
 
-			// Cancel notifications for future transactions being deleted
-			if (templates.length > 0) {
-				const templateIds = new Set(templates.map((t) => t.id));
-				const futureTxs = state.transactions.filter(
-					(t) =>
-						t.series_id &&
-						templateIds.has(t.series_id) &&
-						t.timestamp >= now &&
-						t.notification_id
-				);
-				for (const tx of futureTxs) {
-					try {
-						await cancelNotification(tx.notification_id!);
-					} catch (e) {
-						console.warn('Failed to cancel notification', e);
-					}
+			// Cancel notifications for future transactions being deleted —
+			// side effect, local only by construction.
+			const templateIds = new Set(templates.map((t) => t.id));
+			const futureTxs = state.transactions.filter(
+				(t) =>
+					t.series_id &&
+					templateIds.has(t.series_id) &&
+					t.timestamp >= now &&
+					t.notification_id
+			);
+			for (const tx of futureTxs) {
+				try {
+					await cancelNotification(tx.notification_id!);
+				} catch (e) {
+					console.warn('Failed to cancel notification', e);
 				}
 			}
 
 			const stampedTemplates: RecurrenceTemplate[] = [];
 			for (const template of templates) {
-				await db.deleteTransactionsBySeriesFuture(template.id, now);
-				const stamped = await db.softDeleteRecurrenceTemplate(template.id);
-				if (stamped) stampedTemplates.push(stamped);
+				const result = await applyOperation(
+					{ kind: 'recurrence.deactivate', seriesId: template.id, fromTimestamp: now },
+					'local',
+					buildApplyContext()
+				);
+				if (result.kind === 'recurrence.deactivate' && result.template) {
+					stampedTemplates.push(result.template);
+				}
 			}
 
-			if (templates.length > 0) {
-				const templateIds = new Set(templates.map((t) => t.id));
-				const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
-				set((state) => ({
-					transactions: state.transactions.filter(
-						(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
-					),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) => {
-						const stamped = stampedMap.get(t.id);
-						return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
-					}),
-				}));
-			}
+			const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
+			set((state) => ({
+				transactions: state.transactions.filter(
+					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
+				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
+					const stamped = stampedMap.get(t.id);
+					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
+				}),
+			}));
 		},
 
 		// Confirmation actions

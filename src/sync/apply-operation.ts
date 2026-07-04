@@ -245,6 +245,11 @@ export async function applyOperation(
 			}
 			return { kind: 'recurrence.delete_future', template };
 		}
+		case 'recurrence.deactivate': {
+			await db.deleteTransactionsBySeriesFuture(op.seriesId, op.fromTimestamp);
+			const template = await db.softDeleteRecurrenceTemplate(op.seriesId);
+			return { kind: 'recurrence.deactivate', template };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

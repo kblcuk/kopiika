@@ -889,3 +889,43 @@ describe('applyOperation — recurrence.delete_future', () => {
 		expect(await db.getAllTransactions()).toHaveLength(0);
 	});
 });
+
+describe('applyOperation — recurrence.deactivate', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('deletes future rows and unconditionally soft-deletes the template', async () => {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 500,
+			currency: 'USD',
+			timestamp: 1697000000000,
+			rule: { type: 'monthly' },
+		});
+		await db.createRecurrenceTemplate(template);
+		const past = await db.createTransaction(
+			makeTx({ id: 'deact-past', series_id: template.id, timestamp: 1697000000000 })
+		);
+		const future = await db.createTransaction(
+			makeTx({ id: 'deact-future', series_id: template.id, timestamp: 1700000000000 })
+		);
+
+		const result = await applyOperation(
+			{ kind: 'recurrence.deactivate', seriesId: template.id, fromTimestamp: 1699000000000 },
+			'local',
+			{ entities, transactions: [past, future], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'recurrence.deactivate') throw new Error('wrong kind');
+		// Unconditional soft-delete even though a past row remains — this is what
+		// distinguishes deactivate from delete_future.
+		expect(result.template?.is_deleted).toBe(true);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'deact-past')).toBeDefined();
+		expect(all.find((t) => t.id === 'deact-future')).toBeUndefined();
+	});
+});
