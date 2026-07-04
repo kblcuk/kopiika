@@ -351,3 +351,62 @@ describe('applyOperation — entity.create / entity.update / entity.delete', () 
 		expect(result.entities).toBeNull();
 	});
 });
+
+describe('applyOperation — plan.set / plan.delete', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	const plan = {
+		id: 'plan-1',
+		entity_id: 'cat-1',
+		period: 'all-time',
+		period_start: '2026-01',
+		planned_amount_minor: 10000,
+	};
+
+	test('plan.set upserts and returns the stamped plan', async () => {
+		const entities = await seedEntities();
+
+		const result = await applyOperation({ kind: 'plan.set', plan }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'plan.set') throw new Error('wrong kind');
+		expect(result.plan?.planned_amount_minor).toBe(10000);
+		const all = await db.getAllPlans();
+		expect(all.find((p) => p.id === 'plan-1')?.planned_amount_minor).toBe(10000);
+	});
+
+	test('plan.set for an unknown entity returns null and persists nothing', async () => {
+		const result = await applyOperation(
+			{ kind: 'plan.set', plan: { ...plan, entity_id: 'ghost' } },
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'plan.set') throw new Error('wrong kind');
+		expect(result.plan).toBeNull();
+		expect(await db.getAllPlans()).toHaveLength(0);
+	});
+
+	test('plan.delete removes the row', async () => {
+		const entities = await seedEntities();
+		await applyOperation({ kind: 'plan.set', plan }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		const result = await applyOperation({ kind: 'plan.delete', id: 'plan-1' }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		expect(result.kind).toBe('plan.delete');
+		expect(await db.getAllPlans()).toHaveLength(0);
+	});
+});

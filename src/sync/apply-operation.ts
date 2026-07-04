@@ -99,6 +99,21 @@ export async function applyOperation(
 			const entities = await db.getAllEntities();
 			return { kind: 'entity.delete', entities };
 		}
+		case 'plan.set': {
+			const entityActive = ctx.entities.some(
+				(e) => e.id === op.plan.entity_id && isEntityActive(e)
+			);
+			if (!entityActive) {
+				console.warn(`Cannot set plan for non-existent entity: ${op.plan.entity_id}`);
+				return { kind: 'plan.set', plan: null };
+			}
+			const plan = await db.upsertPlan(op.plan);
+			return { kind: 'plan.set', plan };
+		}
+		case 'plan.delete': {
+			await db.deletePlan(op.id);
+			return { kind: 'plan.delete' };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

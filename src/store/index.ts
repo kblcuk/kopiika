@@ -21,7 +21,6 @@ import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
-import { isEntityActive } from '@/src/utils/entity-display';
 import {
 	getReservationForPair,
 	getTotalReservedForAccount,
@@ -163,14 +162,6 @@ const BACKFILL_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // Test-only: lets the test file reset the throttle between cases.
 export function _resetBackfillTimestampForTests(): void {
 	lastBackfillAt = 0;
-}
-
-function getActiveEntities(entities: Entity[]): Entity[] {
-	return entities.filter(isEntityActive);
-}
-
-function hasActiveEntity(entities: Entity[], id: string): boolean {
-	return getActiveEntities(entities).some((entity) => entity.id === id);
 }
 
 async function scheduleNotificationsForTransactions(
@@ -639,15 +630,14 @@ export const useStore = create<AppState>((set, get) => {
 
 		// Plan actions
 		setPlan: async (plan) => {
-			// Validate that the entity exists before setting the plan
-			const state = get();
-			const entityExists = hasActiveEntity(state.entities, plan.entity_id);
-			if (!entityExists) {
-				console.warn(`Cannot set plan for non-existent entity: ${plan.entity_id}`);
-				return;
-			}
-
-			const stamped = await db.upsertPlan(plan);
+			// Entity-exists validation lives in applyOperation now.
+			const result = await applyOperation(
+				{ kind: 'plan.set', plan },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'plan.set' || !result.plan) return;
+			const stamped = result.plan;
 			set((state) => {
 				const existingIndex = state.plans.findIndex((p) => p.id === stamped.id);
 				if (existingIndex >= 0) {
@@ -660,7 +650,12 @@ export const useStore = create<AppState>((set, get) => {
 		},
 
 		deletePlan: async (id) => {
-			await db.deletePlan(id);
+			const result = await applyOperation(
+				{ kind: 'plan.delete', id },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'plan.delete') return;
 			set((state) => ({
 				plans: state.plans.filter((plan) => plan.id !== id),
 			}));

@@ -1,4 +1,4 @@
-import type { Entity, Transaction } from '@/src/types';
+import type { Entity, Transaction, Plan } from '@/src/types';
 
 /**
  * Origin of an operation. Reserved for future use (KII-99): `inbound` ops will
@@ -29,7 +29,9 @@ export type Op =
 			entity: Entity;
 			options?: { deleteMarketValueSnapshots?: boolean };
 	  }
-	| { kind: 'entity.delete'; id: string };
+	| { kind: 'entity.delete'; id: string }
+	| { kind: 'plan.set'; plan: Plan }
+	| { kind: 'plan.delete'; id: string };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -38,4 +40,6 @@ export type OpResult =
 	| { kind: 'transaction.delete' }
 	| { kind: 'entity.create'; created: Entity }
 	| { kind: 'entity.update'; updated: Entity }
-	| { kind: 'entity.delete'; entities: Entity[] | null };
+	| { kind: 'entity.delete'; entities: Entity[] | null }
+	| { kind: 'plan.set'; plan: Plan | null }
+	| { kind: 'plan.delete' };
