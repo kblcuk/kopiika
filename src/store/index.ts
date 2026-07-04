@@ -12,7 +12,6 @@ import type {
 import type { RecurrenceTemplate, RecurrenceRule } from '@/src/types/recurrence';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
-import * as schema from '@/src/db/drizzle-schema';
 import { generateOccurrences, occurrenceId, toCivilDate } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { formatAmount } from '@/src/utils/format';
@@ -396,7 +395,8 @@ export const useStore = create<AppState>((set, get) => {
 			newRecurrenceTemplates,
 			newMarketValueSnapshots = []
 		) => {
-			// Cancel all scheduled notifications before replacing data
+			// Cancel all scheduled notifications before replacing data —
+			// side effect, local only by construction.
 			try {
 				await cancelAllNotifications();
 				await updateBadgeCount(0);
@@ -404,129 +404,26 @@ export const useStore = create<AppState>((set, get) => {
 				console.warn('Failed to cancel notifications on data replace', e);
 			}
 
-			const drizzleDb = await db.getDrizzleDb();
-
-			// Wrap in transaction so a mid-import failure doesn't leave an empty DB
-			const now = Date.now();
-			drizzleDb.transaction((tx) => {
-				// Delete in FK-safe order: snapshots → transactions → exclusions →
-				// recurrenceTemplates → plans → entities (KII-123 added exclusions).
-				tx.delete(schema.marketValueSnapshots).run();
-				tx.delete(schema.transactions).run();
-				tx.delete(schema.recurrenceExclusions).run();
-				tx.delete(schema.recurrenceTemplates).run();
-				tx.delete(schema.plans).run();
-				tx.delete(schema.entities).run();
-
-				// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots.
-				// `created_at`/`updated_at` come from CSV when present (round-trip
-				// preserves write-time across export/import); otherwise stamp now.
-				for (const entity of newEntities) {
-					tx.insert(schema.entities)
-						.values({
-							id: entity.id,
-							type: entity.type,
-							name: entity.name,
-							currency: entity.currency,
-							icon: entity.icon ?? null,
-							color: entity.color ?? null,
-							row: entity.row,
-							position: entity.position,
-							include_in_total: entity.include_in_total ?? true,
-							is_deleted: entity.is_deleted ?? false,
-							is_default: entity.is_default ?? false,
-							is_investment: entity.is_investment ?? false,
-							created_at: entity.created_at ?? now,
-							updated_at: entity.updated_at ?? now,
-						})
-						.run();
-				}
-				for (const plan of newPlans) {
-					tx.insert(schema.plans)
-						.values({
-							...plan,
-							created_at: plan.created_at ?? now,
-							updated_at: plan.updated_at ?? now,
-						})
-						.run();
-				}
-				for (const template of newRecurrenceTemplates) {
-					tx.insert(schema.recurrenceTemplates)
-						.values({
-							id: template.id,
-							from_entity_id: template.from_entity_id,
-							to_entity_id: template.to_entity_id,
-							amount_minor: template.amount_minor,
-							currency: template.currency,
-							note: template.note ?? null,
-							rule: template.rule,
-							start_date: template.start_date,
-							end_date: template.end_date ?? null,
-							end_count: template.end_count ?? null,
-							is_deleted: template.is_deleted ?? false,
-							created_at: template.created_at,
-							updated_at: template.updated_at ?? template.created_at,
-						})
-						.run();
-					// KII-123: write exclusions into the normalized table. We do this
-					// inside the FK-safe insert window (templates already inserted in
-					// the loop above, so each exclusion's FK target exists).
-					for (const ts of template.exclusions ?? []) {
-						tx.insert(schema.recurrenceExclusions)
-							.values({ template_id: template.id, timestamp: ts })
-							.onConflictDoNothing()
-							.run();
-					}
-				}
-				for (const txn of newTransactions) {
-					tx.insert(schema.transactions)
-						.values({
-							id: txn.id,
-							from_entity_id: txn.from_entity_id,
-							to_entity_id: txn.to_entity_id,
-							amount_minor: txn.amount_minor,
-							currency: txn.currency,
-							timestamp: txn.timestamp,
-							note: txn.note ?? null,
-							series_id: txn.series_id ?? null,
-							is_confirmed: txn.is_confirmed ?? true,
-							created_at: txn.created_at ?? now,
-							updated_at: txn.updated_at ?? now,
-						})
-						.run();
-				}
-				for (const snapshot of newMarketValueSnapshots) {
-					tx.insert(schema.marketValueSnapshots)
-						.values({
-							...snapshot,
-							created_at: snapshot.created_at ?? now,
-							updated_at: snapshot.updated_at ?? now,
-						})
-						.run();
-				}
+			const result = await applyOperation(
+				{
+					kind: 'import.replace_all',
+					entities: newEntities,
+					plans: newPlans,
+					transactions: newTransactions,
+					recurrenceTemplates: newRecurrenceTemplates,
+					marketValueSnapshots: newMarketValueSnapshots,
+				},
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'import.replace_all') return;
+			set({
+				entities: result.entities,
+				plans: result.plans,
+				transactions: result.transactions,
+				recurrenceTemplates: result.recurrenceTemplates,
+				marketValueSnapshots: result.marketValueSnapshots,
 			});
-
-			// Re-read all data from DB into store state
-			const [
-				entities,
-				plans,
-				transactions,
-				rawTemplates,
-				marketValueSnapshots,
-				exclusionsByTemplate,
-			] = await Promise.all([
-				db.getAllEntities(),
-				db.getAllPlans(),
-				db.getAllTransactions(),
-				db.getAllRecurrenceTemplates(),
-				db.getAllMarketValueSnapshots(),
-				db.getAllExclusionsByTemplate(),
-			]);
-			const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
-				...t,
-				exclusions: exclusionsByTemplate.get(t.id) ?? [],
-			}));
-			set({ entities, plans, transactions, recurrenceTemplates, marketValueSnapshots });
 		},
 
 		setCurrentPeriod: (period) => set({ currentPeriod: period }),

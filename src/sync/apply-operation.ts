@@ -1,4 +1,5 @@
 import * as db from '@/src/db';
+import * as schema from '@/src/db/drizzle-schema';
 import type { Entity, Transaction } from '@/src/types';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
@@ -265,6 +266,139 @@ export async function applyOperation(
 		case 'market_value.delete_all': {
 			await db.deleteAllMarketValueSnapshots(op.entityId);
 			return { kind: 'market_value.delete_all' };
+		}
+		case 'import.replace_all': {
+			const drizzleDb = await db.getDrizzleDb();
+
+			// Wrap in transaction so a mid-import failure doesn't leave an empty DB
+			const now = Date.now();
+			drizzleDb.transaction((tx) => {
+				// Delete in FK-safe order: snapshots → transactions → exclusions →
+				// recurrenceTemplates → plans → entities (KII-123 added exclusions).
+				tx.delete(schema.marketValueSnapshots).run();
+				tx.delete(schema.transactions).run();
+				tx.delete(schema.recurrenceExclusions).run();
+				tx.delete(schema.recurrenceTemplates).run();
+				tx.delete(schema.plans).run();
+				tx.delete(schema.entities).run();
+
+				// Insert in FK-safe order: entities → plans → recurrenceTemplates → transactions → snapshots.
+				// `created_at`/`updated_at` come from CSV when present (round-trip
+				// preserves write-time across export/import); otherwise stamp now.
+				for (const entity of op.entities) {
+					tx.insert(schema.entities)
+						.values({
+							id: entity.id,
+							type: entity.type,
+							name: entity.name,
+							currency: entity.currency,
+							icon: entity.icon ?? null,
+							color: entity.color ?? null,
+							row: entity.row,
+							position: entity.position,
+							include_in_total: entity.include_in_total ?? true,
+							is_deleted: entity.is_deleted ?? false,
+							is_default: entity.is_default ?? false,
+							is_investment: entity.is_investment ?? false,
+							created_at: entity.created_at ?? now,
+							updated_at: entity.updated_at ?? now,
+						})
+						.run();
+				}
+				for (const plan of op.plans) {
+					tx.insert(schema.plans)
+						.values({
+							...plan,
+							created_at: plan.created_at ?? now,
+							updated_at: plan.updated_at ?? now,
+						})
+						.run();
+				}
+				for (const template of op.recurrenceTemplates) {
+					tx.insert(schema.recurrenceTemplates)
+						.values({
+							id: template.id,
+							from_entity_id: template.from_entity_id,
+							to_entity_id: template.to_entity_id,
+							amount_minor: template.amount_minor,
+							currency: template.currency,
+							note: template.note ?? null,
+							rule: template.rule,
+							start_date: template.start_date,
+							end_date: template.end_date ?? null,
+							end_count: template.end_count ?? null,
+							is_deleted: template.is_deleted ?? false,
+							created_at: template.created_at,
+							updated_at: template.updated_at ?? template.created_at,
+						})
+						.run();
+					// KII-123: write exclusions into the normalized table. We do this
+					// inside the FK-safe insert window (templates already inserted in
+					// the loop above, so each exclusion's FK target exists).
+					for (const ts of template.exclusions ?? []) {
+						tx.insert(schema.recurrenceExclusions)
+							.values({ template_id: template.id, timestamp: ts })
+							.onConflictDoNothing()
+							.run();
+					}
+				}
+				for (const txn of op.transactions) {
+					tx.insert(schema.transactions)
+						.values({
+							id: txn.id,
+							from_entity_id: txn.from_entity_id,
+							to_entity_id: txn.to_entity_id,
+							amount_minor: txn.amount_minor,
+							currency: txn.currency,
+							timestamp: txn.timestamp,
+							note: txn.note ?? null,
+							series_id: txn.series_id ?? null,
+							is_confirmed: txn.is_confirmed ?? true,
+							created_at: txn.created_at ?? now,
+							updated_at: txn.updated_at ?? now,
+						})
+						.run();
+				}
+				for (const snapshot of op.marketValueSnapshots) {
+					tx.insert(schema.marketValueSnapshots)
+						.values({
+							...snapshot,
+							created_at: snapshot.created_at ?? now,
+							updated_at: snapshot.updated_at ?? now,
+						})
+						.run();
+				}
+			});
+
+			// Re-read all data from DB into store state
+			const [
+				entities,
+				plans,
+				transactions,
+				rawTemplates,
+				marketValueSnapshots,
+				exclusionsByTemplate,
+			] = await Promise.all([
+				db.getAllEntities(),
+				db.getAllPlans(),
+				db.getAllTransactions(),
+				db.getAllRecurrenceTemplates(),
+				db.getAllMarketValueSnapshots(),
+				db.getAllExclusionsByTemplate(),
+			]);
+			const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+				...t,
+				exclusions: exclusionsByTemplate.get(t.id) ?? [],
+			}));
+
+			return {
+				kind: 'import.replace_all',
+				entities,
+				plans,
+				transactions,
+				recurrenceTemplates,
+				marketValueSnapshots,
+			};
 		}
 		default: {
 			const _exhaustive: never = op;

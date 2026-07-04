@@ -1004,3 +1004,47 @@ describe('applyOperation — market_value.*', () => {
 		expect(await db.getMarketValueSnapshots('acc-1')).toHaveLength(0);
 	});
 });
+
+describe('applyOperation — import.replace_all', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('replaces the whole dataset atomically and returns the re-read state', async () => {
+		// Pre-existing data that must vanish.
+		await db.createEntity({ ...account, id: 'old-acc' });
+		await db.createTransaction(
+			makeTx({ id: 'old-tx', from_entity_id: 'old-acc', to_entity_id: 'old-acc' })
+		);
+
+		const result = await applyOperation(
+			{
+				kind: 'import.replace_all',
+				entities: [account, category],
+				plans: [
+					{
+						id: 'imp-plan',
+						entity_id: 'cat-1',
+						period: 'all-time',
+						period_start: '2026-01',
+						planned_amount_minor: 7000,
+					},
+				],
+				transactions: [makeTx({ id: 'imp-tx' })],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			},
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'import.replace_all') throw new Error('wrong kind');
+		expect(result.entities.map((e) => e.id).sort()).toEqual(['acc-1', 'cat-1']);
+		expect(result.plans.map((p) => p.id)).toEqual(['imp-plan']);
+		expect(result.transactions.map((t) => t.id)).toEqual(['imp-tx']);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'old-tx')).toBeUndefined();
+		expect(all.find((t) => t.id === 'imp-tx')).toBeDefined();
+	});
+});

@@ -62,7 +62,15 @@ export type Op =
 			updates: { amount_minor?: number; date?: number };
 	  }
 	| { kind: 'market_value.delete'; id: string }
-	| { kind: 'market_value.delete_all'; entityId: string };
+	| { kind: 'market_value.delete_all'; entityId: string }
+	| {
+			kind: 'import.replace_all';
+			entities: Entity[];
+			plans: Plan[];
+			transactions: Transaction[];
+			recurrenceTemplates: RecurrenceTemplate[];
+			marketValueSnapshots: MarketValueSnapshot[];
+	  };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -89,4 +97,12 @@ export type OpResult =
 	| { kind: 'market_value.create'; created: MarketValueSnapshot }
 	| { kind: 'market_value.update'; updated: MarketValueSnapshot | null }
 	| { kind: 'market_value.delete' }
-	| { kind: 'market_value.delete_all' };
+	| { kind: 'market_value.delete_all' }
+	| {
+			kind: 'import.replace_all';
+			entities: Entity[];
+			plans: Plan[];
+			transactions: Transaction[];
+			recurrenceTemplates: RecurrenceTemplate[];
+			marketValueSnapshots: MarketValueSnapshot[];
+	  };
