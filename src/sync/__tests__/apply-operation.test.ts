@@ -683,3 +683,50 @@ describe('applyOperation — recurrence.exclude', () => {
 		expect(await db.getExclusionsForTemplate(template.id)).toContain(1702600000000);
 	});
 });
+
+describe('applyOperation — recurrence.create', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('persists the template and returns it stamped', async () => {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 900,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+
+		const result = await applyOperation({ kind: 'recurrence.create', template }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'recurrence.create') throw new Error('wrong kind');
+		expect(result.created.id).toBe(template.id);
+		expect(await db.getRecurrenceTemplateById(template.id)).not.toBeNull();
+	});
+
+	test('rejects a template whose entities are invalid', async () => {
+		const template = buildRecurringTemplate({
+			from_entity_id: 'ghost-from',
+			to_entity_id: 'ghost-to',
+			amount_minor: 900,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+
+		expect(
+			applyOperation({ kind: 'recurrence.create', template }, 'local', {
+				entities: [],
+				transactions: [],
+				recurrenceTemplates: [],
+			})
+		).rejects.toThrow(TransactionValidationError);
+	});
+});

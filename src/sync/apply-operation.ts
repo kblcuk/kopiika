@@ -170,6 +170,23 @@ export async function applyOperation(
 			await db.addExclusion(op.seriesId, op.timestamp);
 			return { kind: 'recurrence.exclude' };
 		}
+		case 'recurrence.create': {
+			// Validate the entity pair the same way backfillRecurrences does —
+			// every generated occurrence shares the template's from/to/currency.
+			ensureValid(
+				validateTransaction(
+					{
+						from_entity_id: op.template.from_entity_id,
+						to_entity_id: op.template.to_entity_id,
+						amount_minor: op.template.amount_minor,
+						currency: op.template.currency,
+					},
+					ctx.entities
+				)
+			);
+			const created = await db.createRecurrenceTemplate(op.template);
+			return { kind: 'recurrence.create', created };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

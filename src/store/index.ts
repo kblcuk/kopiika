@@ -282,7 +282,13 @@ async function backfillRecurrences(
 	}
 
 	if (newTransactions.length > 0) {
-		const stamped = await db.createTransactionBatch(newTransactions);
+		const result = await applyOperation(
+			{ kind: 'transaction.batch_create', transactions: newTransactions },
+			'local',
+			{ entities, transactions: existingTransactions, recurrenceTemplates: templates }
+		);
+		if (result.kind !== 'transaction.batch_create') return;
+		const stamped = result.created;
 		set((state) => ({
 			transactions: [...stamped, ...state.transactions],
 		}));
@@ -833,9 +839,6 @@ export const useStore = create<AppState>((set, get) => {
 
 		// Recurrence actions
 		addRecurringTransaction: async (transaction, recurrence) => {
-			const state = get();
-			ensureValid(validateTransaction(transaction, state.entities));
-
 			const template = buildRecurringTemplate({
 				from_entity_id: transaction.from_entity_id,
 				to_entity_id: transaction.to_entity_id,
@@ -847,7 +850,13 @@ export const useStore = create<AppState>((set, get) => {
 				endDate: recurrence.endDate,
 				endCount: recurrence.endCount,
 			});
-			const stampedTemplate = await db.createRecurrenceTemplate(template);
+			const result = await applyOperation(
+				{ kind: 'recurrence.create', template },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'recurrence.create') return;
+			const stampedTemplate = result.created;
 
 			set((state) => ({
 				recurrenceTemplates: [...state.recurrenceTemplates, stampedTemplate],
@@ -864,7 +873,8 @@ export const useStore = create<AppState>((set, get) => {
 				set
 			);
 
-			// Request permission on first recurring transaction (contextual ask)
+			// Request permission on first recurring transaction (contextual ask) —
+			// side effect, local only by construction.
 			const remindersEnabled = await getRemindersEnabled();
 			const hasAsked = await getHasRequestedPermission();
 			if (remindersEnabled && !hasAsked) {

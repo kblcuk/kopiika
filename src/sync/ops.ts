@@ -1,4 +1,5 @@
 import type { Entity, Transaction, Plan } from '@/src/types';
+import type { RecurrenceTemplate } from '@/src/types/recurrence';
 
 /**
  * Origin of an operation. Reserved for future use (KII-99): `inbound` ops will
@@ -45,7 +46,8 @@ export type Op =
 			rows: Transaction[];
 			seriesExclusion?: { templateId: string; timestamp: number };
 	  }
-	| { kind: 'recurrence.exclude'; seriesId: string; timestamp: number };
+	| { kind: 'recurrence.exclude'; seriesId: string; timestamp: number }
+	| { kind: 'recurrence.create'; template: RecurrenceTemplate };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -60,4 +62,5 @@ export type OpResult =
 	| { kind: 'plan.delete' }
 	| { kind: 'reservation.set'; created: Transaction | null }
 	| { kind: 'transaction.split'; created: Transaction[] }
-	| { kind: 'recurrence.exclude' };
+	| { kind: 'recurrence.exclude' }
+	| { kind: 'recurrence.create'; created: RecurrenceTemplate };
