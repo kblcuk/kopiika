@@ -5801,4 +5801,69 @@ describe('Store Data Integrity', () => {
 		const groceries = result.find((e) => e.id === 'catU')!;
 		expect(groceries.upcoming).toBeCloseTo(2500, 0);
 	});
+
+	test('addEntity persists the entity and mirrors it into state', async () => {
+		await useStore.getState().addEntity({
+			id: 'char-add-1',
+			type: 'account',
+			name: 'Char Add',
+			currency: 'EUR',
+			row: 0,
+			position: 0,
+		});
+
+		const inState = useStore.getState().entities.find((e) => e.id === 'char-add-1');
+		expect(inState?.name).toBe('Char Add');
+		expect(inState?.currency).toBe('EUR');
+
+		const inDb = await db.getEntityById('char-add-1');
+		expect(inDb?.name).toBe('Char Add');
+	});
+
+	test('updateEntity persists changes and mirrors the stamped row into state', async () => {
+		await db.createEntity({
+			id: 'char-upd-1',
+			type: 'category',
+			name: 'Before',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		});
+		await useStore.getState().initialize();
+
+		const current = useStore.getState().entities.find((e) => e.id === 'char-upd-1')!;
+		await useStore.getState().updateEntity({ ...current, name: 'After', color: '#ff0000' });
+
+		const inState = useStore.getState().entities.find((e) => e.id === 'char-upd-1');
+		expect(inState?.name).toBe('After');
+		expect(inState?.color).toBe('#ff0000');
+
+		const inDb = await db.getEntityById('char-upd-1');
+		expect(inDb?.name).toBe('After');
+	});
+
+	test('deletePlan removes the plan from state and DB', async () => {
+		await db.createEntity({
+			id: 'char-plan-ent',
+			type: 'category',
+			name: 'Plan Holder',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		});
+		await useStore.getState().initialize();
+		await useStore.getState().setPlan({
+			id: 'char-plan-1',
+			entity_id: 'char-plan-ent',
+			period: 'all-time',
+			period_start: '2026-01',
+			planned_amount_minor: 5000,
+		});
+
+		await useStore.getState().deletePlan('char-plan-1');
+
+		expect(useStore.getState().plans.find((p) => p.id === 'char-plan-1')).toBeUndefined();
+		const allPlans = await db.getAllPlans();
+		expect(allPlans.find((p) => p.id === 'char-plan-1')).toBeUndefined();
+	});
 });
