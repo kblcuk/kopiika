@@ -317,6 +317,7 @@ export const useStore = create<AppState>((set, get) => {
 	const buildApplyContext = () => ({
 		entities: get().entities,
 		transactions: get().transactions,
+		recurrenceTemplates: get().recurrenceTemplates,
 	});
 
 	return {

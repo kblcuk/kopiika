@@ -52,7 +52,7 @@ describe('applyOperation — transaction.create', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.create', transaction: makeTx() },
 			'local',
-			{ entities, transactions: [] }
+			{ entities, transactions: [], recurrenceTemplates: [] }
 		);
 
 		expect(result.kind).toBe('transaction.create');
@@ -70,7 +70,7 @@ describe('applyOperation — transaction.create', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.create', transaction: makeTx({ is_confirmed: undefined }) },
 			'local',
-			{ entities, transactions: [] }
+			{ entities, transactions: [], recurrenceTemplates: [] }
 		);
 
 		if (result.kind !== 'transaction.create') throw new Error('wrong kind');
@@ -84,7 +84,7 @@ describe('applyOperation — transaction.create', () => {
 			applyOperation(
 				{ kind: 'transaction.create', transaction: makeTx({ to_entity_id: 'acc-1' }) },
 				'local',
-				{ entities, transactions: [] }
+				{ entities, transactions: [], recurrenceTemplates: [] }
 			)
 		).rejects.toThrow(TransactionValidationError);
 	});
@@ -107,7 +107,7 @@ describe('applyOperation — transaction.batch_create', () => {
 				],
 			},
 			'local',
-			{ entities, transactions: [] }
+			{ entities, transactions: [], recurrenceTemplates: [] }
 		);
 
 		if (result.kind !== 'transaction.batch_create') throw new Error('wrong kind');
@@ -130,7 +130,7 @@ describe('applyOperation — transaction.batch_create', () => {
 					],
 				},
 				'local',
-				{ entities, transactions: [] }
+				{ entities, transactions: [], recurrenceTemplates: [] }
 			)
 		).rejects.toThrow(TransactionValidationError);
 
@@ -151,7 +151,7 @@ describe('applyOperation — transaction.update', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.update', id: created.id, updates: { amount_minor: 5000 } },
 			'local',
-			{ entities, transactions: [created] }
+			{ entities, transactions: [created], recurrenceTemplates: [] }
 		);
 
 		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
@@ -168,7 +168,7 @@ describe('applyOperation — transaction.update', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.update', id: created.id, updates: { note: 'lunch' } },
 			'local',
-			{ entities, transactions: [created] }
+			{ entities, transactions: [created], recurrenceTemplates: [] }
 		);
 
 		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
@@ -182,7 +182,7 @@ describe('applyOperation — transaction.update', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.update', id: 'missing', updates: { amount_minor: 5000 } },
 			'local',
-			{ entities, transactions: [] }
+			{ entities, transactions: [], recurrenceTemplates: [] }
 		);
 
 		if (result.kind !== 'transaction.update') throw new Error('wrong kind');
@@ -203,7 +203,7 @@ describe('applyOperation — transaction.delete', () => {
 		const result = await applyOperation(
 			{ kind: 'transaction.delete', id: created.id },
 			'local',
-			{ entities, transactions: [created] }
+			{ entities, transactions: [created], recurrenceTemplates: [] }
 		);
 
 		expect(result.kind).toBe('transaction.delete');
@@ -239,7 +239,7 @@ describe('applyOperation — transaction.delete', () => {
 				seriesExclusion: { templateId: template.id, timestamp: exclusionTs },
 			},
 			'local',
-			{ entities, transactions: [created] }
+			{ entities, transactions: [created], recurrenceTemplates: [] }
 		);
 
 		expect(result.kind).toBe('transaction.delete');

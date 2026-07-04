@@ -1,5 +1,6 @@
 import * as db from '@/src/db';
 import type { Entity, Transaction } from '@/src/types';
+import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
 	ensureValid,
 	validateTransaction,
@@ -16,6 +17,7 @@ import type { Op, OpResult, OpSource } from './ops';
 export interface ApplyContext {
 	entities: Entity[];
 	transactions: Transaction[];
+	recurrenceTemplates: RecurrenceTemplate[];
 }
 
 /**
