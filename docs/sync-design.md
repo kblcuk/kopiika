@@ -402,6 +402,10 @@ not yet started.
 
 ### Stage 2 — Migrate mutations through `applyOperation`
 
+**Status (2026-07-04, [KII-134](https://linear.app/kopiika/issue/KII-134)):** done — all store
+mutations now funnel through applyOperation; per-device actions (reorder, default account)
+deliberately excluded per field-locality.
+
 Touch each store action one at a time. UI keeps calling `store.addTransaction()`, but the store
 action becomes:
 
