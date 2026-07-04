@@ -1149,15 +1149,25 @@ export const useStore = create<AppState>((set, get) => {
 
 		// Market value snapshot actions
 		addMarketValueSnapshot: async (snapshot) => {
-			const stamped = await db.createMarketValueSnapshot(snapshot);
+			const result = await applyOperation(
+				{ kind: 'market_value.create', snapshot },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'market_value.create') return;
 			set((state) => ({
-				marketValueSnapshots: [stamped, ...state.marketValueSnapshots],
+				marketValueSnapshots: [result.created, ...state.marketValueSnapshots],
 			}));
 		},
 
 		updateMarketValueSnapshot: async (id, updates) => {
-			const stamped = await db.updateMarketValueSnapshot(id, updates);
-			if (!stamped) return;
+			const result = await applyOperation(
+				{ kind: 'market_value.update', id, updates },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'market_value.update' || !result.updated) return;
+			const stamped = result.updated;
 			set((state) => ({
 				marketValueSnapshots: state.marketValueSnapshots.map((s) =>
 					s.id === stamped.id ? stamped : s
@@ -1166,14 +1176,24 @@ export const useStore = create<AppState>((set, get) => {
 		},
 
 		deleteMarketValueSnapshot: async (id) => {
-			await db.deleteMarketValueSnapshot(id);
+			const result = await applyOperation(
+				{ kind: 'market_value.delete', id },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'market_value.delete') return;
 			set((state) => ({
 				marketValueSnapshots: state.marketValueSnapshots.filter((s) => s.id !== id),
 			}));
 		},
 
 		deleteAllMarketValueSnapshots: async (entityId) => {
-			await db.deleteAllMarketValueSnapshots(entityId);
+			const result = await applyOperation(
+				{ kind: 'market_value.delete_all', entityId },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'market_value.delete_all') return;
 			set((state) => ({
 				marketValueSnapshots: state.marketValueSnapshots.filter(
 					(s) => s.entity_id !== entityId

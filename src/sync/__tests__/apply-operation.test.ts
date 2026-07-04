@@ -929,3 +929,78 @@ describe('applyOperation — recurrence.deactivate', () => {
 		expect(all.find((t) => t.id === 'deact-future')).toBeUndefined();
 	});
 });
+
+describe('applyOperation — market_value.*', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	const snapshot = {
+		id: 'mv-op-1',
+		entity_id: 'acc-1',
+		amount_minor: 250000,
+		date: 1700000000000,
+		currency: 'USD',
+	};
+
+	async function seedInvestment(): Promise<Entity[]> {
+		const investment: Entity = { ...account, is_investment: true };
+		await db.createEntity(investment);
+		return [investment];
+	}
+
+	test('market_value.create persists and returns the stamped snapshot', async () => {
+		const entities = await seedInvestment();
+
+		const result = await applyOperation({ kind: 'market_value.create', snapshot }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		if (result.kind !== 'market_value.create') throw new Error('wrong kind');
+		expect(result.created.id).toBe('mv-op-1');
+		expect(await db.getMarketValueSnapshots('acc-1')).toHaveLength(1);
+	});
+
+	test('market_value.update patches the row; unknown id returns null', async () => {
+		const entities = await seedInvestment();
+		await db.createMarketValueSnapshot(snapshot);
+
+		const result = await applyOperation(
+			{ kind: 'market_value.update', id: 'mv-op-1', updates: { amount_minor: 300000 } },
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+		if (result.kind !== 'market_value.update') throw new Error('wrong kind');
+		expect(result.updated?.amount_minor).toBe(300000);
+
+		const missing = await applyOperation(
+			{ kind: 'market_value.update', id: 'ghost', updates: { amount_minor: 1 } },
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+		if (missing.kind !== 'market_value.update') throw new Error('wrong kind');
+		expect(missing.updated).toBeNull();
+	});
+
+	test('market_value.delete and delete_all remove rows', async () => {
+		const entities = await seedInvestment();
+		await db.createMarketValueSnapshot(snapshot);
+		await db.createMarketValueSnapshot({ ...snapshot, id: 'mv-op-2', date: 1700100000000 });
+
+		await applyOperation({ kind: 'market_value.delete', id: 'mv-op-1' }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+		expect((await db.getMarketValueSnapshots('acc-1')).map((s) => s.id)).toEqual(['mv-op-2']);
+
+		await applyOperation({ kind: 'market_value.delete_all', entityId: 'acc-1' }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+		expect(await db.getMarketValueSnapshots('acc-1')).toHaveLength(0);
+	});
+});

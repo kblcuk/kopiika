@@ -250,6 +250,22 @@ export async function applyOperation(
 			const template = await db.softDeleteRecurrenceTemplate(op.seriesId);
 			return { kind: 'recurrence.deactivate', template };
 		}
+		case 'market_value.create': {
+			const created = await db.createMarketValueSnapshot(op.snapshot);
+			return { kind: 'market_value.create', created };
+		}
+		case 'market_value.update': {
+			const updated = await db.updateMarketValueSnapshot(op.id, op.updates);
+			return { kind: 'market_value.update', updated };
+		}
+		case 'market_value.delete': {
+			await db.deleteMarketValueSnapshot(op.id);
+			return { kind: 'market_value.delete' };
+		}
+		case 'market_value.delete_all': {
+			await db.deleteAllMarketValueSnapshots(op.entityId);
+			return { kind: 'market_value.delete_all' };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);

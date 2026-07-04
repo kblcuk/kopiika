@@ -1,4 +1,4 @@
-import type { Entity, Transaction, Plan } from '@/src/types';
+import type { Entity, Transaction, Plan, MarketValueSnapshot } from '@/src/types';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
 
 /**
@@ -54,7 +54,15 @@ export type Op =
 			updates: Omit<Partial<Transaction>, 'id'>;
 	  }
 	| { kind: 'recurrence.delete_future'; seriesId: string; fromTimestamp: number }
-	| { kind: 'recurrence.deactivate'; seriesId: string; fromTimestamp: number };
+	| { kind: 'recurrence.deactivate'; seriesId: string; fromTimestamp: number }
+	| { kind: 'market_value.create'; snapshot: MarketValueSnapshot }
+	| {
+			kind: 'market_value.update';
+			id: string;
+			updates: { amount_minor?: number; date?: number };
+	  }
+	| { kind: 'market_value.delete'; id: string }
+	| { kind: 'market_value.delete_all'; entityId: string };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -77,4 +85,8 @@ export type OpResult =
 			transactions: Transaction[];
 	  }
 	| { kind: 'recurrence.delete_future'; template: RecurrenceTemplate | null }
-	| { kind: 'recurrence.deactivate'; template: RecurrenceTemplate | null };
+	| { kind: 'recurrence.deactivate'; template: RecurrenceTemplate | null }
+	| { kind: 'market_value.create'; created: MarketValueSnapshot }
+	| { kind: 'market_value.update'; updated: MarketValueSnapshot | null }
+	| { kind: 'market_value.delete' }
+	| { kind: 'market_value.delete_all' };
