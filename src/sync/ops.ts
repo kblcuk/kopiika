@@ -52,7 +52,8 @@ export type Op =
 			kind: 'recurrence.update_future';
 			anchorId: string;
 			updates: Omit<Partial<Transaction>, 'id'>;
-	  };
+	  }
+	| { kind: 'recurrence.delete_future'; seriesId: string; fromTimestamp: number };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -73,4 +74,5 @@ export type OpResult =
 			kind: 'recurrence.update_future';
 			template: RecurrenceTemplate | null;
 			transactions: Transaction[];
-	  };
+	  }
+	| { kind: 'recurrence.delete_future'; template: RecurrenceTemplate | null };

@@ -823,3 +823,69 @@ describe('applyOperation — recurrence.update_future', () => {
 		expect(result.transactions).toHaveLength(0);
 	});
 });
+
+describe('applyOperation — recurrence.delete_future', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	async function seedSeries() {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 500,
+			currency: 'USD',
+			timestamp: 1697000000000,
+			rule: { type: 'monthly' },
+		});
+		await db.createRecurrenceTemplate(template);
+		const past = await db.createTransaction(
+			makeTx({ id: 'del-past', series_id: template.id, timestamp: 1697000000000 })
+		);
+		const anchor = await db.createTransaction(
+			makeTx({ id: 'del-anchor', series_id: template.id, timestamp: 1700000000000 })
+		);
+		return { entities, template, past, anchor };
+	}
+
+	test('clamps end_date to the last remaining occurrence when some remain', async () => {
+		const { entities, past, anchor } = await seedSeries();
+
+		const result = await applyOperation(
+			{
+				kind: 'recurrence.delete_future',
+				seriesId: past.series_id!,
+				fromTimestamp: anchor.timestamp,
+			},
+			'local',
+			{ entities, transactions: [past, anchor], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'recurrence.delete_future') throw new Error('wrong kind');
+		expect(result.template?.end_date).toBe(past.timestamp);
+		expect(result.template?.is_deleted).not.toBe(true);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'del-anchor')).toBeUndefined();
+		expect(all.find((t) => t.id === 'del-past')).toBeDefined();
+	});
+
+	test('soft-deletes the template when nothing remains', async () => {
+		const { entities, past, anchor } = await seedSeries();
+
+		const result = await applyOperation(
+			{
+				kind: 'recurrence.delete_future',
+				seriesId: past.series_id!,
+				fromTimestamp: past.timestamp,
+			},
+			'local',
+			{ entities, transactions: [past, anchor], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'recurrence.delete_future') throw new Error('wrong kind');
+		expect(result.template?.is_deleted).toBe(true);
+		expect(await db.getAllTransactions()).toHaveLength(0);
+	});
+});

@@ -939,6 +939,7 @@ export const useStore = create<AppState>((set, get) => {
 			if (!transaction) return;
 
 			if (scope === 'single' || !transaction.series_id) {
+				// Side effect — local only by construction.
 				if (transaction.notification_id) {
 					try {
 						await cancelNotification(transaction.notification_id);
@@ -946,38 +947,40 @@ export const useStore = create<AppState>((set, get) => {
 						console.warn('Failed to cancel notification', e);
 					}
 				}
-				if (transaction.series_id) {
-					// KII-123: delete + exclusion-insert in a single SQLite tx so a
-					// crash between them can't strand the row (deleted) and the
-					// exclusion (missing) — which would let backfillRecurrences
-					// silently resurrect the occurrence on the next launch.
-					const seriesId = transaction.series_id;
-					const exclusionTs = transaction.timestamp;
-					await db.deleteTransaction(id, {
-						seriesExclusion: { templateId: seriesId, timestamp: exclusionTs },
-					});
-					set((state) => ({
-						transactions: state.transactions.filter((t) => t.id !== id),
-						recurrenceTemplates: state.recurrenceTemplates.map((t) => {
-							if (t.id !== seriesId) return t;
-							const existing = t.exclusions ?? [];
-							if (existing.includes(exclusionTs)) return t;
-							return { ...t, exclusions: [...existing, exclusionTs] };
-						}),
-					}));
-				} else {
-					await db.deleteTransaction(id);
-					set((state) => ({
-						transactions: state.transactions.filter((t) => t.id !== id),
-					}));
-				}
+				// KII-123: for a series row, delete + exclusion-insert happen in a
+				// single SQLite tx inside the op, so a crash between them can't strand
+				// the row (deleted) and the exclusion (missing) — which would let
+				// backfillRecurrences silently resurrect the occurrence on next launch.
+				const seriesExclusion = transaction.series_id
+					? { templateId: transaction.series_id, timestamp: transaction.timestamp }
+					: undefined;
+				await applyOperation(
+					{ kind: 'transaction.delete', id, seriesExclusion },
+					'local',
+					buildApplyContext()
+				);
+				set((state) => ({
+					transactions: state.transactions.filter((t) => t.id !== id),
+					recurrenceTemplates: seriesExclusion
+						? state.recurrenceTemplates.map((t) => {
+								if (t.id !== seriesExclusion.templateId) return t;
+								const existing = t.exclusions ?? [];
+								if (existing.includes(seriesExclusion.timestamp)) return t;
+								return {
+									...t,
+									exclusions: [...existing, seriesExclusion.timestamp],
+								};
+							})
+						: state.recurrenceTemplates,
+				}));
 				return;
 			}
 
 			// scope === 'future'
 			const seriesId = transaction.series_id;
 
-			// Cancel notifications for all future transactions in this series
+			// Cancel notifications for all future transactions in this series —
+			// side effect, local only by construction.
 			const futureTxs = state.transactions.filter(
 				(t) =>
 					t.series_id === seriesId &&
@@ -992,40 +995,28 @@ export const useStore = create<AppState>((set, get) => {
 				}
 			}
 
-			await db.deleteTransactionsBySeriesFuture(seriesId, transaction.timestamp);
-
-			const remaining = state.transactions.filter(
-				(t) => t.series_id === seriesId && t.timestamp < transaction.timestamp
+			const result = await applyOperation(
+				{
+					kind: 'recurrence.delete_future',
+					seriesId,
+					fromTimestamp: transaction.timestamp,
+				},
+				'local',
+				buildApplyContext()
 			);
+			if (result.kind !== 'recurrence.delete_future') return;
+			const stampedTemplate = result.template;
 
-			if (remaining.length === 0) {
-				const stampedTemplate = await db.softDeleteRecurrenceTemplate(seriesId);
-				set((state) => ({
-					transactions: state.transactions.filter(
-						(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
-					),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-						stampedTemplate && t.id === stampedTemplate.id
-							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-							: t
-					),
-				}));
-			} else {
-				const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
-				const stampedTemplate = await db.updateRecurrenceTemplate(seriesId, {
-					end_date: lastRemaining,
-				});
-				set((state) => ({
-					transactions: state.transactions.filter(
-						(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
-					),
-					recurrenceTemplates: state.recurrenceTemplates.map((t) =>
-						stampedTemplate && t.id === stampedTemplate.id
-							? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
-							: t
-					),
-				}));
-			}
+			set((state) => ({
+				transactions: state.transactions.filter(
+					(t) => !(t.series_id === seriesId && t.timestamp >= transaction.timestamp)
+				),
+				recurrenceTemplates: state.recurrenceTemplates.map((t) =>
+					stampedTemplate && t.id === stampedTemplate.id
+						? { ...stampedTemplate, exclusions: t.exclusions ?? [] }
+						: t
+				),
+			}));
 		},
 
 		deactivateTemplatesForEntity: async (entityId) => {
