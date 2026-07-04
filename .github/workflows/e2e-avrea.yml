@@ -55,6 +55,7 @@ jobs:
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
               uses: ruby/setup-ruby@v1
               with:
+                  ruby-version: '3.4'
                   bundler-cache: true
 
             - name: Restore Bun package cache
