@@ -47,7 +47,12 @@ export type Op =
 			seriesExclusion?: { templateId: string; timestamp: number };
 	  }
 	| { kind: 'recurrence.exclude'; seriesId: string; timestamp: number }
-	| { kind: 'recurrence.create'; template: RecurrenceTemplate };
+	| { kind: 'recurrence.create'; template: RecurrenceTemplate }
+	| {
+			kind: 'recurrence.update_future';
+			anchorId: string;
+			updates: Omit<Partial<Transaction>, 'id'>;
+	  };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -63,4 +68,9 @@ export type OpResult =
 	| { kind: 'reservation.set'; created: Transaction | null }
 	| { kind: 'transaction.split'; created: Transaction[] }
 	| { kind: 'recurrence.exclude' }
-	| { kind: 'recurrence.create'; created: RecurrenceTemplate };
+	| { kind: 'recurrence.create'; created: RecurrenceTemplate }
+	| {
+			kind: 'recurrence.update_future';
+			template: RecurrenceTemplate | null;
+			transactions: Transaction[];
+	  };

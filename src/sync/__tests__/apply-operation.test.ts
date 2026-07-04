@@ -730,3 +730,96 @@ describe('applyOperation — recurrence.create', () => {
 		).rejects.toThrow(TransactionValidationError);
 	});
 });
+
+describe('applyOperation — recurrence.update_future', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	async function seedSeries() {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 500,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+		await db.createRecurrenceTemplate(template);
+		const past = await db.createTransaction(
+			makeTx({ id: 'occ-past', series_id: template.id, timestamp: 1697000000000 })
+		);
+		const anchor = await db.createTransaction(
+			makeTx({ id: 'occ-anchor', series_id: template.id, timestamp: 1700000000000 })
+		);
+		const future = await db.createTransaction(
+			makeTx({ id: 'occ-future', series_id: template.id, timestamp: 1702600000000 })
+		);
+		return { entities, template, past, anchor, future };
+	}
+
+	test('updates the template and rows from the anchor onward; past rows untouched', async () => {
+		const { entities, template, past, anchor, future } = await seedSeries();
+		const fullTemplate = { ...template, exclusions: [] };
+
+		const result = await applyOperation(
+			{
+				kind: 'recurrence.update_future',
+				anchorId: 'occ-anchor',
+				updates: { amount_minor: 999 },
+			},
+			'local',
+			{
+				entities,
+				transactions: [past, anchor, future],
+				recurrenceTemplates: [fullTemplate],
+			}
+		);
+
+		if (result.kind !== 'recurrence.update_future') throw new Error('wrong kind');
+		expect(result.template?.amount_minor).toBe(999);
+		expect(result.transactions.map((t) => t.id).sort()).toEqual(['occ-anchor', 'occ-future']);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'occ-past')?.amount_minor).toBe(1234);
+		expect(all.find((t) => t.id === 'occ-anchor')?.amount_minor).toBe(999);
+		expect(all.find((t) => t.id === 'occ-future')?.amount_minor).toBe(999);
+	});
+
+	test('orphaned series (template gone) still updates the rows, template null', async () => {
+		const { entities, past, anchor, future } = await seedSeries();
+
+		const result = await applyOperation(
+			{
+				kind: 'recurrence.update_future',
+				anchorId: 'occ-anchor',
+				updates: { amount_minor: 777 },
+			},
+			'local',
+			{
+				entities,
+				transactions: [past, anchor, future],
+				recurrenceTemplates: [], // template not in ctx → treated as orphan
+			}
+		);
+
+		if (result.kind !== 'recurrence.update_future') throw new Error('wrong kind');
+		expect(result.template).toBeNull();
+		expect(result.transactions.map((t) => t.id).sort()).toEqual(['occ-anchor', 'occ-future']);
+	});
+
+	test('unknown anchor is a no-op result', async () => {
+		const entities = await seedEntities();
+
+		const result = await applyOperation(
+			{ kind: 'recurrence.update_future', anchorId: 'missing', updates: { note: 'x' } },
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'recurrence.update_future') throw new Error('wrong kind');
+		expect(result.template).toBeNull();
+		expect(result.transactions).toHaveLength(0);
+	});
+});

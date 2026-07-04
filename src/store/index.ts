@@ -21,11 +21,7 @@ import {
 	createBalanceAdjustmentEntity,
 } from '@/src/constants/system-entities';
 import { getTotalReservedForAccount } from '@/src/utils/savings-transactions';
-import {
-	ensureValid,
-	validateTransaction,
-	validateUpdate,
-} from '@/src/utils/transaction-validation';
+import { validateTransaction } from '@/src/utils/transaction-validation';
 import { buildRecurringTemplate, buildTransaction } from '@/src/utils/transaction-builder';
 import { applyOperation } from '@/src/sync/apply-operation';
 import {
@@ -915,43 +911,16 @@ export const useStore = create<AppState>((set, get) => {
 				return;
 			}
 
-			// scope === 'future': update template + all future transactions
-			ensureValid(validateUpdate(transaction, updates, state.entities));
-
-			const seriesId = transaction.series_id;
-			const template = state.recurrenceTemplates.find((t) => t.id === seriesId);
-
-			// `series_id` has no FK, so an occurrence can outlive its template (e.g. an
-			// import dropped it). Update the template only when it still exists, but
-			// always apply the edit to this occurrence and the future ones — with no
-			// series left there is nothing else to update, so skipping the rows would
-			// silently drop the user's edit rather than rejecting it. Mirrors the
-			// delete/split orphan tolerance.
-			let stampedTemplate: RecurrenceTemplate | null = null;
-			if (template) {
-				const templateUpdates: Partial<RecurrenceTemplate> = {};
-				if (updates.amount_minor !== undefined)
-					templateUpdates.amount_minor = updates.amount_minor;
-				if (updates.from_entity_id !== undefined)
-					templateUpdates.from_entity_id = updates.from_entity_id;
-				if (updates.to_entity_id !== undefined)
-					templateUpdates.to_entity_id = updates.to_entity_id;
-				if (updates.note !== undefined) templateUpdates.note = updates.note;
-
-				stampedTemplate = await db.updateRecurrenceTemplate(seriesId, templateUpdates);
-			} else {
-				console.warn(
-					`updateTransactionWithScope: recurrence template ${seriesId} not found; updating future occurrences without touching a template`
-				);
-			}
-
-			const stampedTxns = await db.updateTransactionsBySeriesFuture(
-				seriesId,
-				transaction.timestamp,
-				updates
+			// scope === 'future': one atomic-intent op updates template + future rows.
+			const result = await applyOperation(
+				{ kind: 'recurrence.update_future', anchorId: id, updates },
+				'local',
+				buildApplyContext()
 			);
-			const stampedTxnMap = new Map(stampedTxns.map((t) => [t.id, t]));
-			const updatedTemplate = stampedTemplate;
+			if (result.kind !== 'recurrence.update_future') return;
+
+			const stampedTxnMap = new Map(result.transactions.map((t) => [t.id, t]));
+			const updatedTemplate = result.template;
 			set((state) => ({
 				recurrenceTemplates: updatedTemplate
 					? state.recurrenceTemplates.map((t) =>

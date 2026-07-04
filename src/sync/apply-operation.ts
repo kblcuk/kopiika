@@ -187,6 +187,48 @@ export async function applyOperation(
 			const created = await db.createRecurrenceTemplate(op.template);
 			return { kind: 'recurrence.create', created };
 		}
+		case 'recurrence.update_future': {
+			const anchor = ctx.transactions.find((t) => t.id === op.anchorId);
+			if (!anchor?.series_id) {
+				console.warn(
+					`applyOperation: cannot scope-update unknown or non-series transaction: ${op.anchorId}`
+				);
+				return { kind: 'recurrence.update_future', template: null, transactions: [] };
+			}
+			ensureValid(validateUpdate(anchor, op.updates, ctx.entities));
+
+			const seriesId = anchor.series_id;
+
+			// `series_id` has no FK, so an occurrence can outlive its template (e.g. an
+			// import dropped it). Update the template only when it still exists, but
+			// always apply the edit to this occurrence and the future ones — with no
+			// series left there is nothing else to update, so skipping the rows would
+			// silently drop the user's edit rather than rejecting it. Mirrors the
+			// delete/split orphan tolerance.
+			let template: RecurrenceTemplate | null = null;
+			if (ctx.recurrenceTemplates.some((t) => t.id === seriesId)) {
+				const templateUpdates: Partial<RecurrenceTemplate> = {};
+				if (op.updates.amount_minor !== undefined)
+					templateUpdates.amount_minor = op.updates.amount_minor;
+				if (op.updates.from_entity_id !== undefined)
+					templateUpdates.from_entity_id = op.updates.from_entity_id;
+				if (op.updates.to_entity_id !== undefined)
+					templateUpdates.to_entity_id = op.updates.to_entity_id;
+				if (op.updates.note !== undefined) templateUpdates.note = op.updates.note;
+				template = await db.updateRecurrenceTemplate(seriesId, templateUpdates);
+			} else {
+				console.warn(
+					`updateTransactionWithScope: recurrence template ${seriesId} not found; updating future occurrences without touching a template`
+				);
+			}
+
+			const transactions = await db.updateTransactionsBySeriesFuture(
+				seriesId,
+				anchor.timestamp,
+				op.updates
+			);
+			return { kind: 'recurrence.update_future', template, transactions };
+		}
 		default: {
 			const _exhaustive: never = op;
 			throw new Error(`applyOperation: unsupported op kind "${JSON.stringify(_exhaustive)}"`);
