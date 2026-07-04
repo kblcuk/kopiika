@@ -165,7 +165,7 @@ jobs:
 
             - name: Build Android Detox app
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
-              run: bunx detox build --configuration android.emu.debug --config-path e2e/detox.android.ci.js
+              run: bunx detox build --configuration android.emu.debug --config-path ./e2e/detox.android.ci.js
 
             - name: Run Android Detox suite
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
@@ -177,12 +177,12 @@ jobs:
                   profile: pixel_7
                   avd-name: ${{ env.DETOX_ANDROID_AVD }}
                   disable-animations: false
-                  emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+                  emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -accel off
                   script: |
                       if [ "${{ inputs['android-suite'] }}" = "full" ]; then
-                          bunx detox test --configuration android.emu.debug --config-path e2e/detox.android.ci.js
+                          bunx detox test --configuration android.emu.debug --config-path ./e2e/detox.android.ci.js
                       else
-                          bunx detox test --configuration android.emu.debug --config-path e2e/detox.android.ci.js e2e/tests/launch.test.ts
+                          bunx detox test --configuration android.emu.debug --config-path ./e2e/detox.android.ci.js e2e/tests/launch.test.ts
                       fi
 
             - name: Write success marker
