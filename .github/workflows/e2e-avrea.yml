@@ -1,0 +1,193 @@
+name: Avrea E2E
+
+on:
+    workflow_dispatch:
+        inputs:
+            platform:
+                description: Platform to run
+                type: choice
+                options: [all, ios, android]
+                default: all
+            android-suite:
+                description: Android suite to run while proving emulator stability
+                type: choice
+                options: [launch, full]
+                default: launch
+            force:
+                description: Run even if this commit already has a successful E2E marker
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
+
+env:
+    BUN_CONFIG_DNS_PREFER: ipv4
+    CI: '1'
+    EXPO_NO_TELEMETRY: '1'
+
+jobs:
+    ios:
+        name: iOS E2E
+        if: ${{ inputs.platform == 'all' || inputs.platform == 'ios' }}
+        runs-on: avrea-macos-26-8-vcpu
+        timeout-minutes: 90
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Restore success marker
+              id: success-marker
+              uses: actions/cache/restore@v4
+              with:
+                  path: .e2e-success/ios
+                  key: e2e-success-ios-${{ github.sha }}
+
+            - name: Skip already successful commit
+              if: ${{ steps.success-marker.outputs.cache-hit == 'true' && !inputs.force }}
+              run: echo "iOS E2E already passed for $GITHUB_SHA"
+
+            - name: Setup Bun
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: oven-sh/setup-bun@v2
+
+            - name: Setup Ruby
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: ruby/setup-ruby@v1
+              with:
+                  bundler-cache: true
+
+            - name: Restore Bun package cache
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: actions/cache@v4
+              with:
+                  path: ~/.bun/install/cache
+                  key: bun-cache-macos-${{ hashFiles('bun.lock') }}
+
+            - name: Install JS dependencies
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bun install --frozen-lockfile
+
+            - name: Inspect simulator image
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: |
+                  set -euxo pipefail
+                  xcodebuild -version
+                  xcrun simctl list devices available | grep -E 'iPhone (16e|17|17 Pro)' || true
+
+            - name: Generate iOS project
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bunx expo prebuild --clean --platform ios
+
+            - name: Build iOS Detox app
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bun run build:e2e:ios
+
+            - name: Run iOS Detox suite
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bun run test:e2e:ios
+
+            - name: Write success marker
+              if: ${{ success() && (steps.success-marker.outputs.cache-hit != 'true' || inputs.force) }}
+              run: |
+                  mkdir -p .e2e-success/ios
+                  printf '%s\n' "$GITHUB_SHA" > .e2e-success/ios/sha
+
+            - name: Save success marker
+              if: ${{ success() && steps.success-marker.outputs.cache-hit != 'true' }}
+              uses: actions/cache/save@v4
+              with:
+                  path: .e2e-success/ios
+                  key: e2e-success-ios-${{ github.sha }}
+
+    android:
+        name: Android E2E
+        if: ${{ inputs.platform == 'all' || inputs.platform == 'android' }}
+        runs-on: avrea-ubuntu-latest-8-vcpu
+        timeout-minutes: 90
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Restore success marker
+              id: success-marker
+              uses: actions/cache/restore@v4
+              with:
+                  path: .e2e-success/android-${{ inputs['android-suite'] }}
+                  key: e2e-success-android-${{ inputs['android-suite'] }}-${{ github.sha }}
+
+            - name: Skip already successful commit
+              if: ${{ steps.success-marker.outputs.cache-hit == 'true' && !inputs.force }}
+              run: echo "Android ${{ inputs['android-suite'] }} E2E already passed for $GITHUB_SHA"
+
+            - name: Enable KVM group permissions
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: |
+                  echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+                  sudo udevadm control --reload-rules
+                  sudo udevadm trigger --name-match=kvm
+
+            - name: Setup Java
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: '21'
+
+            - name: Setup Bun
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: oven-sh/setup-bun@v2
+
+            - name: Setup Gradle
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: gradle/actions/setup-gradle@v5
+
+            - name: Restore Bun package cache
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: actions/cache@v4
+              with:
+                  path: ~/.bun/install/cache
+                  key: bun-cache-linux-${{ hashFiles('bun.lock') }}
+
+            - name: Install JS dependencies
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bun install --frozen-lockfile
+
+            - name: Generate Android project
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bunx expo prebuild --clean --platform android
+
+            - name: Build Android Detox app
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: bun run build:e2e:android
+
+            - name: Run Android Detox suite
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              uses: reactivecircus/android-emulator-runner@v2
+              with:
+                  api-level: 35
+                  target: google_apis
+                  arch: x86_64
+                  profile: pixel_7
+                  avd-name: Pixel9
+                  disable-animations: false
+                  emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+                  script: |
+                      if [ "${{ inputs['android-suite'] }}" = "full" ]; then
+                          bun run test:e2e:android
+                      else
+                          bunx detox test --configuration android.emu.debug e2e/tests/launch.test.ts
+                      fi
+
+            - name: Write success marker
+              if: ${{ success() && (steps.success-marker.outputs.cache-hit != 'true' || inputs.force) }}
+              run: |
+                  mkdir -p .e2e-success/android-${{ inputs['android-suite'] }}
+                  printf '%s\n' "$GITHUB_SHA" > .e2e-success/android-${{ inputs['android-suite'] }}/sha
+
+            - name: Save success marker
+              if: ${{ success() && steps.success-marker.outputs.cache-hit != 'true' }}
+              uses: actions/cache/save@v4
+              with:
+                  path: .e2e-success/android-${{ inputs['android-suite'] }}
+                  key: e2e-success-android-${{ inputs['android-suite'] }}-${{ github.sha }}
