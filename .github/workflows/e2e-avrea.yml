@@ -123,9 +123,17 @@ jobs:
             - name: Enable KVM group permissions
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
               run: |
-                  echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-                  sudo udevadm control --reload-rules
-                  sudo udevadm trigger --name-match=kvm
+                  set -euxo pipefail
+                  uname -a
+                  if [ -e /dev/kvm ]; then
+                      ls -l /dev/kvm
+                      echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+                      sudo udevadm control --reload-rules || true
+                      sudo udevadm trigger --name-match=kvm || true
+                      ls -l /dev/kvm || true
+                  else
+                      echo "/dev/kvm is not present; continuing so android-emulator-runner can report emulator support."
+                  fi
 
             - name: Setup Java
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
