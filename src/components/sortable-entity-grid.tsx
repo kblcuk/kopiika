@@ -217,6 +217,19 @@ export function SortableEntityGrid({
 		});
 	}, [sectionIndex, onSectionBounds]);
 
+	// Fires whenever this section's frame changes — including when a *sibling*
+	// section resizes (e.g. entities cleared/added elsewhere) and translates this
+	// whole section up or down. A pure translation like that does NOT change the
+	// grid's layout relative to its own parent, so `gridRef`'s onLayout below
+	// never re-fires and the drop zones keep their stale (pre-shift) window
+	// positions — a drag issued right after such a relayout then misses its
+	// target (KII-97 / Account→Saving DnD flake). Re-measure the zones here so
+	// they track the section's settled absolute position.
+	const handleSectionLayout = useCallback(() => {
+		measureSectionBounds();
+		if (!dropZonesDisabled) registerGridDropZones();
+	}, [measureSectionBounds, dropZonesDisabled, registerGridDropZones]);
+
 	const scrollViewContentWidth = useRef(0);
 	const scrollViewVisibleWidth = useRef(0);
 
@@ -391,7 +404,7 @@ export function SortableEntityGrid({
 		: sortedEntities;
 
 	return (
-		<View ref={sectionViewRef} className="overflow-visible" onLayout={measureSectionBounds}>
+		<View ref={sectionViewRef} className="overflow-visible" onLayout={handleSectionLayout}>
 			{/* Inset divider with section title */}
 			<View className="flex-row items-center px-4">
 				<View className="h-px flex-1 bg-paper-300" />
