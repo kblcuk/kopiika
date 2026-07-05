@@ -639,6 +639,14 @@ export default function HistoryScreen() {
 					initialNumToRender={10}
 					maxToRenderPerBatch={6}
 					windowSize={5}
+					// Explicit false: RN defaults removeClippedSubviews to `true` on
+					// Android when the prop is omitted (false on iOS). baaf026 *removed*
+					// the prop intending to disable clipping (the suspected cause of
+					// dead RNGH taps on recycled rows), which took effect on iOS but
+					// silently left clipping on for Android. Setting it explicitly
+					// restores the intended behavior on both platforms and keeps
+					// scrolled-in rows mounted.
+					removeClippedSubviews={false}
 					onScrollToIndexFailed={handleScrollToIndexFailed}
 					className="flex-1"
 					style={isStale ? { opacity: 0.6 } : undefined}
