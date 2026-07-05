@@ -81,6 +81,14 @@ jobs:
               if: ${{ (steps.success-marker.outputs.cache-hit != 'true' || inputs.force) && steps.detox-framework-cache.outputs.cache-hit != 'true' }}
               run: bunx detox build-framework-cache
 
+            - name: Install applesimutils
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              run: |
+                  if ! command -v applesimutils >/dev/null 2>&1; then
+                      brew tap wix/brew
+                      brew install applesimutils
+                  fi
+
             - name: Inspect simulator image
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
               run: |
