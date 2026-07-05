@@ -65,9 +65,21 @@ jobs:
                   path: ~/.bun/install/cache
                   key: bun-cache-macos-${{ hashFiles('bun.lock') }}
 
+            - name: Restore Detox framework cache
+              if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
+              id: detox-framework-cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/Library/Detox
+                  key: detox-ios-framework-macos26-xcode26.2-${{ hashFiles('bun.lock') }}
+
             - name: Install JS dependencies
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
               run: bun install --frozen-lockfile
+
+            - name: Build Detox framework cache
+              if: ${{ (steps.success-marker.outputs.cache-hit != 'true' || inputs.force) && steps.detox-framework-cache.outputs.cache-hit != 'true' }}
+              run: bunx detox build-framework-cache
 
             - name: Inspect simulator image
               if: ${{ steps.success-marker.outputs.cache-hit != 'true' || inputs.force }}
