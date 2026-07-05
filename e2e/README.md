@@ -205,6 +205,26 @@ This app's home screen has continuous layout work from entity bubbles and amount
 
 **How to tell if sync is the problem:** if a test hangs and Detox logs "The app is busy with the following tasks", the app has continuous work preventing sync from settling. The fix is to keep sync off (already done at suite level) and use explicit `waitFor` timeouts.
 
+**Scoping sync back on for virtualized-list scrolls:** with sync off, `whileElement(...).scroll()` over a long `SectionList`/`FlatList` can outrun React Native's incremental row rendering — Detox scrolls into not-yet-rendered space, reads it as the end of the list, and stops at a false "stale-at-edge" before the target row mounts; likewise a `tap()` fired the instant a scroll returns can land before the scrolled-in row settles and be dropped. This is intermittent and **worse on faster hardware**. When a test must scroll to an off-screen row and tap it, re-enable sync for just that interaction (the _list_ settles between batches even though the home screen never does):
+
+```ts
+await device.enableSynchronization();
+try {
+	await waitFor(element(targetMatcher))
+		.toBeVisible()
+		.whileElement(by.id('the-list'))
+		.scroll(250, 'down');
+	await element(targetMatcher).tap();
+	await waitFor(element(by.id('modal-input')))
+		.toBeVisible()
+		.withTimeout(5000);
+} finally {
+	await device.disableSynchronization(); // always turn back off before touching the never-idle home screen
+}
+```
+
+See the `History edit after scroll` test in `tests/history.test.ts`. Also keep the seeded target only just past `initialNumToRender` so it's reachable in one short scroll.
+
 ## Waiting & Timeouts
 
 - Always use `waitFor(...).toBeVisible().withTimeout(N)` before interacting with any element that may animate in.

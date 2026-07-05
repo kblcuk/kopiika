@@ -89,6 +89,18 @@ export default function E2EFixtureScreen() {
 				}
 
 				for (const e of payload.entities ?? []) {
+					// Idempotent: skip if a same-name entity already exists. Tests
+					// clear transactions on retry but not entities (deleting presets
+					// would orphan the transactions that reference them), so a naive
+					// re-seed would stack duplicate categories across jest.retryTimes
+					// runs — see the ScrollTarget row in the history suite.
+					const alreadyExists = useStore
+						.getState()
+						.entities.some(
+							(existing) => existing.name === e.name && existing.type === e.type
+						);
+					if (alreadyExists) continue;
+
 					const row = e.row ?? 0;
 					const position = await getNextPosition(e.type, row);
 					await addEntity({
