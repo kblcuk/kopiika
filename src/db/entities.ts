@@ -3,6 +3,14 @@ import type { Entity, EntityType } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { entities, marketValueSnapshots, plans } from './drizzle-schema';
 
+/**
+ * Returns every entity row, INCLUDING soft-deleted ones (is_deleted=true).
+ * The store hydrates from this so tombstones stay in memory for the sync/
+ * op-log model; consumers filter is_deleted at render/selector time. Unlike
+ * `getEntitiesByType`, this does NOT filter tombstones — any lookup by name or
+ * id over the result must guard on `!is_deleted`, or a deleted row will shadow
+ * a live one (see app/e2e/fixture.tsx re-seed idempotency guard).
+ */
 export async function getAllEntities(): Promise<Entity[]> {
 	const db = await getDrizzleDb();
 	return await db.select().from(entities).orderBy(entities.type, entities.row, entities.position);
