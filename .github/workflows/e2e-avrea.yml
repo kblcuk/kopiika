@@ -86,7 +86,8 @@ jobs:
               run: |
                   if ! command -v applesimutils >/dev/null 2>&1; then
                       brew tap wix/brew
-                      brew install applesimutils
+                      brew trust --formula wix/brew/applesimutils
+                      brew install wix/brew/applesimutils
                   fi
 
             - name: Inspect simulator image
