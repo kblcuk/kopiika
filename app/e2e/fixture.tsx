@@ -94,10 +94,21 @@ export default function E2EFixtureScreen() {
 					// would orphan the transactions that reference them), so a naive
 					// re-seed would stack duplicate categories across jest.retryTimes
 					// runs — see the ScrollTarget row in the history suite.
+					//
+					// Ignore soft-deleted rows: `clearEntities` soft-deletes presets
+					// (is_deleted=true) but they stay in the store because
+					// getAllEntities() keeps deleted rows. Without the is_deleted
+					// guard a `clearEntities` + re-seed of a preset name (e.g. the
+					// Account→Saving DnD test seeding "Main Card"/"Vacation") would
+					// match the tombstone and skip the re-add, leaving the home grid
+					// empty.
 					const alreadyExists = useStore
 						.getState()
 						.entities.some(
-							(existing) => existing.name === e.name && existing.type === e.type
+							(existing) =>
+								existing.name === e.name &&
+								existing.type === e.type &&
+								!existing.is_deleted
 						);
 					if (alreadyExists) continue;
 
