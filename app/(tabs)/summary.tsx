@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { View, ScrollView, Pressable } from 'react-native';
+import { useState, useMemo, useDeferredValue } from 'react';
+import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -202,6 +202,14 @@ export default function SummaryScreen() {
 	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
 
+	// KII-124: defer the period the derivations read so a month switch never
+	// blocks the JS thread. The balance derivation and the ~50-row + pie render
+	// run at low priority against `deferredPeriod`, keeping the picker
+	// responsive; `isStale` dims the content while the deferred pass catches up.
+	// Mirrors history.tsx.
+	const deferredPeriod = useDeferredValue(selectedPeriod);
+	const isStale = deferredPeriod !== selectedPeriod;
+
 	const { entities, plans, transactions } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
@@ -223,19 +231,19 @@ export default function SummaryScreen() {
 					entities,
 					plans,
 					transactions,
-					selectedPeriod,
+					deferredPeriod,
 					'category'
 				),
 			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
-		[entities, plans, transactions, selectedPeriod]
+		[entities, plans, transactions, deferredPeriod]
 	);
 
 	const savings = useMemo(
 		() =>
 			[
-				...getEntitiesWithBalance(entities, plans, transactions, selectedPeriod, 'saving'),
+				...getEntitiesWithBalance(entities, plans, transactions, deferredPeriod, 'saving'),
 			].sort((a, b) => b.actual - a.actual || a.row - b.row || a.position - b.position),
-		[entities, plans, transactions, selectedPeriod]
+		[entities, plans, transactions, deferredPeriod]
 	);
 
 	const categoryChartSlices = useMemo(() => {
@@ -249,20 +257,19 @@ export default function SummaryScreen() {
 		}));
 	}, [categories]);
 
-	// Sparkline trend: 3 prior months + selected period (categories only)
-	// KII-132: calls `getEntitiesWithBalance` 4× per render. The function walks
-	// the entire transactions array each call — precompute a single
-	// period→entity-actual map (one pass through transactions) instead.
+	// Sparkline trend: 3 prior months + selected period (categories only).
+	// Since KII-124 each `getEntitiesWithBalance` call is a single pass over
+	// transactions, so these 4 calls are cheap; no combined-map optimization needed.
 	const trendActuals = useMemo(() => {
-		const priorPeriods = getPriorPeriods(selectedPeriod, 3);
-		const allPeriods = [...priorPeriods, selectedPeriod];
+		const priorPeriods = getPriorPeriods(deferredPeriod, 3);
+		const allPeriods = [...priorPeriods, deferredPeriod];
 		return allPeriods.map((period) => {
 			const cats = getEntitiesWithBalance(entities, plans, transactions, period, 'category');
 			const map = new Map<string, number>();
 			for (const e of cats) map.set(e.id, e.actual);
 			return map;
 		});
-	}, [entities, plans, transactions, selectedPeriod]);
+	}, [entities, plans, transactions, deferredPeriod]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']}>
@@ -275,30 +282,39 @@ export default function SummaryScreen() {
 			<PeriodPicker period={selectedPeriod} onChange={setSelectedPeriod} />
 
 			{/* Content */}
-			<ScrollView className="flex-1">
-				{categories.length === 0 && savings.length === 0 ? (
-					<View className="flex-1 items-center justify-center px-5 py-16">
-						<Text className="font-sans text-base text-ink-muted">
-							No data this period
-						</Text>
-					</View>
-				) : (
-					<>
-						<Section
-							title="Categories"
-							entities={categories}
-							trendActuals={trendActuals}
-							chartSlices={categoryChartSlices}
-							onEntityPress={handleEntityPress}
-						/>
-						<Section
-							title="Savings"
-							entities={savings}
-							onEntityPress={handleEntityPress}
-						/>
-					</>
+			<View className="flex-1">
+				<ScrollView className="flex-1" style={isStale ? { opacity: 0.6 } : undefined}>
+					{categories.length === 0 && savings.length === 0 ? (
+						<View className="flex-1 items-center justify-center px-5 py-16">
+							<Text className="font-sans text-base text-ink-muted">
+								No data this period
+							</Text>
+						</View>
+					) : (
+						<>
+							<Section
+								title="Categories"
+								entities={categories}
+								trendActuals={trendActuals}
+								chartSlices={categoryChartSlices}
+								onEntityPress={handleEntityPress}
+							/>
+							<Section
+								title="Savings"
+								entities={savings}
+								onEntityPress={handleEntityPress}
+							/>
+						</>
+					)}
+				</ScrollView>
+				{isStale && (
+					<ActivityIndicator
+						size="small"
+						color={colors.ink.muted}
+						className="absolute bottom-0 left-0 right-0 top-0 items-center justify-center"
+					/>
 				)}
-			</ScrollView>
+			</View>
 		</SafeAreaView>
 	);
 }
