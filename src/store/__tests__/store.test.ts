@@ -2755,6 +2755,59 @@ describe('Store Data Integrity', () => {
 			expect(accountEntities[0]!.actual).toBe(350000);
 		});
 
+		test('account->account transfer debits source and credits destination in one pass', () => {
+			// KII-124: locks the both-sides-same-type case before the single-pass
+			// balance rewrite — the source account must go -amt and the
+			// destination +amt from the *same* transaction row.
+			const source: Entity = {
+				id: 'account-src',
+				type: 'account',
+				name: 'Source',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const destination: Entity = {
+				id: 'account-dst',
+				type: 'account',
+				name: 'Destination',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			const transfer: Transaction = {
+				id: 'tx-transfer',
+				from_entity_id: 'account-src',
+				to_entity_id: 'account-dst',
+				amount_minor: 200000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			};
+
+			useStore.setState({
+				entities: [source, destination],
+				plans: [],
+				transactions: [transfer],
+				currentPeriod: '2026-01',
+				isLoading: false,
+				draggedEntity: null,
+				incomeVisible: false,
+			});
+
+			const state = useStore.getState();
+			const accounts = getEntitiesWithBalance(
+				state.entities,
+				state.plans,
+				state.transactions,
+				state.currentPeriod,
+				'account'
+			);
+			const src = accounts.find((a) => a.id === 'account-src');
+			const dst = accounts.find((a) => a.id === 'account-dst');
+			expect(src!.actual).toBe(-200000);
+			expect(dst!.actual).toBe(200000);
+		});
+
 		test('should only count incoming transactions for categories and savings', () => {
 			const account: Entity = {
 				id: 'account-1',

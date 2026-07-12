@@ -326,6 +326,15 @@ export const useStore = create<AppState>((set, get) => {
 				set({ isLoading: true });
 				try {
 					console.info('Hydrating store from database');
+					// KII-124 measurement spike: cold-start hydration is a full-table
+					// scan of `transactions` loaded into the store. Time it (row count +
+					// the scan itself + the load→dataReady window + backfill) so the
+					// defer-vs-build decision for pagination is driven by real numbers
+					// rather than the ticket's speculative "noticeable in a year". Coarse
+					// ms via Date.now() is the right granularity: we only care once this
+					// crosses into tens of ms; a 0–1ms reading is itself the answer.
+					const hydrateStart = Date.now();
+					let getAllTransactionsMs = 0;
 					const [
 						entities,
 						plans,
@@ -336,7 +345,12 @@ export const useStore = create<AppState>((set, get) => {
 					] = await Promise.all([
 						db.getAllEntities(),
 						db.getAllPlans(),
-						db.getAllTransactions(),
+						(async () => {
+							const start = Date.now();
+							const rows = await db.getAllTransactions();
+							getAllTransactionsMs = Date.now() - start;
+							return rows;
+						})(),
 						db.getAllRecurrenceTemplates(),
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
@@ -369,12 +383,25 @@ export const useStore = create<AppState>((set, get) => {
 						isLoading: false,
 					});
 
+					// KII-124: data is now in the store and the UI can render — this is
+					// the user-visible cold-start cost.
+					const dataReadyMs = Date.now() - hydrateStart;
+
 					// Legacy materialized future occurrences are removed by migration
 					// 0021 (runs before hydration), so the rows loaded above are already
 					// free of phantom future rows.
 					// Backfill any missing past-due occurrences.
+					const backfillStart = Date.now();
 					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
+					const backfillMs = Date.now() - backfillStart;
 					lastBackfillAt = Date.now();
+
+					// KII-124: one structured line per cold start. `getAllTransactions`
+					// vs `dataReady` shows whether the transaction scan is the long pole
+					// among the six concurrent loads.
+					console.info(
+						`[hydration] ${transactions.length} txns | getAllTransactions ${getAllTransactionsMs}ms | dataReady ${dataReadyMs}ms | backfill ${backfillMs}ms`
+					);
 				} catch (error) {
 					console.error('Failed to initialize store:', error);
 					set({ isLoading: false });
@@ -1126,74 +1153,73 @@ export function getEntitiesWithBalance(
 		.sort((a, b) => a.row - b.row || a.position - b.position);
 
 	const now = Date.now();
+	// Accounts and savings use all transactions (all-time balance); income and
+	// categories use the current period only.
+	const useAllTime = type === 'account' || type === 'saving';
+
+	// KII-124: single pass over `transactions` accumulating per-entity bucket
+	// totals, replacing the previous per-entity filter/reduce. The old shape was
+	// O(entities × transactions) — each entity re-walked the whole array (all of
+	// it, for all-time account/saving) three times — which dominated the
+	// month-switch cost on multi-year histories. This is O(transactions).
+	const buckets = new Map<string, { actual: number; upcoming: number; unconfirmed: number }>();
+	for (const entity of filteredEntities) {
+		buckets.set(entity.id, { actual: 0, upcoming: 0, unconfirmed: 0 });
+	}
+
+	// Signed contribution of one transaction to one tracked entity, preserving
+	// the previous `calcBalance` semantics exactly:
+	// - account/saving: net flow — incoming (+), outgoing (-)
+	// - income: money flowing OUT is positive (from +), in is negative (to -)
+	// - category: only incoming counts (to +); as a source it contributes 0
+	const contribution = (t: Transaction, entityId: string): number => {
+		switch (type) {
+			case 'account':
+			case 'saving':
+				if (t.from_entity_id === entityId) return -t.amount_minor;
+				if (t.to_entity_id === entityId) return t.amount_minor;
+				return 0;
+			case 'income':
+				if (t.from_entity_id === entityId) return t.amount_minor;
+				if (t.to_entity_id === entityId) return -t.amount_minor;
+				return 0;
+			case 'category':
+				return t.to_entity_id === entityId ? t.amount_minor : 0;
+		}
+	};
+
+	for (const t of transactions) {
+		// Income/categories are period-scoped; accounts/savings are all-time.
+		if (!useAllTime && (t.timestamp < start || t.timestamp > end)) continue;
+
+		// KII-132: `is_confirmed === undefined` is treated as confirmed here
+		// (`!== false`) but as unconfirmed by the badge count (`=== false`).
+		// Normalize to a non-optional boolean at the DB read boundary.
+		let bucketKey: 'actual' | 'upcoming' | 'unconfirmed';
+		if (t.timestamp > now) {
+			// Future rows only count toward "upcoming" up to the period end;
+			// anything past `end` is out of view for every bucket.
+			if (t.timestamp > end) continue;
+			bucketKey = 'upcoming';
+		} else {
+			bucketKey = t.is_confirmed !== false ? 'actual' : 'unconfirmed';
+		}
+
+		// A transaction can touch two tracked entities of the same type (e.g. an
+		// account→account transfer): debit the source and credit the destination
+		// from the same row.
+		const fromBucket = buckets.get(t.from_entity_id);
+		if (fromBucket) fromBucket[bucketKey] += contribution(t, t.from_entity_id);
+		const toBucket = buckets.get(t.to_entity_id);
+		if (toBucket) toBucket[bucketKey] += contribution(t, t.to_entity_id);
+	}
 
 	return filteredEntities.map((entity) => {
 		// All plans use 'all-time' period - static budget/goal that applies every month
 		const plan = plans.find((p) => p.entity_id === entity.id && p.period === 'all-time');
 		const planned = plan?.planned_amount_minor ?? 0;
 
-		// Accounts and savings use all transactions (all-time balance)
-		// Income and categories use current period only
-		const useAllTime = entity.type === 'account' || entity.type === 'saving';
-		const relevantTransactions = useAllTime
-			? transactions
-			: transactions.filter((t) => t.timestamp >= start && t.timestamp <= end);
-
-		// KII-132: `is_confirmed === undefined` is treated as confirmed here
-		// (`!== false`) but as unconfirmed by the badge count (`=== false`).
-		// Normalize to a non-optional boolean at the DB read boundary.
-		// Split into confirmed past, unconfirmed past, and future
-		const pastConfirmed = relevantTransactions.filter(
-			(t) => t.timestamp <= now && t.is_confirmed !== false
-		);
-		const pastUnconfirmed = relevantTransactions.filter(
-			(t) => t.timestamp <= now && t.is_confirmed === false
-		);
-		const futureTxns = relevantTransactions.filter(
-			(t) => t.timestamp > now && t.timestamp <= end
-		);
-
-		// KII-132: `calcBalance` is redefined on every `.map()` iteration. Hoist
-		// to module scope (or just above this function) to dodge the per-row
-		// allocation.
-		function calcBalance(
-			txns: typeof relevantTransactions,
-			entityId: string,
-			type: Entity['type']
-		): number {
-			switch (type) {
-				case 'account':
-				case 'saving':
-					// Both use net flow: incoming (+), outgoing (-)
-					return txns
-						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
-						.reduce(
-							(sum, t) =>
-								t.from_entity_id === entityId
-									? sum - t.amount_minor
-									: sum + t.amount_minor,
-							0
-						);
-				case 'income':
-					return txns
-						.filter((t) => [t.from_entity_id, t.to_entity_id].includes(entityId))
-						.reduce(
-							(sum, t) =>
-								t.from_entity_id === entityId
-									? sum + t.amount_minor
-									: sum - t.amount_minor,
-							0
-						);
-				case 'category':
-					return txns
-						.filter((t) => t.to_entity_id === entityId)
-						.reduce((sum, t) => sum + t.amount_minor, 0);
-			}
-		}
-
-		const txActual = calcBalance(pastConfirmed, entity.id, entity.type);
-		const upcoming = calcBalance(futureTxns, entity.id, entity.type);
-		const unconfirmed = calcBalance(pastUnconfirmed, entity.id, entity.type);
+		const bucket = buckets.get(entity.id)!;
 
 		// Track how much of the account's outflows went to savings (for funding-section breakdown)
 		// Since KII-61 savings are real transactions already reflected in actual
@@ -1216,12 +1242,12 @@ export function getEntitiesWithBalance(
 		return {
 			...entity,
 			planned,
-			actual: txActual,
-			upcoming,
-			unconfirmed,
+			actual: bucket.actual,
+			upcoming: bucket.upcoming,
+			unconfirmed: bucket.unconfirmed,
 			reserved,
 			latestMarketValue,
-			remaining: planned - txActual,
+			remaining: planned - bucket.actual,
 		};
 	});
 }
