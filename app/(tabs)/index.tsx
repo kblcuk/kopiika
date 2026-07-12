@@ -34,6 +34,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Sortable from 'react-native-sortables';
 import { scheduleOnRN } from 'react-native-worklets';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function HomeScreen() {
 	const router = useRouter();
@@ -51,9 +52,11 @@ export default function HomeScreen() {
 		updateSectionMaxOffset,
 	} = useDragAutoScroll();
 
-	// KII-132: bare `useStore()` subscribes to every store change — re-renders
-	// the home screen on any unrelated mutation. Switch to `useShallow` with a
-	// selector returning just these fields (highest-impact single fix).
+	// KII-132: bare `useStore()` subscribed to every store change, re-rendering
+	// the home screen (and re-deriving all four balance hooks) on any unrelated
+	// mutation — including the several fired during startup. Select only the
+	// fields this screen reads via `useShallow` so it re-renders only when those
+	// change. Actions are stable references, so including them is free.
 	const {
 		isLoading,
 		entities,
@@ -61,7 +64,16 @@ export default function HomeScreen() {
 		draggedEntity,
 		setDraggedEntity,
 		toggleIncomeVisible,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			isLoading: s.isLoading,
+			entities: s.entities,
+			incomeVisible: s.incomeVisible,
+			draggedEntity: s.draggedEntity,
+			setDraggedEntity: s.setDraggedEntity,
+			toggleIncomeVisible: s.toggleIncomeVisible,
+		}))
+	);
 
 	const transactions = useStore((s) => s.transactions);
 
