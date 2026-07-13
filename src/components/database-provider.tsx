@@ -1,5 +1,7 @@
-import { View, ActivityIndicator, AppState } from 'react-native';
+import { View, AppState } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { Text } from './text';
+import { LoadingScreen } from './loading-screen';
 import { useEffect, useState } from 'react';
 import { getDrizzleDb } from '../db';
 import { useStore, getUnconfirmedCount } from '@/src/store';
@@ -30,11 +32,29 @@ function runWhenIdle(callback: () => void): () => void {
 	};
 }
 
-export default function DatabaseProvider({ children }: { children: React.ReactNode }) {
+export default function DatabaseProvider({
+	children,
+	fontsLoaded,
+}: {
+	children: React.ReactNode;
+	// Loaded in parallel with DB init (in the root layout). The app isn't ready
+	// to paint until BOTH fonts and the store have hydrated, so this gate waits
+	// on both and shows a single themed LoadingScreen until then.
+	fontsLoaded: boolean;
+}) {
 	const initialize = useStore((state) => state.initialize);
 	const backfillRecurringIfStale = useStore((state) => state.backfillRecurringIfStale);
 	const [isReady, setIsReady] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const appReady = isReady && fontsLoaded;
+
+	// Hold the native splash until fonts + DB are both ready, then hand off
+	// straight to content — no unstyled intermediate frame. (If the splash has
+	// already auto-hidden, the themed LoadingScreen below covers the gap.)
+	useEffect(() => {
+		if (appReady) void SplashScreen.hideAsync();
+	}, [appReady]);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -115,21 +135,19 @@ export default function DatabaseProvider({ children }: { children: React.ReactNo
 		return () => sub.remove();
 	}, [isReady, backfillRecurringIfStale]);
 
-	if (!isReady) {
-		return (
-			<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-				<ActivityIndicator size="large" />
-				<Text>Loading app...</Text>
-			</View>
-		);
-	}
-
+	// Check for a startup error before the loading gate: a DB init failure must
+	// surface even if fonts never resolve, otherwise the only launch diagnostic
+	// would be hidden behind an indefinite spinner.
 	if (error) {
 		return (
 			<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
 				<Text>App startup error: {error}</Text>
 			</View>
 		);
+	}
+
+	if (!appReady) {
+		return <LoadingScreen />;
 	}
 
 	return <>{children}</>;

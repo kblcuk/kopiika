@@ -34,26 +34,15 @@ export const unstable_settings = {
 };
 
 function App() {
-	const [fontsLoaded] = useFonts({
-		Lexend_400Regular,
-		Lexend_500Medium,
-		Lexend_600SemiBold,
-		Lexend_700Bold,
-	});
 	const [showWhatsNew, setShowWhatsNew] = useState(false);
 
 	useDrizzleStudio(getRawDb());
 
-	useEffect(() => {
-		if (fontsLoaded) {
-			void SplashScreen.hideAsync();
-		}
-	}, [fontsLoaded]);
+	// App renders only once DatabaseProvider's gate passes (fonts + DB ready),
+	// so migration and the what's-new check can run immediately on mount.
 
 	// Show "What's New" modal after app update (skip on fresh install)
 	useEffect(() => {
-		if (!fontsLoaded) return;
-
 		const version = Constants.expoConfig?.version;
 		if (!version) return;
 
@@ -64,14 +53,10 @@ function App() {
 			}
 			if (lastSeen !== version) setShowWhatsNew(true);
 		})();
-	}, [fontsLoaded]);
+	}, []);
 
 	// Silently migrate existing users to hasCompletedOnboarding=true
-	useMigrateOnboarding(fontsLoaded);
-
-	if (!fontsLoaded) {
-		return null;
-	}
+	useMigrateOnboarding(true);
 
 	const handleDismissWhatsNew = () => {
 		setShowWhatsNew(false);
@@ -93,9 +78,24 @@ function App() {
 }
 
 export default function RootLayoutNav() {
+	// Load fonts at the root so they hydrate in parallel with the database
+	// (DatabaseProvider), rather than serially after it. The provider's gate
+	// waits on both before painting content.
+	const [fontsLoaded, fontError] = useFonts({
+		Lexend_400Regular,
+		Lexend_500Medium,
+		Lexend_600SemiBold,
+		Lexend_700Bold,
+	});
+
+	// Treat a font-load failure as "ready" so a corrupt/renamed asset can't
+	// strand the app on the LoadingScreen forever — the OS falls back to a
+	// system font, and this keeps the DB error screen reachable.
+	const fontsReady = fontsLoaded || fontError !== null;
+
 	return (
 		<KeyboardProvider>
-			<DatabaseProvider>
+			<DatabaseProvider fontsLoaded={fontsReady}>
 				<App />
 			</DatabaseProvider>
 		</KeyboardProvider>
