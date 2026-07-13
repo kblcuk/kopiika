@@ -73,3 +73,6 @@ fastlane/*.dSYM.zip
 # keys/ is per-developer and must never reach git history.
 keys/
 
+
+# perf fixture generator output (regenerable via bun run generate:perf-fixture)
+scripts/fixtures/

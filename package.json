@@ -20,6 +20,7 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"generate:splash": "bun run scripts/generate-splash.ts",
+		"generate:perf-fixture": "bun run scripts/gen-perf-fixture.ts",
 		"types": "tsgo --noEmit",
 		"unused": "knip --include exports,types",
 		"checks": "bun run lint && bun run fmt:check && bun run types && bun run unused",
