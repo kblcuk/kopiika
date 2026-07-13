@@ -1,6 +1,7 @@
 export { EmptyBoardNudge } from './empty-board-nudge';
 export { EntityCreateModal } from './entity-create-modal';
 export { EntityDetailModal } from './entity-detail-modal';
+export { EntitySectionSkeleton } from './entity-section-skeleton';
 export { RefundPickerModal } from './refund-picker-modal';
 export { ReservationModal } from './reservation-modal';
 export { SortableEntityGrid } from './sortable-entity-grid';
