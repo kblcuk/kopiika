@@ -2,6 +2,7 @@ import {
 	EmptyBoardNudge,
 	EntityCreateModal,
 	EntityDetailModal,
+	EntitySectionSkeleton,
 	RefundPickerModal,
 	ReservationModal,
 	SortableEntityGrid,
@@ -15,6 +16,7 @@ import { useEntityCreateFlow } from '@/src/hooks/use-entity-create-flow';
 import { useEntityDetailFlow } from '@/src/hooks/use-entity-detail-flow';
 import { useReservationFlow } from '@/src/hooks/use-reservation-flow';
 import { useSectionEditModes } from '@/src/hooks/use-section-edit-modes';
+import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useTransactionFlow } from '@/src/hooks/use-transaction-flow';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityWithBalance } from '@/src/types';
@@ -86,6 +88,11 @@ export default function HomeScreen() {
 	const accounts = useEntitiesWithBalance('account');
 	const categories = useEntitiesWithBalance('category');
 	const savings = useEntitiesWithBalance('saving');
+
+	// KII-144: categories + savings are the two heaviest sections (~73% of the
+	// board's mount cost). Defer them one frame at a time so the first frame only
+	// pays for income + accounts; skeletons hold their space meanwhile.
+	const revealed = useStaggeredReveal(2);
 
 	// Section edit modes - when true, taps open the detail modal and drags reorder locally.
 	const editModes = useSectionEditModes();
@@ -346,41 +353,56 @@ export default function HomeScreen() {
 							onSectionMaxOffset={updateSectionMaxOffset}
 							onSectionBounds={updateSectionBounds}
 						/>
-						<SortableEntityGrid
-							title="Categories"
-							type="category"
-							entities={categories}
-							onDragStart={handleDragStart}
-							onDragEnd={handleDragEnd}
-							onTap={handleTap}
-							onAdd={createFlow.open}
-							maxRows={3}
-							dragBehavior={editModes.modes.category ? 'reorder' : 'transaction'}
-							editMode={editModes.modes.category}
-							onToggleEditMode={editModes.toggle.category}
-							updateDragTouch={updateDragTouch}
-							sectionScrollRef={sectionRefs[2]}
-							sectionIndex={2}
-							onSectionMaxOffset={updateSectionMaxOffset}
-							onSectionBounds={updateSectionBounds}
-						/>
-						<SortableEntityGrid
-							title="Savings · Goal"
-							type="saving"
-							entities={savings}
-							onDragStart={handleDragStart}
-							onDragEnd={handleDragEnd}
-							onTap={handleTap}
-							onAdd={createFlow.open}
-							dragBehavior={editModes.modes.saving ? 'reorder' : 'transaction'}
-							editMode={editModes.modes.saving}
-							onToggleEditMode={editModes.toggle.saving}
-							updateDragTouch={updateDragTouch}
-							sectionScrollRef={sectionRefs[3]}
-							sectionIndex={3}
-							onSectionMaxOffset={updateSectionMaxOffset}
-							onSectionBounds={updateSectionBounds}
-						/>
+						{revealed >= 1 ? (
+							<SortableEntityGrid
+								title="Categories"
+								type="category"
+								entities={categories}
+								onDragStart={handleDragStart}
+								onDragEnd={handleDragEnd}
+								onTap={handleTap}
+								onAdd={createFlow.open}
+								maxRows={3}
+								dragBehavior={editModes.modes.category ? 'reorder' : 'transaction'}
+								editMode={editModes.modes.category}
+								onToggleEditMode={editModes.toggle.category}
+								updateDragTouch={updateDragTouch}
+								sectionScrollRef={sectionRefs[2]}
+								sectionIndex={2}
+								onSectionMaxOffset={updateSectionMaxOffset}
+								onSectionBounds={updateSectionBounds}
+							/>
+						) : (
+							<EntitySectionSkeleton
+								title="Categories"
+								entityCount={categories.length}
+								maxRows={3}
+							/>
+						)}
+						{revealed >= 2 ? (
+							<SortableEntityGrid
+								title="Savings · Goal"
+								type="saving"
+								entities={savings}
+								onDragStart={handleDragStart}
+								onDragEnd={handleDragEnd}
+								onTap={handleTap}
+								onAdd={createFlow.open}
+								dragBehavior={editModes.modes.saving ? 'reorder' : 'transaction'}
+								editMode={editModes.modes.saving}
+								onToggleEditMode={editModes.toggle.saving}
+								updateDragTouch={updateDragTouch}
+								sectionScrollRef={sectionRefs[3]}
+								sectionIndex={3}
+								onSectionMaxOffset={updateSectionMaxOffset}
+								onSectionBounds={updateSectionBounds}
+							/>
+						) : (
+							<EntitySectionSkeleton
+								title="Savings · Goal"
+								entityCount={savings.length}
+							/>
+						)}
 
 						{entities.length === 0 && (
 							<View className="items-center px-4 py-10">

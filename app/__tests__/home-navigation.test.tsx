@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 import HomeScreen from '../(tabs)/index';
+import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import type { EntityWithBalance, EntityType, Transaction } from '@/src/types';
@@ -100,6 +101,10 @@ jest.mock('@/src/utils/drop-zone', () => ({
 	remeasureAllDropZones: jest.fn(),
 }));
 
+jest.mock('@/src/hooks/use-staggered-reveal', () => ({
+	useStaggeredReveal: jest.fn(() => 2),
+}));
+
 jest.mock('@/src/components', () => {
 	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
@@ -146,6 +151,11 @@ jest.mock('@/src/components', () => {
 				</View>
 			);
 		},
+		EntitySectionSkeleton: ({ title }: { title: string }) => (
+			<View>
+				<Text testID={`skeleton-${title}`}>{title}</Text>
+			</View>
+		),
 		SummaryHeader: () => null,
 		TransactionModal: ({
 			visible,
@@ -513,5 +523,92 @@ describe('HomeScreen drag-drop routing', () => {
 		expect(getByTestId('transaction-modal-existing')).toHaveTextContent('txn-99');
 		expect(getByTestId('transaction-modal-from')).toHaveTextContent('acc-1');
 		expect(getByTestId('transaction-modal-to')).toHaveTextContent('cat-1');
+	});
+});
+
+describe('progressive section mount', () => {
+	const account: EntityWithBalance = {
+		id: 'acc-1',
+		type: 'account',
+		name: 'Checking',
+		currency: 'EUR',
+		icon: 'wallet',
+		row: 0,
+		position: 0,
+		actual: 1000,
+		planned: 1000,
+		remaining: 0,
+		upcoming: 0,
+	};
+	const category: EntityWithBalance = {
+		id: 'cat-1',
+		type: 'category',
+		name: 'Groceries',
+		currency: 'EUR',
+		icon: 'shopping-cart',
+		row: 0,
+		position: 0,
+		actual: 100,
+		planned: 500,
+		remaining: 400,
+		upcoming: 0,
+	};
+	const saving: EntityWithBalance = {
+		id: 'sav-1',
+		type: 'saving',
+		name: 'Emergency',
+		currency: 'EUR',
+		icon: 'piggy-bank',
+		row: 0,
+		position: 0,
+		actual: 0,
+		planned: 2000,
+		remaining: 2000,
+		upcoming: 0,
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		useStore.setState({
+			entities: [account, category, saving],
+			plans: [],
+			transactions: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			incomeVisible: false,
+			initialize: jest.fn(),
+			addEntity: jest.fn(),
+			setPlan: jest.fn(),
+			setDraggedEntity: jest.fn(),
+			toggleIncomeVisible: jest.fn(),
+		});
+		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
+			if (type === 'account') return [account];
+			if (type === 'category') return [category];
+			if (type === 'saving') return [saving];
+			return [];
+		});
+	});
+
+	it('shows skeletons for categories and savings until revealed, grids once revealed', () => {
+		// Not yet revealed: only income + accounts are real grids.
+		jest.mocked(useStaggeredReveal).mockReturnValue(0);
+		const { getByTestId, queryByTestId, rerender } = render(<HomeScreen />);
+
+		// Accounts is eager — its grid (drag-behavior probe) is present immediately.
+		expect(getByTestId('account-drag-behavior')).toBeTruthy();
+		// Categories + savings show skeletons, not grids.
+		expect(getByTestId('skeleton-Categories')).toBeTruthy();
+		expect(getByTestId('skeleton-Savings · Goal')).toBeTruthy();
+		expect(queryByTestId('category-drag-behavior')).toBeNull();
+		expect(queryByTestId('saving-drag-behavior')).toBeNull();
+
+		// Fully revealed: the real grids replace the skeletons.
+		jest.mocked(useStaggeredReveal).mockReturnValue(2);
+		rerender(<HomeScreen />);
+		expect(getByTestId('category-drag-behavior')).toBeTruthy();
+		expect(getByTestId('saving-drag-behavior')).toBeTruthy();
+		expect(queryByTestId('skeleton-Categories')).toBeNull();
 	});
 });
