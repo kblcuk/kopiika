@@ -14,6 +14,7 @@ import { Text } from '@/src/components/text';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 import { useEntityCreateFlow } from '@/src/hooks/use-entity-create-flow';
 import { useEntityDetailFlow } from '@/src/hooks/use-entity-detail-flow';
+import { useHasOpened } from '@/src/hooks/use-has-opened';
 import { useReservationFlow } from '@/src/hooks/use-reservation-flow';
 import { useSectionEditModes } from '@/src/hooks/use-section-edit-modes';
 import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
@@ -114,6 +115,15 @@ export default function HomeScreen() {
 	const reservationFlow = useReservationFlow();
 	const detailFlow = useEntityDetailFlow();
 	const createFlow = useEntityCreateFlow();
+
+	// KII-144: keep each modal unmounted until first opened so its render +
+	// native commit stay off cold start. The latch stays true afterwards, so the
+	// slide open/close animation and all behavior are unchanged for the session.
+	const transactionModalOpened = useHasOpened(transactionFlow.transactionModalProps.visible);
+	const refundPickerOpened = useHasOpened(transactionFlow.refundPickerProps.visible);
+	const reservationOpened = useHasOpened(reservationFlow.reservationModalProps.visible);
+	const detailOpened = useHasOpened(detailFlow.detailModalProps.visible);
+	const createOpened = useHasOpened(createFlow.createModalProps.visible);
 
 	const handleDragStart = useCallback(
 		(entity: EntityWithBalance) => {
@@ -416,19 +426,21 @@ export default function HomeScreen() {
 			</Sortable.PortalProvider>
 
 			{/* Transaction Modal */}
-			<TransactionModal {...transactionFlow.transactionModalProps} />
+			{transactionModalOpened && (
+				<TransactionModal {...transactionFlow.transactionModalProps} />
+			)}
 
 			{/* Refund Picker Modal (category → account, account → income) */}
-			<RefundPickerModal {...transactionFlow.refundPickerProps} />
+			{refundPickerOpened && <RefundPickerModal {...transactionFlow.refundPickerProps} />}
 
 			{/* Reservation Modal (account → saving) */}
-			<ReservationModal {...reservationFlow.reservationModalProps} />
+			{reservationOpened && <ReservationModal {...reservationFlow.reservationModalProps} />}
 
 			{/* Entity Detail Modal */}
-			<EntityDetailModal {...detailFlow.detailModalProps} />
+			{detailOpened && <EntityDetailModal {...detailFlow.detailModalProps} />}
 
 			{/* Entity Create Modal */}
-			<EntityCreateModal {...createFlow.createModalProps} />
+			{createOpened && <EntityCreateModal {...createFlow.createModalProps} />}
 		</SafeAreaView>
 	);
 }

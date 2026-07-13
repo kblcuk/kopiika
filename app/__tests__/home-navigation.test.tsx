@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 import HomeScreen from '../(tabs)/index';
+import { useHasOpened } from '@/src/hooks/use-has-opened';
 import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
@@ -105,6 +106,10 @@ jest.mock('@/src/hooks/use-staggered-reveal', () => ({
 	useStaggeredReveal: jest.fn(() => 2),
 }));
 
+jest.mock('@/src/hooks/use-has-opened', () => ({
+	useHasOpened: jest.fn((visible: boolean) => visible),
+}));
+
 jest.mock('@/src/components', () => {
 	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
@@ -167,14 +172,16 @@ jest.mock('@/src/components', () => {
 			fromEntity: { id: string } | null;
 			toEntity: { id: string } | null;
 			existingTransaction?: { id: string };
-		}) =>
-			visible ? (
-				<View testID="transaction-modal">
-					<Text testID="transaction-modal-from">{fromEntity?.id ?? ''}</Text>
-					<Text testID="transaction-modal-to">{toEntity?.id ?? ''}</Text>
-					<Text testID="transaction-modal-existing">{existingTransaction?.id ?? ''}</Text>
-				</View>
-			) : null,
+		}) => (
+			// Rendered whenever mounted (regardless of `visible`) so tests can
+			// observe the KII-144 mount-gating latch separately from the modal's
+			// own visible/hidden display state.
+			<View testID="transaction-modal">
+				<Text testID="transaction-modal-from">{fromEntity?.id ?? ''}</Text>
+				<Text testID="transaction-modal-to">{toEntity?.id ?? ''}</Text>
+				<Text testID="transaction-modal-existing">{existingTransaction?.id ?? ''}</Text>
+			</View>
+		),
 		EntityDetailModal: ({
 			visible,
 			entity,
@@ -263,6 +270,7 @@ describe('HomeScreen entity interactions', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
 		mockInitialize.mockReset();
 		useStore.setState({
 			entities: [mockCategory, mockAccount],
@@ -407,6 +415,7 @@ describe('HomeScreen drag-drop routing', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
 		mockDragHandlers.onDragStart = undefined;
 		mockDragHandlers.onDragEnd = undefined;
 		mockRefundOnSelect = undefined;
@@ -569,6 +578,7 @@ describe('progressive section mount', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
 		useStore.setState({
 			entities: [account, category, saving],
 			plans: [],
@@ -610,5 +620,42 @@ describe('progressive section mount', () => {
 		expect(getByTestId('category-drag-behavior')).toBeTruthy();
 		expect(getByTestId('saving-drag-behavior')).toBeTruthy();
 		expect(queryByTestId('skeleton-Categories')).toBeNull();
+	});
+});
+
+describe('modal startup gating', () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+		useStore.setState({
+			entities: [],
+			plans: [],
+			transactions: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			incomeVisible: false,
+			initialize: jest.fn(),
+			addEntity: jest.fn(),
+			setPlan: jest.fn(),
+			setDraggedEntity: jest.fn(),
+			toggleIncomeVisible: jest.fn(),
+		});
+		jest.mocked(useEntitiesWithBalance).mockReturnValue([]);
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
+	});
+
+	it('does not mount a modal until its latch reports opened', () => {
+		// Latch closed for every modal: none should be in the tree at startup,
+		// even though the flows are wired.
+		jest.mocked(useHasOpened).mockReturnValue(false);
+		const { queryByTestId } = render(<HomeScreen />);
+		expect(queryByTestId('transaction-modal')).toBeNull();
+	});
+
+	it('mounts a modal once its latch reports opened', () => {
+		jest.mocked(useHasOpened).mockReturnValue(true);
+		const { queryByTestId } = render(<HomeScreen />);
+		// Present in the tree (visible prop still governs its own display).
+		expect(queryByTestId('transaction-modal')).not.toBeNull();
 	});
 });
