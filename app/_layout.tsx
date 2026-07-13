@@ -12,10 +12,12 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
+import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { WhatsNewModal } from '@/src/components';
+import { colors } from '@/src/theme/colors';
 import { getLastSeenVersion, setLastSeenVersion } from '@/src/utils/app-prefs';
 import { useMigrateOnboarding } from '@/src/hooks/use-migrate-onboarding';
 import DatabaseProvider from '@/src/components/database-provider';
@@ -28,6 +30,16 @@ const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
 DevMenuPreferences?.setPreferencesAsync({ showFloatingActionButton: false });
 
 void SplashScreen.preventAutoHideAsync();
+
+// Paper-tone navigation theme. Without it, react-navigation's default white
+// background shows through every transient navigator gap during cold start —
+// the Stack→tabs→screen mount, and the frame where TabLayout returns null while
+// its onboarding gate resolves — flashing white between our LoadingScreen and
+// the painted dashboard. Paper makes the whole startup one continuous tone.
+const paperTheme = {
+	...DefaultTheme,
+	colors: { ...DefaultTheme.colors, background: colors.paper.DEFAULT },
+};
 
 export const unstable_settings = {
 	anchor: '(tabs)',
@@ -65,14 +77,21 @@ function App() {
 	};
 
 	return (
-		<GestureHandlerRootView style={{ flex: 1 }}>
-			<Stack screenOptions={{ headerShown: false }}>
-				<Stack.Screen name="(tabs)" />
-				<Stack.Screen name="onboarding" />
-				<Stack.Screen name="help" />
-			</Stack>
-			<WhatsNewModal visible={showWhatsNew} onClose={handleDismissWhatsNew} />
-			<StatusBar style="dark" />
+		<GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper.DEFAULT }}>
+			<ThemeProvider value={paperTheme}>
+				<Stack
+					screenOptions={{
+						headerShown: false,
+						contentStyle: { backgroundColor: colors.paper.DEFAULT },
+					}}
+				>
+					<Stack.Screen name="(tabs)" />
+					<Stack.Screen name="onboarding" />
+					<Stack.Screen name="help" />
+				</Stack>
+				<WhatsNewModal visible={showWhatsNew} onClose={handleDismissWhatsNew} />
+				<StatusBar style="dark" />
+			</ThemeProvider>
 		</GestureHandlerRootView>
 	);
 }
