@@ -2,31 +2,36 @@ import { render } from '@testing-library/react-native';
 
 import { EntitySectionSkeleton } from '@/src/components/entity-section-skeleton';
 
+// The skeleton lays out a fixed number of placeholder columns (off-screen width
+// doesn't affect the reserved height that prevents the mount jump), so a
+// populated single-row section renders exactly that many bubbles.
+const PLACEHOLDER_COLUMNS = 5;
+
 describe('EntitySectionSkeleton', () => {
 	it('renders the section title', () => {
-		const { getByText } = render(<EntitySectionSkeleton title="Categories" entityCount={5} />);
+		const { getByText } = render(<EntitySectionSkeleton title="Categories" isEmpty={false} />);
 		expect(getByText('Categories')).toBeTruthy();
 	});
 
-	it('renders one placeholder per entity when under the visible cap', () => {
+	it('renders a single row of placeholders for a default (maxRows=1) section', () => {
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Accounts" entityCount={3} />
+			<EntitySectionSkeleton title="Savings · Goal" isEmpty={false} />
 		);
-		expect(getAllByTestId('skeleton-bubble')).toHaveLength(3);
+		expect(getAllByTestId('skeleton-bubble')).toHaveLength(PLACEHOLDER_COLUMNS);
 	});
 
-	it('caps single-row placeholders at the visible cap (5)', () => {
+	it('reserves the full maxRows height for a multi-row section (categories, maxRows=3)', () => {
+		// maxRows=3 => 3 rows of PLACEHOLDER_COLUMNS bubbles each.
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Savings · Goal" entityCount={20} />
+			<EntitySectionSkeleton title="Categories" isEmpty={false} maxRows={3} />
 		);
-		expect(getAllByTestId('skeleton-bubble')).toHaveLength(5);
+		expect(getAllByTestId('skeleton-bubble')).toHaveLength(PLACEHOLDER_COLUMNS * 3);
 	});
 
-	it('reserves multiple rows for a multi-row section (categories, maxRows=3)', () => {
-		// 30 entities across 3 rows => 10 columns, capped to 5 => 3 rows * 5 = 15 boxes.
+	it('mirrors the real empty-section branch with a single placeholder bubble', () => {
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Categories" entityCount={30} maxRows={3} />
+			<EntitySectionSkeleton title="Categories" isEmpty={true} maxRows={3} />
 		);
-		expect(getAllByTestId('skeleton-bubble')).toHaveLength(15);
+		expect(getAllByTestId('skeleton-bubble')).toHaveLength(1);
 	});
 });

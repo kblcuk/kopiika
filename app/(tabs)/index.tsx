@@ -385,7 +385,7 @@ export default function HomeScreen() {
 						) : (
 							<EntitySectionSkeleton
 								title="Categories"
-								entityCount={categories.length}
+								isEmpty={categories.length === 0}
 								maxRows={3}
 							/>
 						)}
@@ -410,7 +410,7 @@ export default function HomeScreen() {
 						) : (
 							<EntitySectionSkeleton
 								title="Savings · Goal"
-								entityCount={savings.length}
+								isEmpty={savings.length === 0}
 							/>
 						)}
 

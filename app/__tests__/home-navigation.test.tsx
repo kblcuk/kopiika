@@ -188,13 +188,21 @@ jest.mock('@/src/components', () => {
 		}: {
 			visible: boolean;
 			entity: { name: string } | null;
-		}) =>
-			visible ? (
-				<View testID="entity-detail-modal">
-					<Text>{entity?.name}</Text>
-				</View>
-			) : null,
-		EntityCreateModal: () => null,
+		}) => (
+			// The outer node is rendered whenever mounted (regardless of
+			// `visible`) so tests can observe the KII-144 mount-gating latch
+			// separately from the modal's own visible/hidden display state.
+			// `entity-detail-modal` keeps its pre-existing visible-gated
+			// meaning so earlier tests are unaffected.
+			<View testID="entity-detail-modal-mount">
+				{visible && (
+					<View testID="entity-detail-modal">
+						<Text>{entity?.name}</Text>
+					</View>
+				)}
+			</View>
+		),
+		EntityCreateModal: () => <View testID="entity-create-modal" />,
 		EmptyBoardNudge: () => null,
 		ReservationModal: ({
 			visible,
@@ -204,13 +212,19 @@ jest.mock('@/src/components', () => {
 			visible: boolean;
 			account: { id: string } | null;
 			saving: { id: string } | null;
-		}) =>
-			visible ? (
-				<View testID="reservation-modal">
-					<Text testID="reservation-account">{account?.id ?? ''}</Text>
-					<Text testID="reservation-saving">{saving?.id ?? ''}</Text>
-				</View>
-			) : null,
+		}) => (
+			// The outer node is rendered whenever mounted (regardless of
+			// `visible`) so tests can observe the KII-144 mount-gating latch
+			// separately from the modal's own visible/hidden display state.
+			<View testID="reservation-modal-mount">
+				{visible && (
+					<View testID="reservation-modal">
+						<Text testID="reservation-account">{account?.id ?? ''}</Text>
+						<Text testID="reservation-saving">{saving?.id ?? ''}</Text>
+					</View>
+				)}
+			</View>
+		),
 		RefundPickerModal: ({
 			visible,
 			originalFrom,
@@ -223,12 +237,19 @@ jest.mock('@/src/components', () => {
 			onSelect: (transaction: Transaction) => void;
 		}) => {
 			mockRefundOnSelect = onSelect;
-			return visible ? (
-				<View testID="refund-picker">
-					<Text testID="refund-original-from">{originalFrom?.id ?? ''}</Text>
-					<Text testID="refund-original-to">{originalTo?.id ?? ''}</Text>
+			// The outer node is rendered whenever mounted (regardless of
+			// `visible`) so tests can observe the KII-144 mount-gating latch
+			// separately from the modal's own visible/hidden display state.
+			return (
+				<View testID="refund-picker-modal">
+					{visible && (
+						<View testID="refund-picker">
+							<Text testID="refund-original-from">{originalFrom?.id ?? ''}</Text>
+							<Text testID="refund-original-to">{originalTo?.id ?? ''}</Text>
+						</View>
+					)}
 				</View>
-			) : null;
+			);
 		},
 	};
 });
@@ -614,6 +635,15 @@ describe('progressive section mount', () => {
 		expect(queryByTestId('category-drag-behavior')).toBeNull();
 		expect(queryByTestId('saving-drag-behavior')).toBeNull();
 
+		// Partially revealed: categories has swapped in its real grid, but
+		// savings still shows its skeleton. This locks the reveal order so a
+		// swap of the two thresholds can't pass silently.
+		jest.mocked(useStaggeredReveal).mockReturnValue(1);
+		rerender(<HomeScreen />);
+		expect(getByTestId('category-drag-behavior')).toBeTruthy();
+		expect(getByTestId('skeleton-Savings · Goal')).toBeTruthy();
+		expect(queryByTestId('saving-drag-behavior')).toBeNull();
+
 		// Fully revealed: the real grids replace the skeletons.
 		jest.mocked(useStaggeredReveal).mockReturnValue(2);
 		rerender(<HomeScreen />);
@@ -650,6 +680,10 @@ describe('modal startup gating', () => {
 		jest.mocked(useHasOpened).mockReturnValue(false);
 		const { queryByTestId } = render(<HomeScreen />);
 		expect(queryByTestId('transaction-modal')).toBeNull();
+		expect(queryByTestId('refund-picker-modal')).toBeNull();
+		expect(queryByTestId('reservation-modal-mount')).toBeNull();
+		expect(queryByTestId('entity-detail-modal-mount')).toBeNull();
+		expect(queryByTestId('entity-create-modal')).toBeNull();
 	});
 
 	it('mounts a modal once its latch reports opened', () => {
@@ -657,5 +691,9 @@ describe('modal startup gating', () => {
 		const { queryByTestId } = render(<HomeScreen />);
 		// Present in the tree (visible prop still governs its own display).
 		expect(queryByTestId('transaction-modal')).not.toBeNull();
+		expect(queryByTestId('refund-picker-modal')).not.toBeNull();
+		expect(queryByTestId('reservation-modal-mount')).not.toBeNull();
+		expect(queryByTestId('entity-detail-modal-mount')).not.toBeNull();
+		expect(queryByTestId('entity-create-modal')).not.toBeNull();
 	});
 });
