@@ -24,7 +24,16 @@ const H_MAX_SPEED = 10;
 
 const REMEASURE_THROTTLE_MS = 100;
 
-export function useDragAutoScroll() {
+export function useDragAutoScroll(
+	// Which of the 4 section ScrollViews are currently mounted. A deferred section
+	// (KII-144 progressive mount) renders a skeleton first, so its ref isn't
+	// attached yet; binding useScrollOffset to an unattached ref logs a
+	// "not initialized" warning. Passing `undefined` for inactive sections makes
+	// useScrollOffset a no-op until the ref attaches, then it re-binds reactively
+	// via animatedRef.observe. Defaults to all-active for callers that mount every
+	// section up front.
+	sectionsActive: readonly boolean[] = [true, true, true, true]
+) {
 	// --- Outer (vertical) scroll ---
 	const outerScrollRef = useAnimatedRef<Animated.ScrollView>();
 	const scrollOffset = useSharedValue(0);
@@ -44,11 +53,13 @@ export function useDragAutoScroll() {
 	const sectionRef3 = useAnimatedRef<Animated.ScrollView>();
 	const sectionRefs = [sectionRef0, sectionRef1, sectionRef2, sectionRef3];
 
-	// Auto-tracked horizontal offsets (UI thread).
-	const sectionOffset0 = useScrollOffset(sectionRef0);
-	const sectionOffset1 = useScrollOffset(sectionRef1);
-	const sectionOffset2 = useScrollOffset(sectionRef2);
-	const sectionOffset3 = useScrollOffset(sectionRef3);
+	// Auto-tracked horizontal offsets (UI thread). Bind only to mounted sections
+	// (see `sectionsActive`); an inactive section passes `undefined`, so
+	// useScrollOffset no-ops until its ScrollView mounts and the ref attaches.
+	const sectionOffset0 = useScrollOffset(sectionsActive[0] ? sectionRef0 : undefined);
+	const sectionOffset1 = useScrollOffset(sectionsActive[1] ? sectionRef1 : undefined);
+	const sectionOffset2 = useScrollOffset(sectionsActive[2] ? sectionRef2 : undefined);
+	const sectionOffset3 = useScrollOffset(sectionsActive[3] ? sectionRef3 : undefined);
 
 	// Max horizontal offset per section (contentWidth - visibleWidth).
 	// Individual SharedValues to avoid read-modify-write race (same as bounds).

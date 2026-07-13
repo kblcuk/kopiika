@@ -41,6 +41,18 @@ import { useShallow } from 'zustand/react/shallow';
 
 export default function HomeScreen() {
 	const router = useRouter();
+
+	// KII-144: categories + savings are the two heaviest sections (~73% of the
+	// board's mount cost). Defer them one frame at a time so the first frame only
+	// pays for income + accounts; skeletons hold their space meanwhile.
+	const revealed = useStaggeredReveal(2);
+
+	// Sections 0 (income) and 1 (accounts) mount eagerly; 2 (categories) and 3
+	// (savings) mount only once revealed. Tell the auto-scroll hook which section
+	// ScrollViews exist so it doesn't bind useScrollOffset to an unmounted ref
+	// (which logs a "not initialized" warning during the skeleton window).
+	const sectionsActive = [true, true, revealed >= 1, revealed >= 2];
+
 	const {
 		outerScrollRef,
 		scrollHandler,
@@ -53,7 +65,7 @@ export default function HomeScreen() {
 		setDragSourceIndex,
 		updateSectionBounds,
 		updateSectionMaxOffset,
-	} = useDragAutoScroll();
+	} = useDragAutoScroll(sectionsActive);
 
 	// KII-132: bare `useStore()` subscribed to every store change, re-rendering
 	// the home screen (and re-deriving all four balance hooks) on any unrelated
@@ -89,11 +101,6 @@ export default function HomeScreen() {
 	const accounts = useEntitiesWithBalance('account');
 	const categories = useEntitiesWithBalance('category');
 	const savings = useEntitiesWithBalance('saving');
-
-	// KII-144: categories + savings are the two heaviest sections (~73% of the
-	// board's mount cost). Defer them one frame at a time so the first frame only
-	// pays for income + accounts; skeletons hold their space meanwhile.
-	const revealed = useStaggeredReveal(2);
 
 	// Section edit modes - when true, taps open the detail modal and drags reorder locally.
 	const editModes = useSectionEditModes();
