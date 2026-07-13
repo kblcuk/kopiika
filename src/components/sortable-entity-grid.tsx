@@ -24,6 +24,7 @@ import {
 import { shouldUseFixedOrderMode } from '@/src/utils/drag-bounds';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
+import { BUBBLE_WIDTH, BUBBLE_HEIGHT, COLUMN_GAP, ROW_GAP } from './entity-grid-layout';
 import {
 	SortableEntityBubble,
 	HoveredIdContext,
@@ -32,12 +33,6 @@ import {
 } from './sortable-entity-bubble';
 import { resolveGridDragEnd } from './sortable-entity-grid-logic';
 import { isAllowedPair } from '@/src/utils/transaction-validation';
-
-// Grid layout constants
-const BUBBLE_WIDTH = 96;
-const COLUMN_GAP = 4;
-const ROW_GAP = 4;
-const BUBBLE_HEIGHT = 136;
 
 // Module-level shared value for hovered drop zone - shared across all grids
 // Using makeMutable for a global shared value that can be modified from JS thread
