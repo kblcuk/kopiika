@@ -1207,11 +1207,15 @@ export function getEntitiesWithBalance(
 
 		// A transaction can touch two tracked entities of the same type (e.g. an
 		// account→account transfer): debit the source and credit the destination
-		// from the same row.
+		// from the same row. Validation rejects from===to (SAME_ENTITY), but guard
+		// against degenerate/imported self-referential rows so a single bucket
+		// isn't debited twice (from-branch matches first, doubling the outflow).
 		const fromBucket = buckets.get(t.from_entity_id);
 		if (fromBucket) fromBucket[bucketKey] += contribution(t, t.from_entity_id);
-		const toBucket = buckets.get(t.to_entity_id);
-		if (toBucket) toBucket[bucketKey] += contribution(t, t.to_entity_id);
+		if (t.to_entity_id !== t.from_entity_id) {
+			const toBucket = buckets.get(t.to_entity_id);
+			if (toBucket) toBucket[bucketKey] += contribution(t, t.to_entity_id);
+		}
 	}
 
 	return filteredEntities.map((entity) => {
