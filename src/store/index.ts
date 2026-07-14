@@ -326,15 +326,6 @@ export const useStore = create<AppState>((set, get) => {
 				set({ isLoading: true });
 				try {
 					console.info('Hydrating store from database');
-					// KII-124 measurement spike: cold-start hydration is a full-table
-					// scan of `transactions` loaded into the store. Time it (row count +
-					// the scan itself + the load→dataReady window + backfill) so the
-					// defer-vs-build decision for pagination is driven by real numbers
-					// rather than the ticket's speculative "noticeable in a year". Coarse
-					// ms via Date.now() is the right granularity: we only care once this
-					// crosses into tens of ms; a 0–1ms reading is itself the answer.
-					const hydrateStart = Date.now();
-					let getAllTransactionsMs = 0;
 					const [
 						entities,
 						plans,
@@ -345,12 +336,7 @@ export const useStore = create<AppState>((set, get) => {
 					] = await Promise.all([
 						db.getAllEntities(),
 						db.getAllPlans(),
-						(async () => {
-							const start = Date.now();
-							const rows = await db.getAllTransactions();
-							getAllTransactionsMs = Date.now() - start;
-							return rows;
-						})(),
+						db.getAllTransactions(),
 						db.getAllRecurrenceTemplates(),
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
@@ -383,25 +369,12 @@ export const useStore = create<AppState>((set, get) => {
 						isLoading: false,
 					});
 
-					// KII-124: data is now in the store and the UI can render — this is
-					// the user-visible cold-start cost.
-					const dataReadyMs = Date.now() - hydrateStart;
-
 					// Legacy materialized future occurrences are removed by migration
 					// 0021 (runs before hydration), so the rows loaded above are already
 					// free of phantom future rows.
 					// Backfill any missing past-due occurrences.
-					const backfillStart = Date.now();
 					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
-					const backfillMs = Date.now() - backfillStart;
 					lastBackfillAt = Date.now();
-
-					// KII-124: one structured line per cold start. `getAllTransactions`
-					// vs `dataReady` shows whether the transaction scan is the long pole
-					// among the six concurrent loads.
-					console.info(
-						`[hydration] ${transactions.length} txns | getAllTransactions ${getAllTransactionsMs}ms | dataReady ${dataReadyMs}ms | backfill ${backfillMs}ms`
-					);
 				} catch (error) {
 					console.error('Failed to initialize store:', error);
 					set({ isLoading: false });
