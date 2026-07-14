@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.24](https://codeberg.org/kblcuk/kopiika/compare/v0.3.23...v0.3.24) (2026-07-14)
+
+
+### Features
+
+* **home:** add EntitySectionSkeleton placeholder (KII-144) ([603892d](https://codeberg.org/kblcuk/kopiika/commit/603892d5ee4c8133c81638b6c9f810252a555ad0))
+* **home:** add useHasOpened latch for deferred modal mount (KII-144) ([fbdb6ed](https://codeberg.org/kblcuk/kopiika/commit/fbdb6ed3ba91e6bdf2b3c50b43bb92fc6ccfd1ec))
+* **home:** add useStaggeredReveal for one-per-frame section mount (KII-144) ([4440066](https://codeberg.org/kblcuk/kopiika/commit/444006695931f9ef9abe7a66279be7d69e793c72))
+* **startup:** themed loading gate; load fonts in parallel with DB (KII-144) ([f48cbff](https://codeberg.org/kblcuk/kopiika/commit/f48cbff49c0b036cf31602c63e9a69c2b3d3459d))
+* **sync:** handle entity.{create,update,delete} in applyOperation (KII-134) ([1e9fe99](https://codeberg.org/kblcuk/kopiika/commit/1e9fe9932a63295b4b3a55f68b80c7369f378c86))
+* **sync:** handle import.replace_all in applyOperation (KII-134) ([9f40893](https://codeberg.org/kblcuk/kopiika/commit/9f40893021e85e42e61290f6416e3fc966fa6173))
+* **sync:** handle market_value ops in applyOperation (KII-134) ([83caddd](https://codeberg.org/kblcuk/kopiika/commit/83caddd5032231e1f206931910b639fb62cdb737))
+* **sync:** handle plan.{set,delete} in applyOperation (KII-134) ([890812e](https://codeberg.org/kblcuk/kopiika/commit/890812e532dd8946206ae1f8911122fe316b41c9))
+* **sync:** handle recurrence.create; route backfill through transaction.batch_create (KII-134) ([abeeabb](https://codeberg.org/kblcuk/kopiika/commit/abeeabbeb038aa1ba44b6c807cbb813e1d4f6517))
+* **sync:** handle recurrence.deactivate in applyOperation (KII-134) ([bc6de6b](https://codeberg.org/kblcuk/kopiika/commit/bc6de6b421d2b14d7ceee3e18a3a5b704344ace8))
+* **sync:** handle recurrence.delete_future; route single-scope delete through transaction.delete (KII-134) ([ba250db](https://codeberg.org/kblcuk/kopiika/commit/ba250dbfa38ff8704724e6f99baeef7e566d373b))
+* **sync:** handle recurrence.exclude; route materializeOccurrence through transaction.create (KII-134) ([d5d0519](https://codeberg.org/kblcuk/kopiika/commit/d5d05195400bf6739b8ae05d43d0164c80c9507f))
+* **sync:** handle recurrence.update_future in applyOperation (KII-134) ([0e46c69](https://codeberg.org/kblcuk/kopiika/commit/0e46c6963af5a9250062efb37bdd8aafe758066e))
+* **sync:** handle reservation.set in applyOperation (KII-134) ([8f7106b](https://codeberg.org/kblcuk/kopiika/commit/8f7106b0268dcc53a347276877b658f7ee86b684))
+* **sync:** handle transaction.confirm in applyOperation (KII-134) ([a505c94](https://codeberg.org/kblcuk/kopiika/commit/a505c94fc332c39931b2d0a38c522e240dac289c))
+* **sync:** handle transaction.split in applyOperation (KII-134) ([9e7cea8](https://codeberg.org/kblcuk/kopiika/commit/9e7cea8f3764aad1d749586957037ff55df2ef37))
+
+
+### Bug Fixes
+
+* **dnd:** Remeasure drop zones on drag start ([90180aa](https://codeberg.org/kblcuk/kopiika/commit/90180aa5f5ddc657b0c3da6f3294cb14344e7894))
+* **history:** Match amount search across dot and comma separators ([57c60c6](https://codeberg.org/kblcuk/kopiika/commit/57c60c68f0dc6d24133b8a95337742453a9b0da3))
+* **history:** Set removeClippedSubviews explicitly false on the list ([9be8429](https://codeberg.org/kblcuk/kopiika/commit/9be8429a54bee8ee67b1a4af1edfbf945020f33b))
+* **home:** don't bind useScrollOffset to unmounted deferred sections (KII-144) ([c151d14](https://codeberg.org/kblcuk/kopiika/commit/c151d1466858cf88ee2a3e19023a4356105b7181))
+* **home:** reserve full section height in skeleton; harden reveal/modal tests (KII-144) ([c7296d1](https://codeberg.org/kblcuk/kopiika/commit/c7296d14184a88cd445a4381849b41797d324cf9))
+* **startup:** paper-tone navigation theme to kill white cold-start flash (KII-144) ([3402124](https://codeberg.org/kblcuk/kopiika/commit/340212467dd97033d88e7837189dbe198d787f8f))
+* **store:** guard balance loop against self-referential transfer rows (KII-124) ([d048980](https://codeberg.org/kblcuk/kopiika/commit/d048980ccaf0c6ec0840cc3dac7634b5dd3c9b6f))
+
 ## [0.3.23](https://codeberg.org/kblcuk/kopiika/compare/v0.3.22...v0.3.23) (2026-06-27)
 
 
