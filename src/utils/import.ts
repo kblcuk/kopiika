@@ -29,9 +29,10 @@ const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
 
 /**
  * Parse a single CSV line, handling quoted fields with "" escapes.
+ * Supports custom delimiters for semicolon-separated, tab-separated, etc.
  * Needed because entity names and transaction notes can contain commas/quotes.
  */
-export function parseCsvLine(line: string): string[] {
+export function splitCsvLine(line: string, delimiter = ','): string[] {
 	const fields: string[] = [];
 	let current = '';
 	let inQuotes = false;
@@ -57,7 +58,7 @@ export function parseCsvLine(line: string): string[] {
 		} else if (ch === '"') {
 			inQuotes = true;
 			i++;
-		} else if (ch === ',') {
+		} else if (ch === delimiter) {
 			fields.push(current);
 			current = '';
 			i++;
@@ -68,6 +69,14 @@ export function parseCsvLine(line: string): string[] {
 	}
 	fields.push(current);
 	return fields;
+}
+
+/**
+ * Parse a single CSV line on comma delimiter.
+ * Delegates to splitCsvLine for backward compatibility.
+ */
+export function parseCsvLine(line: string): string[] {
+	return splitCsvLine(line, ',');
 }
 
 /**
