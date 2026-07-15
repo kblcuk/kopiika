@@ -40,6 +40,14 @@ const WORD_BOUNDARY_SUBSTRING = `Date,Consumer,Amount
 2026-07-12,-99.00,-250.00
 2026-07-11,-88.00,15000.00`;
 
+// Review finding — debit/credit hijack: "Debit Card" and "Credit Score" match
+// the debit/credit header hints, but neither column is actually monetary
+// (bare digits: a card number and a score). The real signed Amount column
+// must win instead.
+const DEBIT_CREDIT_HIJACK = `Date,Description,Amount,Debit Card,Credit Score
+2026-01-01,ATB,-100.00,4111,720
+2026-01-02,Salary,50.00,4111,650`;
+
 describe('detectColumns', () => {
 	it('detects comma + ISO date + single signed amount', () => {
 		const r = detectColumns(ISO_SIGNED)!;
@@ -118,5 +126,14 @@ describe('detectColumns', () => {
 		expect(r.mapping.decimalSeparator).toBe('.');
 		expect(r.mapping.descriptionColumn).toBe(1);
 		expect(r.confident).toEqual({ date: true, amount: true });
+	});
+
+	// Review finding regression: coincidental "Debit Card"/"Credit Score"
+	// header hints on non-monetary (bare-digit) columns must not hijack a
+	// genuinely strong signed Amount column.
+	it('does not let coincidental debit/credit header hints on non-monetary columns hijack a strong signed amount column', () => {
+		const r = detectColumns(DEBIT_CREDIT_HIJACK)!;
+		expect(r.mapping.amount).toEqual({ kind: 'signed', column: 2 });
+		expect(r.confident.amount).toBe(true);
 	});
 });

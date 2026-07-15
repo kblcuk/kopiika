@@ -170,8 +170,12 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		weakByCol[c] = weak;
 	}
 
-	// Debit/credit header pair, verified: both columns must actually contain
-	// some parseable values, not just a matching header name (I3).
+	// Debit/credit header pair, verified: both columns must actually look
+	// monetary (a sign or decimal marker in at least one row), not merely
+	// parse as bare digits — a coincidental header match on a card-number or
+	// score column (e.g. "Debit Card", "Credit Score") must not hijack a
+	// genuinely strong signed Amount column elsewhere in the row (review
+	// finding: debit/credit hijacks a strong signed Amount column).
 	const debitHintCol = hasHeader ? headerCells.findIndex((h) => DEBIT_HINTS.test(h)) : -1;
 	const creditHintCol = hasHeader ? headerCells.findIndex((h) => CREDIT_HINTS.test(h)) : -1;
 	const debitCreditValid =
@@ -180,8 +184,8 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		debitHintCol !== creditHintCol &&
 		debitHintCol !== dateColumn &&
 		creditHintCol !== dateColumn &&
-		strongByCol[debitHintCol] + weakByCol[debitHintCol] > 0 &&
-		strongByCol[creditHintCol] + weakByCol[creditHintCol] > 0;
+		strongByCol[debitHintCol] > 0 &&
+		strongByCol[creditHintCol] > 0;
 
 	let amount: DetectionResult['mapping']['amount'];
 	let amountConfident: boolean;
