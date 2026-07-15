@@ -9,6 +9,7 @@ import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
 import { detectColumns } from '@/src/utils/bank-import/detect-columns';
 import type { ColumnMapping } from '@/src/utils/bank-import/types';
+import { StepMapColumns } from '@/src/components/bank-import/step-map-columns';
 
 export default function ImportScreen() {
 	const { accountId } = useLocalSearchParams<{ accountId: string }>();
@@ -19,9 +20,9 @@ export default function ImportScreen() {
 		[entities, accountId]
 	);
 
-	const [, setRawText] = useState<string | null>(null);
+	const [rawText, setRawText] = useState<string | null>(null);
 	const [mapping, setMapping] = useState<ColumnMapping | null>(null);
-	const [, setHeaders] = useState<string[]>([]);
+	const [headers, setHeaders] = useState<string[]>([]);
 	const [step, setStep] = useState<'pick' | 'map' | 'review'>('pick');
 	const [busy, setBusy] = useState(false);
 
@@ -94,12 +95,18 @@ export default function ImportScreen() {
 				</View>
 			) : null}
 
-			{/* step === 'map' and 'review' wired in Tasks 8 & 9 */}
-			{step === 'map' && mapping ? (
-				<View className="flex-1 items-center justify-center">
-					<Text className="text-ink-muted">Column mapping — Task 8</Text>
-				</View>
+			{step === 'map' && mapping && rawText ? (
+				<StepMapColumns
+					rawText={rawText}
+					mapping={mapping}
+					headers={headers}
+					currency={account.currency}
+					onChange={setMapping}
+					onConfirm={() => setStep('review')}
+				/>
 			) : null}
+
+			{/* step === 'review' wired in Task 9 */}
 		</SafeAreaView>
 	);
 }
