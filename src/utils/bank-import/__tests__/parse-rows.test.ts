@@ -41,4 +41,24 @@ describe('parseBankRows (debit/credit)', () => {
 		const { rows } = parseBankRows(csv, mapping);
 		expect(rows.map((r) => r.amountMinor)).toEqual([-25000, 1500000]);
 	});
+
+	it('skips rows where both debit and credit are unparseable', () => {
+		const badCsv = `Date,Details,Debit,Credit
+2026-07-12,ATB,abc,xyz`;
+		const { rows, skipped } = parseBankRows(badCsv, mapping);
+		expect(rows).toEqual([]);
+		expect(skipped).toEqual([
+			{ rowIndex: 0, reason: 'unparseable amount', raw: '2026-07-12,ATB,abc,xyz' },
+		]);
+	});
+
+	it('skips rows where both debit and credit are populated non-zero', () => {
+		const ambiguousCsv = `Date,Details,Debit,Credit
+2026-07-12,ATB,250.00,100.00`;
+		const { rows, skipped } = parseBankRows(ambiguousCsv, mapping);
+		expect(rows).toEqual([]);
+		expect(skipped).toEqual([
+			{ rowIndex: 0, reason: 'ambiguous debit/credit', raw: '2026-07-12,ATB,250.00,100.00' },
+		]);
+	});
 });

@@ -20,10 +20,23 @@ export function parseBankRows(
 		if (mapping.amount.kind === 'signed') {
 			amountMinor = parseDecimalToMinor(cells[mapping.amount.column] ?? '', mapping.decimalSeparator);
 		} else {
+			// Sign convention: for debit/credit columns the COLUMN (not the cell's own sign)
+			// determines direction — debit = outflow (negative), credit = inflow (positive).
+			// Parsed values are treated as magnitudes via Math.abs by design.
 			const debit = parseDecimalToMinor(cells[mapping.amount.debitColumn] ?? '', mapping.decimalSeparator);
 			const credit = parseDecimalToMinor(cells[mapping.amount.creditColumn] ?? '', mapping.decimalSeparator);
-			if (debit && debit !== 0) amountMinor = -Math.abs(debit);
-			else if (credit && credit !== 0) amountMinor = Math.abs(credit);
+			if (debit === null && credit === null) {
+				skipped.push({ rowIndex, reason: 'unparseable amount', raw: line });
+				return;
+			}
+			const debitSet = debit !== null && debit !== 0;
+			const creditSet = credit !== null && credit !== 0;
+			if (debitSet && creditSet) {
+				skipped.push({ rowIndex, reason: 'ambiguous debit/credit', raw: line });
+				return;
+			}
+			if (debitSet) amountMinor = -Math.abs(debit as number);
+			else if (creditSet) amountMinor = Math.abs(credit as number);
 			else amountMinor = 0;
 		}
 		if (amountMinor === null) { skipped.push({ rowIndex, reason: 'unparseable amount', raw: line }); return; }
