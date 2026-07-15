@@ -18,6 +18,7 @@ let triggerFocus: (() => void) | null = null;
 // test environment. The screen no longer reads URL params anyway.
 jest.mock('expo-router', () => ({
 	useLocalSearchParams: () => ({}),
+	useRouter: () => ({ push: jest.fn() }),
 	useFocusEffect: (createCallback: () => (() => void) | void) => {
 		const React = jest.requireActual('react');
 		React.useEffect(() => {
