@@ -74,7 +74,12 @@ export function StepReview({
 
 	const newCount = useMemo(() => rows.filter((r) => r.status === 'new').length, [rows]);
 	const dupCount = useMemo(() => rows.filter((r) => r.status === 'duplicate').length, [rows]);
-	const selectedCount = useMemo(() => rows.filter((r) => r.selected).length, [rows]);
+	// Ticking a duplicate row's checkbox has no commit effect (buildImportTransactions
+	// skips non-"new" rows), so only count "new" rows toward the displayed total.
+	const selectedCount = useMemo(
+		() => rows.filter((r) => r.selected && r.status === 'new').length,
+		[rows]
+	);
 
 	const canCommit =
 		!committing &&
@@ -230,6 +235,10 @@ export function StepReview({
 					rows.map((row) => {
 						const isNegative = signOf(row.parsed.amountMinor) < 0;
 						const isBulkChecked = bulkChecked.has(row.parsed.rowIndex);
+						const isSuggested =
+							row.suggestedTransferAccountId !== undefined &&
+							row.assignment?.kind === 'transfer' &&
+							row.assignment.accountId === row.suggestedTransferAccountId;
 						return (
 							<View
 								key={row.parsed.rowIndex}
@@ -270,33 +279,45 @@ export function StepReview({
 											</Text>
 										</View>
 									) : (
-										<Pressable
-											testID={`import-review-assign-${row.parsed.rowIndex}`}
-											onPress={() =>
-												bulkMode
-													? toggleBulkChecked(
-															row.parsed.rowIndex,
-															isNegative ? -1 : 1
-														)
-													: openSheetFor(
-															[row.parsed.rowIndex],
-															isNegative ? -1 : 1
-														)
-											}
-											className={`mt-1 flex-row items-center self-start rounded-full px-3 py-1 ${
-												row.assignment ? 'bg-paper-200' : 'bg-warning/20'
-											} ${isBulkChecked ? 'border border-accent' : ''}`}
-										>
-											<Text className="font-sans text-xs text-ink">
-												{assignmentLabel(
-													row.assignment,
-													isNegative,
-													categories,
-													incomes,
-													accounts
-												)}
-											</Text>
-										</Pressable>
+										<View className="flex-row items-center gap-2">
+											<Pressable
+												testID={`import-review-assign-${row.parsed.rowIndex}`}
+												onPress={() =>
+													bulkMode
+														? toggleBulkChecked(
+																row.parsed.rowIndex,
+																isNegative ? -1 : 1
+															)
+														: openSheetFor(
+																[row.parsed.rowIndex],
+																isNegative ? -1 : 1
+															)
+												}
+												className={`mt-1 flex-row items-center self-start rounded-full px-3 py-1 ${
+													row.assignment
+														? 'bg-paper-200'
+														: 'bg-warning/20'
+												} ${isBulkChecked ? 'border border-accent' : ''}`}
+											>
+												<Text className="font-sans text-xs text-ink">
+													{assignmentLabel(
+														row.assignment,
+														isNegative,
+														categories,
+														incomes,
+														accounts
+													)}
+												</Text>
+											</Pressable>
+											{isSuggested ? (
+												<Text
+													testID={`import-review-suggested-${row.parsed.rowIndex}`}
+													className="mt-1 font-sans text-[10px] text-info"
+												>
+													Suggested
+												</Text>
+											) : null}
+										</View>
 									)}
 								</View>
 							</View>

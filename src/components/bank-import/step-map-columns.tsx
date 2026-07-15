@@ -4,7 +4,7 @@ import { Text } from '@/src/components/text';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { formatAmount } from '@/src/utils/format';
 import { parseBankRows } from '@/src/utils/bank-import/parse-rows';
-import type { ColumnMapping, DateFormat } from '@/src/utils/bank-import/types';
+import type { ColumnMapping, DateFormat, DetectionResult } from '@/src/utils/bank-import/types';
 
 const DATE_FORMATS: DateFormat[] = ['YYYY-MM-DD', 'DD.MM.YYYY', 'DD/MM/YYYY', 'MM/DD/YYYY'];
 
@@ -13,8 +13,19 @@ interface StepMapColumnsProps {
 	mapping: ColumnMapping;
 	headers: string[];
 	currency?: string;
+	/** Detection confidence per field; renders a "please verify" hint when false. */
+	confident?: DetectionResult['confident'];
 	onChange: (next: ColumnMapping) => void;
 	onConfirm: () => void;
+}
+
+/** Subtle inline hint shown next to a section whose detection wasn't confident. */
+function LowConfidenceHint() {
+	return (
+		<Text className="mb-1 mt-0.5 font-sans text-xs text-warning">
+			Couldn&apos;t confidently detect this — please verify.
+		</Text>
+	);
 }
 
 function ChipRow<T extends string | number>({
@@ -29,14 +40,20 @@ function ChipRow<T extends string | number>({
 	onSelect: (v: T) => void;
 }) {
 	return (
-		<ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 py-1">
+		<ScrollView
+			horizontal
+			showsHorizontalScrollIndicator={false}
+			className="flex-row gap-2 py-1"
+		>
 			{values.map((v) => (
 				<Pressable
 					key={String(v)}
 					onPress={() => onSelect(v)}
 					className={`mr-2 rounded-full px-3 py-1.5 ${v === selected ? 'bg-ink' : 'bg-paper-200'}`}
 				>
-					<Text className={`font-sans text-sm ${v === selected ? 'text-paper-50' : 'text-ink'}`}>
+					<Text
+						className={`font-sans text-sm ${v === selected ? 'text-paper-50' : 'text-ink'}`}
+					>
 						{label(v)}
 					</Text>
 				</Pressable>
@@ -50,6 +67,7 @@ export function StepMapColumns({
 	mapping,
 	headers,
 	currency = 'EUR',
+	confident,
 	onChange,
 	onConfirm,
 }: StepMapColumnsProps) {
@@ -67,6 +85,7 @@ export function StepMapColumns({
 				<Text className="mb-1 mt-4 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
 					Date column
 				</Text>
+				{confident && !confident.date ? <LowConfidenceHint /> : null}
 				<ChipRow
 					values={columns}
 					selected={mapping.dateColumn}
@@ -86,16 +105,22 @@ export function StepMapColumns({
 				<Text className="mb-1 mt-4 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
 					Amount
 				</Text>
+				{confident && !confident.amount ? <LowConfidenceHint /> : null}
 				<ChipRow
 					values={['signed', 'debitCredit'] as const}
 					selected={amount.kind}
-					label={(k) => (k === 'signed' ? 'Single signed column' : 'Separate debit / credit')}
+					label={(k) =>
+						k === 'signed' ? 'Single signed column' : 'Separate debit / credit'
+					}
 					onSelect={(k) =>
 						onChange({
 							...mapping,
 							amount:
 								k === 'signed'
-									? { kind: 'signed', column: amount.kind === 'signed' ? amount.column : 0 }
+									? {
+											kind: 'signed',
+											column: amount.kind === 'signed' ? amount.column : 0,
+										}
 									: { kind: 'debitCredit', debitColumn: 0, creditColumn: 1 },
 						})
 					}
@@ -105,7 +130,9 @@ export function StepMapColumns({
 						values={columns}
 						selected={amount.column}
 						label={columnLabel}
-						onSelect={(c) => onChange({ ...mapping, amount: { kind: 'signed', column: c } })}
+						onSelect={(c) =>
+							onChange({ ...mapping, amount: { kind: 'signed', column: c } })
+						}
 					/>
 				) : (
 					<>
@@ -117,7 +144,11 @@ export function StepMapColumns({
 							onSelect={(c) =>
 								onChange({
 									...mapping,
-									amount: { kind: 'debitCredit', debitColumn: c, creditColumn: amount.creditColumn },
+									amount: {
+										kind: 'debitCredit',
+										debitColumn: c,
+										creditColumn: amount.creditColumn,
+									},
 								})
 							}
 						/>
@@ -129,7 +160,11 @@ export function StepMapColumns({
 							onSelect={(c) =>
 								onChange({
 									...mapping,
-									amount: { kind: 'debitCredit', debitColumn: amount.debitColumn, creditColumn: c },
+									amount: {
+										kind: 'debitCredit',
+										debitColumn: amount.debitColumn,
+										creditColumn: c,
+									},
 								})
 							}
 						/>
@@ -162,7 +197,10 @@ export function StepMapColumns({
 							<Text className="font-sans text-sm text-ink-muted">
 								{new Date(r.dateMs).toLocaleDateString()}
 							</Text>
-							<Text className="mx-3 flex-1 font-sans text-sm text-ink" numberOfLines={1}>
+							<Text
+								className="mx-3 flex-1 font-sans text-sm text-ink"
+								numberOfLines={1}
+							>
 								{r.description}
 							</Text>
 							<Text

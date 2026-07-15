@@ -22,6 +22,7 @@ describe('StepMapColumns', () => {
 				rawText={csv}
 				mapping={mapping}
 				headers={['Date', 'Description', 'Amount']}
+				confident={{ date: true, amount: true }}
 				onChange={() => {}}
 				onConfirm={() => {}}
 			/>
@@ -36,6 +37,7 @@ describe('StepMapColumns', () => {
 				rawText={csv}
 				mapping={mapping}
 				headers={['Date', 'Description', 'Amount']}
+				confident={{ date: true, amount: true }}
 				onChange={() => {}}
 				onConfirm={() => {
 					confirmed = true;
@@ -44,5 +46,19 @@ describe('StepMapColumns', () => {
 		);
 		fireEvent.press(getByTestId('import-mapping-next'));
 		expect(confirmed).toBe(true);
+	});
+
+	it('shows a verify hint when detection was not confident', () => {
+		const { getAllByText } = render(
+			<StepMapColumns
+				rawText={csv}
+				mapping={mapping}
+				headers={['Date', 'Description', 'Amount']}
+				confident={{ date: false, amount: false }}
+				onChange={() => {}}
+				onConfirm={() => {}}
+			/>
+		);
+		expect(getAllByText(/Couldn.t confidently detect this/)).toHaveLength(2);
 	});
 });

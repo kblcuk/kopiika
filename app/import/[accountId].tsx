@@ -14,7 +14,7 @@ import { buildImportTransactions } from '@/src/utils/bank-import/build-transacti
 import { validateTransaction } from '@/src/utils/transaction-validation';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_ICONS } from '@/src/constants/icons';
-import type { ColumnMapping, ReconciledRow } from '@/src/utils/bank-import/types';
+import type { ColumnMapping, DetectionResult, ReconciledRow } from '@/src/utils/bank-import/types';
 import type { Entity } from '@/src/types';
 import { StepMapColumns } from '@/src/components/bank-import/step-map-columns';
 import { StepReview } from '@/src/components/bank-import/step-review';
@@ -31,6 +31,10 @@ export default function ImportScreen() {
 	const [rawText, setRawText] = useState<string | null>(null);
 	const [mapping, setMapping] = useState<ColumnMapping | null>(null);
 	const [headers, setHeaders] = useState<string[]>([]);
+	const [confident, setConfident] = useState<DetectionResult['confident']>({
+		date: true,
+		amount: true,
+	});
 	const [step, setStep] = useState<'pick' | 'map' | 'review'>('pick');
 	const [busy, setBusy] = useState(false);
 	const [reconciled, setReconciled] = useState<ReconciledRow[]>([]);
@@ -53,6 +57,7 @@ export default function ImportScreen() {
 			setRawText(content);
 			setMapping(detected.mapping);
 			setHeaders(detected.headers);
+			setConfident(detected.confident);
 			setStep('map');
 		} catch (e) {
 			console.error('Import file pick failed', e);
@@ -70,13 +75,50 @@ export default function ImportScreen() {
 		const acctTxns = transactions.filter(
 			(t) => t.from_entity_id === account.id || t.to_entity_id === account.id
 		);
-		setReconciled(reconcile(rows, acctTxns, account.id));
+		const reconciledRows = reconcile(rows, acctTxns, account.id);
+
+		// Light transfer auto-suggestion: if a "new" row's description contains
+		// another active account's name, pre-select that account as the
+		// transfer counterparty (still requires user confirmation via the
+		// normal picker before commit). Only consider same-currency accounts —
+		// a cross-currency transfer fails commit-time validation and would
+		// silently sabotage the pre-fill it's meant to help with. Accounts with
+		// a blank/whitespace name are skipped so they can't match everything.
+		const otherAccounts = entities.filter(
+			(e) =>
+				e.type === 'account' &&
+				e.is_deleted !== true &&
+				e.id !== account.id &&
+				e.currency === account.currency &&
+				e.name.trim().length > 0
+		);
+		const withSuggestions = reconciledRows.map((row): ReconciledRow => {
+			if (row.status !== 'new') return row;
+			const description = row.parsed.description.toLowerCase();
+			let best: Entity | null = null;
+			for (const candidate of otherAccounts) {
+				const name = candidate.name.trim();
+				if (!description.includes(name.toLowerCase())) continue;
+				if (!best || name.length > best.name.trim().length) best = candidate;
+			}
+			if (!best) return row;
+			return {
+				...row,
+				suggestedTransferAccountId: best.id,
+				assignment: { kind: 'transfer', accountId: best.id },
+			};
+		});
+
+		setReconciled(withSuggestions);
 		setStep('review');
-	}, [rawText, mapping, account, transactions]);
+	}, [rawText, mapping, account, transactions, entities]);
 
 	const activeOfType = useCallback(
-		(type: Entity['type']) => entities.filter((e) => e.type === type && e.is_deleted !== true),
-		[entities]
+		(type: Entity['type']) =>
+			entities.filter(
+				(e) => e.type === type && e.is_deleted !== true && e.currency === account?.currency
+			),
+		[entities, account]
 	);
 
 	const makeCategory = useCallback(
@@ -178,6 +220,7 @@ export default function ImportScreen() {
 					mapping={mapping}
 					headers={headers}
 					currency={account.currency}
+					confident={confident}
 					onChange={setMapping}
 					onConfirm={enterReview}
 				/>

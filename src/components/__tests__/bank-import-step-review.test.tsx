@@ -68,4 +68,36 @@ describe('StepReview', () => {
 		fireEvent.press(getByTestId('import-review-confirm'));
 		expect(committed).toBe(true);
 	});
+
+	it('excludes selected duplicate rows from the displayed import count', () => {
+		const dupRow: ReconciledRow = {
+			parsed: {
+				rowIndex: 1,
+				dateMs: new Date(2026, 6, 12).getTime(),
+				amountMinor: -500,
+				description: 'r1',
+			},
+			status: 'duplicate',
+			selected: true, // ticked, but duplicates never commit
+			assignment: null,
+		};
+		const rows = [
+			{ ...newRow(0, -100), assignment: { kind: 'category', entityId: 'cat-1' } as const },
+			dupRow,
+		];
+		const { getByText, queryByText } = render(
+			<StepReview
+				rows={rows}
+				onRowsChange={() => {}}
+				categories={[cat]}
+				incomes={[]}
+				accounts={[]}
+				currency="EUR"
+				onCommit={() => {}}
+				committing={false}
+			/>
+		);
+		expect(getByText('Import 1 transaction')).toBeTruthy();
+		expect(queryByText('Import 2 transactions')).toBeNull();
+	});
 });
