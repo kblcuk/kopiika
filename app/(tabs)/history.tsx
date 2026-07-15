@@ -12,8 +12,8 @@ import {
 import { Text } from '@/src/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
-import { useFocusEffect } from 'expo-router';
-import { Search, X, CheckCheck } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Search, X, CheckCheck, Upload } from 'lucide-react-native';
 
 import { useStore } from '@/src/store';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
@@ -36,6 +36,7 @@ import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { colors } from '@/src/theme/colors';
+import { TestIDs } from '@/e2e/support/test-ids';
 import {
 	sharedNumericTextInputProps,
 	sharedTextInputProps,
@@ -119,6 +120,7 @@ function parseSnapshotDateInput(input: string): number | null {
 }
 
 export default function HistoryScreen() {
+	const router = useRouter();
 	const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
 	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -651,11 +653,30 @@ export default function HistoryScreen() {
 					className="flex-1"
 					style={isStale ? { opacity: 0.6 } : undefined}
 					ListHeaderComponent={
-						<ReservationSummary
-							selectedEntity={selectedEntity}
-							entities={entities}
-							transactions={transactions}
-						/>
+						<>
+							{selectedEntity?.type === 'account' && !isInvestmentSelected ? (
+								<Pressable
+									testID={TestIDs.historyImportButton}
+									onPress={() =>
+										router.push({
+											pathname: '/import/[accountId]',
+											params: { accountId: selectedEntity.id },
+										})
+									}
+									className="mx-5 mb-2 mt-3 flex-row items-center justify-center gap-2 rounded-full border border-paper-300 py-2.5"
+								>
+									<Upload size={16} color={colors.ink.muted} />
+									<Text className="font-sans-semibold text-sm text-ink">
+										Import transactions
+									</Text>
+								</Pressable>
+							) : null}
+							<ReservationSummary
+								selectedEntity={selectedEntity}
+								entities={entities}
+								transactions={transactions}
+							/>
+						</>
 					}
 					ListFooterComponent={sections.length > 0 ? renderSnapshotList : null}
 					ListEmptyComponent={

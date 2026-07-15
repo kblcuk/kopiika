@@ -113,4 +113,10 @@ export const TestIDs = {
 		helpRow: 'settings-help-row',
 		tourRow: 'settings-tour-row',
 	},
+
+	historyImportButton: 'history-import-button',
+	importScreen: 'import-screen',
+	importPickFileButton: 'import-pick-file-button',
+	importMappingNext: 'import-mapping-next',
+	importReviewConfirm: 'import-review-confirm',
 } as const;

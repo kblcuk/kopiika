@@ -88,6 +88,7 @@ function App() {
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen name="onboarding" />
 					<Stack.Screen name="help" />
+					<Stack.Screen name="import/[accountId]" options={{ presentation: 'modal' }} />
 				</Stack>
 				<WhatsNewModal visible={showWhatsNew} onClose={handleDismissWhatsNew} />
 				<StatusBar style="dark" />
