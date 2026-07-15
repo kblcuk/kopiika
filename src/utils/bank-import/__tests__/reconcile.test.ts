@@ -15,15 +15,15 @@ describe('reconcile', () => {
 	it('marks a same-day same-amount outflow as duplicate', () => {
 		const rows: ParsedBankRow[] = [{ rowIndex: 0, dateMs: day(2026, 7, 12), amountMinor: -25000, description: 'ATB' }];
 		const result = reconcile(rows, [tx({ id: 'a' })], ACCT);
-		expect(result[0].status).toBe('duplicate');
-		expect(result[0].selected).toBe(false);
+		expect(result[0]!.status).toBe('duplicate');
+		expect(result[0]!.selected).toBe(false);
 	});
 
 	it('marks a different-day row as new even if amount matches', () => {
 		const rows: ParsedBankRow[] = [{ rowIndex: 0, dateMs: day(2026, 7, 11), amountMinor: -25000, description: 'ATB' }];
 		const result = reconcile(rows, [tx({ id: 'a', timestamp: day(2026, 7, 12) })], ACCT);
-		expect(result[0].status).toBe('new');
-		expect(result[0].selected).toBe(true);
+		expect(result[0]!.status).toBe('new');
+		expect(result[0]!.selected).toBe(true);
 	});
 
 	it('greedy 1:1 — two identical rows need two existing txns', () => {
@@ -40,6 +40,6 @@ describe('reconcile', () => {
 		const rows: ParsedBankRow[] = [{ rowIndex: 0, dateMs: day(2026, 7, 12), amountMinor: 10000, description: 'from A' }];
 		const transfer = tx({ id: 'x', from_entity_id: 'acct-A', to_entity_id: ACCT, amount_minor: 10000 });
 		const result = reconcile(rows, [transfer], ACCT);
-		expect(result[0].status).toBe('duplicate');
+		expect(result[0]!.status).toBe('duplicate');
 	});
 });

@@ -44,9 +44,9 @@ describe('buildImportTransactions', () => {
 		];
 		const { transactions, newCategories } = buildImportTransactions(rows, ctx);
 		expect(newCategories).toHaveLength(1);
-		expect(newCategories[0].name).toBe('Coffee');
-		expect(transactions[0].to_entity_id).toBe(newCategories[0].id);
-		expect(transactions[1].to_entity_id).toBe(newCategories[0].id);
+		expect(newCategories[0]!.name).toBe('Coffee');
+		expect(transactions[0]!.to_entity_id).toBe(newCategories[0]!.id);
+		expect(transactions[1]!.to_entity_id).toBe(newCategories[0]!.id);
 	});
 
 	it('skips unselected, duplicate, and unassigned rows', () => {

@@ -18,10 +18,10 @@ function toMs(year: number, month1: number, day: number): number | null {
 export function parseFlexibleDate(value: string, format: DateFormat): number | null {
 	const m = value.trim().match(DATE_PARSERS[format]);
 	if (!m) return null;
-	if (format === 'YYYY-MM-DD') return toMs(+m[1], +m[2], +m[3]);
-	if (format === 'DD.MM.YYYY') return toMs(+m[3], +m[2], +m[1]);
-	if (format === 'DD/MM/YYYY') return toMs(+m[3], +m[2], +m[1]);
-	return toMs(+m[3], +m[1], +m[2]); // MM/DD/YYYY
+	if (format === 'YYYY-MM-DD') return toMs(+m[1]!, +m[2]!, +m[3]!);
+	if (format === 'DD.MM.YYYY') return toMs(+m[3]!, +m[2]!, +m[1]!);
+	if (format === 'DD/MM/YYYY') return toMs(+m[3]!, +m[2]!, +m[1]!);
+	return toMs(+m[3]!, +m[1]!, +m[2]!); // MM/DD/YYYY
 }
 
 export function parseDecimalToMinor(

@@ -34,8 +34,10 @@ function splitLines(rawText: string): string[] {
 function pickDelimiter(lines: string[]): string {
 	let best = ',';
 	let bestCount = -1;
+	const firstLine = lines[0];
+	if (firstLine === undefined) return best;
 	for (const d of DELIMITERS) {
-		const count = splitCsvLine(lines[0], d).length;
+		const count = splitCsvLine(firstLine, d).length;
 		if (count > bestCount) { bestCount = count; best = d; }
 	}
 	return best;
@@ -115,8 +117,10 @@ export function detectColumns(rawText: string): DetectionResult | null {
 	const delimiter = pickDelimiter(lines);
 	const rows = lines.map((l) => splitCsvLine(l, delimiter));
 	const columnCount = Math.max(...rows.map((r) => r.length));
-	const hasHeader = looksLikeHeader(rows[0]);
-	const headerCells = hasHeader ? rows[0] : rows[0].map((_, i) => `Column ${i + 1}`);
+	const firstRow = rows[0];
+	if (firstRow === undefined) return null;
+	const hasHeader = looksLikeHeader(firstRow);
+	const headerCells = hasHeader ? firstRow : firstRow.map((_, i) => `Column ${i + 1}`);
 	const dataRows = hasHeader ? rows.slice(1) : rows;
 	if (dataRows.length === 0) return null;
 
@@ -184,8 +188,8 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		debitHintCol !== creditHintCol &&
 		debitHintCol !== dateColumn &&
 		creditHintCol !== dateColumn &&
-		strongByCol[debitHintCol] > 0 &&
-		strongByCol[creditHintCol] > 0;
+		(strongByCol[debitHintCol] ?? 0) > 0 &&
+		(strongByCol[creditHintCol] ?? 0) > 0;
 
 	let amount: DetectionResult['mapping']['amount'];
 	let amountConfident: boolean;
@@ -208,16 +212,19 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		});
 	} else {
 		let bestStrong = 0;
-		for (let c = 0; c < columnCount; c++) if (c !== dateColumn && strongByCol[c] > bestStrong) bestStrong = strongByCol[c];
+		for (let c = 0; c < columnCount; c++) {
+			const strong = strongByCol[c] ?? 0;
+			if (c !== dateColumn && strong > bestStrong) bestStrong = strong;
+		}
 
 		let col = -1;
 		if (bestStrong > 0) {
 			const hintCol = hasHeader ? headerCells.findIndex((h) => AMOUNT_HINTS.test(h)) : -1;
-			if (hintCol >= 0 && hintCol !== dateColumn && strongByCol[hintCol] === bestStrong) {
+			if (hintCol >= 0 && hintCol !== dateColumn && (strongByCol[hintCol] ?? 0) === bestStrong) {
 				col = hintCol;
 			} else {
 				for (let c = 0; c < columnCount; c++) {
-					if (c !== dateColumn && strongByCol[c] === bestStrong) { col = c; break; }
+					if (c !== dateColumn && (strongByCol[c] ?? 0) === bestStrong) { col = c; break; }
 				}
 			}
 		} else {
@@ -227,7 +234,8 @@ export function detectColumns(rawText: string): DetectionResult | null {
 			// reference ids) is not verified as an amount (C1).
 			let bestWeak = 0;
 			for (let c = 0; c < columnCount; c++) {
-				if (c !== dateColumn && weakByCol[c] > bestWeak) { bestWeak = weakByCol[c]; col = c; }
+				const weak = weakByCol[c] ?? 0;
+				if (c !== dateColumn && weak > bestWeak) { bestWeak = weak; col = c; }
 			}
 		}
 		if (col < 0) {
@@ -237,10 +245,15 @@ export function detectColumns(rawText: string): DetectionResult | null {
 
 		amount = { kind: 'signed', column: col };
 		decimalSeparator = detectDecimalSeparator(dataRows, [col]);
-		amountConfident =
-			bestStrong > 0 &&
-			amount.column !== dateColumn &&
-			dataRows.every((row) => looksMonetary(row[amount.column] ?? '', decimalSeparator));
+		if (amount.kind === 'signed') {
+			const amountColumn = amount.column;
+			amountConfident =
+				bestStrong > 0 &&
+				amountColumn !== dateColumn &&
+				dataRows.every((row) => looksMonetary(row[amountColumn] ?? '', decimalSeparator));
+		} else {
+			amountConfident = false;
+		}
 	}
 
 	const usedCols = new Set<number>([dateColumn]);
