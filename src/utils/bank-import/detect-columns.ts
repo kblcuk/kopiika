@@ -26,6 +26,12 @@ const DATE_HINTS = hintRegex('date|дата|время|time|posted|дата оп
 const AMOUNT_HINTS = hintRegex('amount|sum|сума|сумма|value|total');
 const DEBIT_HINTS = hintRegex('debit|витрати|дебет|withdrawal|outflow');
 const CREDIT_HINTS = hintRegex('credit|надходження|кредит|deposit|inflow');
+// Prefer a merchant/narrative column for the transaction note (e.g. Revolut's
+// "Описание" = "Way Bakery") over an incidental leftover like a type/product
+// column. Deliberately excludes "reference" — those are usually digit codes.
+const DESCRIPTION_HINTS = hintRegex(
+	'description|опис|описание|details|narrative|memo|payee|merchant|призначення|назначение|наименование'
+);
 
 function splitLines(rawText: string): string[] {
 	return rawText.replace(/^﻿/, '').split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
@@ -259,8 +265,20 @@ export function detectColumns(rawText: string): DetectionResult | null {
 	const usedCols = new Set<number>([dateColumn]);
 	if (amount.kind === 'signed') usedCols.add(amount.column);
 	else { usedCols.add(amount.debitColumn); usedCols.add(amount.creditColumn); }
+	// Prefer an unused column whose header names a description/merchant field;
+	// otherwise fall back to the first unused column.
 	let descriptionColumn: number | null = null;
-	for (let c = 0; c < columnCount; c++) if (!usedCols.has(c)) { descriptionColumn = c; break; }
+	if (hasHeader) {
+		for (let c = 0; c < columnCount; c++) {
+			if (!usedCols.has(c) && DESCRIPTION_HINTS.test(headerCells[c] ?? '')) {
+				descriptionColumn = c;
+				break;
+			}
+		}
+	}
+	if (descriptionColumn === null) {
+		for (let c = 0; c < columnCount; c++) if (!usedCols.has(c)) { descriptionColumn = c; break; }
+	}
 
 	return {
 		mapping: { delimiter, hasHeader, dateColumn, dateFormat, decimalSeparator, amount, descriptionColumn },

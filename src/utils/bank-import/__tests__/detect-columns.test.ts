@@ -154,6 +154,7 @@ describe('detectColumns', () => {
 		expect(r.mapping.dateFormat).toBe('YYYY-MM-DD');
 		expect(r.mapping.amount).toEqual({ kind: 'signed', column: 5 }); // Сумма, not Комиссия/Остаток
 		expect(r.mapping.decimalSeparator).toBe('.');
+		expect(r.mapping.descriptionColumn).toBe(4); // Описание (merchant), not Тип/Продукт
 		expect(r.confident).toEqual({ date: true, amount: true });
 	});
 });

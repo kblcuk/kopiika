@@ -181,6 +181,21 @@ export function StepMapColumns({
 					onSelect={(s) => onChange({ ...mapping, decimalSeparator: s })}
 				/>
 
+				<Text className="mb-1 mt-4 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					Description column
+				</Text>
+				<Text className="mb-1 font-sans text-xs text-ink-muted">
+					Becomes each transaction&apos;s note — pick the merchant/details column.
+				</Text>
+				<ChipRow
+					values={[-1, ...columns]}
+					selected={mapping.descriptionColumn ?? -1}
+					label={(c) => (c === -1 ? 'None' : columnLabel(c))}
+					onSelect={(c) =>
+						onChange({ ...mapping, descriptionColumn: c === -1 ? null : c })
+					}
+				/>
+
 				<Text className="mb-2 mt-6 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
 					Preview
 				</Text>
