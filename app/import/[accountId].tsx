@@ -113,10 +113,30 @@ export default function ImportScreen() {
 		setStep('review');
 	}, [rawText, mapping, account, transactions, entities]);
 
-	const activeOfType = useCallback(
-		(type: Entity['type']) =>
+	// Memoized so their identity is stable across re-renders (e.g. when the user
+	// toggles a review row); StepReview memoizes its rows against these props.
+	const reviewCategories = useMemo(
+		() =>
 			entities.filter(
-				(e) => e.type === type && e.is_deleted !== true && e.currency === account?.currency
+				(e) => e.type === 'category' && e.is_deleted !== true && e.currency === account?.currency
+			),
+		[entities, account]
+	);
+	const reviewIncomes = useMemo(
+		() =>
+			entities.filter(
+				(e) => e.type === 'income' && e.is_deleted !== true && e.currency === account?.currency
+			),
+		[entities, account]
+	);
+	const reviewAccounts = useMemo(
+		() =>
+			entities.filter(
+				(e) =>
+					e.type === 'account' &&
+					e.is_deleted !== true &&
+					e.currency === account?.currency &&
+					e.id !== account?.id
 			),
 		[entities, account]
 	);
@@ -230,9 +250,9 @@ export default function ImportScreen() {
 				<StepReview
 					rows={reconciled}
 					onRowsChange={setReconciled}
-					categories={activeOfType('category')}
-					incomes={activeOfType('income')}
-					accounts={activeOfType('account').filter((a) => a.id !== account.id)}
+					categories={reviewCategories}
+					incomes={reviewIncomes}
+					accounts={reviewAccounts}
 					currency={account.currency}
 					onCommit={() => void handleCommit()}
 					committing={committing}

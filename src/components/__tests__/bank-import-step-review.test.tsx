@@ -100,4 +100,31 @@ describe('StepReview', () => {
 		expect(getByText('Import 1 transaction')).toBeTruthy();
 		expect(queryByText('Import 2 transactions')).toBeNull();
 	});
+
+	it('select-all toggles every new row selected via onRowsChange', () => {
+		const rows = [
+			{ ...newRow(0, -100), selected: false },
+			{ ...newRow(1, -200), selected: false },
+		];
+		let updated: ReconciledRow[] | null = null;
+		const { getByTestId, getByText } = render(
+			<StepReview
+				rows={rows}
+				onRowsChange={(r) => {
+					updated = r;
+				}}
+				categories={[cat]}
+				incomes={[]}
+				accounts={[]}
+				currency="EUR"
+				onCommit={() => {}}
+				committing={false}
+			/>
+		);
+		// Both deselected → control offers "Select all".
+		expect(getByText('Select all')).toBeTruthy();
+		fireEvent.press(getByTestId('import-review-select-all'));
+		expect(updated).not.toBeNull();
+		expect(updated!.every((r) => r.selected)).toBe(true);
+	});
 });
