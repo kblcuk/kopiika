@@ -16,7 +16,13 @@ function toMs(year: number, month1: number, day: number): number | null {
 }
 
 export function parseFlexibleDate(value: string, format: DateFormat): number | null {
-	const m = value.trim().match(DATE_PARSERS[format]);
+	// Bank exports often carry a timestamp on the date column (e.g. Revolut's
+	// "2026-06-01 12:30:34" or ISO "2026-06-01T12:30:34Z"). We key on the civil
+	// date only, so drop any trailing time component (space- or T-separated)
+	// before matching. All four date formats are themselves whitespace-free, so
+	// taking the token before the first space/T never truncates a valid date.
+	const datePart = value.trim().split(/[ T]/)[0] ?? '';
+	const m = datePart.match(DATE_PARSERS[format]);
 	if (!m) return null;
 	if (format === 'YYYY-MM-DD') return toMs(+m[1]!, +m[2]!, +m[3]!);
 	if (format === 'DD.MM.YYYY') return toMs(+m[3]!, +m[2]!, +m[1]!);

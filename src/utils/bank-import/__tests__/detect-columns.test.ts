@@ -13,6 +13,13 @@ const DEBIT_CREDIT = `Date,Details,Debit,Credit
 2026-07-12,ATB,250.00,
 2026-07-11,Salary,,15000.00`;
 
+// Real-world Revolut export (Russian locale): datetime date columns, a signed
+// "Сумма" amount alongside decoy monetary columns (Комиссия/fee, Остаток
+// средств/balance), and two "Дата ..." columns.
+const REVOLUT_RU = `Тип,Продукт,Дата начала,Дата выполнения,Описание,Сумма,Комиссия,Валюта,State,Остаток средств
+Платеж по карте,Текущий,2026-06-01 12:30:34,2026-06-02 07:35:54,Way Bakery,-4.50,0.00,EUR,ВЫПОЛНЕНО,189.41
+Перевод,Текущий,2026-06-03 09:00:00,2026-06-03 09:00:01,Salary,2500.00,0.00,EUR,ВЫПОЛНЕНО,2689.41`;
+
 // C1 — a digit-heavy reference/description column ("Ref 4009812349") must
 // lose to the real amount column, even with no matching header hint.
 const REF_NUMBER_DESCRIPTION = `Дата,Опис,Операція
@@ -135,5 +142,18 @@ describe('detectColumns', () => {
 		const r = detectColumns(DEBIT_CREDIT_HIJACK)!;
 		expect(r.mapping.amount).toEqual({ kind: 'signed', column: 2 });
 		expect(r.confident.amount).toBe(true);
+	});
+
+	// Real-world Revolut (Russian): datetime date column + signed Сумма amid
+	// decoy monetary columns (fee/balance) must be detected confidently.
+	it('detects Revolut RU export (datetime date + signed Сумма over fee/balance decoys)', () => {
+		const r = detectColumns(REVOLUT_RU)!;
+		expect(r.mapping.delimiter).toBe(',');
+		expect(r.mapping.hasHeader).toBe(true);
+		expect(r.mapping.dateColumn).toBe(2); // "Дата начала" — first Дата column
+		expect(r.mapping.dateFormat).toBe('YYYY-MM-DD');
+		expect(r.mapping.amount).toEqual({ kind: 'signed', column: 5 }); // Сумма, not Комиссия/Остаток
+		expect(r.mapping.decimalSeparator).toBe('.');
+		expect(r.confident).toEqual({ date: true, amount: true });
 	});
 });
