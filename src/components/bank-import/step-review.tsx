@@ -1,13 +1,13 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { View, Pressable, FlatList, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Pressable, FlatList, Modal, ActivityIndicator } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { Text } from '@/src/components/text';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { formatAmount } from '@/src/utils/format';
 import { colors } from '@/src/theme/colors';
 import { EntitySelectionSheet } from '@/src/components/entity-selection-sheet';
-import { sharedTextInputProps, textInputClassNames } from '@/src/styles/text-input';
-import type { Entity } from '@/src/types';
+import { EntityCreateModal } from '@/src/components/entity-create-modal';
+import type { Entity, EntityDraft } from '@/src/types';
 import type { Assignment, ReconciledRow } from '@/src/utils/bank-import/types';
 
 interface StepReviewProps {
@@ -24,6 +24,12 @@ interface StepReviewProps {
 /** Synthetic entity id: selecting it in the sheet opens the new-category prompt
  * instead of assigning a real entity. Never persisted. */
 const NEW_CATEGORY_SENTINEL_ID = '__import_new_category__';
+
+/** Prefix for the synthetic ids of categories staged earlier in this same import
+ * (created via the new-category modal but not yet committed). Selecting one
+ * re-assigns a row to that pending category. The trimmed name follows the
+ * prefix and is the dedup key, matching `buildImportTransactions`. */
+const STAGED_CATEGORY_PREFIX = '__import_staged_category__';
 
 type Sign = -1 | 1;
 
@@ -63,7 +69,7 @@ function assignmentLabel(
 		case 'transfer':
 			return `Transfer → ${accounts.find((a) => a.id === assignment.accountId)?.name ?? 'account'}`;
 		case 'newCategory':
-			return `New: ${assignment.name}`;
+			return `New: ${assignment.draft.name}`;
 	}
 }
 
@@ -94,8 +100,21 @@ const ReviewRow = memo(function ReviewRow({
 		row.suggestedTransferAccountId !== undefined &&
 		row.assignment?.kind === 'transfer' &&
 		row.assignment.accountId === row.suggestedTransferAccountId;
+	// Scan cues for long statements: flag rows that will import but still need a
+	// category (amber edge + wash), dim rows that won't import, leave ready rows
+	// plain. A constant transparent left border keeps content aligned across
+	// states so toggling a row doesn't shift its text.
+	const needsCategory = row.selected && row.assignment === null;
+	const excluded = !row.selected;
+	const stateClass = needsCategory
+		? 'border-l-warning bg-warning/10'
+		: excluded
+			? 'border-l-transparent opacity-50'
+			: 'border-l-transparent';
 	return (
-		<View className="flex-row items-start border-b border-paper-200 py-3">
+		<View
+			className={`flex-row items-start border-b border-l-4 border-paper-200 py-3 pl-2 ${stateClass}`}
+		>
 			<Pressable
 				testID={`import-review-row-select-${row.parsed.rowIndex}`}
 				onPress={() => onToggleSelect(row.parsed.rowIndex)}
@@ -124,7 +143,10 @@ const ReviewRow = memo(function ReviewRow({
 					<View className="mt-1 self-start rounded-full bg-paper-200 px-2 py-0.5">
 						<Text className="font-sans text-[10px] text-ink-muted">Already have</Text>
 					</View>
-				) : (
+				) : null}
+				{/* New rows always need categorizing; a duplicate only once the user
+				    ticks it to import anyway. */}
+				{row.status === 'new' || row.selected ? (
 					<View className="flex-row items-center gap-2">
 						<Pressable
 							testID={`import-review-assign-${row.parsed.rowIndex}`}
@@ -134,7 +156,13 @@ const ReviewRow = memo(function ReviewRow({
 							}`}
 						>
 							<Text className="font-sans text-xs text-ink">
-								{assignmentLabel(row.assignment, isNegative, categories, incomes, accounts)}
+								{assignmentLabel(
+									row.assignment,
+									isNegative,
+									categories,
+									incomes,
+									accounts
+								)}
 							</Text>
 						</Pressable>
 						{isSuggested ? (
@@ -146,7 +174,7 @@ const ReviewRow = memo(function ReviewRow({
 							</Text>
 						) : null}
 					</View>
-				)}
+				) : null}
 			</View>
 		</View>
 	);
@@ -163,8 +191,7 @@ export function StepReview({
 	committing,
 }: StepReviewProps) {
 	const [sheetTarget, setSheetTarget] = useState<SheetTarget | null>(null);
-	const [categoryPrompt, setCategoryPrompt] = useState<{ rowIndex: number } | null>(null);
-	const [categoryName, setCategoryName] = useState('');
+	const [newCategoryRowIndex, setNewCategoryRowIndex] = useState<number | null>(null);
 	const [propagatePrompt, setPropagatePrompt] = useState<PropagatePrompt | null>(null);
 
 	// Latest rows in a ref so the mutation callbacks below can stay referentially
@@ -175,10 +202,9 @@ export function StepReview({
 
 	const newCount = useMemo(() => rows.filter((r) => r.status === 'new').length, [rows]);
 	const dupCount = useMemo(() => rows.filter((r) => r.status === 'duplicate').length, [rows]);
-	const selectedCount = useMemo(
-		() => rows.filter((r) => r.selected && r.status === 'new').length,
-		[rows]
-	);
+	// Every selected row imports, regardless of status — a ticked duplicate is an
+	// explicit opt-in.
+	const selectedCount = useMemo(() => rows.filter((r) => r.selected).length, [rows]);
 	const allNewSelected = useMemo(
 		() => newCount > 0 && rows.every((r) => r.status !== 'new' || r.selected),
 		[rows, newCount]
@@ -186,8 +212,8 @@ export function StepReview({
 
 	const canCommit =
 		!committing &&
-		rows.every((r) => !(r.selected && r.status === 'new') || r.assignment !== null) &&
-		rows.some((r) => r.selected && r.status === 'new');
+		rows.every((r) => !r.selected || r.assignment !== null) &&
+		rows.some((r) => r.selected);
 
 	const applyAssignment = useCallback(
 		(rowIndexes: number[], assignment: Assignment) => {
@@ -264,14 +290,33 @@ export function StepReview({
 		[applyAssignment, offerPropagation]
 	);
 
+	// Categories the user created earlier in this import, keyed by trimmed name
+	// (dedup key, first draft wins — matches buildImportTransactions). Kept so
+	// later rows can reuse a just-created category instead of it going stale.
+	const stagedCategoryDrafts = useMemo(() => {
+		const map = new Map<string, EntityDraft>();
+		for (const r of rows) {
+			if (r.assignment?.kind !== 'newCategory') continue;
+			const name = r.assignment.draft.name.trim();
+			if (name && !map.has(name)) map.set(name, r.assignment.draft);
+		}
+		return map;
+	}, [rows]);
+
 	const handleEntitySelected = useCallback(
 		(entity: Entity) => {
 			const target = sheetTarget;
 			if (!target) return;
 			setSheetTarget(null);
 			if (entity.id === NEW_CATEGORY_SENTINEL_ID) {
-				setCategoryName('');
-				setCategoryPrompt({ rowIndex: target.rowIndex });
+				setNewCategoryRowIndex(target.rowIndex);
+				return;
+			}
+			if (entity.id.startsWith(STAGED_CATEGORY_PREFIX)) {
+				const draft = stagedCategoryDrafts.get(
+					entity.id.slice(STAGED_CATEGORY_PREFIX.length)
+				);
+				if (draft) finishAssignment(target.rowIndex, { kind: 'newCategory', draft });
 				return;
 			}
 			const assignment: Assignment =
@@ -282,17 +327,18 @@ export function StepReview({
 						: { kind: 'category', entityId: entity.id };
 			finishAssignment(target.rowIndex, assignment);
 		},
-		[sheetTarget, finishAssignment]
+		[sheetTarget, finishAssignment, stagedCategoryDrafts]
 	);
 
-	const confirmNewCategory = useCallback(() => {
-		const name = categoryName.trim();
-		if (!name || !categoryPrompt) return;
-		const { rowIndex } = categoryPrompt;
-		setCategoryPrompt(null);
-		setCategoryName('');
-		finishAssignment(rowIndex, { kind: 'newCategory', name });
-	}, [categoryName, categoryPrompt, finishAssignment]);
+	const handleNewCategoryDraft = useCallback(
+		(draft: EntityDraft) => {
+			if (newCategoryRowIndex === null) return;
+			const rowIndex = newCategoryRowIndex;
+			setNewCategoryRowIndex(null);
+			finishAssignment(rowIndex, { kind: 'newCategory', draft });
+		},
+		[newCategoryRowIndex, finishAssignment]
+	);
 
 	const confirmPropagation = useCallback(() => {
 		if (!propagatePrompt) return;
@@ -303,6 +349,16 @@ export function StepReview({
 	const sheetEntities = useMemo(() => {
 		if (!sheetTarget) return [];
 		if (sheetTarget.sign < 0) {
+			const stagedPseudos: Entity[] = [...stagedCategoryDrafts.values()].map((draft) => ({
+				id: STAGED_CATEGORY_PREFIX + draft.name.trim(),
+				type: 'category',
+				name: draft.name,
+				currency,
+				icon: draft.icon || 'plus',
+				color: draft.color,
+				row: 0,
+				position: 0,
+			}));
 			const newCategoryPseudo: Entity = {
 				id: NEW_CATEGORY_SENTINEL_ID,
 				type: 'category',
@@ -312,10 +368,10 @@ export function StepReview({
 				row: 0,
 				position: 0,
 			};
-			return [...categories, ...accounts, newCategoryPseudo];
+			return [...categories, ...stagedPseudos, ...accounts, newCategoryPseudo];
 		}
 		return [...incomes, ...accounts];
-	}, [sheetTarget, categories, incomes, accounts, currency]);
+	}, [sheetTarget, categories, incomes, accounts, currency, stagedCategoryDrafts]);
 
 	const sheetSelectedId = useMemo(() => {
 		if (!sheetTarget) return null;
@@ -324,6 +380,7 @@ export function StepReview({
 		if (!a) return null;
 		if (a.kind === 'category' || a.kind === 'income') return a.entityId;
 		if (a.kind === 'transfer') return a.accountId;
+		if (a.kind === 'newCategory') return STAGED_CATEGORY_PREFIX + a.draft.name.trim();
 		return null;
 	}, [sheetTarget, rows]);
 
@@ -409,50 +466,12 @@ export function StepReview({
 				testID="import-review-entity-sheet"
 			/>
 
-			<Modal
-				visible={categoryPrompt !== null}
-				transparent
-				animationType="fade"
-				onRequestClose={() => setCategoryPrompt(null)}
-			>
-				<Pressable
-					className="flex-1 items-center justify-center bg-black/25"
-					onPress={() => setCategoryPrompt(null)}
-				>
-					<Pressable onPress={() => {}} className="w-4/5 rounded-2xl bg-paper-50 p-5">
-						<Text className="mb-3 font-sans-semibold text-base text-ink">New category name</Text>
-						<TextInput
-							{...sharedTextInputProps}
-							autoFocus
-							value={categoryName}
-							onChangeText={setCategoryName}
-							placeholder="e.g. Groceries"
-							placeholderTextColor={colors.ink.placeholder}
-							className={`${textInputClassNames.container} ${textInputClassNames.input}`}
-							testID="import-review-new-category-input"
-						/>
-						<View className="mt-4 flex-row justify-end gap-4">
-							<Pressable onPress={() => setCategoryPrompt(null)} hitSlop={12}>
-								<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-							</Pressable>
-							<Pressable
-								testID="import-review-new-category-confirm"
-								onPress={confirmNewCategory}
-								disabled={!categoryName.trim()}
-								hitSlop={12}
-							>
-								<Text
-									className={`font-sans-semibold text-base ${
-										categoryName.trim() ? 'text-accent' : 'text-ink-muted'
-									}`}
-								>
-									Add
-								</Text>
-							</Pressable>
-						</View>
-					</Pressable>
-				</Pressable>
-			</Modal>
+			<EntityCreateModal
+				visible={newCategoryRowIndex !== null}
+				entityType="category"
+				onClose={() => setNewCategoryRowIndex(null)}
+				onCreate={handleNewCategoryDraft}
+			/>
 
 			<Modal
 				visible={propagatePrompt !== null}
@@ -465,12 +484,15 @@ export function StepReview({
 					onPress={() => setPropagatePrompt(null)}
 				>
 					<Pressable onPress={() => {}} className="w-4/5 rounded-2xl bg-paper-50 p-5">
-						<Text className="mb-2 font-sans-semibold text-base text-ink">Apply to similar rows?</Text>
+						<Text className="mb-2 font-sans-semibold text-base text-ink">
+							Apply to similar rows?
+						</Text>
 						{propagatePrompt ? (
 							<Text className="font-sans text-sm text-ink-muted">
 								{propagatePrompt.candidateIndexes.length} other{' '}
-								{propagatePrompt.candidateIndexes.length === 1 ? 'row' : 'rows'} match “
-								{propagatePrompt.description}”. Assign {propagatePrompt.label} to{' '}
+								{propagatePrompt.candidateIndexes.length === 1 ? 'row' : 'rows'}{' '}
+								match “{propagatePrompt.description}”. Assign{' '}
+								{propagatePrompt.label} to{' '}
 								{propagatePrompt.candidateIndexes.length === 1 ? 'it' : 'them'} too?
 							</Text>
 						) : null}
@@ -480,14 +502,18 @@ export function StepReview({
 								onPress={() => setPropagatePrompt(null)}
 								hitSlop={12}
 							>
-								<Text className="font-sans text-base text-ink-muted">Just this one</Text>
+								<Text className="font-sans text-base text-ink-muted">
+									Just this one
+								</Text>
 							</Pressable>
 							<Pressable
 								testID="import-review-propagate-apply"
 								onPress={confirmPropagation}
 								hitSlop={12}
 							>
-								<Text className="font-sans-semibold text-base text-accent">Apply to all</Text>
+								<Text className="font-sans-semibold text-base text-accent">
+									Apply to all
+								</Text>
 							</Pressable>
 						</View>
 					</Pressable>

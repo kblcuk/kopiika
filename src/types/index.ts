@@ -84,6 +84,20 @@ export type EntityColorKey =
 	| 'amber'
 	| 'lilac'
 	| 'teal';
+
+/** A staged entity awaiting commit. `EntityCreateModal`'s staging mode emits
+ * this instead of writing to the store, letting callers (onboarding, bank
+ * import) persist it atomically later. */
+export interface EntityDraft {
+	type: EntityType;
+	name: string;
+	icon: string;
+	color: EntityColorKey | null;
+	isInvestment: boolean;
+	// KII-120: integer minor units (cents for EUR). `null` if the user left
+	// the planned-amount input empty.
+	plannedAmountMinor: number | null;
+}
 // Period semantics:
 // All plans use period='all-time' - a static budget/goal that applies the same way every month.
 // The period_start field indicates when the plan was created (YYYY-MM format).

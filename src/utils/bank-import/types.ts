@@ -1,3 +1,5 @@
+import type { EntityDraft } from '@/src/types';
+
 export type DateFormat = 'YYYY-MM-DD' | 'DD.MM.YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
 
 export type AmountMapping =
@@ -37,7 +39,7 @@ export interface SkippedRow {
 
 export type Assignment =
 	| { kind: 'category'; entityId: string }
-	| { kind: 'newCategory'; name: string }
+	| { kind: 'newCategory'; draft: EntityDraft }
 	| { kind: 'income'; entityId: string }
 	| { kind: 'transfer'; accountId: string };
 

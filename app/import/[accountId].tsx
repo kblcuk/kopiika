@@ -15,7 +15,7 @@ import { validateTransaction } from '@/src/utils/transaction-validation';
 import { generateId } from '@/src/utils/ids';
 import { DEFAULT_ICONS } from '@/src/constants/icons';
 import type { ColumnMapping, DetectionResult, ReconciledRow } from '@/src/utils/bank-import/types';
-import type { Entity } from '@/src/types';
+import { getCurrentPeriod, type Entity, type EntityDraft } from '@/src/types';
 import { StepMapColumns } from '@/src/components/bank-import/step-map-columns';
 import { StepReview } from '@/src/components/bank-import/step-review';
 
@@ -26,6 +26,7 @@ export default function ImportScreen() {
 	const transactions = useStore((s) => s.transactions);
 	const createTransactionBatch = useStore((s) => s.createTransactionBatch);
 	const addEntity = useStore((s) => s.addEntity);
+	const setPlan = useStore((s) => s.setPlan);
 	const account = useMemo(() => entities.find((e) => e.id === accountId), [entities, accountId]);
 
 	const [rawText, setRawText] = useState<string | null>(null);
@@ -118,14 +119,18 @@ export default function ImportScreen() {
 	const reviewCategories = useMemo(
 		() =>
 			entities.filter(
-				(e) => e.type === 'category' && e.is_deleted !== true && e.currency === account?.currency
+				(e) =>
+					e.type === 'category' &&
+					e.is_deleted !== true &&
+					e.currency === account?.currency
 			),
 		[entities, account]
 	);
 	const reviewIncomes = useMemo(
 		() =>
 			entities.filter(
-				(e) => e.type === 'income' && e.is_deleted !== true && e.currency === account?.currency
+				(e) =>
+					e.type === 'income' && e.is_deleted !== true && e.currency === account?.currency
 			),
 		[entities, account]
 	);
@@ -142,12 +147,13 @@ export default function ImportScreen() {
 	);
 
 	const makeCategory = useCallback(
-		(name: string): Entity => ({
+		(draft: EntityDraft): Entity => ({
 			id: generateId(),
 			type: 'category',
-			name,
+			name: draft.name,
 			currency: account?.currency ?? 'EUR',
-			icon: DEFAULT_ICONS.category,
+			icon: draft.icon || DEFAULT_ICONS.category,
+			color: draft.color,
 			row: 0,
 			position: 0,
 		}),
@@ -166,7 +172,7 @@ export default function ImportScreen() {
 			// Validate every row against domain rules before touching the DB. New
 			// categories aren't persisted yet, so validate against the UNION so a
 			// row referencing a just-minted category doesn't fail MISSING_TO.
-			const validationEntities = [...entities, ...newCategories];
+			const validationEntities = [...entities, ...newCategories.map((c) => c.entity)];
 			for (const txn of built) {
 				const check = validateTransaction(txn, validationEntities, {
 					allowDeletedEntities: true,
@@ -177,7 +183,19 @@ export default function ImportScreen() {
 					return;
 				}
 			}
-			for (const cat of newCategories) await addEntity(cat);
+			const period = getCurrentPeriod();
+			for (const { entity, plannedAmountMinor } of newCategories) {
+				await addEntity(entity);
+				if (plannedAmountMinor != null) {
+					await setPlan({
+						id: generateId(),
+						entity_id: entity.id,
+						period: 'all-time',
+						period_start: period,
+						planned_amount_minor: plannedAmountMinor,
+					});
+				}
+			}
 			await createTransactionBatch(built);
 			Alert.alert('Import complete', `Added ${built.length} transaction(s).`);
 			router.back();
@@ -187,7 +205,16 @@ export default function ImportScreen() {
 		} finally {
 			setCommitting(false);
 		}
-	}, [account, reconciled, entities, makeCategory, addEntity, createTransactionBatch, router]);
+	}, [
+		account,
+		reconciled,
+		entities,
+		makeCategory,
+		addEntity,
+		setPlan,
+		createTransactionBatch,
+		router,
+	]);
 
 	if (!account || account.type !== 'account') {
 		return (

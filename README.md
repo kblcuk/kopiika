@@ -28,7 +28,7 @@ Offline-first personal finance app for monthly planning vs reality. Built with E
 - **Custom entity colors** — choose icon background colors from a curated palette
 - **Quick-add** — floating `+` button in the tab bar opens the transaction modal from anywhere
 - **CSV import/export** — full data portability (entities, plans, transactions, market values), managed from Settings
-- **Bank statement import** — import a bank's CSV export into an account, auto-detect date/amount columns, reconcile against existing transactions, and categorize only what's missing (including account-to-account transfers)
+- **Bank statement import** — import a bank's CSV export into an account, auto-detect date/amount columns, reconcile against existing transactions, and categorize what's missing (including account-to-account transfers and creating categories inline); already-imported rows can still be pulled in on demand
 - **In-app changelog** — "What's New" modal on app update
 - **Accessibility** — WCAG AA contrast, large touch targets, no color-only indicators
 

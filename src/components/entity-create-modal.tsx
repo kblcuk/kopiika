@@ -11,7 +11,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { PageSheetModal } from './page-sheet-modal';
 
-import type { EntityType, EntityColorKey } from '@/src/types';
+import type { EntityType, EntityColorKey, EntityDraft } from '@/src/types';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
@@ -30,16 +30,9 @@ import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { InfoPin } from '@/src/components/info-pin';
 import { OperatorToolbar } from './operator-toolbar';
 
-export interface EntityDraft {
-	type: EntityType;
-	name: string;
-	icon: string;
-	color: EntityColorKey | null;
-	isInvestment: boolean;
-	// KII-120: integer minor units (cents for EUR). `null` if the user left
-	// the planned-amount input empty.
-	plannedAmountMinor: number | null;
-}
+// Re-exported for existing importers; the canonical definition now lives in
+// `@/src/types` so non-component modules (e.g. bank import) can reference it.
+export type { EntityDraft };
 
 interface EntityCreateModalProps {
 	visible: boolean;
