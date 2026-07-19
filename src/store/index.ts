@@ -12,7 +12,13 @@ import type {
 import type { RecurrenceTemplate, RecurrenceRule } from '@/src/types/recurrence';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import * as db from '@/src/db';
-import { generateOccurrences, occurrenceId, toCivilDate } from '@/src/utils/recurrence';
+import {
+	civilDateToTimestamp,
+	generateOccurrences,
+	occurrenceId,
+	occurrenceSlotCivilDate,
+	toCivilDate,
+} from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { formatAmount } from '@/src/utils/format';
 import {
@@ -202,6 +208,24 @@ async function syncBadgeCount(get: () => AppState): Promise<void> {
 	}
 }
 
+/**
+ * The timestamp to record a series exclusion under when a materialized
+ * occurrence is deleted or split. Keyed to the occurrence's SLOT (read from its
+ * deterministic id) rather than its current timestamp, so an occurrence whose
+ * date the user edited still excludes the slot it was generated for. Without
+ * this, deleting a date-edited occurrence records the exclusion against the
+ * dragged date and `backfillRecurrences` resurrects the original slot on the
+ * next launch. Legacy random-id rows fall back to their timestamp (their slot is
+ * only knowable that way). Exclusions match by civil date, so the exact
+ * time-of-day of the returned timestamp is irrelevant.
+ */
+function seriesExclusionTimestamp(transaction: Transaction): number {
+	const seriesId = transaction.series_id;
+	if (!seriesId) return transaction.timestamp;
+	const slot = occurrenceSlotCivilDate(transaction.id, seriesId);
+	return slot ? civilDateToTimestamp(slot) : transaction.timestamp;
+}
+
 async function backfillRecurrences(
 	templates: RecurrenceTemplate[],
 	existingTransactions: Transaction[],
@@ -211,14 +235,12 @@ async function backfillRecurrences(
 	const now = Date.now();
 	const newTransactions: Transaction[] = [];
 
-	// The materialized-row id is deterministic (`${series}:${civil}`), so an id
-	// that already exists must never be regenerated — the INSERT would fail on the
-	// primary key. The civil-date guard below alone is not enough: a row can carry
-	// id `${series}:${C}` yet no longer sit on civil date C (the user edited the
-	// occurrence's date, detached it from the series, or the device timezone
-	// shifted). In those cases the civil-date guard misses it and backfill would
-	// collide on the id. Guarding on the id itself closes that gap, while the civil
-	// guard still covers legacy random-id rows (KII-136 migration 0021).
+	// Hard primary-key backstop: the materialized-row id is deterministic
+	// (`${series}:${civil}`), so an id that already exists must never be
+	// regenerated — the INSERT would fail on the PK. This catches the case the
+	// per-series slot guard below cannot: a row whose id is `${series}:${C}` but
+	// whose `series_id` was detached (so it no longer joins this series), yet
+	// still carries that id.
 	const existingIds = new Set(existingTransactions.map((t) => t.id));
 
 	for (const template of templates) {
@@ -258,16 +280,22 @@ async function backfillRecurrences(
 			exclusions: template.exclusions,
 		});
 
-		const existingCivil = new Set(
+		// Which occurrence SLOTS this series already occupies. A materialized row's
+		// slot is read from its deterministic id (stable under date edits), falling
+		// back to `toCivilDate(timestamp)` for legacy random-id rows whose slot is
+		// only knowable that way. Keying on the slot (not the row's current civil
+		// date) stops an edited row from either resurrecting its original slot or
+		// shadowing a different slot it happened to be dragged onto.
+		const existingSlots = new Set(
 			existingTransactions
 				.filter((t) => t.series_id === template.id)
-				.map((t) => toCivilDate(t.timestamp))
+				.map((t) => occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp))
 		);
 
 		for (const ts of dueTimestamps) {
 			const civil = toCivilDate(ts);
 			const id = occurrenceId(template.id, civil);
-			if (existingCivil.has(civil) || existingIds.has(id)) continue;
+			if (existingSlots.has(civil) || existingIds.has(id)) continue;
 			newTransactions.push(
 				buildTransaction(
 					{
@@ -710,7 +738,10 @@ export const useStore = create<AppState>((set, get) => {
 			}
 
 			const seriesExclusion = original.series_id
-				? { templateId: original.series_id, timestamp: original.timestamp }
+				? {
+						templateId: original.series_id,
+						timestamp: seriesExclusionTimestamp(original),
+					}
 				: undefined;
 
 			const result = await applyOperation(
@@ -864,7 +895,10 @@ export const useStore = create<AppState>((set, get) => {
 				// the row (deleted) and the exclusion (missing) — which would let
 				// backfillRecurrences silently resurrect the occurrence on next launch.
 				const seriesExclusion = transaction.series_id
-					? { templateId: transaction.series_id, timestamp: transaction.timestamp }
+					? {
+							templateId: transaction.series_id,
+							timestamp: seriesExclusionTimestamp(transaction),
+						}
 					: undefined;
 				await applyOperation(
 					{ kind: 'transaction.delete', id, seriesExclusion },

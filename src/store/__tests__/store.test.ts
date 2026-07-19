@@ -5780,6 +5780,75 @@ describe('Store Data Integrity', () => {
 			expect(seriesRows[0]!.id).toBe(`${template.id}:${todayCivil}`);
 			expect(toCivilDate(seriesRows[0]!.timestamp)).toBe(yesterdayCivil);
 		});
+
+		test('deleting a date-edited occurrence excludes its slot, not the dragged date', async () => {
+			const acc: Entity = {
+				id: 'del-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'del-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			const now = Date.now();
+			const DAY = 86_400_000;
+			const todayCivil = toCivilDate(now);
+
+			// Monthly series whose only past-due occurrence is today.
+			const template: RecurrenceTemplate = {
+				id: 'del-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 5000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: now,
+				end_date: null,
+				end_count: null,
+				created_at: now,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+			const row = useStore.getState().transactions.find((t) => t.series_id === template.id)!;
+			expect(row.id).toBe(`${template.id}:${todayCivil}`);
+
+			// The transaction happened yesterday → edit the date back a day, then the
+			// user deletes it (single scope). The exclusion must be recorded against
+			// today's SLOT (its id), not yesterday's dragged timestamp.
+			await useStore.getState().updateTransaction(row.id, { timestamp: now - DAY });
+			await useStore.getState().deleteTransactionWithScope(row.id, 'single');
+
+			const excluded = useStore
+				.getState()
+				.recurrenceTemplates.find((t) => t.id === template.id)!
+				.exclusions!.map(toCivilDate);
+			expect(excluded).toContain(todayCivil);
+
+			// The deleted occurrence must NOT resurrect on its original date after a
+			// later backfill (before the fix it came back on `todayCivil`).
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+			expect(await db.getTransactionsBySeriesId(template.id)).toHaveLength(0);
+		});
 	});
 
 	test('materializeOccurrence inserts a real row with the deterministic id, idempotently', async () => {

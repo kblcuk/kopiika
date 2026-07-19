@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { generateOccurrences, nextOccurrence, toCivilDate, occurrenceId } from '../recurrence';
+import {
+	generateOccurrences,
+	nextOccurrence,
+	toCivilDate,
+	occurrenceId,
+	occurrenceSlotCivilDate,
+	civilDateToTimestamp,
+} from '../recurrence';
 
 // Helper: create a local-time timestamp for a specific date
 function localTs(year: number, month: number, day: number, hour = 9): number {
@@ -257,6 +264,49 @@ describe('toCivilDate', () => {
 describe('occurrenceId', () => {
 	test('composes series id and civil date', () => {
 		expect(occurrenceId('series-abc', '2026-07-01')).toBe('series-abc:2026-07-01');
+	});
+});
+
+describe('occurrenceSlotCivilDate', () => {
+	test('reads the slot civil date back from a deterministic id', () => {
+		expect(occurrenceSlotCivilDate('series-abc:2026-07-01', 'series-abc')).toBe('2026-07-01');
+	});
+
+	test('round-trips with occurrenceId', () => {
+		const id = occurrenceId('series-abc', '2026-02-28');
+		expect(occurrenceSlotCivilDate(id, 'series-abc')).toBe('2026-02-28');
+	});
+
+	test('returns null for a legacy random id', () => {
+		expect(occurrenceSlotCivilDate('1720000000000-0.42', 'series-abc')).toBeNull();
+	});
+
+	test('returns null when the id belongs to a different series', () => {
+		expect(occurrenceSlotCivilDate('other-series:2026-07-01', 'series-abc')).toBeNull();
+	});
+
+	test('returns null when the suffix is not a civil date', () => {
+		expect(occurrenceSlotCivilDate('series-abc:not-a-date', 'series-abc')).toBeNull();
+	});
+
+	test('handles a series id that itself contains a colon', () => {
+		// occurrenceId only ever appends `:${civil}`, so the LAST segment is the
+		// slot; a colon earlier in the series id must not confuse the parse.
+		expect(occurrenceSlotCivilDate('a:b:2026-07-01', 'a:b')).toBe('2026-07-01');
+	});
+});
+
+describe('civilDateToTimestamp', () => {
+	test('returns a timestamp on the given civil date', () => {
+		expect(toCivilDate(civilDateToTimestamp('2026-07-19'))).toBe('2026-07-19');
+	});
+
+	test('uses local noon so the civil date is DST-stable', () => {
+		const d = new Date(civilDateToTimestamp('2026-03-08'));
+		expect(d.getFullYear()).toBe(2026);
+		expect(d.getMonth()).toBe(2);
+		expect(d.getDate()).toBe(8);
+		expect(d.getHours()).toBe(12);
 	});
 });
 

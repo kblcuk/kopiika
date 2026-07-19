@@ -15,6 +15,9 @@ export function toCivilDate(timestamp: number): string {
 	return `${y}-${m}-${day}`;
 }
 
+/** `YYYY-MM-DD`, the civil-date suffix of a deterministic occurrence id. */
+const CIVIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * Deterministic occurrence id: `${seriesId}:${YYYY-MM-DD}`. Assigned to rows a
  * recurring occurrence materializes into (Plan B) and is the future sync key.
@@ -23,6 +26,36 @@ export function toCivilDate(timestamp: number): string {
  */
 export function occurrenceId(seriesId: string, civilDate: string): string {
 	return `${seriesId}:${civilDate}`;
+}
+
+/**
+ * Reverse of `occurrenceId`: the civil SLOT date a materialized occurrence
+ * belongs to, read back from its deterministic id. Returns null for legacy
+ * random-id rows (pre-KII-136) or any id that isn't a deterministic occurrence
+ * id for `seriesId`.
+ *
+ * The slot is the occurrence's STABLE identity — it does not move when the user
+ * edits the row's date, detaches it from the series, or the device timezone
+ * shifts. Dedup and exclusion must therefore key on the slot, not on
+ * `toCivilDate(timestamp)`, which drifts away from the id in all three cases and
+ * would otherwise resurrect or duplicate the occurrence.
+ */
+export function occurrenceSlotCivilDate(id: string, seriesId: string): string | null {
+	const prefix = `${seriesId}:`;
+	if (!id.startsWith(prefix)) return null;
+	const civil = id.slice(prefix.length);
+	return CIVIL_DATE_RE.test(civil) ? civil : null;
+}
+
+/**
+ * A canonical timestamp on a civil date, used when recording a recurrence
+ * exclusion for a SLOT (exclusions are stored as timestamps but matched by civil
+ * date — see `generateOccurrences`). Local noon keeps `toCivilDate` on the
+ * intended day regardless of DST, unlike midnight which can straddle a boundary.
+ */
+export function civilDateToTimestamp(civilDate: string): number {
+	const [y, m, d] = civilDate.split('-').map(Number);
+	return new Date(y!, m! - 1, d!, 12, 0, 0, 0).getTime();
 }
 
 /**
