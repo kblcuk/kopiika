@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.25](https://codeberg.org/kblcuk/kopiika/compare/v0.3.24...v0.3.25) (2026-07-19)
+
+
+### Bug Fixes
+
+* **store:** dedup recurrence backfill by deterministic id, not just civil date ([74cbc17](https://codeberg.org/kblcuk/kopiika/commit/74cbc17ce4257a9382287cde10d96122fc8fed77))
+* **store:** key recurrence dedup and exclusion off the slot id, not the timestamp ([b2912dc](https://codeberg.org/kblcuk/kopiika/commit/b2912dc3572ab34ae985d92824cc2076bb4139ab))
+
 ## [0.3.24](https://codeberg.org/kblcuk/kopiika/compare/v0.3.23...v0.3.24) (2026-07-14)
 
 
