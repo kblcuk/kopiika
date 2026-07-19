@@ -211,6 +211,16 @@ async function backfillRecurrences(
 	const now = Date.now();
 	const newTransactions: Transaction[] = [];
 
+	// The materialized-row id is deterministic (`${series}:${civil}`), so an id
+	// that already exists must never be regenerated — the INSERT would fail on the
+	// primary key. The civil-date guard below alone is not enough: a row can carry
+	// id `${series}:${C}` yet no longer sit on civil date C (the user edited the
+	// occurrence's date, detached it from the series, or the device timezone
+	// shifted). In those cases the civil-date guard misses it and backfill would
+	// collide on the id. Guarding on the id itself closes that gap, while the civil
+	// guard still covers legacy random-id rows (KII-136 migration 0021).
+	const existingIds = new Set(existingTransactions.map((t) => t.id));
+
 	for (const template of templates) {
 		if (template.is_deleted) continue;
 
@@ -256,11 +266,12 @@ async function backfillRecurrences(
 
 		for (const ts of dueTimestamps) {
 			const civil = toCivilDate(ts);
-			if (existingCivil.has(civil)) continue;
+			const id = occurrenceId(template.id, civil);
+			if (existingCivil.has(civil) || existingIds.has(id)) continue;
 			newTransactions.push(
 				buildTransaction(
 					{
-						id: occurrenceId(template.id, civil),
+						id,
 						from_entity_id: template.from_entity_id,
 						to_entity_id: template.to_entity_id,
 						amount_minor: template.amount_minor,

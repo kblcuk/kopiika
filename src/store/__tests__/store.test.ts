@@ -5702,6 +5702,84 @@ describe('Store Data Integrity', () => {
 			// Materialized rows are unconfirmed.
 			expect(rows.every((t) => t.is_confirmed === false)).toBe(true);
 		});
+
+		test('editing a past-due occurrence date does not collide with its deterministic id on the next backfill', async () => {
+			const acc: Entity = {
+				id: 'edit-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'edit-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			const now = Date.now();
+			const DAY = 86_400_000;
+			const todayCivil = toCivilDate(now);
+			const yesterdayCivil = toCivilDate(now - DAY);
+
+			// A monthly series whose only past-due occurrence is *today*.
+			const template: RecurrenceTemplate = {
+				id: 'edit-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 5000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: now,
+				end_date: null,
+				end_count: null,
+				created_at: now,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			// First backfill materializes today's occurrence with the deterministic
+			// id `${series}:${todayCivil}`.
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+			const todayRow = useStore
+				.getState()
+				.transactions.find((t) => t.series_id === template.id);
+			expect(todayRow).toBeDefined();
+			expect(todayRow!.id).toBe(`${template.id}:${todayCivil}`);
+
+			// The transaction actually happened yesterday, so the user edits the date
+			// back a day. A single-scope edit keeps the row's id and series_id and
+			// records no exclusion for today — the row now lives on yesterday's civil
+			// date while still carrying the id minted for today.
+			await useStore.getState().updateTransaction(todayRow!.id, { timestamp: now - DAY });
+
+			// Next app foreground / cold start. Before the fix this threw
+			// `UNIQUE constraint failed: transactions.id`: backfill saw today's civil
+			// date missing (the row moved to yesterday) and regenerated a row with the
+			// SAME deterministic id the edited row still carries.
+			_resetBackfillTimestampForTests();
+			await useStore.getState().backfillRecurringIfStale();
+
+			// The edited row survives on yesterday and no duplicate id was minted.
+			const seriesRows = await db.getTransactionsBySeriesId(template.id);
+			const ids = seriesRows.map((t) => t.id);
+			expect(new Set(ids).size).toBe(ids.length);
+			expect(seriesRows).toHaveLength(1);
+			expect(seriesRows[0]!.id).toBe(`${template.id}:${todayCivil}`);
+			expect(toCivilDate(seriesRows[0]!.timestamp)).toBe(yesterdayCivil);
+		});
 	});
 
 	test('materializeOccurrence inserts a real row with the deterministic id, idempotently', async () => {
