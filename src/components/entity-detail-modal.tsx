@@ -11,7 +11,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { PageSheetModal } from './page-sheet-modal';
 
 import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types';
-import { getCurrentPeriod } from '@/src/types';
 import {
 	formatAmount,
 	formatAmountForInput,
@@ -809,7 +808,7 @@ export function EntityDetailModal({ visible, entity, onClose }: EntityDetailModa
 				{entity.type !== 'account' && (
 					<View className="mb-6">
 						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
-							Planned Amount ({getCurrentPeriod()})
+							Planned Amount
 						</Text>
 						<View className={textInputClassNames.inlineContainer}>
 							<TextInput
