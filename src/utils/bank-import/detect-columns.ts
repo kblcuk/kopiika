@@ -28,7 +28,10 @@ const DEBIT_HINTS = hintRegex('debit|витрати|дебет|withdrawal|outflo
 const CREDIT_HINTS = hintRegex('credit|надходження|кредит|deposit|inflow');
 
 function splitLines(rawText: string): string[] {
-	return rawText.replace(/^﻿/, '').split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+	return rawText
+		.replace(/^﻿/, '')
+		.split(/\r\n|\r|\n/)
+		.filter((l) => l.trim().length > 0);
 }
 
 function pickDelimiter(lines: string[]): string {
@@ -38,7 +41,10 @@ function pickDelimiter(lines: string[]): string {
 	if (firstLine === undefined) return best;
 	for (const d of DELIMITERS) {
 		const count = splitCsvLine(firstLine, d).length;
-		if (count > bestCount) { bestCount = count; best = d; }
+		if (count > bestCount) {
+			bestCount = count;
+			best = d;
+		}
 	}
 	return best;
 }
@@ -81,11 +87,15 @@ function looksLikeHeader(cells: string[]): boolean {
 	return !cells.some((c) => looksDataLike(c));
 }
 
-function scoreDateColumn(dataRows: string[][], col: number): { format: DateFormat; hits: number } | null {
+function scoreDateColumn(
+	dataRows: string[][],
+	col: number
+): { format: DateFormat; hits: number } | null {
 	let best: { format: DateFormat; hits: number } | null = null;
 	for (const format of DATE_FORMATS) {
 		let hits = 0;
-		for (const row of dataRows) if (row[col] && parseFlexibleDate(row[col], format) !== null) hits++;
+		for (const row of dataRows)
+			if (row[col] && parseFlexibleDate(row[col], format) !== null) hits++;
 		// DD/MM vs MM/DD tie-break: prefer the format that parses ALL rows; if
 		// both do, prefer DD/MM (rest-of-world default for this app's market).
 		if (hits > 0 && (!best || hits > best.hits)) best = { format, hits };
@@ -168,7 +178,8 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		for (const row of dataRows) {
 			const v = row[c] ?? '';
 			if (looksMonetary(v, '.') || looksMonetary(v, ',')) strong++;
-			else if (parseDecimalToMinor(v, '.') !== null || parseDecimalToMinor(v, ',') !== null) weak++;
+			else if (parseDecimalToMinor(v, '.') !== null || parseDecimalToMinor(v, ',') !== null)
+				weak++;
 		}
 		strongByCol[c] = strong;
 		weakByCol[c] = weak;
@@ -220,11 +231,18 @@ export function detectColumns(rawText: string): DetectionResult | null {
 		let col = -1;
 		if (bestStrong > 0) {
 			const hintCol = hasHeader ? headerCells.findIndex((h) => AMOUNT_HINTS.test(h)) : -1;
-			if (hintCol >= 0 && hintCol !== dateColumn && (strongByCol[hintCol] ?? 0) === bestStrong) {
+			if (
+				hintCol >= 0 &&
+				hintCol !== dateColumn &&
+				(strongByCol[hintCol] ?? 0) === bestStrong
+			) {
 				col = hintCol;
 			} else {
 				for (let c = 0; c < columnCount; c++) {
-					if (c !== dateColumn && (strongByCol[c] ?? 0) === bestStrong) { col = c; break; }
+					if (c !== dateColumn && (strongByCol[c] ?? 0) === bestStrong) {
+						col = c;
+						break;
+					}
 				}
 			}
 		} else {
@@ -235,12 +253,19 @@ export function detectColumns(rawText: string): DetectionResult | null {
 			let bestWeak = 0;
 			for (let c = 0; c < columnCount; c++) {
 				const weak = weakByCol[c] ?? 0;
-				if (c !== dateColumn && weak > bestWeak) { bestWeak = weak; col = c; }
+				if (c !== dateColumn && weak > bestWeak) {
+					bestWeak = weak;
+					col = c;
+				}
 			}
 		}
 		if (col < 0) {
 			col = 0;
-			for (let c = 0; c < columnCount; c++) if (c !== dateColumn) { col = c; break; }
+			for (let c = 0; c < columnCount; c++)
+				if (c !== dateColumn) {
+					col = c;
+					break;
+				}
 		}
 
 		amount = { kind: 'signed', column: col };
@@ -258,16 +283,31 @@ export function detectColumns(rawText: string): DetectionResult | null {
 
 	const usedCols = new Set<number>([dateColumn]);
 	if (amount.kind === 'signed') usedCols.add(amount.column);
-	else { usedCols.add(amount.debitColumn); usedCols.add(amount.creditColumn); }
+	else {
+		usedCols.add(amount.debitColumn);
+		usedCols.add(amount.creditColumn);
+	}
 	// Default the note to the first leftover column. Merchant/description column
 	// names vary too much across banks and languages ("Описание", "Text",
 	// "Viesti", …) to detect reliably by header keyword, so we don't try — the
 	// user picks the right column in the mapping step's Description selector.
 	let descriptionColumn: number | null = null;
-	for (let c = 0; c < columnCount; c++) if (!usedCols.has(c)) { descriptionColumn = c; break; }
+	for (let c = 0; c < columnCount; c++)
+		if (!usedCols.has(c)) {
+			descriptionColumn = c;
+			break;
+		}
 
 	return {
-		mapping: { delimiter, hasHeader, dateColumn, dateFormat, decimalSeparator, amount, descriptionColumn },
+		mapping: {
+			delimiter,
+			hasHeader,
+			dateColumn,
+			dateFormat,
+			decimalSeparator,
+			amount,
+			descriptionColumn,
+		},
 		confident: { date: dateConfident, amount: amountConfident },
 		headers: headerCells,
 		columnCount,

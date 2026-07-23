@@ -25,7 +25,9 @@ describe('parseFlexibleDate', () => {
 		);
 	});
 	it('parses a datetime for non-ISO formats too', () => {
-		expect(parseFlexibleDate('01.06.2026 12:30', 'DD.MM.YYYY')).toBe(new Date(2026, 5, 1).getTime());
+		expect(parseFlexibleDate('01.06.2026 12:30', 'DD.MM.YYYY')).toBe(
+			new Date(2026, 5, 1).getTime()
+		);
 	});
 	it('returns null on garbage', () => {
 		expect(parseFlexibleDate('not-a-date', 'YYYY-MM-DD')).toBeNull();
