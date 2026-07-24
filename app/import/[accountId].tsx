@@ -8,6 +8,7 @@ import { Text } from '@/src/components/text';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
 import { detectColumns } from '@/src/utils/bank-import/detect-columns';
+import { decodeFallback } from '@/src/utils/bank-import/decode';
 import { reconcile } from '@/src/utils/bank-import/reconcile';
 import { parseBankRows } from '@/src/utils/bank-import/parse-rows';
 import { buildImportTransactions } from '@/src/utils/bank-import/build-transactions';
@@ -49,10 +50,29 @@ export default function ImportScreen() {
 				copyToCacheDirectory: true,
 			});
 			if (result.canceled || !result.assets?.[0]) return;
-			const content = await new File(result.assets[0].uri).text();
+			const file = new File(result.assets[0].uri);
+			let content: string;
+			let usedFallback = false;
+			try {
+				content = await file.text();
+			} catch {
+				// File.text() decodes UTF-8 only and throws when the bytes aren't
+				// valid UTF-8 (e.g. Danske Bank exports Finnish statements as
+				// ISO-8859-1). Fall back to sniffing a UTF-16 BOM, else Windows-1252.
+				content = decodeFallback(await file.bytes()).text;
+				usedFallback = true;
+			}
 			const detected = detectColumns(content);
 			if (!detected) {
-				Alert.alert('Import', 'No data rows found in that file.');
+				// If we only got here via the non-UTF-8 fallback, a garbled decode
+				// (an encoding we can't handle) is the likely culprit — point the
+				// user at re-saving as UTF-8. Otherwise it's a format problem.
+				Alert.alert(
+					'Import',
+					usedFallback
+						? "We couldn't read this statement — it may use a text encoding we don't support. Re-save it as UTF-8 and try again: open the file in Excel, Numbers, or Google Sheets, then use Export / Save As and choose “CSV UTF-8”."
+						: 'No data rows found in that file. Make sure you picked a CSV statement exported from your bank.'
+				);
 				return;
 			}
 			setRawText(content);
@@ -62,7 +82,10 @@ export default function ImportScreen() {
 			setStep('map');
 		} catch (e) {
 			console.error('Import file pick failed', e);
-			Alert.alert('Import', 'Could not read the selected file.');
+			Alert.alert(
+				'Import',
+				'Could not read the selected file. If it opens elsewhere, try re-saving it as “CSV UTF-8” (via Excel, Numbers, or Google Sheets) and import again.'
+			);
 		} finally {
 			setBusy(false);
 		}
