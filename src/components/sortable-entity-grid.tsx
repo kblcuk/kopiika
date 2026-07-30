@@ -22,6 +22,11 @@ import {
 	unregisterRemeasureCallback,
 } from '@/src/utils/drop-zone';
 import { shouldUseFixedOrderMode } from '@/src/utils/drag-bounds';
+import {
+	createLongPressArmer,
+	ARM_DELAY_MS,
+	MOVE_TOLERANCE_PX,
+} from '@/src/utils/long-press-armer';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
 import { BUBBLE_WIDTH, BUBBLE_HEIGHT, COLUMN_GAP, ROW_GAP } from './entity-grid-layout';
@@ -52,6 +57,11 @@ interface SortableEntityGridProps {
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 	onTap?: (entity: EntityWithBalance) => void;
+	/**
+	 * Called when a bubble is held in place and released without dragging.
+	 * KII-154: opens history filtered to that entity. Never fires in reorder mode.
+	 */
+	onLongPress?: (entity: EntityWithBalance) => void;
 	onAdd?: (type: EntityType) => void;
 	dropZonesDisabled?: boolean;
 	maxRows?: number;
@@ -80,6 +90,7 @@ export function SortableEntityGrid({
 	onDragStart,
 	onDragEnd,
 	onTap,
+	onLongPress,
 	onAdd,
 	dropZonesDisabled = false,
 	maxRows = 1,
@@ -136,6 +147,22 @@ export function SortableEntityGrid({
 	const draggedEntityRef = useRef<EntityWithBalance | null>(null);
 	const lastDropCheckTimeRef = useRef<number>(0);
 	const DROP_CHECK_THROTTLE_MS = 50;
+
+	// KII-154: long-press is detected across the drag lifecycle rather than with
+	// an RNGH LongPress, which would fire mid-drag. See long-press-armer.ts.
+	const armer = useMemo(
+		() =>
+			createLongPressArmer({
+				delayMs: ARM_DELAY_MS,
+				tolerancePx: MOVE_TOLERANCE_PX,
+				onArm: () => {
+					void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+				},
+			}),
+		[]
+	);
+
+	useEffect(() => () => armer.cancel(), [armer]);
 
 	// Sort entities for horizontal layout: position (column) first, then row
 	const sortedEntities = useMemo(
@@ -248,6 +275,10 @@ export function SortableEntityGrid({
 			// Set dragged ID in context ref BEFORE setIsFixed so bubbles can check it
 			draggedIdRef.current = entity?.id || null;
 
+			// Arm synchronously so the countdown tracks the real touch, not the
+			// deferred frame. Reorder drags never arm — the same hold starts them.
+			if (isTransactionMode && onLongPress) armer.start();
+
 			// Defer mode changes and parent callback to the next frame.
 			// react-native-sortables drops the active gesture when React re-renders
 			// grid children (mode flip + store update) during its drag initialisation.
@@ -260,12 +291,13 @@ export function SortableEntityGrid({
 				}
 			});
 		},
-		[entities, onDragStart, setIsFixed, isTransactionMode]
+		[entities, onDragStart, setIsFixed, isTransactionMode, armer, onLongPress]
 	);
 
 	const handleSortableDragMove = useCallback(
 		({ touchData }: { touchData: TouchData }) => {
 			lastTouchRef.current = { x: touchData.absoluteX, y: touchData.absoluteY };
+			armer.move(touchData.absoluteX, touchData.absoluteY);
 			updateDragTouch?.(touchData.absoluteX, touchData.absoluteY);
 
 			const draggedEntity = draggedEntityRef.current;
@@ -321,11 +353,12 @@ export function SortableEntityGrid({
 				hoveredIdShared.value = '';
 			}
 		},
-		[type, hoveredIdShared, setIsFixed, isTransactionMode, updateDragTouch]
+		[type, hoveredIdShared, setIsFixed, isTransactionMode, updateDragTouch, armer]
 	);
 
 	const handleSortableDragEnd = useCallback(
 		({ data }: { data: EntityWithBalance[] }) => {
+			const armed = armer.end();
 			const touch = lastTouchRef.current;
 			const draggedEntity = draggedEntityRef.current;
 
@@ -335,6 +368,15 @@ export function SortableEntityGrid({
 			lastTouchRef.current = null;
 			draggedEntityRef.current = null;
 			lastDropCheckTimeRef.current = 0;
+
+			// Armed means the finger never left the bubble, so there is no drop to
+			// resolve. Run the parent's teardown first — it clears draggedEntity and
+			// stops auto-scroll — then hand off, since onLongPress navigates away.
+			if (armed && draggedEntity) {
+				onDragEnd?.(draggedEntity, null);
+				onLongPress?.(draggedEntity);
+				return;
+			}
 
 			let targetId: string | null = null;
 			let targetType: EntityType | null = null;
@@ -377,6 +419,8 @@ export function SortableEntityGrid({
 			setIsFixed,
 			dragBehavior,
 			isTransactionMode,
+			armer,
+			onLongPress,
 		]
 	);
 

@@ -7,6 +7,7 @@ import type { EntityWithBalance } from '@/src/types';
 // Capture Sortable.Grid's callbacks so tests can invoke them directly
 type GridMockProps = {
 	onDragStart: (e: { key: string }) => void;
+	onDragMove: (e: { touchData: { absoluteX: number; absoluteY: number } }) => void;
 	onDragEnd: (e: { data: EntityWithBalance[] }) => void;
 };
 let capturedGridProps = {} as GridMockProps;
@@ -185,5 +186,124 @@ describe('SortableEntityGrid drag lifecycle (KII-76)', () => {
 		});
 
 		expect(onDragStart).not.toHaveBeenCalled();
+	});
+
+	describe('long-press detection (KII-154)', () => {
+		const onLongPress = jest.fn();
+
+		function renderGrid(dragBehavior: 'transaction' | 'reorder' = 'transaction') {
+			return render(
+				<SortableEntityGrid
+					title="Accounts"
+					type="account"
+					entities={entities}
+					onDragStart={onDragStart}
+					onDragEnd={onDragEnd}
+					onLongPress={onLongPress}
+					dragBehavior={dragBehavior}
+					updateDragTouch={jest.fn()}
+				/>
+			);
+		}
+
+		beforeEach(() => {
+			onLongPress.mockClear();
+			jest.useFakeTimers();
+		});
+
+		afterEach(() => {
+			jest.useRealTimers();
+		});
+
+		it('fires onLongPress when the finger is held in place and released', () => {
+			renderGrid();
+
+			act(() => {
+				capturedGridProps.onDragStart({ key: 'acc-1' });
+			});
+			act(() => {
+				capturedGridProps.onDragMove({ touchData: { absoluteX: 100, absoluteY: 200 } });
+			});
+			act(() => {
+				jest.advanceTimersByTime(450);
+			});
+			act(() => {
+				capturedGridProps.onDragEnd({ data: entities });
+			});
+
+			expect(onLongPress).toHaveBeenCalledTimes(1);
+			expect(onLongPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'acc-1' }));
+		});
+
+		it('runs the onDragEnd teardown before navigating away', () => {
+			renderGrid();
+
+			act(() => {
+				capturedGridProps.onDragStart({ key: 'acc-1' });
+			});
+			act(() => {
+				jest.advanceTimersByTime(450);
+			});
+			act(() => {
+				capturedGridProps.onDragEnd({ data: entities });
+			});
+
+			expect(onDragEnd).toHaveBeenCalledWith(expect.objectContaining({ id: 'acc-1' }), null);
+			expect(onDragEnd.mock.invocationCallOrder[0]!).toBeLessThan(
+				onLongPress.mock.invocationCallOrder[0]!
+			);
+		});
+
+		it('does not fire onLongPress when released before the arm delay', () => {
+			renderGrid();
+
+			act(() => {
+				capturedGridProps.onDragStart({ key: 'acc-1' });
+			});
+			act(() => {
+				jest.advanceTimersByTime(449);
+			});
+			act(() => {
+				capturedGridProps.onDragEnd({ data: entities });
+			});
+
+			expect(onLongPress).not.toHaveBeenCalled();
+		});
+
+		it('does not fire onLongPress when the finger moved past tolerance', () => {
+			renderGrid();
+
+			act(() => {
+				capturedGridProps.onDragStart({ key: 'acc-1' });
+			});
+			act(() => {
+				capturedGridProps.onDragMove({ touchData: { absoluteX: 100, absoluteY: 200 } });
+				capturedGridProps.onDragMove({ touchData: { absoluteX: 180, absoluteY: 200 } });
+			});
+			act(() => {
+				jest.advanceTimersByTime(450);
+			});
+			act(() => {
+				capturedGridProps.onDragEnd({ data: entities });
+			});
+
+			expect(onLongPress).not.toHaveBeenCalled();
+		});
+
+		it('never arms in reorder (edit) mode', () => {
+			renderGrid('reorder');
+
+			act(() => {
+				capturedGridProps.onDragStart({ key: 'acc-1' });
+			});
+			act(() => {
+				jest.advanceTimersByTime(450);
+			});
+			act(() => {
+				capturedGridProps.onDragEnd({ data: entities });
+			});
+
+			expect(onLongPress).not.toHaveBeenCalled();
+		});
 	});
 });
