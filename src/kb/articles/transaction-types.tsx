@@ -8,7 +8,7 @@ export function TransactionTypes() {
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Regular</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				One source, one destination, one amount. The bread and butter — every drag, every
-				tap on ✚.
+				bubble tap, every tap on ✚.
 			</Text>
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Split</Text>
 			<Text className="mb-3 font-sans text-base text-ink">

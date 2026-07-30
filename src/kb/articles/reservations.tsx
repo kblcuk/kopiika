@@ -6,9 +6,10 @@ export function Reservations() {
 		<View className="px-5 pb-10">
 			<Text className="mb-4 font-sans-bold text-2xl text-ink">Reservations</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
-				Drag an account onto a savings goal to add to a reservation. Reservations are
-				tracked as real <Text className="font-sans-semibold">account → saving</Text>{' '}
-				transactions — there is no hidden ledger.
+				Drag an account onto a savings goal to add to a reservation — or just tap the goal,
+				which opens the same sheet funded from your main account. Reservations are tracked
+				as real <Text className="font-sans-semibold">account → saving</Text> transactions —
+				there is no hidden ledger.
 			</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				To release, drag the saving back to an account, or check the{' '}

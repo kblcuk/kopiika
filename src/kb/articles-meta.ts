@@ -4,6 +4,7 @@
 export type KbArticleId =
 	| 'core-loop'
 	| 'entity-types'
+	| 'board-gestures'
 	| 'transaction-types'
 	| 'tabs-and-views'
 	| 'reservations'
@@ -33,15 +34,22 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 		related: ['core-loop', 'tabs-and-views'],
 	},
 	{
+		id: 'board-gestures',
+		title: 'Board gestures',
+		summary: 'Tap, long-press, drag, and the pencil toggle.',
+		related: ['tabs-and-views', 'transaction-types'],
+	},
+	{
 		id: 'transaction-types',
 		title: 'Transactions',
 		summary: 'Regular, split, recurring.',
-		related: ['splits', 'recurring'],
+		related: ['splits', 'recurring', 'board-gestures'],
 	},
 	{
 		id: 'tabs-and-views',
 		title: 'Tabs & views',
 		summary: 'Home · Summary · History · Settings.',
+		related: ['board-gestures'],
 	},
 	{
 		id: 'reservations',

@@ -2,8 +2,8 @@ import { describe, test, expect } from 'bun:test';
 import { KB_ARTICLES_META } from '../articles-meta';
 
 describe('KB_ARTICLES registry', () => {
-	test('contains 9 articles', () => {
-		expect(KB_ARTICLES_META).toHaveLength(9);
+	test('contains 10 articles', () => {
+		expect(KB_ARTICLES_META).toHaveLength(10);
 	});
 
 	test('all ids are unique', () => {
@@ -33,6 +33,7 @@ describe('KB_ARTICLES registry', () => {
 			expect.arrayContaining([
 				'core-loop',
 				'entity-types',
+				'board-gestures',
 				'transaction-types',
 				'tabs-and-views',
 				'reservations',

@@ -7,8 +7,11 @@ export function TabsAndViews() {
 			<Text className="mb-4 font-sans-bold text-2xl text-ink">Tabs &amp; views</Text>
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Home</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
-				The drag-and-drop board. Drag an income onto an account to record getting paid; drag
-				an account onto a category to record a spend.
+				The board. Tap a bubble to record something against it, hold a bubble to see its
+				history, and drag one bubble onto another to move money between them — drag an
+				income onto an account to record getting paid, an account onto a category to record
+				a spend. See <Text className="font-sans-semibold">Board gestures</Text> for the full
+				set.
 			</Text>
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Summary</Text>
 			<Text className="mb-3 font-sans text-base text-ink">

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { KB_ARTICLES_META, type KbArticleId } from './articles-meta';
 import { CoreLoop } from './articles/core-loop';
 import { EntityTypes } from './articles/entity-types';
+import { BoardGestures } from './articles/board-gestures';
 import { TransactionTypes } from './articles/transaction-types';
 import { TabsAndViews } from './articles/tabs-and-views';
 import { Reservations } from './articles/reservations';
@@ -13,6 +14,7 @@ import { InvestmentAccounts } from './articles/investment-accounts';
 const BODY_MAP: Record<KbArticleId, ComponentType> = {
 	'core-loop': CoreLoop,
 	'entity-types': EntityTypes,
+	'board-gestures': BoardGestures,
 	'transaction-types': TransactionTypes,
 	'tabs-and-views': TabsAndViews,
 	reservations: Reservations,
