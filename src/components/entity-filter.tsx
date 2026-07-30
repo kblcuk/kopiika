@@ -10,6 +10,7 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { PageSheetModal } from './page-sheet-modal';
+import { TestIDs } from '@/e2e/support/test-ids';
 
 interface EntityFilterProps {
 	selectedEntityId: string | null;
@@ -62,7 +63,10 @@ export function EntityFilter({ selectedEntityId, onChange }: EntityFilterProps) 
 				onPress={() => setVisible(true)}
 				className="mx-5 flex-row items-center justify-between rounded-lg border border-paper-300 bg-paper-100 px-4 py-3 active:bg-paper-200"
 			>
-				<Text className="font-sans text-base text-ink">
+				<Text
+					testID={TestIDs.historyEntityFilterLabel}
+					className="font-sans text-base text-ink"
+				>
 					{selectedEntity ? getEntityDisplayName(selectedEntity) : 'All Entities'}
 				</Text>
 				<ChevronDown size={20} color={colors.ink.muted} />

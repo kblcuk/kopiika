@@ -1,4 +1,4 @@
-import { device, waitFor, element, by } from 'detox';
+import { device, waitFor, element, by, expect } from 'detox';
 import { TestIDs } from '../support/test-ids';
 import {
 	createTransaction,
@@ -287,5 +287,19 @@ describe('History', () => {
 		await returnToHome();
 
 		await expectAmount('Groceries', balanceAfterCreate - 55);
+	});
+
+	// KII-154: long-press replaces what a tap used to do. Pass an explicit
+	// duration rather than relying on Detox's default — the gesture arms at
+	// ~600ms (450ms after the drag lifts the bubble at 150ms).
+	it('long-pressing a bubble opens History filtered to that entity', async () => {
+		await element(by.id(TestIDs.entityBubble('Groceries'))).longPress(900);
+
+		await waitFor(element(by.id(TestIDs.historyScreen)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await expect(element(by.id(TestIDs.historyEntityFilterLabel))).toHaveText('Groceries');
+
+		await returnToHome();
 	});
 });

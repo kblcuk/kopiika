@@ -1,4 +1,4 @@
-import { by, element, waitFor } from 'detox';
+import { by, element, expect, waitFor } from 'detox';
 
 import {
 	createTransaction,
@@ -94,5 +94,39 @@ describe('Transactions — quick add', () => {
 			.withTimeout(5000);
 		await expectAmount('Groceries', before.cat + amount);
 		await expectAmount('Main Card', before.acct - amount);
+	});
+
+	// KII-154: a bubble tap opens quick-add pre-filled. Asserted on device
+	// because the tap/long-press split depends on real gesture recognisers
+	// (RNGH's Tap fails past 500ms), which are mocked in component tests.
+	it('tapping a category bubble opens quick-add with it as the destination', async () => {
+		await element(by.id(TestIDs.entityBubble('Groceries'))).tap();
+
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await expect(
+			element(by.text('Groceries').withAncestor(by.id(TestIDs.transaction.toButton)))
+		).toBeVisible();
+
+		await element(by.id(TestIDs.transaction.cancelButton)).tap();
+	});
+
+	it('tapping an account bubble opens quick-add with it as the source', async () => {
+		await element(by.id(TestIDs.entityBubble('Main Card'))).tap();
+
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await expect(
+			element(by.text('Main Card').withAncestor(by.id(TestIDs.transaction.fromButton)))
+		).toBeVisible();
+		// The 'To' placeholder only renders in quickAdd mode with an empty slot,
+		// so this asserts both the empty destination and that quickAdd is on.
+		await expect(
+			element(by.text('To').withAncestor(by.id(TestIDs.transaction.toButton)))
+		).toBeVisible();
+
+		await element(by.id(TestIDs.transaction.cancelButton)).tap();
 	});
 });

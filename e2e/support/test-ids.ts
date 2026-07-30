@@ -101,6 +101,7 @@ export const TestIDs = {
 	dashboardTabButton: 'dashboard-tab-button',
 	historyTabButton: 'history-tab-button',
 	historyScreen: 'history-screen',
+	historyEntityFilterLabel: 'history-entity-filter-label',
 
 	help: {
 		listScreen: 'help-list-screen',
