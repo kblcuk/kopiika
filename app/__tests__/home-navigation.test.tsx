@@ -328,7 +328,7 @@ describe('HomeScreen entity interactions', () => {
 		expect(mockInitialize).not.toHaveBeenCalled();
 	});
 
-	it('opens the quick-add transaction modal, funded from the default account, when tapping a category', async () => {
+	it('opens the quick-add transaction modal, funded from the first board account, when tapping a category', async () => {
 		const { getByTestId, queryByTestId } = render(<HomeScreen />);
 
 		fireEvent.press(getByTestId('entity-cat-1').parent!);
