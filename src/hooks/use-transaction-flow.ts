@@ -13,6 +13,8 @@ interface TransactionModalProps {
 	toEntity: EntityWithBalance | null;
 	existingTransaction: Transaction | undefined;
 	onClose: () => void;
+	/** Renders the from/to pickers so a partially pre-filled open is usable. */
+	quickAdd: boolean;
 }
 
 interface RefundPickerProps {
@@ -26,6 +28,15 @@ interface RefundPickerProps {
 export interface UseTransactionFlow {
 	/** Open the transaction modal for a fresh money move from `from` to `to`. */
 	open: (from: EntityWithBalance, to: EntityWithBalance) => void;
+	/**
+	 * Open the transaction modal in quickAdd mode with either endpoint
+	 * pre-filled. Used by bubble taps (KII-154), where only one side is known
+	 * and the user picks the other in the modal.
+	 */
+	openQuickAdd: (endpoints: {
+		from?: EntityWithBalance | null;
+		to?: EntityWithBalance | null;
+	}) => void;
 	/**
 	 * Open the refund picker. `originalFrom`/`originalTo` describe the *original*
 	 * transaction direction the refund reverses, not the drag direction.
@@ -46,6 +57,7 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 	const [fromEntity, setFromEntity] = useState<EntityWithBalance | null>(null);
 	const [toEntity, setToEntity] = useState<EntityWithBalance | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [quickAdd, setQuickAdd] = useState(false);
 
 	// Refund picker state — originalFrom/originalTo reflect the direction of original transactions
 	const [refundPickerVisible, setRefundPickerVisible] = useState(false);
@@ -53,10 +65,27 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 	const [refundOriginalTo, setRefundOriginalTo] = useState<EntityWithBalance | null>(null);
 
 	const open = useCallback((from: EntityWithBalance, to: EntityWithBalance) => {
+		setQuickAdd(false);
 		setFromEntity(from);
 		setToEntity(to);
 		setModalVisible(true);
 	}, []);
+
+	const openQuickAdd = useCallback(
+		({
+			from = null,
+			to = null,
+		}: {
+			from?: EntityWithBalance | null;
+			to?: EntityWithBalance | null;
+		}) => {
+			setQuickAdd(true);
+			setFromEntity(from);
+			setToEntity(to);
+			setModalVisible(true);
+		},
+		[]
+	);
 
 	const openRefund = useCallback(
 		(originalFrom: EntityWithBalance, originalTo: EntityWithBalance) => {
@@ -69,6 +98,7 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 
 	const handleCloseModal = useCallback(() => {
 		setModalVisible(false);
+		setQuickAdd(false);
 		setFromEntity(null);
 		setToEntity(null);
 		setEditingTransaction(null);
@@ -82,6 +112,7 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 			// Open edit modal for the selected transaction
 			const from = allEntities.find((e) => e.id === transaction.from_entity_id) ?? null;
 			const to = allEntities.find((e) => e.id === transaction.to_entity_id) ?? null;
+			setQuickAdd(false);
 			setFromEntity(from);
 			setToEntity(to);
 			setEditingTransaction(transaction);
@@ -103,8 +134,9 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 			toEntity,
 			existingTransaction: editingTransaction ?? undefined,
 			onClose: handleCloseModal,
+			quickAdd,
 		}),
-		[modalVisible, fromEntity, toEntity, editingTransaction, handleCloseModal]
+		[modalVisible, fromEntity, toEntity, editingTransaction, handleCloseModal, quickAdd]
 	);
 
 	const refundPickerProps = useMemo<RefundPickerProps>(
@@ -124,5 +156,5 @@ export function useTransactionFlow({ allEntities }: UseTransactionFlowParams): U
 		]
 	);
 
-	return { open, openRefund, transactionModalProps, refundPickerProps };
+	return { open, openQuickAdd, openRefund, transactionModalProps, refundPickerProps };
 }
