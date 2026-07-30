@@ -77,8 +77,8 @@ export function EmptyBoardNudge({
 		>
 			<View className="flex-row items-start justify-between">
 				<Text className="flex-1 pr-2 font-sans text-base text-ink">
-					Drag an income onto an account to record getting paid. Or use + for any
-					transaction.
+					Tap a category to record a spend. Or drag an income onto an account to record
+					getting paid.
 				</Text>
 				<Pressable
 					testID={TestIDs.emptyBoardNudge.dismiss}

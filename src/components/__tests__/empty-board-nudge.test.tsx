@@ -26,7 +26,7 @@ describe('EmptyBoardNudge', () => {
 		const { findByText } = render(
 			<EmptyBoardNudge entityCount={3} transactionCount={0} onAddEntity={() => {}} />
 		);
-		expect(await findByText(/drag an income onto an account/i)).toBeTruthy();
+		expect(await findByText(/tap a category to record a spend/i)).toBeTruthy();
 	});
 
 	it('renders nothing when transactions exist', async () => {
