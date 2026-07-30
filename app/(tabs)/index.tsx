@@ -21,6 +21,7 @@ import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useTransactionFlow } from '@/src/hooks/use-transaction-flow';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityWithBalance } from '@/src/types';
+import { resolveBubbleTapFlow } from '@/src/utils/bubble-tap-flow';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 import { resolveDropFlow } from '@/src/utils/drop-flow';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
@@ -178,16 +179,36 @@ export default function HomeScreen() {
 		[setDraggedEntity, stopAutoScroll, allEntities, transactionFlow, reservationFlow]
 	);
 
+	// KII-154: testers read a tap as "record something here", so a tap opens the
+	// add flow pre-filled and long-press takes over the old navigate-to-history
+	// behaviour. resolveBubbleTapFlow owns the per-type routing.
 	const handleTap = useCallback(
 		(entity: EntityWithBalance) => {
-			if (editModes.isEditing(entity.type)) {
-				detailFlow.open(entity);
-				return;
+			const flow = resolveBubbleTapFlow(entity, {
+				isEditing: editModes.isEditing(entity.type),
+				entities: allEntities,
+			});
+			switch (flow.kind) {
+				case 'detail':
+					detailFlow.open(flow.entity);
+					return;
+				case 'transaction':
+					transactionFlow.openQuickAdd({ from: flow.from, to: flow.to });
+					return;
+				case 'reservation':
+					reservationFlow.open(flow.account, flow.saving);
+					return;
 			}
+		},
+		[allEntities, detailFlow, editModes, reservationFlow, transactionFlow]
+	);
+
+	const handleLongPress = useCallback(
+		(entity: EntityWithBalance) => {
 			setPendingHistoryFilter({ entityId: entity.id });
 			router.push('/history');
 		},
-		[router, detailFlow, editModes]
+		[router]
 	);
 
 	// Re-measure drop zones when scrolling ends to account for position changes
@@ -338,6 +359,7 @@ export default function HomeScreen() {
 									onDragStart={handleDragStart}
 									onDragEnd={handleDragEnd}
 									onTap={handleTap}
+									onLongPress={handleLongPress}
 									onAdd={createFlow.open}
 									dropZonesDisabled={!incomeVisible}
 									dragBehavior={
@@ -360,6 +382,7 @@ export default function HomeScreen() {
 							onDragStart={handleDragStart}
 							onDragEnd={handleDragEnd}
 							onTap={handleTap}
+							onLongPress={handleLongPress}
 							onAdd={createFlow.open}
 							dragBehavior={editModes.modes.account ? 'reorder' : 'transaction'}
 							editMode={editModes.modes.account}
@@ -378,6 +401,7 @@ export default function HomeScreen() {
 								onDragStart={handleDragStart}
 								onDragEnd={handleDragEnd}
 								onTap={handleTap}
+								onLongPress={handleLongPress}
 								onAdd={createFlow.open}
 								maxRows={3}
 								dragBehavior={editModes.modes.category ? 'reorder' : 'transaction'}
@@ -404,6 +428,7 @@ export default function HomeScreen() {
 								onDragStart={handleDragStart}
 								onDragEnd={handleDragEnd}
 								onTap={handleTap}
+								onLongPress={handleLongPress}
 								onAdd={createFlow.open}
 								dragBehavior={editModes.modes.saving ? 'reorder' : 'transaction'}
 								editMode={editModes.modes.saving}

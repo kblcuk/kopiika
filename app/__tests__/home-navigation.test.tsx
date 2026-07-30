@@ -117,6 +117,7 @@ jest.mock('@/src/components', () => {
 		SortableEntityGrid: ({
 			entities,
 			onTap,
+			onLongPress,
 			onDragStart,
 			onDragEnd,
 			onToggleEditMode,
@@ -126,6 +127,7 @@ jest.mock('@/src/components', () => {
 		}: {
 			entities: EntityWithBalance[];
 			onTap?: (entity: EntityWithBalance) => void;
+			onLongPress?: (entity: EntityWithBalance) => void;
 			onDragStart?: (entity: EntityWithBalance) => void;
 			onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
 			onToggleEditMode?: () => void;
@@ -148,7 +150,10 @@ jest.mock('@/src/components', () => {
 					<Sortable.Grid
 						data={entities}
 						renderItem={({ item }: { item: EntityWithBalance }) => (
-							<Sortable.Touchable onTap={() => onTap?.(item)}>
+							<Sortable.Touchable
+								onTap={() => onTap?.(item)}
+								onLongPress={() => onLongPress?.(item)}
+							>
 								<Text testID={`entity-${item.id}`}>{item.name}</Text>
 							</Sortable.Touchable>
 						)}
@@ -167,11 +172,13 @@ jest.mock('@/src/components', () => {
 			fromEntity,
 			toEntity,
 			existingTransaction,
+			quickAdd,
 		}: {
 			visible: boolean;
 			fromEntity: { id: string } | null;
 			toEntity: { id: string } | null;
 			existingTransaction?: { id: string };
+			quickAdd?: boolean;
 		}) => (
 			// Rendered whenever mounted (regardless of `visible`) so tests can
 			// observe the KII-144 mount-gating latch separately from the modal's
@@ -180,6 +187,7 @@ jest.mock('@/src/components', () => {
 				<Text testID="transaction-modal-from">{fromEntity?.id ?? ''}</Text>
 				<Text testID="transaction-modal-to">{toEntity?.id ?? ''}</Text>
 				<Text testID="transaction-modal-existing">{existingTransaction?.id ?? ''}</Text>
+				<Text testID="transaction-modal-quick-add">{quickAdd ? 'true' : 'false'}</Text>
 			</View>
 		),
 		EntityDetailModal: ({
@@ -320,11 +328,25 @@ describe('HomeScreen entity interactions', () => {
 		expect(mockInitialize).not.toHaveBeenCalled();
 	});
 
-	it('navigates to history screen when tapping a category', async () => {
+	it('opens the quick-add transaction modal, funded from the default account, when tapping a category', async () => {
+		const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+		fireEvent.press(getByTestId('entity-cat-1').parent!);
+
+		await waitFor(() => {
+			expect(queryByTestId('transaction-modal')).toBeTruthy();
+		});
+		expect(getByTestId('transaction-modal-from')).toHaveTextContent('acc-1');
+		expect(getByTestId('transaction-modal-to')).toHaveTextContent('cat-1');
+		expect(getByTestId('transaction-modal-quick-add')).toHaveTextContent('true');
+		expect(mockPush).not.toHaveBeenCalled();
+	});
+
+	it('navigates to history screen when long-pressing a category', async () => {
 		consumePendingHistoryFilter();
 		const { getByTestId } = render(<HomeScreen />);
 
-		fireEvent.press(getByTestId('entity-cat-1').parent!);
+		fireEvent(getByTestId('entity-cat-1').parent!, 'longPress');
 
 		await waitFor(() => {
 			expect(mockPush).toHaveBeenCalledWith('/history');
