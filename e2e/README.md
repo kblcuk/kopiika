@@ -270,6 +270,7 @@ await seedFixture({
 ## DnD (Drag-and-Drop) Gestures
 
 - Use `longPressAndDrag` with hold **600 ms**, speed `'slow'`, and hold-after-reach **300 ms**.
+- **Coupling with KII-154's long-press armer:** 600 ms is now exactly the dashboard's long-press arm point (150 ms drag activation + 450 ms `ARM_DELAY_MS`, see `src/utils/long-press-armer.ts`). Every DnD test here arms that long-press mid-gesture; they only pass because real movement disarms it before release. If you shorten this hold or write a hold-and-release helper without movement, you will trigger a History navigation instead of a drag — keep the hold at 600 ms or above and always drive real movement before release.
 - On Android, scroll down 150 px before a DnD to avoid triggering the notification shade:
 
 ```ts

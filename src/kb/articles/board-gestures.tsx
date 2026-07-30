@@ -11,17 +11,18 @@ export function BoardGestures() {
 
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Tap — record</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
-				Tap a category to log a spend into it, already pointed at your main account. Tap an
-				income or an account to start from there and pick where the money went. Tap a
-				savings goal to reserve funds against it.
+				Tap a category to log a spend into it, already pointed at your Default account, or
+				the first account on your board. Tap an income or an account to start from there and
+				pick where the money went. Tap a savings goal to reserve funds against it.
 			</Text>
 
 			<Text className="mb-2 font-sans-semibold text-base text-ink">
 				Long-press — look back
 			</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
-				Hold a bubble and let go without moving it to open History filtered to that entity.
-				If you move your finger, it becomes an ordinary drag instead.
+				Hold a bubble for about a second and let go without moving it to open History
+				filtered to that entity. If you move your finger, it becomes an ordinary drag
+				instead.
 			</Text>
 
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Drag — connect</Text>

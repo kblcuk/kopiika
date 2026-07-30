@@ -37,7 +37,7 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 		id: 'board-gestures',
 		title: 'Board gestures',
 		summary: 'Tap, long-press, drag, and the pencil toggle.',
-		related: ['tabs-and-views', 'transaction-types'],
+		related: ['tabs-and-views', 'transaction-types', 'reservations'],
 	},
 	{
 		id: 'transaction-types',
@@ -55,7 +55,7 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 		id: 'reservations',
 		title: 'Reservations',
 		summary: 'Moving money into and out of savings.',
-		related: ['entity-types'],
+		related: ['entity-types', 'board-gestures'],
 	},
 	{
 		id: 'refunds',
