@@ -6,6 +6,7 @@ import {
 	expectAmount,
 	getAmount,
 	launchAppFast,
+	tapUntilGone,
 	tapUntilVisible,
 } from '../support/helpers';
 import { TestIDs } from '../support/test-ids';
@@ -109,7 +110,13 @@ describe('Transactions — quick add', () => {
 			element(by.text('Groceries').withAncestor(by.id(TestIDs.transaction.toButton)))
 		).toBeVisible();
 
-		await element(by.id(TestIDs.transaction.cancelButton)).tap();
+		await tapUntilGone(
+			by.id(TestIDs.transaction.cancelButton),
+			by.id(TestIDs.transaction.amountInput)
+		);
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.not.toExist()
+			.withTimeout(5000);
 	});
 
 	it('tapping an account bubble opens quick-add with it as the source', async () => {
@@ -127,6 +134,12 @@ describe('Transactions — quick add', () => {
 			element(by.text('To').withAncestor(by.id(TestIDs.transaction.toButton)))
 		).toBeVisible();
 
-		await element(by.id(TestIDs.transaction.cancelButton)).tap();
+		await tapUntilGone(
+			by.id(TestIDs.transaction.cancelButton),
+			by.id(TestIDs.transaction.amountInput)
+		);
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.not.toExist()
+			.withTimeout(5000);
 	});
 });

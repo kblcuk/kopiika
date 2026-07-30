@@ -1,4 +1,4 @@
-import { device, waitFor, element, by, expect } from 'detox';
+import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from '../support/test-ids';
 import {
 	createTransaction,
@@ -298,7 +298,9 @@ describe('History', () => {
 		await waitFor(element(by.id(TestIDs.historyScreen)))
 			.toBeVisible()
 			.withTimeout(5000);
-		await expect(element(by.id(TestIDs.historyEntityFilterLabel))).toHaveText('Groceries');
+		await waitFor(element(by.id(TestIDs.historyEntityFilterLabel)))
+			.toHaveText('Groceries')
+			.withTimeout(5000);
 
 		await returnToHome();
 	});
