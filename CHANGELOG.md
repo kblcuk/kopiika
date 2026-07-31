@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.26](https://codeberg.org/kblcuk/kopiika/compare/v0.3.24...v0.3.26) (2026-07-31)
+
+
+### Features
+
+* **home:** add bubble tap flow resolver (KII-154) ([f5d6415](https://codeberg.org/kblcuk/kopiika/commit/f5d64159827c9ff610da782e747983eed1b954c5))
+* **home:** add long-press armer for held-in-place bubble gestures (KII-154) ([ef2381b](https://codeberg.org/kblcuk/kopiika/commit/ef2381bae9e893584f7430f15c33ed9bc7c7f053))
+* **home:** add openQuickAdd to the transaction flow hook (KII-154) ([61e1a6d](https://codeberg.org/kblcuk/kopiika/commit/61e1a6d6e61ca0c8e1269a70dafe796af18030af))
+* **home:** detect held-in-place bubble long-press in the grid (KII-154) ([2fa355c](https://codeberg.org/kblcuk/kopiika/commit/2fa355c6a2f1357b83418a036045120e531f3f5b))
+* **home:** lead the empty-board nudge with the tap path (KII-154) ([3ffba34](https://codeberg.org/kblcuk/kopiika/commit/3ffba34634058a73d2f7dcb785b3c54ac611a4b5))
+* **home:** open quick-add on bubble tap, history on long-press (KII-154) ([d46d8de](https://codeberg.org/kblcuk/kopiika/commit/d46d8dec31549257550c8b96c13fc981a55e8eb6))
+* **import:** accept datetime values in date columns (Revolut etc.) ([348a147](https://codeberg.org/kblcuk/kopiika/commit/348a14778b1f7a91530fc1930190dc0b322c6e25))
+* **import:** bank-import format primitives + types ([4547841](https://codeberg.org/kblcuk/kopiika/commit/454784116388b1ceec8a0d5b821b733595e5e1dc))
+* **import:** build transactions from reconciled assignments ([2b4d8e4](https://codeberg.org/kblcuk/kopiika/commit/2b4d8e48011aed842dfb71f29f5f2653c4062ec0))
+* **import:** column-mapping step with live preview ([9726a8b](https://codeberg.org/kblcuk/kopiika/commit/9726a8b39e0dccef30e8196a5a69f2a2b7d100da))
+* **import:** CSV column auto-detection ([adfe6f1](https://codeberg.org/kblcuk/kopiika/commit/adfe6f1250e299ee11d5e05c0501e24cfc09b44e))
+* **import:** drop description header-hint guessing; keep manual column selector ([50f4059](https://codeberg.org/kblcuk/kopiika/commit/50f4059119f0eaf93241415063059bc6af82aecc))
+* **import:** import wizard route + History entry point + file pick ([49ef971](https://codeberg.org/kblcuk/kopiika/commit/49ef971d20b2b62afc456ddc60e17b9355345589))
+* **import:** parse bank rows into signed minor-unit rows ([f2e45ca](https://codeberg.org/kblcuk/kopiika/commit/f2e45ca64ff8504eb2076f5450faac366e560714))
+* **import:** propagate category to same-description rows; select-all; perf; drop confusing bulk mode ([e66ecf7](https://codeberg.org/kblcuk/kopiika/commit/e66ecf7e8128d868b898948700bdaf124e52c564))
+* **import:** reconcile rows against existing account txns (greedy 1:1) ([a71211c](https://codeberg.org/kblcuk/kopiika/commit/a71211c2e4b7e5959b4450443c4aa04d211d7855))
+* **import:** reconcile statement lines against split transactions ([4979914](https://codeberg.org/kblcuk/kopiika/commit/4979914705c1d0c25f3a6ce87b7f53a0d11a5d1e))
+* **import:** reuse category modal, importable duplicates, row cues ([edf0633](https://codeberg.org/kblcuk/kopiika/commit/edf063323eace442e2f42b0d2880c0b3d6206af1))
+* **import:** review/categorize step + atomic commit ([39bdd5f](https://codeberg.org/kblcuk/kopiika/commit/39bdd5fedc5afba65f4a07ae8601c1190309b3cc))
+* **import:** smarter description-column default + selector in mapping step ([5ec6eae](https://codeberg.org/kblcuk/kopiika/commit/5ec6eae2d4d918a5654bb989f95e1655d23f9d8e))
+
+
+### Bug Fixes
+
+* **e2e:** guard cancel tap and wait on deferred filter label (KII-154) ([7c1d899](https://codeberg.org/kblcuk/kopiika/commit/7c1d899c0e138719921bb577a022b98c40517ca5))
+* **import:** decode non-UTF-8 bank statements instead of failing ([c4a0f41](https://codeberg.org/kblcuk/kopiika/commit/c4a0f41e0643ce2cdac754adc96c99a64ad45550))
+* **import:** detect-columns money-safety + header/amount heuristics (task 3 review) ([992e2d0](https://codeberg.org/kblcuk/kopiika/commit/992e2d0398aa38194b73c70a1c697ae29e3750b7))
+* **import:** parse-rows debit/credit skip reasons + ambiguity guard (task 4 review) ([660215e](https://codeberg.org/kblcuk/kopiika/commit/660215eea0c10fe690e1eadc3b58eb373179f5f8))
+* **import:** prefer strong signed amount over coincidental debit/credit hints (task 3 review) ([a648363](https://codeberg.org/kblcuk/kopiika/commit/a6483630a3b0470f97f2b28973a9b454807fbcf0))
+* **import:** satisfy noUncheckedIndexedAccess across bank-import + narrow AmountMapping ([6f6894d](https://codeberg.org/kblcuk/kopiika/commit/6f6894d24c78b9e5b3ae629ae2f0d62f9b45e224))
+* **import:** wire transfer suggestion, currency-filter pickers, count + confidence polish (final review) ([7267fe6](https://codeberg.org/kblcuk/kopiika/commit/7267fe6a07c6dbdda096ddce2100b5b34f78c9aa))
+* **store:** dedup recurrence backfill by deterministic id, not just civil date ([76145b3](https://codeberg.org/kblcuk/kopiika/commit/76145b35a067b5464c135fa5520816ba7aaf8799))
+* **store:** key recurrence dedup and exclusion off the slot id, not the timestamp ([1ff14be](https://codeberg.org/kblcuk/kopiika/commit/1ff14beec6975a9198bed4e9c85ba8fc7a5c1b27))
+
 ## [0.3.25](https://codeberg.org/kblcuk/kopiika/compare/v0.3.24...v0.3.25) (2026-07-19)
 
 
