@@ -24,10 +24,7 @@
 		"types": "tsgo --noEmit",
 		"unused": "knip --include exports,types",
 		"checks": "bun run lint && bun run fmt:check && bun run types && bun run unused",
-		"release:check": "bun scripts/check-version-sync.mjs",
-		"release": "bunx commit-and-tag-version",
-		"release:minor": "bunx commit-and-tag-version --release-as minor",
-		"release:major": "bunx commit-and-tag-version --release-as major"
+		"release:check": "bun scripts/check-version-sync.mjs"
 	},
 	"commit-and-tag-version": {
 		"scripts": {

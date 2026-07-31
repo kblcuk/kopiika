@@ -116,6 +116,13 @@ run = "bundle exec fastlane android cleanup"
 description = "Run iOS and Android release preflight checks"
 run = ["bundle exec fastlane ios doctor", "bundle exec fastlane android doctor"]
 
+[tasks."release:tag"]
+description = "Bump the version, write the changelog, tag, and offer to push"
+# raw connects stdin directly so the push confirmation can read a TTY. Without it mise
+# pipes stdin and the prompt is skipped as non-interactive.
+raw = true
+run = "scripts/tag-release.sh"
+
 [tasks."release:sync-build-numbers"]
 description = "Sync app.json build numbers from App Store Connect and Google Play"
 run = "bundle exec fastlane sync_build_numbers"

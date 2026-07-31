@@ -5,7 +5,7 @@
 This repo now splits release tooling on purpose:
 
 - Use `mise run ...` for deployment, store uploads, signing, secret-aware preflight checks, and multi-platform orchestration.
-- Use `bun run ...` for React Native app work and Bun-native versioning helpers such as `bun run release`.
+- Use `bun run ...` for React Native app work and Bun-native helpers such as `bun run release:check`.
 
 That keeps the release flow in one place: `mise.toml` is the source of truth for deployment tasks, and Fastlane stays the platform implementation underneath.
 
@@ -24,23 +24,42 @@ This runs:
 - `mise run ios:doctor`
 - `mise run android:doctor`
 
-2. Bump the app version and sync build numbers:
+2. Bump the app version, tag, and push:
 
 ```sh
-bun run release
+mise run release:tag
 ```
 
-For larger releases:
+For larger releases, forward flags to `commit-and-tag-version` after `--`:
 
 ```sh
-bun run release:minor
-bun run release:major
+mise run release:tag -- --release-as minor
+mise run release:tag -- --release-as major
+mise run release:tag -- --dry-run
 ```
 
 The version bump flow updates `package.json` and `app.json`, then runs:
 
 - `mise run release:sync-build-numbers`
 - `bun run release:check`
+
+Before bumping anything it refuses to run unless `HEAD` is on `main` and not behind
+`origin/main`. Release tags must be created on `main`: a tag made on a branch that
+is later rebased becomes unreachable, and `commit-and-tag-version` picks the
+previous version from tags reachable from `HEAD`, so the next release silently
+widens its changelog range. Set `KOPIIKA_ALLOW_OFF_MAIN=1` to downgrade both
+checks to warnings.
+
+After tagging it prompts to push:
+
+```
+Push chore(release): 0.3.27 and v0.3.27 to origin/main? [y/N]
+```
+
+Answering `y` runs `git push --follow-tags origin main`, which pushes the release
+commit and its tag together. Declining is safe — the commit and tag stay local and
+the command is printed so you can run it later. Always push both; a tag pushed
+without its commit is unreachable on the remote and causes the same problem.
 
 3. Ship a platform-specific release or a combined release:
 
@@ -240,7 +259,7 @@ This uses store APIs to write:
 - `ios.buildNumber = latest TestFlight build number for the current app version + 1` (or `1` if no build exists yet)
 - `android.versionCode = latest Play track versionCode + 1` (or `1` if the package does not exist yet)
 
-`bun run release`, `release:minor`, and `release:major` already run this automatically in their `postbump` hook. That means:
+`mise run release:tag` already runs this automatically in its `postbump` hook. That means:
 
 - patch releases scope the iOS build lookup to the newly bumped patch version
 - minor and major releases start iOS back at `1` when no TestFlight build exists for that new version yet
@@ -295,7 +314,7 @@ After that, plain `mise run ...` commands will load the secrets automatically.
 
 ## Release Notes
 
-`CHANGELOG.md` is the single source of truth for release notes. It is generated from conventional commits by `commit-and-tag-version` during `bun run release`.
+`CHANGELOG.md` is the single source of truth for release notes. It is generated from conventional commits by `commit-and-tag-version` during `mise run release:tag`.
 
 Release notes flow to three places automatically:
 

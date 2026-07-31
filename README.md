@@ -188,7 +188,7 @@ Quick release flow:
 
 ```sh
 mise run release:doctor       # Preflight checks (iOS + Android credentials)
-bun run release               # Bump version, sync build numbers, update changelog
+mise run release:tag          # Bump version, sync build numbers, update changelog, tag, push
 mise run release:beta         # Ship iOS + Android betas, notify Telegram
 ```
 
