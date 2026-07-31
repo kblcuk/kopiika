@@ -1,6 +1,11 @@
 import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
-import { generateOccurrences, occurrenceId, toCivilDate } from './recurrence';
+import {
+	generateOccurrences,
+	occurrenceId,
+	occurrenceSlotCivilDate,
+	toCivilDate,
+} from './recurrence';
 
 /**
  * Derive the FUTURE recurrence occurrences (strictly after `now`, up to
@@ -8,9 +13,13 @@ import { generateOccurrences, occurrenceId, toCivilDate } from './recurrence';
  * shared source of "upcoming" occurrences for both the balance hook and the
  * history screen, so the two surfaces can never drift.
  *
- * Dedup keys on `(series_id, civil date)` derived from each real row's
- * timestamp — NOT the deterministic id — so legacy rows (random ids) and
- * edited overrides both suppress their virtual twin.
+ * Dedup keys on `(series_id, occurrence SLOT)`, where the slot is read from the
+ * real row's deterministic id and falls back to `toCivilDate(timestamp)` for
+ * legacy random-id rows. Keying on the slot (not the row's current civil date)
+ * matches `backfillRecurrences`: a row whose date the user edited still
+ * suppresses the occurrence it was generated for, instead of resurrecting that
+ * occurrence as a duplicate while shadowing whichever slot it landed on
+ * (KII-157).
  *
  * @param exclusionsByTemplate template_id → Set of excluded civil dates (YYYY-MM-DD)
  */
@@ -22,7 +31,7 @@ export function deriveVirtualOccurrences(
 	rangeEnd: number,
 	now: number
 ): Transaction[] {
-	// Civil dates already materialized per series (any real row counts).
+	// Occurrence slots already materialized per series (any real row counts).
 	const realBySeries = new Map<string, Set<string>>();
 	for (const tx of realTransactions) {
 		if (!tx.series_id) continue;
@@ -31,7 +40,7 @@ export function deriveVirtualOccurrences(
 			set = new Set();
 			realBySeries.set(tx.series_id, set);
 		}
-		set.add(toCivilDate(tx.timestamp));
+		set.add(occurrenceSlotCivilDate(tx.id, tx.series_id) ?? toCivilDate(tx.timestamp));
 	}
 
 	const out: Transaction[] = [];
@@ -41,7 +50,7 @@ export function deriveVirtualOccurrences(
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
 		const excludedCivil = exclusionsByTemplate.get(template.id) ?? new Set<string>();
-		const materializedCivil = realBySeries.get(template.id) ?? new Set<string>();
+		const materializedSlots = realBySeries.get(template.id) ?? new Set<string>();
 
 		// generateOccurrences is bounded by min(endDate, now + horizonDays); pass a
 		// horizon wide enough to reach rangeEnd, then filter to (now, rangeEnd].
@@ -62,7 +71,7 @@ export function deriveVirtualOccurrences(
 			if (ts <= now || ts < rangeStart || ts > rangeEnd) continue;
 			const civil = toCivilDate(ts);
 			if (excludedCivil.has(civil)) continue;
-			if (materializedCivil.has(civil)) continue;
+			if (materializedSlots.has(civil)) continue;
 
 			out.push({
 				id: occurrenceId(template.id, civil),

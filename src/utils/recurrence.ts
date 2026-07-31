@@ -21,8 +21,9 @@ const CIVIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Deterministic occurrence id: `${seriesId}:${YYYY-MM-DD}`. Assigned to rows a
  * recurring occurrence materializes into (Plan B) and is the future sync key.
- * NOTE: it is NOT the dedup key for pre-existing rows (those carry random ids);
- * dedup computes `(series_id, toCivilDate(timestamp))` from the row itself.
+ * NOTE: it is not available on pre-existing rows (those carry random ids), so
+ * dedup reads a row's slot via `occurrenceSlotCivilDate` and falls back to
+ * `toCivilDate(timestamp)` for those.
  */
 export function occurrenceId(seriesId: string, civilDate: string): string {
 	return `${seriesId}:${civilDate}`;

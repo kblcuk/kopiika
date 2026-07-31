@@ -72,6 +72,63 @@ describe('deriveVirtualOccurrences', () => {
 		expect(result.map((t) => toCivilDate(t.timestamp))).toEqual(['2026-04-04', '2026-04-06']);
 	});
 
+	test('a date-edited occurrence suppresses its SLOT, not its new civil date (KII-157)', () => {
+		const now = localTs(2026, 4, 3, 12);
+		// Monthly series whose next occurrence is Apr 5. The user edited that one
+		// occurrence and moved it earlier, to Apr 4. The materialized row keeps the
+		// deterministic id minted for its slot (Apr 5) while its timestamp is Apr 4.
+		const monthly = dailyTemplate({
+			rule: JSON.stringify({ type: 'monthly' }),
+			start_date: localTs(2026, 4, 5),
+		});
+		const moved: Transaction = {
+			id: 'tmpl-1:2026-04-05',
+			from_entity_id: 'acc',
+			to_entity_id: 'cat',
+			amount_minor: 1000,
+			currency: 'USD',
+			timestamp: localTs(2026, 4, 4),
+			series_id: 'tmpl-1',
+			is_confirmed: false,
+		};
+		const result = deriveVirtualOccurrences(
+			[monthly],
+			new Map(),
+			[moved],
+			localTs(2026, 4, 1),
+			localTs(2026, 4, 6),
+			now
+		);
+		// Apr 5 is taken by the moved row; deriving it again would duplicate the
+		// occurrence the user just rescheduled.
+		expect(result.map((t) => toCivilDate(t.timestamp))).toEqual([]);
+	});
+
+	test('a date-edited occurrence does not shadow the slot it was moved onto (KII-157)', () => {
+		const now = localTs(2026, 4, 3, 12);
+		// Daily series: Apr 4 has an occurrence of its own. A row whose SLOT is Apr 5
+		// but which was moved to Apr 4 must not swallow Apr 4's occurrence.
+		const moved: Transaction = {
+			id: 'tmpl-1:2026-04-05',
+			from_entity_id: 'acc',
+			to_entity_id: 'cat',
+			amount_minor: 1000,
+			currency: 'USD',
+			timestamp: localTs(2026, 4, 4),
+			series_id: 'tmpl-1',
+			is_confirmed: false,
+		};
+		const result = deriveVirtualOccurrences(
+			[dailyTemplate()],
+			new Map(),
+			[moved],
+			localTs(2026, 4, 1),
+			localTs(2026, 4, 6),
+			now
+		);
+		expect(result.map((t) => toCivilDate(t.timestamp))).toEqual(['2026-04-04', '2026-04-06']);
+	});
+
 	test('skips excluded civil dates', () => {
 		const now = localTs(2026, 4, 3, 12);
 		const exclusions = new Map([['tmpl-1', new Set(['2026-04-05'])]]);

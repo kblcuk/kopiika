@@ -5851,6 +5851,89 @@ describe('Store Data Integrity', () => {
 		});
 	});
 
+	test('rescheduling a single upcoming occurrence to an earlier date leaves no duplicate (KII-157)', async () => {
+		const acc: Entity = {
+			id: 'resched-acc',
+			type: 'account',
+			name: 'A',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const cat: Entity = {
+			id: 'resched-cat',
+			type: 'category',
+			name: 'C',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+		};
+		await db.createEntity(acc);
+		await db.createEntity(cat);
+
+		const now = Date.now();
+		const DAY = 86_400_000;
+		const tomorrowCivil = toCivilDate(now + DAY);
+
+		// Monthly series whose next (and only in-range) occurrence is tomorrow —
+		// future, so it is derived virtually and never materialized by backfill.
+		const template: RecurrenceTemplate = {
+			id: 'resched-tmpl',
+			from_entity_id: acc.id,
+			to_entity_id: cat.id,
+			amount_minor: 4500,
+			currency: 'USD',
+			note: 'internet',
+			rule: JSON.stringify({ type: 'monthly' }),
+			start_date: now + DAY,
+			end_date: null,
+			end_count: null,
+			created_at: now,
+			exclusions: [],
+		};
+		await db.createRecurrenceTemplate(template);
+		useStore.setState({
+			entities: [acc, cat],
+			recurrenceTemplates: [template],
+			transactions: [],
+		});
+
+		// Mirrors what the balance hook and History screen do with store state.
+		const derive = () => {
+			const state = useStore.getState();
+			return deriveVirtualOccurrences(
+				state.recurrenceTemplates,
+				new Map(
+					state.recurrenceTemplates.map((t) => [
+						t.id,
+						new Set((t.exclusions ?? []).map(toCivilDate)),
+					])
+				),
+				state.transactions,
+				now - DAY,
+				now + 7 * DAY,
+				now
+			);
+		};
+
+		const upcoming = derive();
+		expect(upcoming.map((t) => t.id)).toEqual([`${template.id}:${tomorrowCivil}`]);
+
+		// The user edits *this one* occurrence and moves it to today — exactly what
+		// the transaction modal does: materialize, then a single-scope update.
+		await useStore.getState().materializeOccurrence(upcoming[0]!);
+		await useStore
+			.getState()
+			.updateTransactionWithScope(upcoming[0]!.id, { timestamp: now }, 'single');
+
+		// One row, on today. Before the fix the derived occurrence for tomorrow came
+		// back alongside it because dedup keyed on the row's new date, not its slot.
+		const rows = await db.getTransactionsBySeriesId(template.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.timestamp).toBe(now);
+		expect(derive()).toEqual([]);
+	});
+
 	test('materializeOccurrence inserts a real row with the deterministic id, idempotently', async () => {
 		const acc: Entity = {
 			id: 'accM',
