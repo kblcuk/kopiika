@@ -29,15 +29,9 @@ import { setPendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import Animated, {
-	Easing,
-	useAnimatedStyle,
-	useSharedValue,
-	withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Sortable from 'react-native-sortables';
-import { scheduleOnRN } from 'react-native-worklets';
 import { useShallow } from 'zustand/react/shallow';
 
 export default function HomeScreen() {
@@ -73,25 +67,16 @@ export default function HomeScreen() {
 	// mutation — including the several fired during startup. Select only the
 	// fields this screen reads via `useShallow` so it re-renders only when those
 	// change. Actions are stable references, so including them is free.
-	const {
-		isLoading,
-		entities,
-		collapsedSections,
-		draggedEntity,
-		setDraggedEntity,
-		toggleSectionCollapsed,
-	} = useStore(
-		useShallow((s) => ({
-			isLoading: s.isLoading,
-			entities: s.entities,
-			collapsedSections: s.collapsedSections,
-			draggedEntity: s.draggedEntity,
-			setDraggedEntity: s.setDraggedEntity,
-			toggleSectionCollapsed: s.toggleSectionCollapsed,
-		}))
-	);
-
-	const incomeVisible = !collapsedSections.income;
+	const { isLoading, entities, collapsedSections, setDraggedEntity, toggleSectionCollapsed } =
+		useStore(
+			useShallow((s) => ({
+				isLoading: s.isLoading,
+				entities: s.entities,
+				collapsedSections: s.collapsedSections,
+				setDraggedEntity: s.setDraggedEntity,
+				toggleSectionCollapsed: s.toggleSectionCollapsed,
+			}))
+		);
 
 	const transactions = useStore((s) => s.transactions);
 
@@ -233,69 +218,17 @@ export default function HomeScreen() {
 		}
 	}, [hasInitialLayout, isLoading, entities.length]);
 
-	// Animation for income section
-	const [incomeContentHeight, setIncomeContentHeight] = useState<number | null>(null);
-	const animatedHeight = useSharedValue(0);
-
-	// Measure content height only once
-	const handleIncomeLayout = useCallback(
-		(event: { nativeEvent: { layout: { height: number } } }) => {
-			const height = event.nativeEvent.layout.height;
-			if (height > 0 && incomeContentHeight === null) {
-				setIncomeContentHeight(height);
-				animatedHeight.value = incomeVisible ? height : 0;
-				// Remeasure drop zones after initial layout to get correct positions
-				setTimeout(() => remeasureAllDropZones(), 100);
-			}
-		},
-		[incomeContentHeight, incomeVisible, animatedHeight]
+	// Stable per-section callbacks: a fresh closure each render would re-render
+	// every grid, which react-native-sortables cannot take mid-drag.
+	const toggleCollapsed = useMemo(
+		() => ({
+			income: () => toggleSectionCollapsed('income'),
+			account: () => toggleSectionCollapsed('account'),
+			category: () => toggleSectionCollapsed('category'),
+			saving: () => toggleSectionCollapsed('saving'),
+		}),
+		[toggleSectionCollapsed]
 	);
-
-	// Once we have the content height, animate based on visibility
-	useEffect(() => {
-		if (incomeContentHeight !== null) {
-			animatedHeight.value = withTiming(
-				incomeVisible ? incomeContentHeight : 0,
-				{
-					duration: 250,
-					easing: Easing.out(Easing.cubic),
-				},
-				(finished) => {
-					// Remeasure drop zones after animation completes
-					if (finished) {
-						scheduleOnRN(remeasureAllDropZones);
-					}
-				}
-			);
-		}
-	}, [incomeVisible, incomeContentHeight, animatedHeight]);
-
-	// Check if we're dragging an income item to elevate the container
-	const isDraggingIncome = draggedEntity?.type === 'income';
-
-	// Convert to shared value for use in animated style
-	const isDraggingIncomeShared = useSharedValue(isDraggingIncome);
-
-	// Update shared value when dragging state changes
-	useEffect(() => {
-		isDraggingIncomeShared.value = isDraggingIncome;
-	}, [isDraggingIncome, isDraggingIncomeShared]);
-
-	const animatedStyle = useAnimatedStyle(() => {
-		if (incomeContentHeight === null) {
-			// During measurement phase, don't constrain height
-			return { overflow: 'hidden' };
-		}
-		return {
-			height: animatedHeight.value,
-			// Allow overflow when dragging so item doesn't get clipped
-			overflow: isDraggingIncomeShared.value ? 'visible' : 'hidden',
-		};
-	});
-
-	const handleToggleIncome = useCallback(() => {
-		toggleSectionCollapsed('income');
-	}, [toggleSectionCollapsed]);
 
 	if (isLoading) {
 		return (
@@ -312,7 +245,7 @@ export default function HomeScreen() {
 			edges={[]}
 		>
 			{/* Summary bar */}
-			<SummaryHeader onToggleIncome={handleToggleIncome} />
+			<SummaryHeader />
 
 			{/* Empty-state nudge — renders null when not applicable */}
 			<EmptyBoardNudge
@@ -338,45 +271,26 @@ export default function HomeScreen() {
 					onContentSizeChange={handleOuterContentSizeChange}
 				>
 					<View onLayout={handleContentLayout}>
-						{/* Always render income section, control visibility with animation */}
-						<Animated.View
-							style={[
-								animatedStyle,
-								{
-									zIndex: isDraggingIncome ? 1000 : 10,
-									elevation: isDraggingIncome ? 1000 : 10,
-								},
-							]}
-						>
-							<View
-								{...(incomeContentHeight === null && {
-									onLayout: handleIncomeLayout,
-								})}
-								pointerEvents={incomeVisible ? 'auto' : 'none'}
-							>
-								<SortableEntityGrid
-									title="Income"
-									type="income"
-									entities={income}
-									onDragStart={handleDragStart}
-									onDragEnd={handleDragEnd}
-									onTap={handleTap}
-									onLongPress={handleLongPress}
-									onAdd={createFlow.open}
-									dropZonesDisabled={!incomeVisible}
-									dragBehavior={
-										editModes.modes.income ? 'reorder' : 'transaction'
-									}
-									editMode={editModes.modes.income}
-									onToggleEditMode={editModes.toggle.income}
-									updateDragTouch={updateDragTouch}
-									sectionScrollRef={sectionRefs[0]}
-									sectionIndex={0}
-									onSectionMaxOffset={updateSectionMaxOffset}
-									onSectionBounds={updateSectionBounds}
-								/>
-							</View>
-						</Animated.View>
+						<SortableEntityGrid
+							title="Income"
+							type="income"
+							entities={income}
+							onDragStart={handleDragStart}
+							onDragEnd={handleDragEnd}
+							onTap={handleTap}
+							onLongPress={handleLongPress}
+							onAdd={createFlow.open}
+							collapsed={collapsedSections.income}
+							onToggleCollapsed={toggleCollapsed.income}
+							dragBehavior={editModes.modes.income ? 'reorder' : 'transaction'}
+							editMode={editModes.modes.income}
+							onToggleEditMode={editModes.toggle.income}
+							updateDragTouch={updateDragTouch}
+							sectionScrollRef={sectionRefs[0]}
+							sectionIndex={0}
+							onSectionMaxOffset={updateSectionMaxOffset}
+							onSectionBounds={updateSectionBounds}
+						/>
 						<SortableEntityGrid
 							title="Accounts"
 							type="account"
@@ -386,6 +300,8 @@ export default function HomeScreen() {
 							onTap={handleTap}
 							onLongPress={handleLongPress}
 							onAdd={createFlow.open}
+							collapsed={collapsedSections.account}
+							onToggleCollapsed={toggleCollapsed.account}
 							dragBehavior={editModes.modes.account ? 'reorder' : 'transaction'}
 							editMode={editModes.modes.account}
 							onToggleEditMode={editModes.toggle.account}
@@ -405,6 +321,8 @@ export default function HomeScreen() {
 								onTap={handleTap}
 								onLongPress={handleLongPress}
 								onAdd={createFlow.open}
+								collapsed={collapsedSections.category}
+								onToggleCollapsed={toggleCollapsed.category}
 								maxRows={3}
 								dragBehavior={editModes.modes.category ? 'reorder' : 'transaction'}
 								editMode={editModes.modes.category}
@@ -420,6 +338,7 @@ export default function HomeScreen() {
 								title="Categories"
 								isEmpty={categories.length === 0}
 								maxRows={3}
+								collapsed={collapsedSections.category}
 							/>
 						)}
 						{revealed >= 2 ? (
@@ -432,6 +351,8 @@ export default function HomeScreen() {
 								onTap={handleTap}
 								onLongPress={handleLongPress}
 								onAdd={createFlow.open}
+								collapsed={collapsedSections.saving}
+								onToggleCollapsed={toggleCollapsed.saving}
 								dragBehavior={editModes.modes.saving ? 'reorder' : 'transaction'}
 								editMode={editModes.modes.saving}
 								onToggleEditMode={editModes.toggle.saving}
@@ -445,6 +366,7 @@ export default function HomeScreen() {
 							<EntitySectionSkeleton
 								title="Savings · Goal"
 								isEmpty={savings.length === 0}
+								collapsed={collapsedSections.saving}
 							/>
 						)}
 

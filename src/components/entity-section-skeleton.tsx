@@ -16,6 +16,8 @@ interface EntitySectionSkeletonProps {
 	// the real item count affects in the placeholder.
 	isEmpty: boolean;
 	maxRows?: number;
+	// A collapsed section reserves only its header, matching the real grid.
+	collapsed?: boolean;
 }
 
 /**
@@ -24,7 +26,12 @@ interface EntitySectionSkeletonProps {
  * matching padding) so the real grid swaps in without a layout jump.
  * Deliberately cheap: no gestures, no reanimated, no store subscription.
  */
-export function EntitySectionSkeleton({ title, isEmpty, maxRows = 1 }: EntitySectionSkeletonProps) {
+export function EntitySectionSkeleton({
+	title,
+	isEmpty,
+	maxRows = 1,
+	collapsed = false,
+}: EntitySectionSkeletonProps) {
 	return (
 		<View className="overflow-visible">
 			{/* Title divider — mirrors SortableEntityGrid, including the ~26px tall
@@ -37,7 +44,7 @@ export function EntitySectionSkeleton({ title, isEmpty, maxRows = 1 }: EntitySec
 				<View className="h-px flex-1 bg-paper-300" />
 			</View>
 
-			{isEmpty ? (
+			{collapsed ? null : isEmpty ? (
 				// Mirrors the real empty branch: a bare `flex-row px-4` row with a
 				// single placeholder bubble, no scroll-content padding.
 				<View className="flex-row px-4">

@@ -39,6 +39,8 @@ jest.mock('react-native-reanimated', () => {
 		useAnimatedStyle: () => ({}),
 		withTiming: <T,>(val: T) => val,
 		withSpring: <T,>(val: T) => val,
+		// useCollapseAnimation builds its timing config at module scope.
+		Easing: { out: () => (x: number) => x, cubic: (x: number) => x },
 	};
 });
 

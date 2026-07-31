@@ -1,10 +1,8 @@
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './text';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@/src/theme/colors';
 
 import { useStore, getEntitiesWithBalance } from '@/src/store';
 import { formatAmount } from '@/src/utils/format';
@@ -61,13 +59,8 @@ export function useSummary(): SummaryData {
 	}, [entities, plans, transactions, currentPeriod]);
 }
 
-interface SummaryHeaderProps {
-	onToggleIncome?: () => void;
-}
-
-export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
+export function SummaryHeader() {
 	const { balance, expenses, remaining } = useSummary();
-	const incomeVisible = useStore((state) => !state.collapsedSections.income);
 	const insets = useSafeAreaInsets();
 
 	return (
@@ -82,20 +75,6 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 					<SummaryItem label="Expenses" value={expenses} />
 					<SummaryItem label="Planned" value={remaining} />
 				</View>
-
-				{/* Income toggle button */}
-				<Pressable
-					onPress={onToggleIncome}
-					hitSlop={8}
-					testID="income-toggle-button"
-					className="ml-4 h-6 w-6 items-center justify-center"
-				>
-					{incomeVisible ? (
-						<ChevronUp size={18} color={colors.ink.muted} />
-					) : (
-						<ChevronDown size={18} color={colors.ink.muted} />
-					)}
-				</Pressable>
 			</View>
 		</View>
 	);

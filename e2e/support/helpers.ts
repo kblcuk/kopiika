@@ -58,21 +58,6 @@ export async function expectAmount(entityName: string, expected: number, timeout
 		.withTimeout(timeout);
 }
 
-// Opens the income section if it's collapsed (default on fresh install).
-export async function openIncomeSection() {
-	try {
-		await waitFor(element(by.id(TestIDs.entityBubble('Salary'))))
-			.toBeVisible()
-			.withTimeout(200);
-		return; // already open
-	} catch {
-		await element(by.id(TestIDs.incomeToggleButton)).tap();
-		await waitFor(element(by.id(TestIDs.entityBubble('Salary'))))
-			.toBeVisible()
-			.withTimeout(3000);
-	}
-}
-
 // Verifies no transaction modal appeared after a gesture (e.g. blocked DnD).
 export async function expectNoTransactionModal() {
 	await waitFor(element(by.id(TestIDs.transaction.amountInput)))

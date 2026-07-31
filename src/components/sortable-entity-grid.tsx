@@ -10,10 +10,12 @@ import Animated, {
 	type AnimatedRef,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Check, Pencil } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Pencil } from 'lucide-react-native';
 
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import { colors } from '@/src/theme/colors';
+import { useCollapseAnimation } from '@/src/hooks/use-collapse-animation';
+import { TestIDs } from '@/e2e/support/test-ids';
 import {
 	findDropTarget,
 	unregisterDropZone,
@@ -63,7 +65,10 @@ interface SortableEntityGridProps {
 	 */
 	onLongPress?: (entity: EntityWithBalance) => void;
 	onAdd?: (type: EntityType) => void;
-	dropZonesDisabled?: boolean;
+	/** Whether this section is collapsed: content hidden, drop zones off. */
+	collapsed?: boolean;
+	/** Called when the header row is tapped. Omit for a non-collapsible section. */
+	onToggleCollapsed?: () => void;
 	maxRows?: number;
 	/** Controls whether drags create transactions/reservations or reorder within the section. */
 	dragBehavior?: 'transaction' | 'reorder';
@@ -92,7 +97,8 @@ export function SortableEntityGrid({
 	onTap,
 	onLongPress,
 	onAdd,
-	dropZonesDisabled = false,
+	collapsed = false,
+	onToggleCollapsed,
 	maxRows = 1,
 	dragBehavior = 'transaction',
 	editMode = false,
@@ -105,6 +111,10 @@ export function SortableEntityGrid({
 }: SortableEntityGridProps) {
 	const reorderEntitiesByIds = useStore((state) => state.reorderEntitiesByIds);
 	const isTransactionMode = dragBehavior === 'transaction';
+
+	// A collapsed section is not a drop target: its bubbles are clipped away.
+	const dropZonesOff = collapsed;
+	const { animatedStyle, onContentLayout } = useCollapseAnimation(collapsed);
 
 	// Get the global shared value for hovered drop zone - shared across all grids
 	const hoveredIdShared = useMemo(() => getGlobalHoveredId(), []);
@@ -180,7 +190,7 @@ export function SortableEntityGrid({
 
 	// Measure grid position and register all drop zones based on horizontal grid layout
 	const registerGridDropZones = useCallback(() => {
-		if (dropZonesDisabled) return;
+		if (dropZonesOff) return;
 
 		gridRef.current?.measureInWindow((gridX, gridY, gridWidth, gridHeight) => {
 			if (gridWidth === 0 || gridHeight === 0) return;
@@ -201,12 +211,12 @@ export function SortableEntityGrid({
 				});
 			});
 		});
-	}, [sortedEntities, dropZonesDisabled, maxRows]);
+	}, [sortedEntities, dropZonesOff, maxRows]);
 
 	// Register drop zones and remeasure callback
 	const gridCallbackId = `grid-${type}`;
 	useEffect(() => {
-		if (dropZonesDisabled) {
+		if (dropZonesOff) {
 			sortedEntities.forEach((e) => unregisterDropZone(e.id));
 			unregisterRemeasureCallback(gridCallbackId);
 			return;
@@ -222,13 +232,13 @@ export function SortableEntityGrid({
 			sortedEntities.forEach((e) => unregisterDropZone(e.id));
 			unregisterRemeasureCallback(gridCallbackId);
 		};
-	}, [entityIdsKey, dropZonesDisabled, registerGridDropZones, sortedEntities, gridCallbackId]);
+	}, [entityIdsKey, dropZonesOff, registerGridDropZones, sortedEntities, gridCallbackId]);
 
 	const handleScrollEnd = useCallback(() => {
-		if (!dropZonesDisabled) {
+		if (!dropZonesOff) {
 			registerGridDropZones();
 		}
-	}, [dropZonesDisabled, registerGridDropZones]);
+	}, [dropZonesOff, registerGridDropZones]);
 
 	const sectionViewRef = useRef<View>(null);
 
@@ -431,14 +441,28 @@ export function SortableEntityGrid({
 
 	return (
 		<View ref={sectionViewRef} className="overflow-visible" onLayout={measureSectionBounds}>
-			{/* Inset divider with section title */}
-			<View className="flex-row items-center px-4">
+			{/* Inset divider with section title; the whole row toggles collapse. */}
+			<Pressable
+				testID={TestIDs.sectionCollapseToggle(type)}
+				onPress={() => {
+					if (!onToggleCollapsed) return;
+					void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+					onToggleCollapsed();
+				}}
+				disabled={!onToggleCollapsed}
+				accessibilityRole={onToggleCollapsed ? 'button' : undefined}
+				accessibilityLabel={
+					onToggleCollapsed ? `${collapsed ? 'Expand' : 'Collapse'} ${title}` : undefined
+				}
+				className="flex-row items-center px-4"
+			>
 				<View className="h-px flex-1 bg-paper-300" />
 				<Text className="px-3 font-sans text-xs uppercase tracking-wider text-ink-muted">
 					{title}
 				</Text>
 				{onToggleEditMode && (
 					<Pressable
+						testID={TestIDs.sectionEditToggle(type)}
 						onPress={() => {
 							void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 							onToggleEditMode();
@@ -454,65 +478,95 @@ export function SortableEntityGrid({
 					</Pressable>
 				)}
 				<View className="h-px flex-1 bg-paper-300" />
-			</View>
+				{onToggleCollapsed && (
+					<View className="ml-2">
+						{collapsed ? (
+							<ChevronDown size={16} color={colors.ink.muted} strokeWidth={2} />
+						) : (
+							<ChevronUp size={16} color={colors.ink.muted} strokeWidth={2} />
+						)}
+					</View>
+				)}
+			</Pressable>
 
 			<HoveredIdContext.Provider value={hoveredIdShared}>
 				<FixedOrderContext.Provider value={fixedOrderContextValue}>
-					{hasEntities ? (
-						<Animated.ScrollView
-							ref={scrollViewRef}
-							testID={`section-scroll-${type}`}
-							horizontal
-							showsHorizontalScrollIndicator={false}
-							contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}
-							onScrollEndDrag={handleScrollEnd}
-							onMomentumScrollEnd={handleScrollEnd}
-							onLayout={handleScrollViewLayout}
-							onContentSizeChange={handleContentSizeChange}
-						>
-							<View
-								ref={gridRef}
-								className="relative flex-row"
-								onLayout={registerGridDropZones}
-							>
-								<Sortable.Grid
-									data={displayedEntities}
-									rows={maxRows}
-									rowHeight={BUBBLE_HEIGHT}
-									columnGap={COLUMN_GAP}
-									rowGap={ROW_GAP}
-									customHandle={true}
-									renderItem={({ item }) =>
-										item.id === '__add_button__' && onAdd ? (
-											<Sortable.Handle mode="fixed-order">
-												<AddEntityBubble type={type} onPress={onAdd} />
-											</Sortable.Handle>
-										) : (
-											<SortableEntityBubble entity={item} onTap={onTap} />
-										)
-									}
-									keyExtractor={(item: EntityWithBalance) => item.id}
-									onDragStart={handleSortableDragStart}
-									onDragMove={handleSortableDragMove}
-									onDragEnd={handleSortableDragEnd}
-									scrollableRef={scrollViewRef}
-									autoScrollEnabled={!isTransactionMode}
-									autoScrollDirection="horizontal"
-									activeItemScale={1.1}
-									activeItemOpacity={0.9}
-									inactiveItemOpacity={1}
-									dragActivationDelay={150}
-									dragActivationFailOffset={10}
-									overflow="visible"
-								/>
-								{onAdd && <View style={{ width: BUBBLE_WIDTH + COLUMN_GAP }} />}
-							</View>
-						</Animated.ScrollView>
-					) : (
-						<View className="flex-row px-4">
-							{onAdd && <AddEntityBubble type={type} onPress={onAdd} width={96} />}
+					<Animated.View
+						testID={`section-content-${type}`}
+						style={animatedStyle}
+						pointerEvents={collapsed ? 'none' : 'auto'}
+					>
+						<View onLayout={onContentLayout}>
+							{hasEntities ? (
+								<Animated.ScrollView
+									ref={scrollViewRef}
+									testID={`section-scroll-${type}`}
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerStyle={{
+										paddingHorizontal: 16,
+										paddingVertical: 10,
+									}}
+									onScrollEndDrag={handleScrollEnd}
+									onMomentumScrollEnd={handleScrollEnd}
+									onLayout={handleScrollViewLayout}
+									onContentSizeChange={handleContentSizeChange}
+								>
+									<View
+										ref={gridRef}
+										className="relative flex-row"
+										onLayout={registerGridDropZones}
+									>
+										<Sortable.Grid
+											data={displayedEntities}
+											rows={maxRows}
+											rowHeight={BUBBLE_HEIGHT}
+											columnGap={COLUMN_GAP}
+											rowGap={ROW_GAP}
+											customHandle={true}
+											renderItem={({ item }) =>
+												item.id === '__add_button__' && onAdd ? (
+													<Sortable.Handle mode="fixed-order">
+														<AddEntityBubble
+															type={type}
+															onPress={onAdd}
+														/>
+													</Sortable.Handle>
+												) : (
+													<SortableEntityBubble
+														entity={item}
+														onTap={onTap}
+													/>
+												)
+											}
+											keyExtractor={(item: EntityWithBalance) => item.id}
+											onDragStart={handleSortableDragStart}
+											onDragMove={handleSortableDragMove}
+											onDragEnd={handleSortableDragEnd}
+											scrollableRef={scrollViewRef}
+											autoScrollEnabled={!isTransactionMode}
+											autoScrollDirection="horizontal"
+											activeItemScale={1.1}
+											activeItemOpacity={0.9}
+											inactiveItemOpacity={1}
+											dragActivationDelay={150}
+											dragActivationFailOffset={10}
+											overflow="visible"
+										/>
+										{onAdd && (
+											<View style={{ width: BUBBLE_WIDTH + COLUMN_GAP }} />
+										)}
+									</View>
+								</Animated.ScrollView>
+							) : (
+								<View className="flex-row px-4">
+									{onAdd && (
+										<AddEntityBubble type={type} onPress={onAdd} width={96} />
+									)}
+								</View>
+							)}
 						</View>
-					)}
+					</Animated.View>
 				</FixedOrderContext.Provider>
 			</HoveredIdContext.Provider>
 		</View>

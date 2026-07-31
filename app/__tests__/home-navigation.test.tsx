@@ -124,6 +124,8 @@ jest.mock('@/src/components', () => {
 			editMode,
 			type,
 			dragBehavior,
+			collapsed,
+			onToggleCollapsed,
 		}: {
 			entities: EntityWithBalance[];
 			onTap?: (entity: EntityWithBalance) => void;
@@ -134,6 +136,8 @@ jest.mock('@/src/components', () => {
 			editMode?: boolean;
 			type: EntityType;
 			dragBehavior?: 'transaction' | 'reorder';
+			collapsed?: boolean;
+			onToggleCollapsed?: () => void;
 		}) => {
 			// Every section receives the same screen-level handlers; capture them
 			// so tests can simulate a drop without a real gesture.
@@ -141,6 +145,11 @@ jest.mock('@/src/components', () => {
 			mockDragHandlers.onDragEnd = onDragEnd;
 			return (
 				<View>
+					{onToggleCollapsed ? (
+						<Pressable testID={`${type}-collapse-toggle`} onPress={onToggleCollapsed}>
+							<Text>{collapsed ? 'collapsed' : 'expanded'}</Text>
+						</Pressable>
+					) : null}
 					{onToggleEditMode ? (
 						<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
 							<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
@@ -717,5 +726,80 @@ describe('modal startup gating', () => {
 		expect(queryByTestId('reservation-modal-mount')).not.toBeNull();
 		expect(queryByTestId('entity-detail-modal-mount')).not.toBeNull();
 		expect(queryByTestId('entity-create-modal')).not.toBeNull();
+	});
+});
+
+describe('section collapse wiring', () => {
+	const mockToggleSectionCollapsed = jest.fn();
+
+	const income: EntityWithBalance = {
+		id: 'inc-1',
+		type: 'income',
+		name: 'Salary',
+		currency: 'EUR',
+		row: 0,
+		position: 0,
+		actual: 0,
+		planned: 0,
+		remaining: 0,
+		upcoming: 0,
+	};
+	const account: EntityWithBalance = {
+		...income,
+		id: 'acc-1',
+		type: 'account',
+		name: 'Checking',
+	};
+	const category: EntityWithBalance = {
+		...income,
+		id: 'cat-1',
+		type: 'category',
+		name: 'Groceries',
+	};
+	const saving: EntityWithBalance = { ...income, id: 'sav-1', type: 'saving', name: 'Emergency' };
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
+		useStore.setState({
+			entities: [income, account, category, saving],
+			plans: [],
+			transactions: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			// Accounts collapsed, everything else expanded — so a per-section flag
+			// reaching the wrong grid is visible.
+			collapsedSections: { income: false, account: true, category: false, saving: false },
+			initialize: jest.fn(),
+			addEntity: jest.fn(),
+			setPlan: jest.fn(),
+			setDraggedEntity: jest.fn(),
+			toggleSectionCollapsed: mockToggleSectionCollapsed,
+		});
+		jest.mocked(useEntitiesWithBalance).mockImplementation((type: EntityType) => {
+			if (type === 'income') return [income];
+			if (type === 'account') return [account];
+			if (type === 'category') return [category];
+			return [saving];
+		});
+	});
+
+	it('passes each section its own collapsed flag', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		expect(getByTestId('account-collapse-toggle')).toHaveTextContent('collapsed');
+		expect(getByTestId('category-collapse-toggle')).toHaveTextContent('expanded');
+		expect(getByTestId('income-collapse-toggle')).toHaveTextContent('expanded');
+		expect(getByTestId('saving-collapse-toggle')).toHaveTextContent('expanded');
+	});
+
+	it('toggles only the tapped section', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		fireEvent.press(getByTestId('saving-collapse-toggle'));
+
+		expect(mockToggleSectionCollapsed).toHaveBeenCalledTimes(1);
+		expect(mockToggleSectionCollapsed).toHaveBeenCalledWith('saving');
 	});
 });

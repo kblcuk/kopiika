@@ -34,4 +34,13 @@ describe('EntitySectionSkeleton', () => {
 		);
 		expect(getAllByTestId('skeleton-bubble')).toHaveLength(1);
 	});
+
+	it('reserves no placeholder height when the section is collapsed', () => {
+		// A collapsed section shows only its header, so the placeholder must not
+		// reserve room the real grid will not use.
+		const { queryAllByTestId } = render(
+			<EntitySectionSkeleton title="Categories" isEmpty={false} maxRows={3} collapsed />
+		);
+		expect(queryAllByTestId('skeleton-bubble')).toHaveLength(0);
+	});
 });

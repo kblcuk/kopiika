@@ -61,7 +61,10 @@ export const TestIDs = {
 		savingReservationRow: (accountId: string) => `saving-reservation-row-${accountId}`,
 	},
 
-	incomeToggleButton: 'income-toggle-button',
+	// Section header of the home board: the whole row toggles collapse, the
+	// pencil inside it toggles edit mode.
+	sectionCollapseToggle: (type: string) => `section-collapse-toggle-${type}`,
+	sectionEditToggle: (type: string) => `section-edit-toggle-${type}`,
 
 	onboarding: {
 		welcomeScreen: 'onboarding-welcome',
