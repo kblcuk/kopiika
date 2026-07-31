@@ -43,6 +43,8 @@ import {
 	getHasRequestedPermission,
 	setRemindersEnabled,
 	setHasRequestedPermission,
+	getCollapsedSections,
+	setCollapsedSections,
 } from '@/src/utils/app-prefs';
 
 interface AppState {
@@ -57,7 +59,8 @@ interface AppState {
 	currentPeriod: string;
 	isLoading: boolean;
 	draggedEntity: Entity | null;
-	incomeVisible: boolean;
+	/** Per-section collapse flags for the home board; false = expanded. */
+	collapsedSections: Record<EntityType, boolean>;
 
 	// Actions
 	initialize: () => Promise<void>;
@@ -70,7 +73,7 @@ interface AppState {
 	) => Promise<void>;
 	setCurrentPeriod: (period: string) => void;
 	setDraggedEntity: (entity: Entity | null) => void;
-	toggleIncomeVisible: () => void;
+	toggleSectionCollapsed: (type: EntityType) => void;
 
 	// Entity actions
 	addEntity: (entity: Entity) => Promise<void>;
@@ -353,7 +356,7 @@ export const useStore = create<AppState>((set, get) => {
 		currentPeriod: getCurrentPeriod(),
 		isLoading: true,
 		draggedEntity: null,
-		incomeVisible: false,
+		collapsedSections: { income: false, account: false, category: false, saving: false },
 
 		// Initialize from database
 		initialize: async () => {
@@ -372,6 +375,7 @@ export const useStore = create<AppState>((set, get) => {
 						rawTemplates,
 						marketValueSnapshots,
 						exclusionsByTemplate,
+						collapsedSections,
 					] = await Promise.all([
 						db.getAllEntities(),
 						db.getAllPlans(),
@@ -379,6 +383,7 @@ export const useStore = create<AppState>((set, get) => {
 						db.getAllRecurrenceTemplates(),
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
+						getCollapsedSections(),
 					]);
 					// KII-123: attach exclusions from the normalized table. Templates
 					// without any exclusions get an empty array so consumers never
@@ -405,6 +410,10 @@ export const useStore = create<AppState>((set, get) => {
 						transactions,
 						recurrenceTemplates,
 						marketValueSnapshots,
+						// Landing this with isLoading:false is what keeps a collapsed
+						// section from flashing open — the screen shows a spinner
+						// until both are set.
+						collapsedSections,
 						isLoading: false,
 					});
 
@@ -467,7 +476,17 @@ export const useStore = create<AppState>((set, get) => {
 
 		setCurrentPeriod: (period) => set({ currentPeriod: period }),
 		setDraggedEntity: (entity) => set({ draggedEntity: entity }),
-		toggleIncomeVisible: () => set((state) => ({ incomeVisible: !state.incomeVisible })),
+		toggleSectionCollapsed: (type) => {
+			const next = {
+				...get().collapsedSections,
+				[type]: !get().collapsedSections[type],
+			};
+			set({ collapsedSections: next });
+			// Fire-and-forget write-through, matching the other app-prefs setters.
+			// KII-132's "no write serialisation" caveat applies, but section
+			// toggles are user-paced taps — last write wins is correct here.
+			void setCollapsedSections(next);
+		},
 
 		// Entity actions
 		addEntity: async (entity) => {

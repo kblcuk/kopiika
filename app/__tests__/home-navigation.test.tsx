@@ -308,12 +308,12 @@ describe('HomeScreen entity interactions', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: false,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 			initialize: mockInitialize,
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
 			setDraggedEntity: jest.fn(),
-			toggleIncomeVisible: jest.fn(),
+			toggleSectionCollapsed: jest.fn(),
 		});
 		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
 			if (type === 'category') return [mockCategory];
@@ -469,12 +469,12 @@ describe('HomeScreen drag-drop routing', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: true,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 			initialize: jest.fn(),
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
 			setDraggedEntity: jest.fn(),
-			toggleIncomeVisible: jest.fn(),
+			toggleSectionCollapsed: jest.fn(),
 		});
 		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
 			if (type === 'income') return [income];
@@ -629,12 +629,12 @@ describe('progressive section mount', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: false,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 			initialize: jest.fn(),
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
 			setDraggedEntity: jest.fn(),
-			toggleIncomeVisible: jest.fn(),
+			toggleSectionCollapsed: jest.fn(),
 		});
 		jest.mocked(useEntitiesWithBalance).mockImplementation((type) => {
 			if (type === 'account') return [account];
@@ -685,12 +685,12 @@ describe('modal startup gating', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: false,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 			initialize: jest.fn(),
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
 			setDraggedEntity: jest.fn(),
-			toggleIncomeVisible: jest.fn(),
+			toggleSectionCollapsed: jest.fn(),
 		});
 		jest.mocked(useEntitiesWithBalance).mockReturnValue([]);
 		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);

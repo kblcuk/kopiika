@@ -25,7 +25,7 @@ export function setupStoreForTest({
 		currentPeriod,
 		isLoading: false,
 		draggedEntity: null,
-		incomeVisible: false,
+		collapsedSections: { income: false, account: false, category: false, saving: false },
 	});
 }
 

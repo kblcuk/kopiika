@@ -73,7 +73,7 @@ describe('SummaryScreen', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: false,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 		});
 	});
 

@@ -67,7 +67,7 @@ interface SummaryHeaderProps {
 
 export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 	const { balance, expenses, remaining } = useSummary();
-	const incomeVisible = useStore((state) => state.incomeVisible);
+	const incomeVisible = useStore((state) => !state.collapsedSections.income);
 	const insets = useSafeAreaInsets();
 
 	return (

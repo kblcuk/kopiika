@@ -30,7 +30,7 @@ describe('Store Data Integrity', () => {
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
-			incomeVisible: false,
+			collapsedSections: { income: false, account: false, category: false, saving: false },
 		});
 	});
 
@@ -168,6 +168,84 @@ describe('Store Data Integrity', () => {
 			expect(
 				hydrationLogs.filter((message) => message === 'Hydrating store from database')
 			).toHaveLength(1);
+		});
+	});
+
+	describe('section collapse state', () => {
+		beforeEach(async () => {
+			const { setCollapsedSections } = await import('@/src/utils/app-prefs');
+			await setCollapsedSections({
+				income: false,
+				account: false,
+				category: false,
+				saving: false,
+			});
+			useStore.setState({
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
+			});
+		});
+
+		test('every section starts expanded', () => {
+			expect(useStore.getState().collapsedSections).toEqual({
+				income: false,
+				account: false,
+				category: false,
+				saving: false,
+			});
+		});
+
+		test('toggleSectionCollapsed collapses only the named section', () => {
+			useStore.getState().toggleSectionCollapsed('category');
+
+			expect(useStore.getState().collapsedSections).toEqual({
+				income: false,
+				account: false,
+				category: true,
+				saving: false,
+			});
+		});
+
+		test('toggleSectionCollapsed expands a collapsed section again', () => {
+			useStore.getState().toggleSectionCollapsed('saving');
+			useStore.getState().toggleSectionCollapsed('saving');
+
+			expect(useStore.getState().collapsedSections.saving).toBe(false);
+		});
+
+		test('toggleSectionCollapsed writes through to app-prefs', async () => {
+			const { getCollapsedSections } = await import('@/src/utils/app-prefs');
+
+			useStore.getState().toggleSectionCollapsed('income');
+			// The write-through is fire-and-forget and reads the file before
+			// writing, so it spans several microtask turns — yield past all of
+			// them with a macrotask boundary.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(await getCollapsedSections()).toEqual({
+				income: true,
+				account: false,
+				category: false,
+				saving: false,
+			});
+		});
+
+		test('initialize hydrates collapse state from app-prefs', async () => {
+			const { setCollapsedSections } = await import('@/src/utils/app-prefs');
+			await setCollapsedSections({
+				income: false,
+				account: true,
+				category: false,
+				saving: false,
+			});
+
+			await useStore.getState().initialize();
+
+			expect(useStore.getState().collapsedSections.account).toBe(true);
 		});
 	});
 
@@ -1288,7 +1366,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			// Get current state
@@ -1409,7 +1492,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -1479,7 +1567,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -1548,7 +1641,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			// Create them in DB
@@ -1703,7 +1801,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			for (const entity of [account, category, saving]) {
@@ -1806,7 +1909,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			for (const entity of [account, category]) {
@@ -1901,7 +2009,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			for (const entity of [account, category]) {
@@ -1975,7 +2088,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			for (const entity of [account, category]) {
@@ -2128,7 +2246,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			// Test income entities
@@ -2282,7 +2405,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			// Income: only January transactions (5000)
@@ -2395,7 +2523,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			// Category should use all-time plan (300), not monthly plan (250)
@@ -2455,7 +2588,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2507,7 +2645,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2592,7 +2735,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2670,7 +2818,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2740,7 +2893,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2791,7 +2949,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -2873,7 +3036,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 
 			const state = useStore.getState();
@@ -3256,7 +3424,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 			const state = useStore.getState();
 			const cats = getEntitiesWithBalance(
@@ -3462,7 +3635,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 			const state = useStore.getState();
 			// `[0]!` is safe — every test seeds baseEntities with one of each type.
@@ -3782,7 +3960,12 @@ describe('Store Data Integrity', () => {
 				currentPeriod: '2026-01',
 				isLoading: false,
 				draggedEntity: null,
-				incomeVisible: false,
+				collapsedSections: {
+					income: false,
+					account: false,
+					category: false,
+					saving: false,
+				},
 			});
 			for (const entity of [account, saving1, saving2]) {
 				await db.createEntity(entity);

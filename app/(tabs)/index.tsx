@@ -76,20 +76,22 @@ export default function HomeScreen() {
 	const {
 		isLoading,
 		entities,
-		incomeVisible,
+		collapsedSections,
 		draggedEntity,
 		setDraggedEntity,
-		toggleIncomeVisible,
+		toggleSectionCollapsed,
 	} = useStore(
 		useShallow((s) => ({
 			isLoading: s.isLoading,
 			entities: s.entities,
-			incomeVisible: s.incomeVisible,
+			collapsedSections: s.collapsedSections,
 			draggedEntity: s.draggedEntity,
 			setDraggedEntity: s.setDraggedEntity,
-			toggleIncomeVisible: s.toggleIncomeVisible,
+			toggleSectionCollapsed: s.toggleSectionCollapsed,
 		}))
 	);
+
+	const incomeVisible = !collapsedSections.income;
 
 	const transactions = useStore((s) => s.transactions);
 
@@ -292,8 +294,8 @@ export default function HomeScreen() {
 	});
 
 	const handleToggleIncome = useCallback(() => {
-		toggleIncomeVisible();
-	}, [toggleIncomeVisible]);
+		toggleSectionCollapsed('income');
+	}, [toggleSectionCollapsed]);
 
 	if (isLoading) {
 		return (
