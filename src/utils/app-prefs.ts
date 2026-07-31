@@ -1,5 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 
+import type { EntityType } from '@/src/types';
+
 const prefsFile = new File(Paths.document, 'app-prefs.json');
 
 interface AppPrefs {
@@ -9,6 +11,8 @@ interface AppPrefs {
 	lastBackgroundNotificationKey?: string | null;
 	hasCompletedOnboarding?: boolean;
 	emptyBoardNudgeDismissed?: boolean;
+	// Home-board section collapse flags; a missing section reads as expanded.
+	collapsedSections?: Partial<Record<EntityType, boolean>>;
 }
 
 async function read(): Promise<AppPrefs> {
@@ -96,5 +100,22 @@ export async function getEmptyBoardNudgeDismissed(): Promise<boolean> {
 export async function setEmptyBoardNudgeDismissed(value: boolean): Promise<void> {
 	const prefs = await read();
 	prefs.emptyBoardNudgeDismissed = value;
+	write(prefs);
+}
+
+export async function getCollapsedSections(): Promise<Record<EntityType, boolean>> {
+	const prefs = await read();
+	const stored = prefs.collapsedSections ?? {};
+	return {
+		income: stored.income ?? false,
+		account: stored.account ?? false,
+		category: stored.category ?? false,
+		saving: stored.saving ?? false,
+	};
+}
+
+export async function setCollapsedSections(value: Record<EntityType, boolean>): Promise<void> {
+	const prefs = await read();
+	prefs.collapsedSections = value;
 	write(prefs);
 }

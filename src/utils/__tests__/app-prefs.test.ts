@@ -62,3 +62,47 @@ describe('app-prefs — onboarding keys', () => {
 		expect(await getEmptyBoardNudgeDismissed()).toBe(true);
 	});
 });
+
+describe('app-prefs — collapsed sections', () => {
+	beforeEach(() => clearStore());
+
+	test('every section defaults to expanded when unset', async () => {
+		const { getCollapsedSections } = await import('../app-prefs');
+		expect(await getCollapsedSections()).toEqual({
+			income: false,
+			account: false,
+			category: false,
+			saving: false,
+		});
+	});
+
+	test('collapsed sections round-trip through set/get', async () => {
+		const { getCollapsedSections, setCollapsedSections } = await import('../app-prefs');
+		await setCollapsedSections({
+			income: false,
+			account: true,
+			category: false,
+			saving: true,
+		});
+		expect(await getCollapsedSections()).toEqual({
+			income: false,
+			account: true,
+			category: false,
+			saving: true,
+		});
+	});
+
+	test('sections absent from stored prefs read as expanded', async () => {
+		const { getCollapsedSections, setLastSeenVersion } = await import('../app-prefs');
+		// Simulate prefs written by an older build: the key exists, but only
+		// carries one section.
+		await setLastSeenVersion('0.3.26');
+		store.collapsedSections = { category: true };
+		expect(await getCollapsedSections()).toEqual({
+			income: false,
+			account: false,
+			category: true,
+			saving: false,
+		});
+	});
+});
