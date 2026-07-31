@@ -35,9 +35,9 @@ describe('Onboarding — first launch', () => {
 			.toBeVisible()
 			.withTimeout(15000);
 
-		// Default-selected always-visible entities should be on screen.
-		// (Salary is an income entity — Income section is collapsed by default,
-		// so we don't assert on it here.)
+		// Default-selected entities should be on screen. Every section starts
+		// expanded (KII-149), so Salary is visible too — asserting on one entity
+		// per section is enough here.
 		await waitFor(element(by.id(TestIDs.entityBubble('Main Card'))))
 			.toBeVisible()
 			.withTimeout(5000);

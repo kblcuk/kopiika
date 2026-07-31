@@ -319,7 +319,6 @@ Amount text varies by device locale: some return `"43.21"`, others `"43,21"`. `g
 | ------------------------------------------- | ---------------------------------------------- |
 | `dismissWhatsNewIfPresent()`                | Tap dismiss on the What's New modal if present |
 | `getAmount(entityName)`                     | Read numeric amount from an entity bubble      |
-| `openIncomeSection()`                       | Tap income toggle and wait for Salary bubble   |
 | `expectNoTransactionModal()`                | Assert transaction modal did NOT appear        |
 | `createTransaction(from, to, amount)`       | Full [+] button happy path                     |
 | `createTransactionViaDnD(from, to, amount)` | Full DnD happy path                            |
@@ -331,7 +330,7 @@ Add new helpers to the file they are first needed in; move to a shared `helpers.
 
 ## Domain Rules to Know
 
-- `income` entities: visible only when toggled via `TestIDs.incomeToggleButton`. The [+] picker reads from the store so income is _selectable_ even when collapsed — but `getAmount('Salary')` will fail if the bubble is hidden.
+- `income` entities: visible by default — every section starts expanded (KII-149). Any section can be collapsed by tapping its header (`TestIDs.sectionCollapseToggle(type)`), which hides its bubbles, so `getAmount('Salary')` fails while Income is collapsed. The [+] picker reads from the store, so entities stay _selectable_ either way. Collapse state persists in `app-prefs.json` and survives relaunch — a suite that collapses a section must expand it again.
 - `savings` entities are backed by real `account <-> saving` transactions. DnD Account → Saving opens `reservation-submit-button`, while Saving → Account uses the regular transaction modal for releases.
 - **Blocked pairs**: Income→Category and Category→Category — these must not open the transaction modal.
 - Refund flows (Category→Account, Account→Income) open the refund picker (`TestIDs.refundPicker.close`).

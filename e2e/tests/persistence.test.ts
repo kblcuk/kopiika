@@ -29,4 +29,30 @@ describe('Persistence', () => {
 		// Balance must reflect the transaction that was created before relaunch
 		jestExpect(await getAmount('Groceries')).toBe(afterCreate);
 	});
+
+	it('collapsed section stays collapsed across relaunch', async () => {
+		// Collapse Categories from its header and confirm the bubbles go away.
+		await element(by.id(TestIDs.sectionCollapseToggle('category'))).tap();
+		await waitFor(element(by.id(TestIDs.entityBubble('Groceries'))))
+			.not.toBeVisible()
+			.withTimeout(3000);
+
+		await device.launchApp({ newInstance: true });
+		await device.disableSynchronization();
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(10000);
+
+		// Still collapsed — the flag came back from app-prefs, not from defaults.
+		await waitFor(element(by.id(TestIDs.entityBubble('Groceries'))))
+			.not.toBeVisible()
+			.withTimeout(3000);
+
+		// Expand again: collapse state persists across *suites* too, so leaving
+		// Categories closed would break every later test that taps a category.
+		await element(by.id(TestIDs.sectionCollapseToggle('category'))).tap();
+		await waitFor(element(by.id(TestIDs.entityBubble('Groceries'))))
+			.toBeVisible()
+			.withTimeout(3000);
+	});
 });
