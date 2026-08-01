@@ -1655,6 +1655,132 @@ describe('TransactionModal', () => {
 		});
 	});
 
+	// The scope ("this one" / "all future") is chosen once, when the occurrence is
+	// opened for editing, and arrives here as `seriesScope`. Deleting must reuse it
+	// instead of asking again (KII-158) — but still confirm, since delete is
+	// destructive.
+	describe('Delete Button — recurring occurrence', () => {
+		const seriesTransaction = {
+			id: 'txn-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 10000,
+			currency: 'USD',
+			timestamp: fixedNow,
+			series_id: 'series-1',
+		};
+
+		const renderAndPressDelete = (props: {
+			existingTransaction: typeof seriesTransaction & { isVirtual?: boolean };
+			seriesScope?: 'single' | 'future';
+		}) => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					{...props}
+				/>
+			);
+			fireEvent.press(getByTestId('transaction-delete-button'));
+		};
+
+		const pressDestructive = (alertSpy: jest.SpyInstance) => {
+			const buttons = alertSpy.mock.calls[0]![2] as AlertButton[] | undefined;
+			buttons?.find((btn) => btn.style === 'destructive')?.onPress?.();
+		};
+
+		let deleteTransactionWithScope: jest.Mock;
+		let excludeOccurrence: jest.Mock;
+		let materializeOccurrence: jest.Mock;
+
+		beforeEach(() => {
+			deleteTransactionWithScope = jest.fn().mockResolvedValue(undefined);
+			excludeOccurrence = jest.fn().mockResolvedValue(undefined);
+			materializeOccurrence = jest.fn().mockResolvedValue(undefined);
+			useStore.setState({
+				deleteTransactionWithScope,
+				excludeOccurrence,
+				materializeOccurrence,
+			});
+		});
+
+		it('confirms without re-asking for scope when scope is already known', () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+
+			renderAndPressDelete({
+				existingTransaction: seriesTransaction,
+				seriesScope: 'single',
+			});
+
+			expect(alertSpy).toHaveBeenCalledWith(
+				'Delete Recurring Transaction',
+				'Delete this occurrence only?',
+				[
+					expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+					expect.objectContaining({ text: 'Delete', style: 'destructive' }),
+				]
+			);
+
+			pressDestructive(alertSpy);
+
+			expect(deleteTransactionWithScope).toHaveBeenCalledWith('txn-1', 'single');
+			expect(mockOnClose).toHaveBeenCalled();
+		});
+
+		it('deletes the rest of the series when the chosen scope is "future"', () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+
+			renderAndPressDelete({
+				existingTransaction: seriesTransaction,
+				seriesScope: 'future',
+			});
+
+			expect(alertSpy).toHaveBeenCalledWith(
+				'Delete Recurring Transaction',
+				'Delete this and all future occurrences?',
+				expect.any(Array)
+			);
+
+			pressDestructive(alertSpy);
+
+			expect(deleteTransactionWithScope).toHaveBeenCalledWith('txn-1', 'future');
+		});
+
+		it('records an exclusion for a virtual occurrence deleted with scope "single"', async () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+			const virtualOccurrence = { ...seriesTransaction, isVirtual: true };
+
+			renderAndPressDelete({
+				existingTransaction: virtualOccurrence,
+				seriesScope: 'single',
+			});
+			pressDestructive(alertSpy);
+
+			await waitFor(() =>
+				expect(excludeOccurrence).toHaveBeenCalledWith(
+					expect.objectContaining({ id: 'txn-1', isVirtual: true })
+				)
+			);
+			expect(deleteTransactionWithScope).not.toHaveBeenCalled();
+			expect(materializeOccurrence).not.toHaveBeenCalled();
+		});
+
+		it('still asks for scope when none was chosen up front', () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+
+			renderAndPressDelete({ existingTransaction: seriesTransaction });
+
+			const buttons = alertSpy.mock.calls[0]![2] as AlertButton[] | undefined;
+			expect(buttons?.map((btn) => btn.text)).toEqual([
+				'Cancel',
+				'This one only',
+				'All future',
+			]);
+		});
+	});
+
 	describe('Cancel Button', () => {
 		it('calls onClose when cancel is pressed', () => {
 			const { getByTestId } = render(

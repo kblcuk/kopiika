@@ -51,7 +51,11 @@ import { useExpressionInput } from '@/src/hooks/use-expression-input';
 import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { InfoPin } from '@/src/components/info-pin';
-import { showSeriesScopeAlert } from './series-action-sheet';
+import {
+	showSeriesDeleteConfirm,
+	showSeriesScopeAlert,
+	type SeriesScope,
+} from './series-action-sheet';
 
 const isEntityWithBalance: (e: Entity | EntityWithBalance | null) => e is EntityWithBalance = (e) =>
 	e !== null && 'actual' in e;
@@ -71,7 +75,7 @@ interface TransactionModalProps {
 	existingTransaction?: Transaction;
 	/** Opens in quick-add mode: entity pickers shown upfront, no drag required */
 	quickAdd?: boolean;
-	seriesScope?: 'single' | 'future';
+	seriesScope?: SeriesScope;
 }
 
 export function TransactionModal({
@@ -404,7 +408,7 @@ export function TransactionModal({
 			}
 		};
 		if (existingTransaction.series_id) {
-			showSeriesScopeAlert('delete', (scope) => {
+			const deleteWithScope = (scope: SeriesScope) => {
 				void KeyboardController.dismiss();
 				onClose();
 				void runDelete(async () => {
@@ -418,7 +422,16 @@ export function TransactionModal({
 						await materializeOccurrence(existingTransaction);
 					return deleteTransactionWithScope(existingTransaction.id, scope);
 				});
-			});
+			};
+			if (seriesScope) {
+				// Scope was already chosen when this occurrence was opened for
+				// editing — confirm, but don't ask the same question twice (KII-158).
+				showSeriesDeleteConfirm(seriesScope, () => deleteWithScope(seriesScope));
+			} else {
+				// No scope picked up front (e.g. the refund picker opens the modal
+				// directly), so this delete is the first chance to ask.
+				showSeriesScopeAlert('delete', deleteWithScope);
+			}
 		} else {
 			Alert.alert('Delete Transaction', 'Are you sure you want to delete this transaction?', [
 				{ text: 'Cancel', style: 'cancel' },
@@ -435,6 +448,7 @@ export function TransactionModal({
 		}
 	}, [
 		existingTransaction,
+		seriesScope,
 		deleteTransaction,
 		deleteTransactionWithScope,
 		materializeOccurrence,

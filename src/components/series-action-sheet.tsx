@@ -29,3 +29,21 @@ export function showSeriesScopeAlert(
 		},
 	]);
 }
+
+/**
+ * Confirm a delete whose scope the user already picked (when opening the
+ * occurrence for editing). Delete stays confirmed because it is destructive,
+ * but the scope is restated rather than asked again — see KII-158.
+ */
+export function showSeriesDeleteConfirm(scope: SeriesScope, onConfirm: () => void): void {
+	Alert.alert(
+		'Delete Recurring Transaction',
+		scope === 'future'
+			? 'Delete this and all future occurrences?'
+			: 'Delete this occurrence only?',
+		[
+			{ text: 'Cancel', style: 'cancel' },
+			{ text: 'Delete', style: 'destructive', onPress: onConfirm },
+		]
+	);
+}
