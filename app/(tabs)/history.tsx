@@ -127,7 +127,10 @@ export default function HistoryScreen() {
 	const [editingSnapshot, setEditingSnapshot] = useState<MarketValueSnapshot | null>(null);
 	const [editingSnapshotAmount, setEditingSnapshotAmount] = useState('');
 	const [editingSnapshotDate, setEditingSnapshotDate] = useState('');
-	const [editScope, setEditScope] = useState<SeriesScope>('single');
+	// null until the user answers the scope prompt in handleEdit. Deleting from
+	// the modal now acts on this without prompting (KII-158), so a default here
+	// would silently pick a scope nobody chose.
+	const [editScope, setEditScope] = useState<SeriesScope | null>(null);
 	const [searchQuery, setSearchQuery] = useState('');
 	const deferredPeriod = useDeferredValue(selectedPeriod);
 	const deferredSearch = useDeferredValue(searchQuery);
@@ -374,6 +377,7 @@ export default function HistoryScreen() {
 
 	const handleCloseEdit = () => {
 		setEditingTransaction(null);
+		setEditScope(null);
 	};
 
 	const handleEditSnapshot = useCallback((snapshot: MarketValueSnapshot) => {
@@ -815,7 +819,9 @@ export default function HistoryScreen() {
 					toEntity={getEntityWithBalance(editingTransaction.to_entity_id)}
 					onClose={handleCloseEdit}
 					existingTransaction={editingTransaction}
-					seriesScope={editingTransaction.series_id ? editScope : undefined}
+					seriesScope={
+						editingTransaction.series_id ? (editScope ?? undefined) : undefined
+					}
 				/>
 			)}
 		</SafeAreaView>

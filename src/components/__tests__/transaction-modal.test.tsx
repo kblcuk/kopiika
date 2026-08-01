@@ -1767,6 +1767,60 @@ describe('TransactionModal', () => {
 			expect(materializeOccurrence).not.toHaveBeenCalled();
 		});
 
+		// Future-scope deletes are id-based, so a virtual occurrence needs a real
+		// row before the delete runs. Holding materializeOccurrence pending pins
+		// that the delete actually *waits* — asserting call order alone still
+		// passes if the await is dropped.
+		it('materializes a virtual occurrence before deleting the rest of the series', async () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+			let finishMaterialize!: () => void;
+			materializeOccurrence.mockReturnValue(
+				new Promise<void>((resolve) => {
+					finishMaterialize = resolve;
+				})
+			);
+
+			renderAndPressDelete({
+				existingTransaction: { ...seriesTransaction, isVirtual: true },
+				seriesScope: 'future',
+			});
+			pressDestructive(alertSpy);
+
+			await act(async () => {});
+			expect(materializeOccurrence).toHaveBeenCalledWith(
+				expect.objectContaining({ id: 'txn-1', isVirtual: true })
+			);
+			expect(deleteTransactionWithScope).not.toHaveBeenCalled();
+
+			finishMaterialize();
+
+			await waitFor(() =>
+				expect(deleteTransactionWithScope).toHaveBeenCalledWith('txn-1', 'future')
+			);
+			expect(excludeOccurrence).not.toHaveBeenCalled();
+		});
+
+		// The confirm exists precisely so the user can back out of a destructive
+		// action — Cancel must touch neither the store nor the modal.
+		it('deletes nothing when the confirmation is cancelled', () => {
+			const alertSpy = jest.spyOn(Alert, 'alert');
+
+			renderAndPressDelete({
+				existingTransaction: seriesTransaction,
+				seriesScope: 'future',
+			});
+
+			const buttons = alertSpy.mock.calls[0]![2] as AlertButton[] | undefined;
+			const cancelButton = buttons?.find((btn) => btn.style === 'cancel');
+			expect(cancelButton).toBeTruthy();
+			cancelButton?.onPress?.();
+
+			expect(deleteTransactionWithScope).not.toHaveBeenCalled();
+			expect(excludeOccurrence).not.toHaveBeenCalled();
+			expect(materializeOccurrence).not.toHaveBeenCalled();
+			expect(mockOnClose).not.toHaveBeenCalled();
+		});
+
 		it('still asks for scope when none was chosen up front', () => {
 			const alertSpy = jest.spyOn(Alert, 'alert');
 
@@ -1778,6 +1832,11 @@ describe('TransactionModal', () => {
 				'This one only',
 				'All future',
 			]);
+
+			// The scope picked here must still reach the delete.
+			buttons?.find((btn) => btn.text === 'All future')?.onPress?.();
+
+			expect(deleteTransactionWithScope).toHaveBeenCalledWith('txn-1', 'future');
 		});
 	});
 
