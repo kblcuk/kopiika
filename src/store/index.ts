@@ -20,6 +20,7 @@ import {
 	toCivilDate,
 } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
+import { isDue } from '@/src/utils/due';
 import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
@@ -1043,7 +1044,7 @@ export const useStore = create<AppState>((set, get) => {
 		confirmAllDueTransactions: async () => {
 			const now = Date.now();
 			const dueTxs = get().transactions.filter(
-				(t) => t.is_confirmed === false && t.timestamp <= now
+				(t) => t.is_confirmed === false && isDue(t.timestamp, now)
 			);
 			if (dueTxs.length === 0) return;
 
@@ -1214,7 +1215,7 @@ export function getEntitiesWithBalance(
 		// (`!== false`) but as unconfirmed by the badge count (`=== false`).
 		// Normalize to a non-optional boolean at the DB read boundary.
 		let bucketKey: 'actual' | 'upcoming' | 'unconfirmed';
-		if (t.timestamp > now) {
+		if (!isDue(t.timestamp, now)) {
 			// Future rows only count toward "upcoming" up to the period end;
 			// anything past `end` is out of view for every bucket.
 			if (t.timestamp > end) continue;
@@ -1276,7 +1277,7 @@ export function getEntitiesWithBalance(
 
 export function getUnconfirmedCount(transactions: Transaction[]): number {
 	const now = Date.now();
-	return transactions.filter((t) => t.is_confirmed === false && t.timestamp <= now).length;
+	return transactions.filter((t) => t.is_confirmed === false && isDue(t.timestamp, now)).length;
 }
 
 export function useUnconfirmedCount(): number {

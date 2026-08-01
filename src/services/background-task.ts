@@ -8,6 +8,7 @@ import {
 	setLastBackgroundNotificationKey,
 } from '@/src/utils/app-prefs';
 import { CHANNEL_ID } from '@/src/services/notifications';
+import { endOfLocalDay } from '@/src/utils/due';
 
 const TASK_NAME = 'CHECK_UNCONFIRMED';
 
@@ -33,7 +34,12 @@ TaskManager.defineTask(TASK_NAME, async () => {
 		const unconfirmed = await db
 			.select({ id: transactions.id })
 			.from(transactions)
-			.where(and(eq(transactions.is_confirmed, false), lte(transactions.timestamp, now)));
+			.where(
+				and(
+					eq(transactions.is_confirmed, false),
+					lte(transactions.timestamp, endOfLocalDay(now))
+				)
+			);
 
 		const count = unconfirmed.length;
 		if (count > 0) {
