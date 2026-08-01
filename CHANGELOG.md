@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.28](https://codeberg.org/kblcuk/kopiika/compare/v0.3.26...v0.3.28) (2026-08-01)
+
+
+### Bug Fixes
+
+* **recurrence:** dedup derived occurrences by slot, not current date (KII-157) ([6a69d14](https://codeberg.org/kblcuk/kopiika/commit/6a69d14edd20c852b27040cecdc1d8168c948df9))
+* **recurrence:** don't re-ask for series scope when deleting (KII-158) ([774f553](https://codeberg.org/kblcuk/kopiika/commit/774f553c4cda7e554ed4e780a1060c253e48eb18))
+* **settings:** Wipe data through the bulk-delete path on reset ([7037dd9](https://codeberg.org/kblcuk/kopiika/commit/7037dd9ee4f3b0e550cc400e22910646640f3e60))
+
 ## [0.3.26](https://codeberg.org/kblcuk/kopiika/compare/v0.3.24...v0.3.26) (2026-07-31)
 
 
