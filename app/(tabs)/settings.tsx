@@ -13,7 +13,7 @@ import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
 import { formatAmount } from '@/src/utils/format';
 import { parseImportCsv, formatImportErrors, type ParsedImportData } from '@/src/utils/import';
-import { resetDrizzleDb, updateTransactionNotificationIdsBatch } from '@/src/db';
+import { updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
 import {
 	getRemindersEnabled,
@@ -253,9 +253,13 @@ export default function SettingsScreen() {
 	const handleResetData = () => {
 		const runReset = async () => {
 			try {
-				await cancelAllNotifications();
-				await updateBadgeCount(0);
-				resetDrizzleDb();
+				// Wipe through the same FK-safe bulk-delete path CSV import uses.
+				// `resetDrizzleDb()` used to live here, but it's a no-op on native
+				// (KII-122) — the button cancelled notifications and then re-hydrated
+				// the untouched database. `replaceAllData` cancels notifications and
+				// clears the badge itself; `initialize()` re-creates the system
+				// balance-adjustment entity the wipe removed.
+				await replaceAllData([], [], [], [], []);
 				await initialize();
 			} catch (error) {
 				console.error('Failed to reset data', error);

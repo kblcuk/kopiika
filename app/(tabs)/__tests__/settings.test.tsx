@@ -1,5 +1,5 @@
 import React from 'react';
-import { Switch } from 'react-native';
+import { Alert, Switch } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '../settings';
 import { useStore } from '@/src/store';
@@ -32,7 +32,6 @@ jest.mock('expo-constants', () => ({
 }));
 
 jest.mock('@/src/db', () => ({
-	resetDrizzleDb: jest.fn(),
 	updateTransactionNotificationIdsBatch: jest.fn(),
 }));
 
@@ -72,7 +71,7 @@ jest.mock('@/src/store', () => {
 	return { useStore: mockUseStore };
 });
 
-describe('SettingsScreen reminders toggle', () => {
+describe('SettingsScreen', () => {
 	let storeState: {
 		entities: { id: string; name: string }[];
 		plans: unknown[];
@@ -185,5 +184,30 @@ describe('SettingsScreen reminders toggle', () => {
 			expect(registerBackgroundTask).toHaveBeenCalled();
 			expect(storeState.transactions[0]!.notification_id).toBe('notif-123');
 		});
+	});
+
+	test('confirming Reset All Data wipes every table and re-hydrates the store', async () => {
+		jest.mocked(getRemindersEnabled).mockResolvedValue(true);
+		const alertSpy = jest
+			.spyOn(Alert, 'alert')
+			.mockImplementation((_title, _message, buttons) => {
+				buttons?.find((button) => button.text === 'Reset')?.onPress?.();
+			});
+
+		try {
+			const { getByText } = render(<SettingsScreen />);
+			await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
+
+			fireEvent.press(getByText('Reset All Data'));
+
+			await waitFor(() => {
+				// The wipe has to go through the FK-safe bulk-delete path, not the
+				// native `resetDrizzleDb` no-op that silently kept the data (KII-122).
+				expect(storeState.replaceAllData).toHaveBeenCalledWith([], [], [], [], []);
+				expect(storeState.initialize).toHaveBeenCalled();
+			});
+		} finally {
+			alertSpy.mockRestore();
+		}
 	});
 });

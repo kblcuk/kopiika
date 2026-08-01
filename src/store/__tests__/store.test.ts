@@ -6,6 +6,7 @@ import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
+import * as notifications from '@/src/services/notifications';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { toCivilDate } from '@/src/utils/recurrence';
 import {
@@ -4467,6 +4468,90 @@ describe('Store Data Integrity', () => {
 				'import-category',
 			]);
 			expect(await db.getAllRecurrenceTemplates()).toEqual([]);
+		});
+
+		// The "Reset All Data" settings action wipes via replaceAllData with empty
+		// payloads, then re-hydrates. Guards the whole reset contract: every table
+		// is emptied and only the system balance-adjustment entity comes back.
+		test('replaceAllData with empty payloads wipes every table for a data reset', async () => {
+			const account = makeEntity('reset-account', 'account');
+			const category = makeEntity('reset-category', 'category', { position: 1 });
+			for (const entity of [account, category]) {
+				await db.createEntity(entity);
+			}
+			await db.upsertPlan({
+				id: 'reset-plan',
+				entity_id: category.id,
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount_minor: 10000,
+			});
+			await db.createTransaction({
+				id: 'reset-tx',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 4000,
+				currency: 'USD',
+				timestamp: new Date('2026-01-10').getTime(),
+			});
+			await db.createRecurrenceTemplate({
+				id: 'reset-series',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 4000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-10').getTime(),
+				created_at: Date.now(),
+			});
+			await db.addExclusion('reset-series', new Date('2026-02-10').getTime());
+			await db.createMarketValueSnapshot({
+				id: 'reset-snapshot',
+				entity_id: account.id,
+				amount_minor: 150000,
+				currency: 'USD',
+				date: new Date('2026-01-15').getTime(),
+			});
+
+			await useStore.getState().replaceAllData([], [], [], [], []);
+
+			expect(await db.getAllEntities()).toEqual([]);
+			expect(await db.getAllPlans()).toEqual([]);
+			expect(await db.getAllTransactions()).toEqual([]);
+			expect(await db.getAllRecurrenceTemplates()).toEqual([]);
+			expect(await db.getAllMarketValueSnapshots()).toEqual([]);
+			expect([...(await db.getAllExclusionsByTemplate()).keys()]).toEqual([]);
+
+			const wiped = useStore.getState();
+			expect(wiped.entities).toEqual([]);
+			expect(wiped.plans).toEqual([]);
+			expect(wiped.transactions).toEqual([]);
+			expect(wiped.recurrenceTemplates).toEqual([]);
+			expect(wiped.marketValueSnapshots).toEqual([]);
+
+			// Re-hydration restores the system entity the wipe removed.
+			await useStore.getState().initialize();
+			expect(useStore.getState().entities.map((entity) => entity.id)).toEqual([
+				BALANCE_ADJUSTMENT_ENTITY_ID,
+			]);
+		});
+
+		// The wiped transactions carry scheduled notification ids, so the wipe has
+		// to cancel them — "Reset All Data" relies on this happening in the store
+		// rather than at the settings call site.
+		test('replaceAllData cancels scheduled notifications and clears the badge', async () => {
+			const cancelSpy = spyOn(notifications, 'cancelAllNotifications');
+			const badgeSpy = spyOn(notifications, 'updateBadgeCount');
+
+			try {
+				await useStore.getState().replaceAllData([], [], [], [], []);
+
+				expect(cancelSpy).toHaveBeenCalled();
+				expect(badgeSpy).toHaveBeenCalledWith(0);
+			} finally {
+				cancelSpy.mockRestore();
+				badgeSpy.mockRestore();
+			}
 		});
 
 		test('reorderEntitiesByIds persists drag-and-drop row and position changes', async () => {

@@ -57,6 +57,9 @@ export function getRawDb(): SQLiteDatabase | null {
 export function resetDb() {
 	// Intentional no-op on native. The export is kept so `resetDrizzleDb`
 	// (re-exported from `./db`) keeps the same shape across platforms — tests
-	// run against the bun build (`db.ts`) where the real reset lives. Users
-	// can reinstall the app to wipe state.
+	// run against the bun build (`db.ts`) where the real reset lives.
+	//
+	// Do NOT call this to wipe user data: on device it does nothing, which is
+	// exactly how "Reset All Data" silently became a no-op. Bulk wipes go
+	// through the `import.replace_all` operation (empty payloads) instead.
 }
