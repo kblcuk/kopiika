@@ -501,6 +501,43 @@ describe('HistoryScreen search params', () => {
 		});
 	});
 
+	it('puts an unconfirmed transaction dated later today under Needs Confirmation (KII-159)', async () => {
+		// Recurring occurrences inherit the local time-of-day of their template's
+		// start date (KII-159): a raw `timestamp > now` check kept a transaction
+		// scheduled for today sitting in Upcoming until an arbitrary hour of its
+		// own day. Built off fixedNow (not a real clock) so this can't flake if
+		// the suite happens to run near midnight.
+		const laterToday = new Date(fixedNow);
+		laterToday.setHours(23, 59, 0, 0);
+
+		const unconfirmedToday: Transaction = {
+			id: 'tx-today-unconfirmed',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 4200,
+			currency: 'USD',
+			timestamp: laterToday.getTime(),
+			is_confirmed: false,
+		};
+
+		useStore.setState({
+			entities: [mockAccount, mockCategory],
+			plans: [],
+			transactions: [unconfirmedToday],
+			currentPeriod: '2026-01',
+			isLoading: false,
+		});
+
+		setPendingHistoryFilter({ period: '2026-01' });
+
+		const { getByText, queryByText } = render(<HistoryScreen />);
+
+		await waitFor(() => {
+			expect(getByText('Needs Confirmation')).toBeTruthy();
+			expect(queryByText('Upcoming')).toBeNull();
+		});
+	});
+
 	it('shows a collapsible reservation summary when filtered to an account (KII-69)', async () => {
 		const firstReservationTx: Transaction = {
 			id: 'tx-reservation-1',

@@ -31,6 +31,7 @@ import {
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { isEntityDeleted } from '@/src/utils/entity-display';
+import { isDue } from '@/src/utils/due';
 import { toCivilDate } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { pickInitialScrollSectionIndex } from '@/src/utils/history-scroll';
@@ -223,8 +224,11 @@ export default function HistoryScreen() {
 				continue;
 			}
 
-			// Three-way split: upcoming / unconfirmed past-due / confirmed past
-			if (tx.timestamp > now) {
+			// Three-way split: upcoming / due-but-unconfirmed / confirmed past.
+			// Due-ness is a civil-day comparison (KII-159), so an occurrence dated
+			// today is confirmable from midnight rather than from its inherited
+			// time-of-day.
+			if (!isDue(tx.timestamp, now)) {
 				upcoming.push(tx);
 			} else if (tx.is_confirmed === false) {
 				unconfirmed.push(tx);
