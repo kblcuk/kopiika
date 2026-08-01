@@ -8,6 +8,16 @@ import { useStore, getUnconfirmedCount } from '@/src/store';
 import { registerBackgroundTask } from '@/src/services/background-task';
 import { setupNotificationChannel, updateBadgeCount } from '@/src/services/notifications';
 import { getRemindersEnabled } from '@/src/utils/app-prefs';
+import { endOfLocalDay } from '@/src/utils/due';
+
+/**
+ * Milliseconds from `now` to the next local midnight. Derived from
+ * `endOfLocalDay` (local Y/M/D components), not `now + 86_400_000` — a fixed
+ * day-length would misfire by an hour on a DST transition day (23h or 25h).
+ */
+function msUntilNextLocalMidnight(now: number): number {
+	return endOfLocalDay(now) - now + 1;
+}
 
 function runWhenIdle(callback: () => void): () => void {
 	const requestIdleCallback = globalThis.requestIdleCallback;
@@ -133,6 +143,31 @@ export default function DatabaseProvider({
 			}
 		});
 		return () => sub.remove();
+	}, [isReady, backfillRecurringIfStale]);
+
+	// Materialize today's occurrence the instant it becomes due, even if the app
+	// is left open across local midnight (KII-159). `initialize` only runs once
+	// on cold start and the AppState listener above only fires on a foreground
+	// transition, so a warm, backgrounded-never process would otherwise leave
+	// today's occurrence materialized nowhere until the next foreground bounce —
+	// derivation already stopped deriving it virtually the moment the civil day
+	// rolled over. The store action self-throttles per civil day, so re-arming
+	// this timer daily costs at most one string compare per spurious fire.
+	useEffect(() => {
+		if (!isReady) return;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+		const scheduleNext = () => {
+			timeoutId = setTimeout(() => {
+				void backfillRecurringIfStale();
+				scheduleNext();
+			}, msUntilNextLocalMidnight(Date.now()));
+		};
+		scheduleNext();
+
+		return () => {
+			if (timeoutId) clearTimeout(timeoutId);
+		};
 	}, [isReady, backfillRecurringIfStale]);
 
 	// Check for a startup error before the loading gate: a DB init failure must

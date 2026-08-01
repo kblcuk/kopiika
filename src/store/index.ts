@@ -20,7 +20,7 @@ import {
 	toCivilDate,
 } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
-import { isDue } from '@/src/utils/due';
+import { endOfLocalDay, isDue } from '@/src/utils/due';
 import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
@@ -147,15 +147,17 @@ interface AppState {
 // in tests, so a rejected initialize poisons later tests. Move into store state.
 let initializePromise: Promise<void> | null = null;
 
-// Tracks the wall-clock time of the most recent recurrence backfill. Used by
-// `backfillRecurringIfStale` to avoid re-running on every app foreground; the
-// shortest supported recurrence period is daily, so once a day is sufficient.
-let lastBackfillAt = 0;
-const BACKFILL_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Tracks the civil day `backfillRecurrences` last ran on, so a foreground bounce
+// doesn't thrash the DB. Civil-day rather than a 24h window: with due-ness
+// defined per calendar day (KII-159), a duration throttle that last fired at
+// 23:00 would block materialization of today's occurrence until 23:00 tonight,
+// and `deriveVirtualOccurrences` no longer emits it — the occurrence would
+// vanish from every surface for a full day.
+let lastBackfillCivilDate: string | null = null;
 
 // Test-only: lets the test file reset the throttle between cases.
-export function _resetBackfillTimestampForTests(): void {
-	lastBackfillAt = 0;
+export function _resetBackfillThrottleForTests(): void {
+	lastBackfillCivilDate = null;
 }
 
 async function scheduleNotificationsForTransactions(
@@ -268,14 +270,15 @@ async function backfillRecurrences(
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
 
-		// Materialize only occurrences whose date has passed (≤ now). Future
-		// occurrences are derived virtually (deriveVirtualOccurrences), never
-		// stored. horizonDays: 0 bounds generateOccurrences at `now`.
+		// Materialize every occurrence that is DUE — i.e. dated today or earlier
+		// (KII-159). `generateOccurrences` is bounded by an instant, so pass the
+		// last millisecond of today as `now`; `horizonDays: 0` keeps the bound
+		// exactly there. Occurrences not yet due stay virtual.
 		const dueTimestamps = generateOccurrences({
 			rule,
 			startDate: template.start_date,
 			horizonDays: 0,
-			now,
+			now: endOfLocalDay(now),
 			endDate: template.end_date,
 			endCount: template.end_count,
 			exclusions: template.exclusions,
@@ -414,7 +417,7 @@ export const useStore = create<AppState>((set, get) => {
 					// free of phantom future rows.
 					// Backfill any missing past-due occurrences.
 					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
-					lastBackfillAt = Date.now();
+					lastBackfillCivilDate = toCivilDate(Date.now());
 				} catch (error) {
 					console.error('Failed to initialize store:', error);
 					set({ isLoading: false });
@@ -827,14 +830,13 @@ export const useStore = create<AppState>((set, get) => {
 		},
 
 		// Materialize past-due occurrences since the last run. Because
-		// backfillRecurrences passes horizonDays: 0, `generateOccurrences` is
-		// bounded at `now` — no future phantom rows are written (future
-		// occurrences are derived on demand). Throttled to once per day (the
-		// shortest recurrence period) so an app foreground bounce doesn't thrash
-		// the DB.
+		// backfillRecurrences bounds generateOccurrences at end-of-today
+		// (KII-159), no future phantom rows are written (future occurrences are
+		// derived on demand). Throttled to once per civil day (the shortest
+		// recurrence period) so an app foreground bounce doesn't thrash the DB.
 		backfillRecurringIfStale: async () => {
-			const now = Date.now();
-			if (now - lastBackfillAt < BACKFILL_MIN_INTERVAL_MS) return;
+			const today = toCivilDate(Date.now());
+			if (lastBackfillCivilDate === today) return;
 			const state = get();
 			await backfillRecurrences(
 				state.recurrenceTemplates,
@@ -842,7 +844,7 @@ export const useStore = create<AppState>((set, get) => {
 				state.entities,
 				set
 			);
-			lastBackfillAt = now;
+			lastBackfillCivilDate = today;
 		},
 
 		updateTransactionWithScope: async (id, updates, scope) => {

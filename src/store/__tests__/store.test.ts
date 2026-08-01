@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
-import { useStore, getEntitiesWithBalance, _resetBackfillTimestampForTests } from '../index';
+import { useStore, getEntitiesWithBalance, _resetBackfillThrottleForTests } from '../index';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
@@ -5386,7 +5386,7 @@ describe('Store Data Integrity', () => {
 
 			// Now force another backfill (simulates an app foreground). The deleted
 			// occurrence must NOT come back.
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 
 			const afterCivilDates = (await db.getTransactionsBySeriesId(seriesId)).map((t) =>
@@ -5684,7 +5684,7 @@ describe('Store Data Integrity', () => {
 		};
 
 		beforeEach(() => {
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 		});
 
 		test('materializes missing occurrences when throttle is cold', async () => {
@@ -5725,11 +5725,144 @@ describe('Store Data Integrity', () => {
 			// Simulate 24h+ elapsed by resetting the throttle. Keep in-memory state
 			// intact (as it would be after a re-initialize from DB), so the civil-date
 			// dedup correctly identifies existing rows and adds nothing new.
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 
 			// No new rows — deterministic ids mean no duplicates are inserted.
 			expect(useStore.getState().transactions.length).toBe(afterFirst);
+		});
+
+		test('backfill runs again after the civil day rolls over, not after a fixed 24h window (KII-159)', async () => {
+			const acc: Entity = {
+				id: 'straddle-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'straddle-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			// Daily series starting Aug 1. By Aug 2 23:00 only Aug 1 and Aug 2 are due;
+			// Aug 3's occurrence becomes due only once the civil day rolls over.
+			const start = new Date(2026, 7, 1, 9, 0, 0, 0).getTime();
+			const template: RecurrenceTemplate = {
+				id: 'straddle-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 1000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: start,
+				end_date: null,
+				end_count: null,
+				created_at: start,
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			const aug3Id = `${template.id}:2026-08-03`;
+			const dateSpy = spyOn(Date, 'now');
+			try {
+				// First run, 23:00 on Aug 2: materializes Aug 1 and Aug 2. Aug 3 is not
+				// due yet.
+				dateSpy.mockReturnValue(new Date(2026, 7, 2, 23, 0, 0, 0).getTime());
+				await useStore.getState().backfillRecurringIfStale();
+				expect(useStore.getState().transactions.some((t) => t.id === aug3Id)).toBe(false);
+				const afterFirst = useStore.getState().transactions.length;
+				expect(afterFirst).toBeGreaterThan(0);
+
+				// Same civil day, 30 minutes later: throttled. (A 24h duration throttle
+				// would also block here, so this step alone doesn't discriminate the
+				// fix — the next one does.)
+				dateSpy.mockReturnValue(new Date(2026, 7, 2, 23, 30, 0, 0).getTime());
+				await useStore.getState().backfillRecurringIfStale();
+				expect(useStore.getState().transactions.length).toBe(afterFirst);
+
+				// 5 minutes into Aug 3 — only 65 minutes after the last run, nowhere near
+				// a 24h window, but the civil day has rolled over. The civil-day throttle
+				// must run again and materialize Aug 3's occurrence; the old 24h-duration
+				// throttle would still be blocking at this point.
+				dateSpy.mockReturnValue(new Date(2026, 7, 3, 0, 5, 0, 0).getTime());
+				await useStore.getState().backfillRecurringIfStale();
+				expect(useStore.getState().transactions.some((t) => t.id === aug3Id)).toBe(true);
+			} finally {
+				dateSpy.mockRestore();
+			}
+		});
+
+		test("materializes today's occurrence even before its own time-of-day has arrived (KII-159)", async () => {
+			const acc: Entity = {
+				id: 'mid-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'mid-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			// Daily series whose occurrences land at 15:42 local.
+			const start = new Date(2026, 7, 1, 15, 42, 0, 0).getTime();
+			const template: RecurrenceTemplate = {
+				id: 'mid-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 1000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: start,
+				end_date: null,
+				end_count: null,
+				created_at: start,
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			const dateSpy = spyOn(Date, 'now');
+			try {
+				// 00:30 on the 3rd — hours before today's 15:42 occurrence would fire,
+				// but it is already due (KII-159: due-ness is a civil-day comparison).
+				const now = new Date(2026, 7, 3, 0, 30, 0, 0).getTime();
+				dateSpy.mockReturnValue(now);
+
+				await useStore.getState().backfillRecurringIfStale();
+
+				const todayId = `${template.id}:2026-08-03`;
+				const row = useStore.getState().transactions.find((t) => t.id === todayId);
+				expect(row).toBeDefined();
+				// The materialized row's own timestamp is still later today — it was
+				// materialized ahead of its time-of-day, not "in the past".
+				expect(row!.timestamp).toBeGreaterThan(now);
+			} finally {
+				dateSpy.mockRestore();
+			}
 		});
 
 		test('backfillRecurrences materializes only past-due occurrences with deterministic ids', async () => {
@@ -5775,7 +5908,7 @@ describe('Store Data Integrity', () => {
 				entities: [acc, cat],
 				transactions: [],
 			});
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 
 			const rows = (await db.getAllTransactions()).filter((t) => t.series_id === 'tmpl-pd');
@@ -5836,7 +5969,7 @@ describe('Store Data Integrity', () => {
 
 			// First backfill materializes today's occurrence with the deterministic
 			// id `${series}:${todayCivil}`.
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 			const todayRow = useStore
 				.getState()
@@ -5854,7 +5987,7 @@ describe('Store Data Integrity', () => {
 			// `UNIQUE constraint failed: transactions.id`: backfill saw today's civil
 			// date missing (the row moved to yesterday) and regenerated a row with the
 			// SAME deterministic id the edited row still carries.
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 
 			// The edited row survives on yesterday and no duplicate id was minted.
@@ -5911,7 +6044,7 @@ describe('Store Data Integrity', () => {
 				transactions: [],
 			});
 
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 			const row = useStore.getState().transactions.find((t) => t.series_id === template.id)!;
 			expect(row.id).toBe(`${template.id}:${todayCivil}`);
@@ -5930,7 +6063,7 @@ describe('Store Data Integrity', () => {
 
 			// The deleted occurrence must NOT resurrect on its original date after a
 			// later backfill (before the fix it came back on `todayCivil`).
-			_resetBackfillTimestampForTests();
+			_resetBackfillThrottleForTests();
 			await useStore.getState().backfillRecurringIfStale();
 			expect(await db.getTransactionsBySeriesId(template.id)).toHaveLength(0);
 		});

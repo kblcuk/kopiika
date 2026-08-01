@@ -1,5 +1,6 @@
 import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
+import { isDue } from './due';
 import {
 	generateOccurrences,
 	occurrenceId,
@@ -8,10 +9,12 @@ import {
 } from './recurrence';
 
 /**
- * Derive the FUTURE recurrence occurrences (strictly after `now`, up to
- * `rangeEnd`) that are not yet materialized as real rows. Pure — the single
- * shared source of "upcoming" occurrences for both the balance hook and the
- * history screen, so the two surfaces can never drift.
+ * Derive the recurrence occurrences that are NOT YET DUE (strictly later than
+ * `now`'s civil day, up to `rangeEnd`) and not yet materialized as real rows.
+ * Occurrences due today or earlier are materialized by `backfillRecurrences`
+ * instead (KII-159) — this function only ever returns "upcoming" occurrences.
+ * Pure — the single shared source of "upcoming" occurrences for both the
+ * balance hook and the history screen, so the two surfaces can never drift.
  *
  * Dedup keys on `(series_id, occurrence SLOT)`, where the slot is read from the
  * real row's deterministic id and falls back to `toCivilDate(timestamp)` for
@@ -68,7 +71,7 @@ export function deriveVirtualOccurrences(
 		});
 
 		for (const ts of timestamps) {
-			if (ts <= now || ts < rangeStart || ts > rangeEnd) continue;
+			if (isDue(ts, now) || ts < rangeStart || ts > rangeEnd) continue;
 			const civil = toCivilDate(ts);
 			if (excludedCivil.has(civil)) continue;
 			if (materializedSlots.has(civil)) continue;

@@ -173,4 +173,19 @@ describe('deriveVirtualOccurrences', () => {
 			'2026-04-08',
 		]);
 	});
+
+	test('does not derive an occurrence dated later today — it is due, not upcoming (KII-159)', () => {
+		// A daily series whose occurrences land at 15:42 local.
+		const start = new Date(2026, 7, 1, 15, 42, 0, 0).getTime();
+		const now = new Date(2026, 7, 3, 0, 30, 0, 0).getTime(); // 00:30 on the 3rd
+		const rangeEnd = new Date(2026, 7, 10, 0, 0, 0, 0).getTime();
+
+		const tpl = dailyTemplate({ start_date: start, created_at: start });
+
+		const result = deriveVirtualOccurrences([tpl], new Map(), [], now, rangeEnd, now);
+		const civilDates = result.map((o) => toCivilDate(o.timestamp));
+
+		expect(civilDates).not.toContain('2026-08-03'); // today — materialized instead
+		expect(civilDates).toContain('2026-08-04');
+	});
 });
