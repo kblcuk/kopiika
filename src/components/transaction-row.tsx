@@ -14,6 +14,7 @@ import { Clock, Trash2, Repeat, CircleAlert, CircleCheck } from 'lucide-react-na
 import type { Transaction, Entity } from '@/src/types';
 import { formatAmount, getCurrencySymbol } from '@/src/utils/format';
 import { useStore } from '@/src/store';
+import { useConfirmTransaction } from '@/src/hooks/use-confirm-transaction';
 import { showSeriesScopeAlert } from './series-action-sheet';
 import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
@@ -44,7 +45,6 @@ export const TransactionRow = memo(function TransactionRow({
 }: TransactionRowProps) {
 	const deleteTransaction = useStore((state) => state.deleteTransaction);
 	const deleteTransactionWithScope = useStore((state) => state.deleteTransactionWithScope);
-	const confirmTransaction = useStore((state) => state.confirmTransaction);
 	const materializeOccurrence = useStore((state) => state.materializeOccurrence);
 	const excludeOccurrence = useStore((state) => state.excludeOccurrence);
 
@@ -118,19 +118,11 @@ export const TransactionRow = memo(function TransactionRow({
 		onEdit(transaction);
 	}, [onEdit, transaction]);
 
+	const confirmTransactionFlow = useConfirmTransaction();
+
 	const handleConfirm = useCallback(async () => {
-		// Confirming a virtual occurrence materializes it into a real row first,
-		// then confirms that row via the normal id-based path. Materialization is a
-		// DB write that can fail, so surface errors the same way the delete path
-		// does rather than silently dropping the confirm.
-		try {
-			if (transaction.isVirtual) await materializeOccurrence(transaction);
-			await confirmTransaction(transaction.id);
-		} catch (error) {
-			console.error('Failed to confirm transaction:', error);
-			Alert.alert('Confirm failed', 'Could not confirm this transaction. Please try again.');
-		}
-	}, [transaction, materializeOccurrence, confirmTransaction]);
+		await confirmTransactionFlow(transaction);
+	}, [confirmTransactionFlow, transaction]);
 
 	// The Confirm pill uses its own RNGH Tap so the row's tap can defer to it
 	// via requireExternalGestureToFail. Using a plain Pressable here was
@@ -185,6 +177,13 @@ export const TransactionRow = memo(function TransactionRow({
 				? 'bg-paper-50'
 				: 'bg-paper-100';
 
+	// The pill is available on upcoming rows too (KII-159): a scheduled charge can
+	// land before its date, and the flow guards the date rewrite with a dialog.
+	const showConfirmPill = isUnconfirmed || isUpcoming;
+	const confirmTone = isUnconfirmed ? colors.warning.DEFAULT : colors.info.DEFAULT;
+	const confirmPillClass = isUnconfirmed ? 'bg-warning/15' : 'bg-info/15';
+	const confirmTextClass = isUnconfirmed ? 'text-warning' : 'text-info';
+
 	const rowContent = (
 		<View className={`px-5 py-3 ${rowBg}`}>
 			{/* From row: icon + name + amount */}
@@ -218,16 +217,16 @@ export const TransactionRow = memo(function TransactionRow({
 						</Text>
 					</Text>
 
-					{/* Confirm pill for unconfirmed transactions */}
-					{isUnconfirmed && (
+					{/* Confirm pill: shown when due (unconfirmed) or ahead of schedule (upcoming) */}
+					{showConfirmPill && (
 						<GestureDetector gesture={confirmPillGesture}>
 							<View
 								accessibilityRole="button"
-								className="mt-1 flex-row items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5"
+								className={`mt-1 flex-row items-center gap-1 rounded-full px-2 py-0.5 ${confirmPillClass}`}
 								testID={`confirm-transaction-${transaction.id}`}
 							>
-								<CircleCheck size={11} color={colors.warning.DEFAULT} />
-								<Text className="font-sans-semibold text-xs text-warning">
+								<CircleCheck size={11} color={confirmTone} />
+								<Text className={`font-sans-semibold text-xs ${confirmTextClass}`}>
 									Confirm
 								</Text>
 							</View>

@@ -214,6 +214,33 @@ describe('TransactionRow', () => {
 		Gesture.Tap = originalTap;
 	});
 
+	it('renders the Confirm pill on upcoming rows (KII-159)', () => {
+		const { getByTestId } = render(
+			<TransactionRow
+				transaction={{ ...transaction, is_confirmed: false }}
+				entityMap={entityMap}
+				onEdit={jest.fn()}
+				index={0}
+				isUpcoming={true}
+			/>
+		);
+
+		expect(getByTestId('confirm-transaction-tx-1')).toBeTruthy();
+	});
+
+	it('does not render the Confirm pill on a plain past row', () => {
+		const { queryByTestId } = render(
+			<TransactionRow
+				transaction={transaction}
+				entityMap={entityMap}
+				onEdit={jest.fn()}
+				index={0}
+			/>
+		);
+
+		expect(queryByTestId('confirm-transaction-tx-1')).toBeNull();
+	});
+
 	// KII-106: the row's tap gesture must defer to the Confirm pill's tap,
 	// otherwise tapping the pill on a recurring-series row also opens the
 	// "Edit Recurring Transaction" dialog. Verified at the structural level —
