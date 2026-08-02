@@ -71,7 +71,7 @@ function reminderFingerprint(payloads: ReminderPayload[]): string | null {
  * (app foreground with nothing changed) costs one pure computation and zero
  * native calls.
  */
-export async function syncScheduledReminders(
+async function runSweep(
 	templates: RecurrenceTemplate[],
 	transactions: Transaction[],
 	entities: Entity[]
@@ -106,4 +106,29 @@ export async function syncScheduledReminders(
 	// A partial schedule is not the schedule the fingerprint describes; leaving
 	// the key null makes the next sweep retry instead of short-circuiting.
 	if (!failed) await setScheduledReminderKey(fingerprint);
+}
+
+/**
+ * Serializes sweeps (KII-159). `runSweep` is a read-modify-write over shared OS
+ * state with five await points, and callers overlap in ordinary use: the
+ * foreground listener fires `void backfillRecurringIfStale()` while the user can
+ * already tap Confirm. Two interleaved sweeps clear the key, cancel each other's
+ * freshly scheduled entries and then both schedule on top of the result — the
+ * user ends up with duplicate or missing reminders under a fingerprint claiming
+ * a clean schedule, which never self-heals because the next sweep of the same
+ * set compares equal and returns early.
+ *
+ * The `.catch` applies to the CHAIN, not to the promise handed back: a sweep
+ * that rejects still rejects for its own caller, while the next link starts from
+ * a settled promise instead of inheriting the failure.
+ */
+let sweepChain: Promise<void> = Promise.resolve();
+
+export function syncScheduledReminders(
+	templates: RecurrenceTemplate[],
+	transactions: Transaction[],
+	entities: Entity[]
+): Promise<void> {
+	sweepChain = sweepChain.catch(() => {}).then(() => runSweep(templates, transactions, entities));
+	return sweepChain;
 }

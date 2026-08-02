@@ -184,6 +184,85 @@ describe('syncScheduledReminders', () => {
 		expect(await getScheduledReminderKey()).toBeNull();
 	});
 
+	// The sweep is a read-modify-write over shared OS state with five await
+	// points, and overlapping callers are ordinary: the foreground listener
+	// dispatches `void backfillRecurringIfStale()` while the user can already tap
+	// Confirm. Unserialized, the two runs lock-step through their awaits — B's
+	// cancel wipes the entries A already scheduled, then A schedules the rest on
+	// top of B's set, and B's fingerprint claims a clean schedule that never
+	// self-heals (KII-159).
+	test('serializes overlapping sweeps instead of interleaving their native calls', async () => {
+		const calls: string[] = [];
+		cancelAll.mockImplementation(async () => {
+			calls.push('cancel');
+			await Promise.resolve();
+		});
+		type ScheduleParams = Parameters<typeof notifications.scheduleTransactionNotification>[0];
+		schedule.mockImplementation(async (params: ScheduleParams) => {
+			calls.push(`schedule:${params.transactionId}`);
+			await Promise.resolve();
+			return 'notif-id';
+		});
+
+		const first = syncScheduledReminders(
+			[],
+			[tx({ id: 'a-1', timestamp: inDays(1) }), tx({ id: 'a-2', timestamp: inDays(2) })],
+			entities
+		);
+		const second = syncScheduledReminders(
+			[],
+			[tx({ id: 'b-1', timestamp: inDays(3) }), tx({ id: 'b-2', timestamp: inDays(4) })],
+			entities
+		);
+		await Promise.all([first, second]);
+
+		expect(calls).toEqual([
+			'cancel',
+			'schedule:a-1',
+			'schedule:a-2',
+			'cancel',
+			'schedule:b-1',
+			'schedule:b-2',
+		]);
+		// The last sweep to run is the one the persisted key must describe.
+		const key = await getScheduledReminderKey();
+		expect(key).not.toBeNull();
+		expect(JSON.parse(key!).map((p: { transactionId: string }) => p.transactionId)).toEqual([
+			'b-1',
+			'b-2',
+		]);
+	});
+
+	// A rejected sweep must reject for ITS caller (the store logs the failure)
+	// without poisoning the chain for the next one — the `.catch` in
+	// `syncScheduledReminders` applies to the chain, not to the returned promise.
+	test('a rejected sweep does not poison the next one', async () => {
+		// Only the first sweep's channel setup throws; the second must still run.
+		let failNextChannelSetup = true;
+		const channel = spyOn(notifications, 'setupNotificationChannel').mockImplementation(() => {
+			if (!failNextChannelSetup) return Promise.resolve();
+			failNextChannelSetup = false;
+			return Promise.reject(new Error('channel setup failed'));
+		});
+
+		const failing = syncScheduledReminders([], [tx({ id: 'boom' })], entities);
+		const following = syncScheduledReminders(
+			[],
+			[tx({ id: 'after', timestamp: inDays(2) })],
+			entities
+		);
+
+		try {
+			await expect(failing).rejects.toThrow('channel setup failed');
+			await following;
+		} finally {
+			channel.mockRestore();
+		}
+
+		expect(schedule).toHaveBeenCalledTimes(1);
+		expect(schedule.mock.calls[0]![0]).toMatchObject({ transactionId: 'after' });
+	});
+
 	// KII-159: the body is `${fromName} → ${toName}: ${amount}`, so content edits
 	// have to invalidate the guard even though the entry identity is unchanged.
 	describe('content edits', () => {
