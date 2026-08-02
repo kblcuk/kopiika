@@ -9,14 +9,14 @@ import {
 	setHasRequestedPermission,
 	setLastBackgroundNotificationKey,
 	setRemindersEnabled,
+	setScheduledReminderKey,
 } from '@/src/utils/app-prefs';
 import {
 	cancelAllNotifications,
-	getNotifiableTransactions,
 	requestPermission,
-	scheduleTransactionNotification,
 	updateBadgeCount,
 } from '@/src/services/notifications';
+import { syncScheduledReminders } from '@/src/services/reminders';
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 jest.mock('expo-router', () => ({
@@ -40,15 +40,18 @@ jest.mock('@/src/utils/app-prefs', () => ({
 	setRemindersEnabled: jest.fn(),
 	setHasRequestedPermission: jest.fn(),
 	setLastBackgroundNotificationKey: jest.fn(),
+	setScheduledReminderKey: jest.fn(),
 }));
 
 jest.mock('@/src/services/notifications', () => ({
 	cancelAllNotifications: jest.fn(),
 	updateBadgeCount: jest.fn(),
-	scheduleTransactionNotification: jest.fn(),
-	getNotifiableTransactions: jest.fn(),
 	setupNotificationChannel: jest.fn(),
 	requestPermission: jest.fn(),
+}));
+
+jest.mock('@/src/services/reminders', () => ({
+	syncScheduledReminders: jest.fn(),
 }));
 
 jest.mock('@/src/services/background-task', () => ({
@@ -143,6 +146,9 @@ describe('SettingsScreen', () => {
 			expect(updateBadgeCount).toHaveBeenCalledWith(0);
 			expect(unregisterBackgroundTask).toHaveBeenCalled();
 			expect(setLastBackgroundNotificationKey).toHaveBeenCalledWith(null);
+			// Without this a re-enable could compute the same fingerprint, skip the
+			// sweep, and schedule nothing at all (KII-159).
+			expect(setScheduledReminderKey).toHaveBeenCalledWith(null);
 			expect(updateTransactionNotificationIdsBatch).toHaveBeenCalledWith([
 				{ id: 'tx-1', notificationId: null },
 				{ id: 'tx-2', notificationId: null },
@@ -151,7 +157,7 @@ describe('SettingsScreen', () => {
 		});
 	});
 
-	test('turning reminders on reschedules future items and syncs ids into store state', async () => {
+	test('turning reminders on clears the fingerprint and rebuilds the schedule from current state', async () => {
 		storeState.transactions = [
 			{
 				id: 'tx-1',
@@ -163,11 +169,10 @@ describe('SettingsScreen', () => {
 				is_confirmed: false,
 			},
 		];
+		storeState.recurrenceTemplates = [{ id: 'template-1' }];
 
 		jest.mocked(getRemindersEnabled).mockResolvedValue(false);
 		jest.mocked(requestPermission).mockResolvedValue(true);
-		jest.mocked(getNotifiableTransactions).mockReturnValue(storeState.transactions as never);
-		jest.mocked(scheduleTransactionNotification).mockResolvedValue('notif-123');
 
 		const { UNSAFE_getByType } = render(<SettingsScreen />);
 
@@ -178,12 +183,18 @@ describe('SettingsScreen', () => {
 			expect(setRemindersEnabled).toHaveBeenCalledWith(true);
 			expect(requestPermission).toHaveBeenCalled();
 			expect(setHasRequestedPermission).toHaveBeenCalledWith(true);
-			expect(updateTransactionNotificationIdsBatch).toHaveBeenCalledWith([
-				{ id: 'tx-1', notificationId: 'notif-123' },
-			]);
+			// Templates are part of the sweep's input: future recurring occurrences
+			// are virtual and would otherwise be invisible to the scheduler (KII-159).
+			expect(syncScheduledReminders).toHaveBeenCalledWith(
+				storeState.recurrenceTemplates,
+				storeState.transactions,
+				storeState.entities
+			);
 			expect(registerBackgroundTask).toHaveBeenCalled();
-			expect(storeState.transactions[0]!.notification_id).toBe('notif-123');
 		});
+		// The sweep owns the schedule now; the screen writes no notification ids.
+		expect(setScheduledReminderKey).toHaveBeenCalledWith(null);
+		expect(updateTransactionNotificationIdsBatch).not.toHaveBeenCalled();
 	});
 
 	test('confirming Reset All Data wipes every table and re-hydrates the store', async () => {

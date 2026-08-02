@@ -9,11 +9,14 @@ import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import * as notifications from '@/src/services/notifications';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { toCivilDate } from '@/src/utils/recurrence';
+import { formatAmount } from '@/src/utils/format';
 import {
 	getHasRequestedPermission,
+	getScheduledReminderKey,
 	setHasRequestedPermission,
 	setLastBackgroundNotificationKey,
 	setRemindersEnabled,
+	setScheduledReminderKey,
 } from '@/src/utils/app-prefs';
 
 describe('Store Data Integrity', () => {
@@ -6366,5 +6369,211 @@ describe('Store Data Integrity', () => {
 		expect(useStore.getState().plans.find((p) => p.id === 'char-plan-1')).toBeUndefined();
 		const allPlans = await db.getAllPlans();
 		expect(allPlans.find((p) => p.id === 'char-plan-1')).toBeUndefined();
+	});
+});
+
+// KII-159: the reminder sweep is what replaced the row-based scheduler, so the
+// store's job is to run it after anything that changes which occurrences are
+// unconfirmed and not yet due. These cover the wiring end to end (real sweep,
+// real prefs, spied native layer) rather than mocking `syncScheduledReminders`.
+describe('reminder sweep wiring', () => {
+	const account: Entity = {
+		id: 'rem-acct',
+		type: 'account',
+		name: 'Checking',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+	};
+	const category: Entity = {
+		id: 'rem-cat',
+		type: 'category',
+		name: 'Rent',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+	};
+
+	// Noon three days out: comfortably on a later civil day than "now", so the
+	// occurrence is upcoming under any local timezone.
+	const upcoming = () => {
+		const d = new Date(Date.now() + 3 * 86_400_000);
+		return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0).getTime();
+	};
+
+	let cancelAllSpy: ReturnType<typeof spyOn>;
+	let scheduleSpy: ReturnType<typeof spyOn>;
+
+	beforeEach(async () => {
+		resetDrizzleDb();
+		cancelAllSpy = spyOn(notifications, 'cancelAllNotifications');
+		scheduleSpy = spyOn(notifications, 'scheduleTransactionNotification');
+		await setRemindersEnabled(true);
+		await setHasRequestedPermission(true);
+		await setScheduledReminderKey(null);
+
+		for (const entity of [account, category]) {
+			await db.createEntity(entity);
+		}
+		useStore.setState({
+			entities: [account, category],
+			plans: [],
+			transactions: [],
+			recurrenceTemplates: [],
+			marketValueSnapshots: [],
+		});
+	});
+
+	afterEach(async () => {
+		cancelAllSpy.mockRestore();
+		scheduleSpy.mockRestore();
+		await setRemindersEnabled(false);
+		await setScheduledReminderKey(null);
+	});
+
+	test('creating an upcoming unconfirmed transaction schedules its reminder', async () => {
+		const timestamp = upcoming();
+		await useStore.getState().createTransactionBatch([
+			{
+				id: 'rem-tx-1',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 150000,
+				currency: 'USD',
+				timestamp,
+				is_confirmed: false,
+			},
+		]);
+
+		expect(scheduleSpy).toHaveBeenCalledTimes(1);
+		const scheduled = scheduleSpy.mock.calls[0]![0] as { transactionId: string };
+		expect(scheduled.transactionId).toBe('rem-tx-1');
+		expect(await getScheduledReminderKey()).not.toBeNull();
+	});
+
+	// The self-healing property: nothing looks up a stored notification id — the
+	// confirmed occurrence is simply absent from the next sweep's set.
+	test('confirming an occurrence early cancels its reminder and leaves nothing scheduled', async () => {
+		const timestamp = upcoming();
+		await useStore.getState().createTransactionBatch([
+			{
+				id: 'rem-tx-2',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 150000,
+				currency: 'USD',
+				timestamp,
+				is_confirmed: false,
+			},
+		]);
+		const keyWhileScheduled = await getScheduledReminderKey();
+		cancelAllSpy.mockClear();
+		scheduleSpy.mockClear();
+
+		await useStore.getState().confirmTransaction('rem-tx-2');
+
+		expect(cancelAllSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy).not.toHaveBeenCalled();
+		expect(keyWhileScheduled).not.toBeNull();
+		expect(await getScheduledReminderKey()).toBeNull();
+	});
+
+	test('excluding an upcoming occurrence drops its reminder', async () => {
+		const timestamp = upcoming();
+		const template: RecurrenceTemplate = {
+			id: 'rem-tpl',
+			from_entity_id: account.id,
+			to_entity_id: category.id,
+			amount_minor: 150000,
+			currency: 'USD',
+			start_date: timestamp,
+			rule: JSON.stringify({ type: 'daily' }),
+			end_date: null,
+			end_count: 1,
+			created_at: Date.now(),
+			exclusions: [],
+		};
+		await db.createRecurrenceTemplate(template);
+		useStore.setState({ recurrenceTemplates: [template] });
+		// The occurrence is 3 days out, so backfill materializes nothing — it is
+		// only here to trigger the sweep that picks up the virtual occurrence.
+		_resetBackfillThrottleForTests();
+		await useStore.getState().backfillRecurringIfStale();
+
+		const occurrenceId = `${template.id}:${toCivilDate(timestamp)}`;
+		expect(scheduleSpy).toHaveBeenCalledTimes(1);
+		expect((scheduleSpy.mock.calls[0]![0] as { transactionId: string }).transactionId).toBe(
+			occurrenceId
+		);
+		cancelAllSpy.mockClear();
+		scheduleSpy.mockClear();
+
+		await useStore.getState().excludeOccurrence({
+			id: occurrenceId,
+			from_entity_id: account.id,
+			to_entity_id: category.id,
+			amount_minor: 150000,
+			currency: 'USD',
+			timestamp,
+			series_id: template.id,
+			is_confirmed: false,
+		});
+
+		expect(cancelAllSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy).not.toHaveBeenCalled();
+		expect(await getScheduledReminderKey()).toBeNull();
+	});
+
+	// KII-159: the notification body carries the amount and both entity names, so
+	// a content edit has to reach the OS even though the set of occurrences is
+	// unchanged. These would pass vacuously under an `id@fireAt` fingerprint.
+	test('editing an upcoming amount reschedules the reminder with the new body', async () => {
+		await useStore.getState().createTransactionBatch([
+			{
+				id: 'rem-tx-3',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 150000,
+				currency: 'USD',
+				timestamp: upcoming(),
+				is_confirmed: false,
+			},
+		]);
+		cancelAllSpy.mockClear();
+		scheduleSpy.mockClear();
+
+		await useStore.getState().updateTransaction('rem-tx-3', { amount_minor: 200000 });
+
+		expect(cancelAllSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy.mock.calls[0]![0]).toMatchObject({
+			transactionId: 'rem-tx-3',
+			amount: `${formatAmount(200000, 'USD')} USD`,
+		});
+	});
+
+	test('renaming an entity reschedules the reminders that name it', async () => {
+		await useStore.getState().createTransactionBatch([
+			{
+				id: 'rem-tx-4',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 150000,
+				currency: 'USD',
+				timestamp: upcoming(),
+				is_confirmed: false,
+			},
+		]);
+		cancelAllSpy.mockClear();
+		scheduleSpy.mockClear();
+
+		await useStore.getState().updateEntity({ ...category, name: 'Mortgage' });
+
+		expect(cancelAllSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleSpy.mock.calls[0]![0]).toMatchObject({
+			transactionId: 'rem-tx-4',
+			toName: 'Mortgage',
+		});
 	});
 });

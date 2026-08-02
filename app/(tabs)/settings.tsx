@@ -11,7 +11,6 @@ import { TestIDs } from '@/e2e/support/test-ids';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
-import { formatAmount } from '@/src/utils/format';
 import { parseImportCsv, formatImportErrors, type ParsedImportData } from '@/src/utils/import';
 import { updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
@@ -20,15 +19,15 @@ import {
 	setHasRequestedPermission,
 	setLastBackgroundNotificationKey,
 	setRemindersEnabled,
+	setScheduledReminderKey,
 } from '@/src/utils/app-prefs';
 import {
 	cancelAllNotifications,
 	updateBadgeCount,
-	scheduleTransactionNotification,
-	getNotifiableTransactions,
 	setupNotificationChannel,
 	requestPermission,
 } from '@/src/services/notifications';
+import { syncScheduledReminders } from '@/src/services/reminders';
 import { registerBackgroundTask, unregisterBackgroundTask } from '@/src/services/background-task';
 
 export default function SettingsScreen() {
@@ -66,6 +65,10 @@ export default function SettingsScreen() {
 				await updateBadgeCount(0);
 				await unregisterBackgroundTask();
 				await setLastBackgroundNotificationKey(null);
+				// Nothing is scheduled any more, so the fingerprint must not claim
+				// otherwise — a re-enable that computes the same schedule would
+				// short-circuit the sweep and schedule nothing at all (KII-159).
+				await setScheduledReminderKey(null);
 
 				const existingNotificationIds = transactions
 					.filter((tx) => tx.notification_id)
@@ -87,38 +90,9 @@ export default function SettingsScreen() {
 					return;
 				}
 				await setLastBackgroundNotificationKey(null);
+				await setScheduledReminderKey(null); // force the next sweep to run
 				await setupNotificationChannel();
-				const now = Date.now();
-				const toSchedule = getNotifiableTransactions(transactions, now);
-				const entityMap = new Map(entities.map((e) => [e.id, e.name]));
-				const updates: { id: string; notificationId: string | null }[] = [];
-				for (const tx of toSchedule) {
-					try {
-						const notificationId = await scheduleTransactionNotification({
-							transactionId: tx.id,
-							fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
-							toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
-							amount: `${formatAmount(tx.amount_minor, tx.currency)} ${tx.currency}`,
-							timestamp: tx.timestamp,
-						});
-						updates.push({ id: tx.id, notificationId });
-					} catch (e) {
-						console.warn('Failed to reschedule notification', e);
-					}
-				}
-				if (updates.length > 0) {
-					await updateTransactionNotificationIdsBatch(updates);
-					const updateMap = new Map(
-						updates.map((update) => [update.id, update.notificationId])
-					);
-					useStore.setState((state) => ({
-						transactions: state.transactions.map((tx) =>
-							updateMap.has(tx.id)
-								? { ...tx, notification_id: updateMap.get(tx.id) ?? undefined }
-								: tx
-						),
-					}));
-				}
+				await syncScheduledReminders(recurrenceTemplates, transactions, entities);
 				await registerBackgroundTask();
 			}
 		} catch (error) {

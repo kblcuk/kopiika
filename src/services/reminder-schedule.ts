@@ -72,15 +72,3 @@ export function buildReminderSchedule(
 		.sort((a, b) => a.fireAt - b.fireAt || a.transaction.id.localeCompare(b.transaction.id))
 		.slice(0, MAX_SCHEDULED);
 }
-
-/**
- * Stable key for a schedule, used to skip the native cancel-and-reschedule sweep
- * when nothing changed. Mirrors `buildBackgroundNotificationKey`.
- */
-export function reminderFingerprint(entries: ReminderEntry[]): string | null {
-	if (entries.length === 0) return null;
-	return entries
-		.map((e) => `${e.transaction.id}@${e.fireAt}`)
-		.sort()
-		.join(',');
-}

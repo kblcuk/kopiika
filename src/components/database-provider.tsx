@@ -7,6 +7,7 @@ import { getDrizzleDb } from '../db';
 import { useStore, getUnconfirmedCount } from '@/src/store';
 import { registerBackgroundTask } from '@/src/services/background-task';
 import { setupNotificationChannel, updateBadgeCount } from '@/src/services/notifications';
+import { syncScheduledReminders } from '@/src/services/reminders';
 import { getRemindersEnabled } from '@/src/utils/app-prefs';
 import { endOfLocalDay } from '@/src/utils/due';
 
@@ -113,6 +114,17 @@ export default function DatabaseProvider({
 						if (cancelled) {
 							return;
 						}
+
+						// Rebuild the pending reminder set on launch (KII-159). The
+						// sweep is fingerprint-guarded, so a cold start with nothing
+						// changed since the last one makes no native calls.
+						const state = useStore.getState();
+						await syncScheduledReminders(
+							state.recurrenceTemplates,
+							state.transactions,
+							state.entities
+						);
+						if (cancelled) return;
 
 						await registerBackgroundTask();
 					} catch (err) {

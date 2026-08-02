@@ -7,6 +7,7 @@ interface AppPrefs {
 	remindersEnabled?: boolean;
 	hasRequestedNotificationPermission?: boolean;
 	lastBackgroundNotificationKey?: string | null;
+	scheduledReminderKey?: string | null;
 	hasCompletedOnboarding?: boolean;
 	emptyBoardNudgeDismissed?: boolean;
 }
@@ -74,6 +75,24 @@ export async function getLastBackgroundNotificationKey(): Promise<string | null>
 export async function setLastBackgroundNotificationKey(value: string | null): Promise<void> {
 	const prefs = await read();
 	prefs.lastBackgroundNotificationKey = value;
+	write(prefs);
+}
+
+/**
+ * Fingerprint of the reminder payloads currently scheduled with the OS
+ * (KII-159). Lets the cancel-and-reschedule sweep skip the native work when
+ * nothing changed. `null` means "the OS schedule is not known to be complete",
+ * which is what the sweep writes before it starts and leaves in place if any
+ * entry fails — so the next sweep retries instead of short-circuiting.
+ */
+export async function getScheduledReminderKey(): Promise<string | null> {
+	const prefs = await read();
+	return prefs.scheduledReminderKey ?? null;
+}
+
+export async function setScheduledReminderKey(value: string | null): Promise<void> {
+	const prefs = await read();
+	prefs.scheduledReminderKey = value;
 	write(prefs);
 }
 

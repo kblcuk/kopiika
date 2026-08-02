@@ -5,13 +5,34 @@ import * as SplashScreen from 'expo-splash-screen';
 import DatabaseProvider from '../database-provider';
 import { useStore } from '@/src/store';
 import { getDrizzleDb } from '@/src/db';
+import { getRemindersEnabled } from '@/src/utils/app-prefs';
+import { syncScheduledReminders } from '@/src/services/reminders';
+import { registerBackgroundTask } from '@/src/services/background-task';
 
 jest.mock('@/src/db', () => ({
 	getDrizzleDb: jest.fn(),
 }));
 
 jest.mock('@/src/store', () => ({
-	useStore: jest.fn(),
+	useStore: Object.assign(jest.fn(), { getState: jest.fn() }),
+	getUnconfirmedCount: jest.fn(() => 0),
+}));
+
+jest.mock('@/src/utils/app-prefs', () => ({
+	getRemindersEnabled: jest.fn(),
+}));
+
+jest.mock('@/src/services/notifications', () => ({
+	setupNotificationChannel: jest.fn(),
+	updateBadgeCount: jest.fn(),
+}));
+
+jest.mock('@/src/services/reminders', () => ({
+	syncScheduledReminders: jest.fn(),
+}));
+
+jest.mock('@/src/services/background-task', () => ({
+	registerBackgroundTask: jest.fn(),
 }));
 
 jest.mock('expo-splash-screen', () => ({
@@ -22,6 +43,13 @@ jest.mock('expo-splash-screen', () => ({
 describe('DatabaseProvider', () => {
 	const mockInitialize = jest.fn();
 	const mockBackfillRecurringIfStale = jest.fn();
+	const storeState = {
+		initialize: mockInitialize,
+		backfillRecurringIfStale: mockBackfillRecurringIfStale,
+		entities: [{ id: 'acc-1', name: 'Checking' }],
+		transactions: [{ id: 'tx-1' }],
+		recurrenceTemplates: [{ id: 'tpl-1' }],
+	};
 	let consoleErrorSpy: jest.SpyInstance;
 
 	beforeEach(() => {
@@ -30,12 +58,9 @@ describe('DatabaseProvider', () => {
 		mockInitialize.mockResolvedValue(undefined);
 		mockBackfillRecurringIfStale.mockResolvedValue(undefined);
 		jest.mocked(getDrizzleDb).mockResolvedValue({} as never);
-		jest.mocked(useStore).mockImplementation((selector) =>
-			selector({
-				initialize: mockInitialize,
-				backfillRecurringIfStale: mockBackfillRecurringIfStale,
-			} as never)
-		);
+		jest.mocked(getRemindersEnabled).mockResolvedValue(false);
+		jest.mocked(useStore).mockImplementation((selector) => selector(storeState as never));
+		jest.mocked(useStore).getState.mockReturnValue(storeState as never);
 	});
 
 	afterEach(() => {
@@ -124,6 +149,56 @@ describe('DatabaseProvider', () => {
 
 		await waitFor(() => {
 			expect(getByText('App startup error: hydrate failed')).toBeTruthy();
+		});
+	});
+
+	// KII-159: future recurring occurrences are virtual, so there is no row whose
+	// notification id could survive a restart — the pending set has to be rebuilt
+	// from state on launch.
+	describe('startup reminder sweep (KII-159)', () => {
+		beforeEach(() => {
+			jest.useFakeTimers();
+		});
+
+		afterEach(() => {
+			jest.useRealTimers();
+		});
+
+		async function renderAndRunStartupWork() {
+			render(
+				<DatabaseProvider fontsLoaded={true}>
+					<Text>ready</Text>
+				</DatabaseProvider>
+			);
+			// Reach isReady via microtasks, then run the idle callback and the 1s
+			// registration delay that gate the startup block.
+			await act(async () => {});
+			await act(async () => {
+				jest.advanceTimersByTime(2000);
+			});
+			await act(async () => {});
+		}
+
+		it('rebuilds the schedule from templates, transactions and entities', async () => {
+			jest.mocked(getRemindersEnabled).mockResolvedValue(true);
+
+			await renderAndRunStartupWork();
+
+			expect(syncScheduledReminders).toHaveBeenCalledWith(
+				storeState.recurrenceTemplates,
+				storeState.transactions,
+				storeState.entities
+			);
+			expect(registerBackgroundTask).toHaveBeenCalled();
+		});
+
+		it('does not touch the schedule when reminders are disabled', async () => {
+			jest.mocked(getRemindersEnabled).mockResolvedValue(false);
+
+			await renderAndRunStartupWork();
+
+			expect(syncScheduledReminders).not.toHaveBeenCalled();
+			expect(registerBackgroundTask).not.toHaveBeenCalled();
 		});
 	});
 

@@ -30,7 +30,7 @@ The authoritative model is:
 
 - `entities`: labels, type, row/position ordering, icon, optional palette color, currency, soft-delete state, `include_in_total`, `is_default` (pre-selects in transaction flows), and `is_investment`
 - `plans`: static budgets/goals stored with `period='all-time'`; `period_start` records when the plan was created
-- `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` links to a recurrence template; `is_confirmed` gates whether future-dated/past-due scheduled transactions are applied to balances; `notification_id` stores the scheduled local reminder id when reminders are enabled
+- `transactions`: immutable money movements between entities (including savings reservations); optional `series_id` links to a recurrence template; `is_confirmed` gates whether future-dated/past-due scheduled transactions are applied to balances; `notification_id` is a legacy per-device field retained for rows scheduled before KII-159 — it is still cancelled and cleared where present, but no longer written
 - `market_value_snapshots`: optional manual valuation history for investment accounts; purchased price still comes from transactions, while market value comes from the latest snapshot
 - `recurrence_templates`: rules for recurring transactions — amount, currency, entity pair, frequency (daily/weekly/monthly/yearly), start date, optional end date/count
 - `recurrence_exclusions`: normalized list of skipped occurrence timestamps per template, with a composite `(template_id, timestamp)` primary key so concurrent edits union cleanly (KII-123, sync-friendly)
@@ -156,7 +156,7 @@ Recurring transactions are template-driven. A `recurrence_template` stores the r
 
 An occurrence's **slot** is the civil date it was generated for, read back from its deterministic id (`occurrenceSlotCivilDate`), with `toCivilDate(timestamp)` as the fallback for legacy random-id rows. The slot is the occurrence's stable identity: it does not move when the user edits the row's date. Every occupancy check keys on it — derivation dedup, `backfillRecurrences`, and the exclusion recorded on a single-scope delete — so rescheduling one occurrence neither resurrects its original date as a duplicate nor shadows the date it was moved onto (KII-157, KII-136).
 
-`backfillRecurrences` (app init + throttled foreground, once per 24h) materializes only **past-due** occurrences (date `≤ now`) as real unconfirmed rows, with deterministic ids and civil-date dedup. Future occurrences are never written. (The former `horizon` column — "days ahead to generate" — was dropped in KII-139 once de-materialization made it dead weight; `deriveVirtualOccurrences` computes its own horizon from the viewed range.) On first launch after upgrade, `cleanupLegacyFutureOccurrences` deletes legacy phantom future rows (`series_id` set, `timestamp > now`, unconfirmed) so they don't double-count against derived occurrences.
+`backfillRecurrences` (app init + foreground bounce + a self-re-arming local-midnight timer, throttled to once per civil day) materializes every **due** occurrence — dated today or earlier, bounded at `endOfLocalDay(now)` (KII-159) — as a real unconfirmed row, with deterministic ids and civil-date dedup. Future occurrences are never written. (The former `horizon` column — "days ahead to generate" — was dropped in KII-139 once de-materialization made it dead weight; `deriveVirtualOccurrences` computes its own horizon from the viewed range.) On first launch after upgrade, `cleanupLegacyFutureOccurrences` deletes legacy phantom future rows (`series_id` set, `timestamp > now`, unconfirmed) so they don't double-count against derived occurrences.
 
 Series scope rules:
 
@@ -179,13 +179,17 @@ Recurring transactions generated via backfill always start as `is_confirmed = fa
 
 ## Local Reminders
 
-Transaction reminders are opt-in and local-only. When enabled from Settings, the app requests notification permission, schedules native local notifications for future unconfirmed transactions, updates the History tab badge for past-due unconfirmed transactions, and registers a background catch-up task.
+Transaction reminders are opt-in and local-only. When enabled from Settings, the app requests notification permission, schedules native local notifications for upcoming unconfirmed occurrences, updates the History tab badge for due unconfirmed transactions, and registers a background catch-up task.
 
 Reminder rules:
 
 - Settings is the user-owned control point; reminders default to off.
-- Scheduled notification ids are stored on transactions so confirm/delete/series edits can cancel them.
-- Disabling reminders cancels scheduled notifications, clears the badge, unregisters the background task, clears reminder ids from SQLite and Zustand, and clears the background dedupe key.
+- Reminders fire at 09:00 local (`REMINDER_HOUR`) on the occurrence's due day, matching the civil-day definition of due-ness (`src/utils/due.ts`) — the reminder and the badge flip on the same calendar day.
+- The pending set is rebuilt by a fingerprint-guarded cancel-and-reschedule sweep (`src/services/reminders.ts`) from recurrence templates plus real unconfirmed future rows, because future recurring occurrences are virtual (KII-136) and have no row to store an id on. The schedule itself is computed by the pure `src/services/reminder-schedule.ts` (soonest first, capped at 50 for iOS's 64-notification budget).
+- Every store action that can change which occurrences are unconfirmed-and-not-yet-due sweeps afterwards, as does anything that changes what a reminder _says_ (amount edits, entity renames); the persisted fingerprint (`scheduledReminderKey`) makes an unchanged schedule cost one pure computation and zero native calls. It keys on the resolved notification payloads, not on occurrence ids, so a content edit can't compare equal and strand the pre-edit text on the OS. The key is cleared before the OS schedule is emptied and only re-persisted once every entry is scheduled, so a failed sweep retries instead of short-circuiting.
+- The sweep is self-healing — an occurrence confirmed early, excluded, or edited is simply absent from the next set.
+- `transactions.notification_id` is legacy: still cancelled and cleared where present, no longer written.
+- Disabling reminders cancels scheduled notifications, clears the badge, unregisters the background task, clears reminder ids from SQLite and Zustand, and clears both the background dedupe key and the reminder fingerprint (so a re-enable always reschedules).
 - The background task updates badge count and can send one immediate summary notification for a changed set of overdue transactions.
 
 ## Data Portability

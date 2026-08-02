@@ -1,8 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-export { getNotifiableTransactions } from './notification-logic';
-
 export const CHANNEL_ID = 'transaction-reminders';
 
 // ── Native wrappers ─────────────────────────────────────────────────────

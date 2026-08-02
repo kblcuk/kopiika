@@ -21,7 +21,6 @@ import {
 } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { endOfLocalDay, isDue } from '@/src/utils/due';
-import { formatAmount } from '@/src/utils/format';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -31,19 +30,18 @@ import { validateTransaction } from '@/src/utils/transaction-validation';
 import { buildRecurringTemplate, buildTransaction } from '@/src/utils/transaction-builder';
 import { applyOperation } from '@/src/sync/apply-operation';
 import {
-	getNotifiableTransactions,
-	scheduleTransactionNotification,
-	setupNotificationChannel,
 	requestPermission,
 	cancelNotification,
 	cancelAllNotifications,
 	updateBadgeCount,
 } from '@/src/services/notifications';
+import { syncScheduledReminders } from '@/src/services/reminders';
 import {
 	getRemindersEnabled,
 	getHasRequestedPermission,
 	setRemindersEnabled,
 	setHasRequestedPermission,
+	setScheduledReminderKey,
 } from '@/src/utils/app-prefs';
 
 interface AppState {
@@ -160,43 +158,18 @@ export function _resetBackfillThrottleForTests(): void {
 	lastBackfillCivilDate = null;
 }
 
-async function scheduleNotificationsForTransactions(
-	transactions: Transaction[],
-	entities: Entity[],
-	set: (fn: (state: AppState) => Partial<AppState>) => void
-): Promise<void> {
-	const enabled = await getRemindersEnabled();
-	if (!enabled) return;
-
-	const now = Date.now();
-	const toSchedule = getNotifiableTransactions(transactions, now);
-	if (toSchedule.length === 0) return;
-
-	await setupNotificationChannel();
-	const entityMap = new Map(entities.map((e) => [e.id, e.name]));
-	const updates: { id: string; notificationId: string }[] = [];
-
-	for (const tx of toSchedule) {
-		try {
-			const notificationId = await scheduleTransactionNotification({
-				transactionId: tx.id,
-				fromName: entityMap.get(tx.from_entity_id) ?? 'Unknown',
-				toName: entityMap.get(tx.to_entity_id) ?? 'Unknown',
-				amount: `${formatAmount(tx.amount_minor, tx.currency)} ${tx.currency}`,
-				timestamp: tx.timestamp,
-			});
-			updates.push({ id: tx.id, notificationId });
-		} catch (e) {
-			console.warn('Failed to schedule notification for', tx.id, e);
-		}
-	}
-
-	if (updates.length > 0) {
-		const stamped = await db.updateTransactionNotificationIdsBatch(updates);
-		const stampedMap = new Map(stamped.map((row) => [row.id, row]));
-		set((state) => ({
-			transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
-		}));
+/**
+ * Rebuild the pending reminder set from current state (KII-159). Called after
+ * every action that can change which occurrences are unconfirmed and not yet
+ * due; the sweep itself is fingerprint-guarded, so a call that changes nothing
+ * costs one pure computation and touches neither the OS nor the DB.
+ */
+async function syncReminders(get: () => AppState): Promise<void> {
+	try {
+		const state = get();
+		await syncScheduledReminders(state.recurrenceTemplates, state.transactions, state.entities);
+	} catch (e) {
+		console.warn('Failed to sync reminders', e);
 	}
 }
 
@@ -330,10 +303,10 @@ async function backfillRecurrences(
 		set((state) => ({
 			transactions: [...stamped, ...state.transactions],
 		}));
-		// Past-due rows are all ≤ now, so this is a no-op for them
-		// (getNotifiableTransactions filters to future unconfirmed rows);
-		// retained for safety / parity with other write paths.
-		await scheduleNotificationsForTransactions(stamped, entities, set);
+		// No reminder sweep here: this helper has no access to `get`, and every
+		// caller sweeps after it — `addRecurringTransaction` and
+		// `backfillRecurringIfStale` directly, `initialize` via the provider's
+		// startup sweep (KII-159).
 	}
 }
 
@@ -439,8 +412,13 @@ export const useStore = create<AppState>((set, get) => {
 			newMarketValueSnapshots = []
 		) => {
 			// Cancel all scheduled notifications before replacing data —
-			// side effect, local only by construction.
+			// side effect, local only by construction. Clearing the reminder
+			// fingerprint first is what makes the sweep below unconditional: the OS
+			// schedule is about to be emptied, so a re-import of the same data
+			// (identical fingerprint) must not short-circuit and leave it empty
+			// (KII-159).
 			try {
+				await setScheduledReminderKey(null);
 				await cancelAllNotifications();
 				await updateBadgeCount(0);
 			} catch (e) {
@@ -467,6 +445,7 @@ export const useStore = create<AppState>((set, get) => {
 				recurrenceTemplates: result.recurrenceTemplates,
 				marketValueSnapshots: result.marketValueSnapshots,
 			});
+			await syncReminders(get);
 		},
 
 		setCurrentPeriod: (period) => set({ currentPeriod: period }),
@@ -495,6 +474,10 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				entities: state.entities.map((e) => (e.id === stamped.id ? stamped : e)),
 			}));
+			// A rename changes the body of every reminder that names this entity
+			// (`${fromName} → ${toName}: ${amount}`), so the sweep has to run even
+			// though the set of occurrences is unchanged (KII-159).
+			await syncReminders(get);
 		},
 
 		updateEntityWithOptions: async (entity, options) => {
@@ -511,6 +494,9 @@ export const useStore = create<AppState>((set, get) => {
 					? state.marketValueSnapshots.filter((s) => s.entity_id !== entity.id)
 					: state.marketValueSnapshots,
 			}));
+			// Same `entity.update` op as `updateEntity`, so a rename can arrive
+			// through here too.
+			await syncReminders(get);
 		},
 
 		deleteEntity: async (id) => {
@@ -609,6 +595,7 @@ export const useStore = create<AppState>((set, get) => {
 			// so this guard never trips at runtime — it exists to narrow the union for TS.
 			if (result.kind !== 'transaction.create') return;
 			set((state) => ({ transactions: [result.created, ...state.transactions] }));
+			await syncReminders(get);
 		},
 
 		materializeOccurrence: async (occurrence) => {
@@ -645,6 +632,13 @@ export const useStore = create<AppState>((set, get) => {
 				throw new Error('applyOperation returned mismatched result for transaction.create');
 			}
 			set((state) => ({ transactions: [result.created, ...state.transactions] }));
+			// No reminder sweep: the real row carries the virtual occurrence's own
+			// deterministic id and timestamp, and derivation dedups on that slot, so
+			// the reminder set is identical before and after — within
+			// `reminder-schedule.ts`'s derivation horizon, which is the only range
+			// virtual occurrences come from (real unconfirmed rows are unbounded,
+			// so a narrower horizon would make materialization additive). The action
+			// that follows materialization (edit/delete/confirm) sweeps (KII-159).
 			return result.created;
 		},
 
@@ -670,23 +664,25 @@ export const useStore = create<AppState>((set, get) => {
 					return { ...t, exclusions: [...existing, exclusionTs] };
 				}),
 			}));
+			// The excluded occurrence was (by definition) still upcoming, so it was
+			// in the pending reminder set — drop its reminder (KII-159).
+			await syncReminders(get);
 		},
 
 		createTransactionBatch: async (transactions) => {
 			if (transactions.length === 0) return;
 
-			const ctx = buildApplyContext();
 			const result = await applyOperation(
 				{ kind: 'transaction.batch_create', transactions },
 				'local',
-				ctx
+				buildApplyContext()
 			);
 			if (result.kind !== 'transaction.batch_create') return;
 			set((state) => ({ transactions: [...result.created, ...state.transactions] }));
 
 			// Side effect — local only by construction (inbound ops call applyOperation
 			// directly and never reach this store action).
-			await scheduleNotificationsForTransactions(result.created, ctx.entities, set);
+			await syncReminders(get);
 		},
 
 		updateTransaction: async (id, updates) => {
@@ -700,6 +696,8 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
 			}));
+			// A date edit moves the occurrence's reminder instant (KII-159).
+			await syncReminders(get);
 		},
 
 		deleteTransaction: async (id) => {
@@ -716,6 +714,7 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.filter((t) => t.id !== id),
 			}));
+			await syncReminders(get);
 		},
 
 		replaceTransactionWithSplit: async (originalId, rows) => {
@@ -777,7 +776,7 @@ export const useStore = create<AppState>((set, get) => {
 				};
 			});
 
-			await scheduleNotificationsForTransactions(stamped, get().entities, set);
+			await syncReminders(get);
 		},
 
 		// Recurrence actions
@@ -827,6 +826,11 @@ export const useStore = create<AppState>((set, get) => {
 					await setRemindersEnabled(false);
 				}
 			}
+
+			// After the contextual ask, not before: on the very first recurring
+			// transaction the sweep would otherwise schedule without permission,
+			// then persist a fingerprint claiming those reminders exist (KII-159).
+			await syncReminders(get);
 		},
 
 		// Materialize past-due occurrences since the last run. Because
@@ -845,6 +849,9 @@ export const useStore = create<AppState>((set, get) => {
 				set
 			);
 			lastBackfillCivilDate = today;
+			// The civil day rolled over: yesterday's upcoming occurrences are now
+			// due (and materialized), so they must drop out of the pending set.
+			await syncReminders(get);
 		},
 
 		updateTransactionWithScope: async (id, updates, scope) => {
@@ -877,6 +884,8 @@ export const useStore = create<AppState>((set, get) => {
 					: state.recurrenceTemplates,
 				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
 			}));
+			// Single scope returned above, having swept via `updateTransaction`.
+			await syncReminders(get);
 		},
 
 		deleteTransactionWithScope: async (id, scope) => {
@@ -922,6 +931,7 @@ export const useStore = create<AppState>((set, get) => {
 							})
 						: state.recurrenceTemplates,
 				}));
+				await syncReminders(get);
 				return;
 			}
 
@@ -966,6 +976,7 @@ export const useStore = create<AppState>((set, get) => {
 						: t
 				),
 			}));
+			await syncReminders(get);
 		},
 
 		deactivateTemplatesForEntity: async (entityId) => {
@@ -1017,6 +1028,7 @@ export const useStore = create<AppState>((set, get) => {
 					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
 				}),
 			}));
+			await syncReminders(get);
 		},
 
 		// Confirmation actions
@@ -1041,6 +1053,9 @@ export const useStore = create<AppState>((set, get) => {
 				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 			}));
 			await syncBadgeCount(get);
+			// Confirming an occurrence EARLY (before its due day) takes it out of the
+			// pending set, so its reminder has to go with it (KII-159).
+			await syncReminders(get);
 		},
 
 		confirmAllDueTransactions: async () => {
@@ -1072,6 +1087,7 @@ export const useStore = create<AppState>((set, get) => {
 				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 			}));
 			await syncBadgeCount(get);
+			await syncReminders(get);
 		},
 
 		// LOCAL-ONLY (never an op): is_default is a per-device field per the

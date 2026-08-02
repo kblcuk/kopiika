@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Transaction } from '@/src/types';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
-import {
-	REMINDER_HOUR,
-	buildReminderSchedule,
-	reminderFingerprint,
-	reminderInstant,
-} from '../reminder-schedule';
+import { REMINDER_HOUR, buildReminderSchedule, reminderInstant } from '../reminder-schedule';
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) =>
 	new Date(y, m - 1, d, h, min, 0, 0).getTime();
@@ -101,29 +96,5 @@ describe('buildReminderSchedule', () => {
 		const entries = buildReminderSchedule([template()], [tx({ id: 'manual-1' })], now);
 		const fireAts = entries.map((e) => e.fireAt);
 		expect([...fireAts].sort((a, b) => a - b)).toEqual(fireAts);
-	});
-});
-
-describe('reminderFingerprint', () => {
-	const now = at(2026, 8, 3, 10, 0);
-
-	test('is null for an empty schedule', () => {
-		expect(reminderFingerprint([])).toBeNull();
-	});
-
-	test('is stable across identical schedules', () => {
-		const a = buildReminderSchedule([template()], [], now);
-		const b = buildReminderSchedule([template()], [], now);
-		expect(reminderFingerprint(a)).toBe(reminderFingerprint(b));
-	});
-
-	test('changes when an occurrence is excluded', () => {
-		const before = buildReminderSchedule([template()], [], now);
-		const after = buildReminderSchedule(
-			[template({ exclusions: [at(2026, 8, 4, 15, 42)] })],
-			[],
-			now
-		);
-		expect(reminderFingerprint(after)).not.toBe(reminderFingerprint(before));
 	});
 });

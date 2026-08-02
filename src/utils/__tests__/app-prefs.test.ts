@@ -33,6 +33,26 @@ describe('app prefs', () => {
 		const { getRemindersEnabled } = await import('../app-prefs');
 		expect(await getRemindersEnabled()).toBe(false);
 	});
+
+	test('scheduledReminderKey defaults to null when unset', async () => {
+		const { getScheduledReminderKey } = await import('../app-prefs');
+		expect(await getScheduledReminderKey()).toBeNull();
+	});
+
+	test('scheduledReminderKey round-trips through set/get', async () => {
+		const { getScheduledReminderKey, setScheduledReminderKey } = await import('../app-prefs');
+		await setScheduledReminderKey('tx-1@100,tx-2@200');
+		expect(await getScheduledReminderKey()).toBe('tx-1@100,tx-2@200');
+	});
+
+	// The sweep persists `null` for an empty schedule, and Settings writes `null`
+	// to force the next sweep — both must read back as null, not as the old key.
+	test('scheduledReminderKey clears back to null', async () => {
+		const { getScheduledReminderKey, setScheduledReminderKey } = await import('../app-prefs');
+		await setScheduledReminderKey('tx-1@100');
+		await setScheduledReminderKey(null);
+		expect(await getScheduledReminderKey()).toBeNull();
+	});
 });
 
 describe('app-prefs — onboarding keys', () => {
