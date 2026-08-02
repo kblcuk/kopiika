@@ -3,7 +3,7 @@ import { Alert, type AlertButton } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { TransactionModal } from '../transaction-modal';
 import { setupStoreForTest } from '@/src/test-utils-component';
-import type { Entity, EntityWithBalance } from '@/src/types';
+import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import { useStore } from '@/src/store';
 import { formatAmount, formatAmountForInput } from '@/src/utils/format';
 import { earlyConfirmPrompt } from '@/src/utils/early-confirm';
@@ -1905,6 +1905,141 @@ describe('TransactionModal', () => {
 			expect(onClose).toHaveBeenCalled();
 			expect(alertSpy).not.toHaveBeenCalled();
 			expect(confirmTransactionSpy).toHaveBeenCalledWith('txn-confirm-1');
+		});
+
+		// KII-159: the button sits in the same scroll region as the editable fields,
+		// so confirming `existingTransaction` (the prop) would silently throw away
+		// whatever the user just typed and record the stored values instead.
+		describe('pending edits', () => {
+			// Stands in for the real store action: applies the update to state so the
+			// confirm step can read back what the save actually persisted.
+			const spyThatUpdatesState = () =>
+				jest.fn((id: string, updates: Partial<Transaction>) => {
+					useStore.setState((s) => ({
+						transactions: s.transactions.map((t) =>
+							t.id === id ? { ...t, ...updates } : t
+						),
+					}));
+					return Promise.resolve();
+				});
+
+			const unconfirmed = { ...baseTransaction, is_confirmed: false };
+
+			it('saves the edited amount before confirming', async () => {
+				const updateTransaction = spyThatUpdatesState();
+				const confirmTransaction = jest.fn().mockResolvedValue(undefined);
+				setupStoreForTest({
+					entities: [mockFromEntity, mockToEntity],
+					transactions: [unconfirmed],
+				});
+				useStore.setState({ updateTransaction, confirmTransaction });
+				const { getByTestId } = renderModal({ existingTransaction: unconfirmed });
+
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '300');
+				fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+				await waitFor(() => {
+					expect(confirmTransaction).toHaveBeenCalledWith('txn-confirm-1');
+				});
+				expect(updateTransaction).toHaveBeenCalledWith(
+					'txn-confirm-1',
+					expect.objectContaining({ amount_minor: 30000 })
+				);
+				// The edit has to land first — confirming and then saving would record
+				// the pre-edit amount as confirmed.
+				expect(updateTransaction.mock.invocationCallOrder[0]!).toBeLessThan(
+					confirmTransaction.mock.invocationCallOrder[0]!
+				);
+			});
+
+			// The prop is the snapshot the modal was opened with; the store row is
+			// what the save produced. The confirm flow reads the timestamp to decide
+			// whether this is an early confirm, so it must read the saved row.
+			it('confirms the saved transaction, not the prop it was opened with', async () => {
+				const updateTransaction = spyThatUpdatesState();
+				const confirmTransaction = jest.fn().mockResolvedValue(undefined);
+				const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+				const staleProp = {
+					...baseTransaction,
+					is_confirmed: false,
+					timestamp: fixedNow + 5 * 24 * 60 * 60 * 1000,
+				};
+				setupStoreForTest({
+					entities: [mockFromEntity, mockToEntity],
+					// Same id, dated today: the row the save leaves behind.
+					transactions: [{ ...staleProp, timestamp: fixedNow }],
+				});
+				useStore.setState({ updateTransaction, confirmTransaction });
+				const { getByTestId } = renderModal({ existingTransaction: staleProp });
+
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '300');
+				fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+				await waitFor(() => {
+					expect(confirmTransaction).toHaveBeenCalledWith('txn-confirm-1');
+				});
+				// Confirming the stale prop would have read a date five days out and
+				// raised the early-confirm dialog.
+				expect(alertSpy).not.toHaveBeenCalled();
+			});
+
+			it('skips the save entirely when nothing was edited', async () => {
+				const updateTransaction = spyThatUpdatesState();
+				const confirmTransaction = jest.fn().mockResolvedValue(undefined);
+				setupStoreForTest({
+					entities: [mockFromEntity, mockToEntity],
+					transactions: [unconfirmed],
+				});
+				useStore.setState({ updateTransaction, confirmTransaction });
+				const { getByTestId } = renderModal({ existingTransaction: unconfirmed });
+
+				fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+				await waitFor(() => {
+					expect(confirmTransaction).toHaveBeenCalledWith('txn-confirm-1');
+				});
+				// A no-op update would still churn `updated_at` and the reminder
+				// fingerprint, forcing a pointless native reschedule.
+				expect(updateTransaction).not.toHaveBeenCalled();
+			});
+
+			// Confirm now saves first, so it has to carry Save's validation verbatim.
+			it('is inert while the form is invalid, exactly as Save is', () => {
+				const updateTransaction = spyThatUpdatesState();
+				const confirmTransaction = jest.fn().mockResolvedValue(undefined);
+				setupStoreForTest({
+					entities: [mockFromEntity, mockToEntity],
+					transactions: [unconfirmed],
+				});
+				useStore.setState({ updateTransaction, confirmTransaction });
+				const { getByTestId } = renderModal({ existingTransaction: unconfirmed });
+
+				fireEvent.changeText(getByTestId('transaction-amount-input'), '');
+				// Pinned to Save's own disabled state: the two must move together.
+				const saveState = getByTestId('transaction-save-button').props.accessibilityState;
+				expect(saveState).toEqual(expect.objectContaining({ disabled: true }));
+				expect(
+					getByTestId('transaction-confirm-now-button').props.accessibilityState
+				).toEqual(saveState);
+
+				fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+				expect(updateTransaction).not.toHaveBeenCalled();
+				expect(confirmTransaction).not.toHaveBeenCalled();
+			});
+
+			// Saving a split replaces this transaction with N new rows, so there is
+			// no single transaction left for "confirm this one" to name.
+			it('is hidden in split mode', () => {
+				const { getByTestId, queryByTestId } = renderModal({
+					existingTransaction: unconfirmed,
+				});
+
+				expect(queryByTestId('transaction-confirm-now-button')).toBeTruthy();
+				fireEvent.press(getByTestId('split-toggle-button'));
+
+				expect(queryByTestId('transaction-confirm-now-button')).toBeNull();
+			});
 		});
 
 		it('shows the early-confirm dialog instead of confirming immediately when ahead of schedule', () => {

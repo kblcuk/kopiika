@@ -142,16 +142,6 @@ export function TransactionModal({
 
 	const confirmTransactionFlow = useConfirmTransaction();
 
-	// KII-159: a scheduled charge can land before its date. The flow asks before
-	// rewriting the date when the transaction is ahead of schedule, so this stays
-	// a single button.
-	const handleConfirmNow = useCallback(() => {
-		if (!existingTransaction) return;
-		void KeyboardController.dismiss();
-		onClose();
-		void confirmTransactionFlow(existingTransaction);
-	}, [existingTransaction, confirmTransactionFlow, onClose]);
-
 	const accounts = useEntitiesWithBalance('account');
 	const categories = useEntitiesWithBalance('category');
 	const income = useEntitiesWithBalance('income');
@@ -520,8 +510,11 @@ export function TransactionModal({
 
 	// ── Submit ────────────────────────────────────────────────────────────────
 
-	const handleSubmit = async () => {
-		if (isSubmitting) return;
+	// Resolves to `true` only when the edit was persisted and the modal closed.
+	// "Confirm now" chains off that: a failed or rejected save must not go on to
+	// confirm (KII-159).
+	const handleSubmit = async (): Promise<boolean> => {
+		if (isSubmitting) return false;
 		setIsSubmitting(true);
 
 		// Resolve any pending calculator expression before submitting.
@@ -557,7 +550,7 @@ export function TransactionModal({
 				});
 				if (txns.length === 0) {
 					setIsSubmitting(false);
-					return;
+					return false;
 				}
 				// No savings releases in edit-mode split: SavingsFundingSection is gated
 				// on `!isEditing`, so `fundingRef.current` is null and no funded
@@ -565,7 +558,7 @@ export function TransactionModal({
 				await replaceTransactionWithSplit(existingTransaction.id, txns);
 				void KeyboardController.dismiss();
 				onClose();
-				return;
+				return true;
 			}
 
 			if (isSplitMode && splitFrom) {
@@ -580,7 +573,7 @@ export function TransactionModal({
 
 				if (txns.length === 0) {
 					setIsSubmitting(false);
-					return;
+					return false;
 				}
 
 				const splitReleases = buildSavingsReleases({
@@ -597,13 +590,13 @@ export function TransactionModal({
 
 				void KeyboardController.dismiss();
 				onClose();
-				return;
+				return true;
 			}
 
 			const amountMinor = parseAmountToMinor(resolvedAmount, currency);
 			if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
 				setIsSubmitting(false);
-				return;
+				return false;
 			}
 
 			if (isEditing && existingTransaction) {
@@ -703,6 +696,7 @@ export function TransactionModal({
 
 			void KeyboardController.dismiss();
 			onClose();
+			return true;
 		} catch (error) {
 			console.error('Failed to save transaction:', error);
 			setIsSubmitting(false);
@@ -711,7 +705,60 @@ export function TransactionModal({
 					? error.message
 					: 'Could not save the transaction. Please try again.';
 			Alert.alert('Save failed', detail);
+			return false;
 		}
+	};
+
+	// ── Confirm now ───────────────────────────────────────────────────────────
+
+	/**
+	 * KII-159: a scheduled charge can land before its date. Pending form edits are
+	 * saved through the normal submit path FIRST — the button sits in the same
+	 * scroll region as the editable fields, so confirming the stored values would
+	 * silently discard whatever the user just typed. The button is gated on the
+	 * same `canSave` as Save, so an invalid form can never reach this path.
+	 *
+	 * An untouched form skips the save entirely: a no-op update would still churn
+	 * `updated_at` and the reminder fingerprint.
+	 *
+	 * The confirm flow itself asks before rewriting the date when the transaction
+	 * is ahead of schedule, so this stays a single button.
+	 */
+	const handleConfirmNow = () => {
+		if (!existingTransaction) return;
+		const target = existingTransaction;
+
+		// Resolve a pending calculator expression the same way the save path does,
+		// so the comparison below sees the value that would actually be written
+		// ("10+5" reads as 105 unresolved, which could look unchanged).
+		const resolvedAmount = amountExpr.resolve();
+		const hasPendingEdits =
+			parseAmountToMinor(resolvedAmount, currency) !== target.amount_minor ||
+			(note.trim() || undefined) !== (target.note ?? undefined) ||
+			selectedDate.getTime() !== target.timestamp ||
+			selectedFromId !== target.from_entity_id ||
+			selectedToId !== target.to_entity_id;
+
+		if (!hasPendingEdits) {
+			void KeyboardController.dismiss();
+			onClose();
+			void confirmTransactionFlow(target);
+			return;
+		}
+
+		void (async () => {
+			// handleSubmit owns the keyboard dismissal, the close and the failure
+			// Alert; when it fails the modal stays open with the edits intact and
+			// there is nothing to confirm. A series edit routes through
+			// `updateTransactionWithScope` with the scope chosen when the occurrence
+			// was opened, so nothing re-prompts here (KII-158).
+			if (!(await handleSubmit())) return;
+			// Confirm the SAVED row, never the prop this modal was opened with: the
+			// flow reads the timestamp to decide whether this is an early confirm,
+			// and reads `isVirtual` to decide whether to materialize.
+			const saved = useStore.getState().transactions.find((t) => t.id === target.id);
+			await confirmTransactionFlow(saved ?? target);
+		})();
 	};
 
 	// ── Renderers ─────────────────────────────────────────────────────────────
@@ -1385,15 +1432,33 @@ export function TransactionModal({
 					</View>
 				)}
 
-				{/* Confirm now — edit mode, unconfirmed only */}
-				{isEditing && existingTransaction?.is_confirmed === false && (
+				{/* Confirm now — edit mode, unconfirmed only. Hidden in split mode:
+				    saving a split replaces this transaction with N new rows, so there
+				    is no single transaction left for "confirm this one" to name. */}
+				{isEditing && existingTransaction?.is_confirmed === false && !isSplitMode && (
 					<Pressable
 						onPress={handleConfirmNow}
-						className="mb-3 flex-row items-center justify-center gap-2 rounded-lg border border-info/30 bg-info/10 py-3"
+						// Confirm now saves first, so it carries Save's validation
+						// verbatim — an invalid form must not reach the combined path.
+						disabled={!canSave || isSubmitting}
+						className={`mb-3 flex-row items-center justify-center gap-2 rounded-lg border py-3 ${
+							canSave && !isSubmitting
+								? 'border-info/30 bg-info/10'
+								: 'border-paper-300 bg-paper-200'
+						}`}
 						testID="transaction-confirm-now-button"
 					>
-						<CircleCheck size={16} color={colors.info.DEFAULT} />
-						<Text className="font-sans-semibold text-base text-info">Confirm now</Text>
+						<CircleCheck
+							size={16}
+							color={
+								canSave && !isSubmitting ? colors.info.DEFAULT : colors.ink.muted
+							}
+						/>
+						<Text
+							className={`font-sans-semibold text-base ${canSave && !isSubmitting ? 'text-info' : 'text-ink-muted'}`}
+						>
+							Confirm now
+						</Text>
 					</Pressable>
 				)}
 
