@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.29](https://codeberg.org/kblcuk/kopiika/compare/v0.3.28...v0.3.29) (2026-08-02)
+
+
+### Features
+
+* **due:** add civil-day isDue predicate (KII-159) ([201d997](https://codeberg.org/kblcuk/kopiika/commit/201d997c79e1acfb5c517314701e3ab65eb99542))
+* **history:** offer Confirm on upcoming transaction rows (KII-159) ([22ebbd9](https://codeberg.org/kblcuk/kopiika/commit/22ebbd97eb95d53c9723aaf240acc630950401b2))
+* **history:** show today's scheduled rows as needing confirmation (KII-159) ([2324608](https://codeberg.org/kblcuk/kopiika/commit/232460895971d32d6b6559e76b98a16272b77a64))
+* **recurrence:** materialize today's occurrence from midnight (KII-159) ([0cb0a8d](https://codeberg.org/kblcuk/kopiika/commit/0cb0a8d73c3bb9159bd1cd4a8d2ce5c22ab22252))
+* **reminders:** derive the reminder schedule from recurrence templates (KII-159) ([9982fce](https://codeberg.org/kblcuk/kopiika/commit/9982fcee598ac02f5e6f7a7e8b93eb60ebb9b5a6))
+* **reminders:** reschedule reminders with a fingerprint-guarded sweep (KII-159) ([12bb7c0](https://codeberg.org/kblcuk/kopiika/commit/12bb7c08632323cc0508b33e7749d5e1c95f8bf1))
+* **transactions:** add a shared early-confirm flow (KII-159) ([01ae757](https://codeberg.org/kblcuk/kopiika/commit/01ae7575b126dbff8d257d08a0659008ef3aa6c0))
+* **transactions:** add Confirm now to the edit screen (KII-159) ([6201c40](https://codeberg.org/kblcuk/kopiika/commit/6201c407c14bf5b255325b752144badba22fe774))
+* **transactions:** treat due-ness as a civil day, not an instant (KII-159) ([33e6e36](https://codeberg.org/kblcuk/kopiika/commit/33e6e36586c5c420a40fa68b848b097e7708416e))
+
+
+### Bug Fixes
+
+* **reminders:** Serialize overlapping reminder sweeps (KII-159) ([276a5ab](https://codeberg.org/kblcuk/kopiika/commit/276a5abc68e3fac8c3c61060ab1df33a3ecb8b9b))
+* **store:** Keep every due-set surface in step with the backfill (KII-159) ([f85fc5c](https://codeberg.org/kblcuk/kopiika/commit/f85fc5c551032fc9107dea58971f9519a9da74be))
+* **store:** Refresh the OS badge wherever the due count can move (KII-163) ([f71c149](https://codeberg.org/kblcuk/kopiika/commit/f71c149addeb86abae422d2fd1aec890c8a5bc7d))
+* **transactions:** Save pending edits before Confirm now (KII-159) ([1b4f199](https://codeberg.org/kblcuk/kopiika/commit/1b4f1992ec300656a2c4413f2801fac6eb9af702))
+
 ## [0.3.28](https://codeberg.org/kblcuk/kopiika/compare/v0.3.26...v0.3.28) (2026-08-01)
 
 
