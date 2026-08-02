@@ -6846,3 +6846,227 @@ describe('reminder sweep wiring', () => {
 		});
 	});
 });
+
+// KII-163: `getUnconfirmedCount` counts rows that are unconfirmed AND due, so
+// every action that adds, removes or re-dates such a row has to refresh the OS
+// badge, not only the reminder set. The in-app History badge recomputes from
+// `transactions` on every render and hides the gap; the app-icon badge would
+// stay stale until the next confirm, cold start or hourly background task.
+describe('OS badge sync wiring', () => {
+	const account: Entity = {
+		id: 'badge-acct',
+		type: 'account',
+		name: 'Checking',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+	};
+	const category: Entity = {
+		id: 'badge-cat',
+		type: 'category',
+		name: 'Rent',
+		currency: 'USD',
+		row: 0,
+		position: 0,
+	};
+
+	// Pinned: due-ness is a civil-day comparison, so an unpinned clock would let
+	// "today" and "three days out" drift across a real midnight mid-test.
+	const NOW = new Date(2026, 7, 10, 12, 0, 0, 0).getTime();
+	const todayAt = (hour: number) => new Date(2026, 7, 10, hour, 0, 0, 0).getTime();
+	const upcoming = () => new Date(2026, 7, 13, 12, 0, 0, 0).getTime();
+
+	let badgeSpy: ReturnType<typeof spyOn>;
+	let cancelAllSpy: ReturnType<typeof spyOn>;
+	let scheduleSpy: ReturnType<typeof spyOn>;
+	let dateSpy: ReturnType<typeof spyOn>;
+
+	// Unconfirmed and dated earlier today by default: exactly what the badge counts.
+	const tx = (id: string, overrides: Partial<Transaction> = {}): Transaction => ({
+		id,
+		from_entity_id: account.id,
+		to_entity_id: category.id,
+		amount_minor: 10000,
+		currency: 'USD',
+		timestamp: todayAt(9),
+		is_confirmed: false,
+		...overrides,
+	});
+
+	const seed = async (rows: Transaction[], templates: RecurrenceTemplate[] = []) => {
+		for (const template of templates) await db.createRecurrenceTemplate(template);
+		if (rows.length > 0) await db.createTransactionBatch(rows);
+		useStore.setState({ transactions: rows, recurrenceTemplates: templates });
+	};
+
+	const template = (id: string, overrides: Partial<RecurrenceTemplate> = {}) =>
+		({
+			id,
+			from_entity_id: account.id,
+			to_entity_id: category.id,
+			amount_minor: 10000,
+			currency: 'USD',
+			rule: JSON.stringify({ type: 'daily' }),
+			start_date: todayAt(9),
+			end_date: null,
+			end_count: null,
+			created_at: todayAt(9),
+			exclusions: [],
+			...overrides,
+		}) satisfies RecurrenceTemplate;
+
+	beforeEach(async () => {
+		resetDrizzleDb();
+		badgeSpy = spyOn(notifications, 'updateBadgeCount');
+		cancelAllSpy = spyOn(notifications, 'cancelAllNotifications');
+		scheduleSpy = spyOn(notifications, 'scheduleTransactionNotification');
+		// The badge sync is a no-op while reminders are off, and the contextual
+		// permission ask in `addRecurringTransaction` must not fire.
+		await setRemindersEnabled(true);
+		await setHasRequestedPermission(true);
+		await setScheduledReminderKey(null);
+
+		for (const entity of [account, category]) {
+			await db.createEntity(entity);
+		}
+		useStore.setState({
+			entities: [account, category],
+			plans: [],
+			transactions: [],
+			recurrenceTemplates: [],
+			marketValueSnapshots: [],
+		});
+		dateSpy = spyOn(Date, 'now').mockReturnValue(NOW);
+	});
+
+	afterEach(async () => {
+		dateSpy.mockRestore();
+		badgeSpy.mockRestore();
+		cancelAllSpy.mockRestore();
+		scheduleSpy.mockRestore();
+		await setRemindersEnabled(false);
+		await setScheduledReminderKey(null);
+	});
+
+	test('deleting a due unconfirmed transaction lowers the badge', async () => {
+		await seed([tx('badge-del-1'), tx('badge-del-2')]);
+
+		await useStore.getState().deleteTransaction('badge-del-1');
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('moving an upcoming transaction onto today raises the badge', async () => {
+		await seed([tx('badge-edit-1', { timestamp: upcoming() })]);
+
+		await useStore.getState().updateTransaction('badge-edit-1', { timestamp: todayAt(15) });
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('splitting a due unconfirmed transaction into confirmed rows clears the badge', async () => {
+		await seed([tx('badge-split-1', { amount_minor: 2000 })]);
+
+		await useStore
+			.getState()
+			.replaceTransactionWithSplit('badge-split-1', [
+				tx('badge-split-c1', { amount_minor: 1200, is_confirmed: true }),
+				tx('badge-split-c2', { amount_minor: 800, is_confirmed: true }),
+			]);
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(0);
+	});
+
+	test('deleting a single due occurrence of a series lowers the badge', async () => {
+		const tmpl = template('badge-single-tmpl');
+		await seed(
+			[
+				tx('badge-single-1', { series_id: tmpl.id }),
+				tx('badge-single-2', { series_id: tmpl.id, timestamp: todayAt(10) }),
+			],
+			[tmpl]
+		);
+
+		await useStore.getState().deleteTransactionWithScope('badge-single-1', 'single');
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('deleting the future of a series lowers the badge by every due row it removes', async () => {
+		const tmpl = template('badge-future-tmpl');
+		await seed(
+			[
+				// Both series rows are due today and both are removed; the standalone
+				// row is what the badge should be left counting.
+				tx('badge-future-1', { series_id: tmpl.id }),
+				tx('badge-future-2', { series_id: tmpl.id, timestamp: todayAt(15) }),
+				tx('badge-future-standalone'),
+			],
+			[tmpl]
+		);
+
+		await useStore.getState().deleteTransactionWithScope('badge-future-1', 'future');
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test("deactivating an entity's templates lowers the badge", async () => {
+		const tmpl = template('badge-deact-tmpl');
+		await seed(
+			[
+				// `deactivateTemplatesForEntity` drops rows at or after `now`; the 09:00
+				// row survives and is still due, the 15:00 row is due today too and goes.
+				tx('badge-deact-past', { series_id: tmpl.id }),
+				tx('badge-deact-later', { series_id: tmpl.id, timestamp: todayAt(15) }),
+			],
+			[tmpl]
+		);
+
+		await useStore.getState().deactivateTemplatesForEntity(category.id);
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('re-dating the future of a series onto today raises the badge', async () => {
+		const tmpl = template('badge-scope-tmpl', { start_date: upcoming() });
+		await seed([tx('badge-scope-1', { series_id: tmpl.id, timestamp: upcoming() })], [tmpl]);
+
+		await useStore
+			.getState()
+			.updateTransactionWithScope('badge-scope-1', { timestamp: todayAt(15) }, 'future');
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('batch-creating an unconfirmed row that is due today raises the badge', async () => {
+		await useStore.getState().createTransactionBatch([tx('badge-batch-1')]);
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('adding an unconfirmed row that is due today raises the badge', async () => {
+		// `buildTransaction` defaults a later-today timestamp to unconfirmed, and a
+		// later-today row is already due — the badge has to move on plain adds too.
+		await useStore.getState().addTransaction(tx('badge-add-1', { timestamp: todayAt(15) }));
+
+		expect(badgeSpy).toHaveBeenLastCalledWith(1);
+	});
+
+	test('a new recurring series raises the badge by the occurrences it materializes', async () => {
+		// Daily from two days ago: Aug 8, 9 and 10 are materialized as due
+		// unconfirmed rows by the backfill inside `addRecurringTransaction`.
+		await useStore.getState().addRecurringTransaction(
+			{
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date(2026, 7, 8, 9, 0, 0, 0).getTime(),
+			},
+			{ rule: { type: 'daily' }, endDate: null, endCount: null }
+		);
+
+		expect(useStore.getState().transactions).toHaveLength(3);
+		expect(badgeSpy).toHaveBeenLastCalledWith(3);
+	});
+});

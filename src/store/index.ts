@@ -168,6 +168,10 @@ export function _resetBackfillThrottleForTests(): void {
  * every action that can change which occurrences are unconfirmed and not yet
  * due; the sweep itself is fingerprint-guarded, so a call that changes nothing
  * costs one pure computation and touches neither the OS nor the DB.
+ *
+ * Reminders alone are only correct for actions that leave `transactions`
+ * unchanged (an entity rename, a virtual-occurrence exclusion). Anything that
+ * adds, removes or re-dates a row wants `syncNotificationSurfaces` (KII-163).
  */
 async function syncReminders(get: () => AppState): Promise<void> {
 	try {
@@ -638,7 +642,10 @@ export const useStore = create<AppState>((set, get) => {
 			// so this guard never trips at runtime — it exists to narrow the union for TS.
 			if (result.kind !== 'transaction.create') return;
 			set((state) => ({ transactions: [result.created, ...state.transactions] }));
-			await syncReminders(get);
+			// Badge included (KII-163): `buildTransaction` defaults a future
+			// timestamp to unconfirmed, and "later today" is future yet already due,
+			// so a plain add can raise the unconfirmed-and-due count.
+			await syncNotificationSurfaces(get);
 		},
 
 		materializeOccurrence: async (occurrence) => {
@@ -708,7 +715,9 @@ export const useStore = create<AppState>((set, get) => {
 				}),
 			}));
 			// The excluded occurrence was (by definition) still upcoming, so it was
-			// in the pending reminder set — drop its reminder (KII-159).
+			// in the pending reminder set — drop its reminder (KII-159). Reminders
+			// only: the badge counts real rows, and a virtual occurrence has none, so
+			// `transactions` — and therefore the count — is untouched here (KII-163).
 			await syncReminders(get);
 		},
 
@@ -724,8 +733,10 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({ transactions: [...result.created, ...state.transactions] }));
 
 			// Side effect — local only by construction (inbound ops call applyOperation
-			// directly and never reach this store action).
-			await syncReminders(get);
+			// directly and never reach this store action). Badge included (KII-163):
+			// a batch can carry unconfirmed rows that are already due (later today,
+			// or an import row with `is_confirmed: false` in the past).
+			await syncNotificationSurfaces(get);
 		},
 
 		updateTransaction: async (id, updates) => {
@@ -739,8 +750,10 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.map((t) => (t.id === stamped.id ? stamped : t)),
 			}));
-			// A date edit moves the occurrence's reminder instant (KII-159).
-			await syncReminders(get);
+			// A date edit moves the occurrence's reminder instant (KII-159) and can
+			// carry it across the due boundary in either direction — as can an
+			// `is_confirmed` edit — so the badge moves with it (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		deleteTransaction: async (id) => {
@@ -757,7 +770,8 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.filter((t) => t.id !== id),
 			}));
-			await syncReminders(get);
+			// Deleting a due unconfirmed row lowers the count (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		replaceTransactionWithSplit: async (originalId, rows) => {
@@ -819,7 +833,9 @@ export const useStore = create<AppState>((set, get) => {
 				};
 			});
 
-			await syncReminders(get);
+			// One due unconfirmed row leaves and N rows arrive, each with its own
+			// date and confirmation state — the count rarely survives a split (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		// Recurrence actions
@@ -873,7 +889,9 @@ export const useStore = create<AppState>((set, get) => {
 			// After the contextual ask, not before: on the very first recurring
 			// transaction the sweep would otherwise schedule without permission,
 			// then persist a fingerprint claiming those reminders exist (KII-159).
-			await syncReminders(get);
+			// Badge included (KII-163): the backfill above materializes every
+			// past-due occurrence of the new series as an unconfirmed due row.
+			await syncNotificationSurfaces(get);
 		},
 
 		// Materialize past-due occurrences since the last run. Because
@@ -939,8 +957,9 @@ export const useStore = create<AppState>((set, get) => {
 					: state.recurrenceTemplates,
 				transactions: state.transactions.map((t) => stampedTxnMap.get(t.id) ?? t),
 			}));
-			// Single scope returned above, having swept via `updateTransaction`.
-			await syncReminders(get);
+			// Single scope returned above, having synced via `updateTransaction`. A
+			// scoped date edit crosses the due boundary the same way (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		deleteTransactionWithScope: async (id, scope) => {
@@ -986,7 +1005,8 @@ export const useStore = create<AppState>((set, get) => {
 							})
 						: state.recurrenceTemplates,
 				}));
-				await syncReminders(get);
+				// Deleting a due unconfirmed occurrence lowers the count (KII-163).
+				await syncNotificationSurfaces(get);
 				return;
 			}
 
@@ -1031,7 +1051,9 @@ export const useStore = create<AppState>((set, get) => {
 						: t
 				),
 			}));
-			await syncReminders(get);
+			// "Future" is anchored on the tapped row, which can itself be past-due —
+			// so this can drop several unconfirmed due rows at once (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		deactivateTemplatesForEntity: async (entityId) => {
@@ -1083,7 +1105,9 @@ export const useStore = create<AppState>((set, get) => {
 					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
 				}),
 			}));
-			await syncReminders(get);
+			// Rows from `now` onward go, and anything left today is still due, so the
+			// count can drop even though nothing strictly in the past is touched (KII-163).
+			await syncNotificationSurfaces(get);
 		},
 
 		// Confirmation actions
