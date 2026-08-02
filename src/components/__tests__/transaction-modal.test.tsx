@@ -6,6 +6,7 @@ import { setupStoreForTest } from '@/src/test-utils-component';
 import type { Entity, EntityWithBalance } from '@/src/types';
 import { useStore } from '@/src/store';
 import { formatAmount, formatAmountForInput } from '@/src/utils/format';
+import { earlyConfirmPrompt } from '@/src/utils/early-confirm';
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: jest.fn() }),
@@ -1837,6 +1838,107 @@ describe('TransactionModal', () => {
 			buttons?.find((btn) => btn.text === 'All future')?.onPress?.();
 
 			expect(deleteTransactionWithScope).toHaveBeenCalledWith('txn-1', 'future');
+		});
+	});
+
+	// The button routes through the same useConfirmTransaction flow as the
+	// History row's Confirm pill (KII-159); it must not duplicate that logic.
+	describe('Confirm Now (KII-159)', () => {
+		const baseTransaction = {
+			id: 'txn-confirm-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 10000,
+			currency: 'USD',
+			timestamp: fixedNow,
+		};
+
+		const renderModal = (props: Partial<React.ComponentProps<typeof TransactionModal>> = {}) =>
+			render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={baseTransaction}
+					{...props}
+				/>
+			);
+
+		it('offers Confirm now when editing an unconfirmed transaction (KII-159)', () => {
+			const { getByTestId } = renderModal({
+				existingTransaction: {
+					...baseTransaction,
+					is_confirmed: false,
+					timestamp: Date.now() + 5 * 24 * 60 * 60 * 1000,
+				},
+			});
+
+			expect(getByTestId('transaction-confirm-now-button')).toBeTruthy();
+		});
+
+		it('hides Confirm now for an already-confirmed transaction', () => {
+			const { queryByTestId } = renderModal({
+				existingTransaction: { ...baseTransaction, is_confirmed: true },
+			});
+
+			expect(queryByTestId('transaction-confirm-now-button')).toBeNull();
+		});
+
+		it('closes the modal and confirms the exact transaction when it is already due', () => {
+			// baseTransaction.timestamp === fixedNow, so this fixture is due today —
+			// the hook takes its no-dialog path straight to confirmTransaction. Route
+			// the store call through a resolved spy (the mocked SQLite layer throws
+			// for unconfigured queries) and assert the flow reaches it with the
+			// right id — the ordering alone doesn't prove the wiring (KII-159).
+			const onClose = jest.fn();
+			const confirmTransactionSpy = jest.fn().mockResolvedValue(undefined);
+			const alertSpy = jest.spyOn(Alert, 'alert');
+			useStore.setState({ confirmTransaction: confirmTransactionSpy });
+			const { getByTestId } = renderModal({
+				onClose,
+				existingTransaction: { ...baseTransaction, is_confirmed: false },
+			});
+
+			fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+			expect(onClose).toHaveBeenCalled();
+			expect(alertSpy).not.toHaveBeenCalled();
+			expect(confirmTransactionSpy).toHaveBeenCalledWith('txn-confirm-1');
+		});
+
+		it('shows the early-confirm dialog instead of confirming immediately when ahead of schedule', () => {
+			const confirmTransactionSpy = jest.fn().mockResolvedValue(undefined);
+			const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+			useStore.setState({ confirmTransaction: confirmTransactionSpy });
+
+			const aheadTimestamp = fixedNow + 5 * 24 * 60 * 60 * 1000;
+			// Computed the same way the hook computes it, so this assertion is
+			// pinned to the exact dialog copy rather than a hand-typed guess.
+			const prompt = earlyConfirmPrompt(aheadTimestamp, fixedNow);
+			if (!prompt) throw new Error('fixture must be ahead of its scheduled day');
+
+			const { getByTestId } = renderModal({
+				existingTransaction: {
+					...baseTransaction,
+					is_confirmed: false,
+					timestamp: aheadTimestamp,
+				},
+			});
+
+			fireEvent.press(getByTestId('transaction-confirm-now-button'));
+
+			expect(alertSpy).toHaveBeenCalledWith(
+				'Confirm early?',
+				`Scheduled for ${prompt.scheduledLabel}. Record it as today, ${prompt.todayLabel}?`,
+				expect.arrayContaining([
+					expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+					expect.objectContaining({ text: 'Confirm' }),
+				])
+			);
+			// The dialog gates the write — accepting it is a separate user action,
+			// already covered by use-confirm-transaction.test.tsx.
+			expect(confirmTransactionSpy).not.toHaveBeenCalled();
 		});
 	});
 

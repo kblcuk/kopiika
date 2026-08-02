@@ -8,7 +8,16 @@ import {
 } from 'react-native-keyboard-controller';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { PageSheetModal } from './page-sheet-modal';
-import { ArrowRight, Calendar, Pencil, Split, Plus, X, Repeat } from 'lucide-react-native';
+import {
+	ArrowRight,
+	Calendar,
+	Pencil,
+	Split,
+	Plus,
+	X,
+	Repeat,
+	CircleCheck,
+} from 'lucide-react-native';
 import type { RecurrenceFrequency } from '@/src/types/recurrence';
 
 import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
@@ -48,6 +57,7 @@ import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
 import { normalizeNumericInput } from '@/src/utils/numeric-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import { useConfirmTransaction } from '@/src/hooks/use-confirm-transaction';
 import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { InfoPin } from '@/src/components/info-pin';
@@ -129,6 +139,18 @@ export function TransactionModal({
 	const excludeOccurrence = useStore((state) => state.excludeOccurrence);
 	const replaceTransactionWithSplit = useStore((state) => state.replaceTransactionWithSplit);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
+
+	const confirmTransactionFlow = useConfirmTransaction();
+
+	// KII-159: a scheduled charge can land before its date. The flow asks before
+	// rewriting the date when the transaction is ahead of schedule, so this stays
+	// a single button.
+	const handleConfirmNow = useCallback(() => {
+		if (!existingTransaction) return;
+		void KeyboardController.dismiss();
+		onClose();
+		void confirmTransactionFlow(existingTransaction);
+	}, [existingTransaction, confirmTransactionFlow, onClose]);
 
 	const accounts = useEntitiesWithBalance('account');
 	const categories = useEntitiesWithBalance('category');
@@ -1361,6 +1383,18 @@ export function TransactionModal({
 							</View>
 						)}
 					</View>
+				)}
+
+				{/* Confirm now — edit mode, unconfirmed only */}
+				{isEditing && existingTransaction?.is_confirmed === false && (
+					<Pressable
+						onPress={handleConfirmNow}
+						className="mb-3 flex-row items-center justify-center gap-2 rounded-lg border border-info/30 bg-info/10 py-3"
+						testID="transaction-confirm-now-button"
+					>
+						<CircleCheck size={16} color={colors.info.DEFAULT} />
+						<Text className="font-sans-semibold text-base text-info">Confirm now</Text>
+					</Pressable>
 				)}
 
 				{/* Delete — edit mode only */}
