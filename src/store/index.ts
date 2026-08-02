@@ -153,6 +153,11 @@ let initializePromise: Promise<void> | null = null;
 // vanish from every surface for a full day.
 let lastBackfillCivilDate: string | null = null;
 
+// Serializes `backfillRecurringIfStale` runs (KII-159). See the action for why
+// overlapping runs are reachable and what they break. `.catch` applies to the
+// chain, never to the promise returned to the caller.
+let backfillChain: Promise<void> = Promise.resolve();
+
 // Test-only: lets the test file reset the throttle between cases.
 export function _resetBackfillThrottleForTests(): void {
 	lastBackfillCivilDate = null;
@@ -182,6 +187,19 @@ async function syncBadgeCount(get: () => AppState): Promise<void> {
 	} catch (e) {
 		console.warn('Failed to sync badge count', e);
 	}
+}
+
+/**
+ * The two notification surfaces that must agree after anything that changes
+ * which occurrences are unconfirmed-and-due: the OS app-icon badge and the
+ * pending reminder set (KII-159). They are refreshed together because they read
+ * the same state — a caller that remembers one and forgets the other leaves the
+ * badge stale until the next confirm, cold start, or hourly background task,
+ * which is exactly how the midnight backfill lost its badge update.
+ */
+async function syncNotificationSurfaces(get: () => AppState): Promise<void> {
+	await syncBadgeCount(get);
+	await syncReminders(get);
 }
 
 /**
@@ -445,7 +463,32 @@ export const useStore = create<AppState>((set, get) => {
 				recurrenceTemplates: result.recurrenceTemplates,
 				marketValueSnapshots: result.marketValueSnapshots,
 			});
-			await syncReminders(get);
+			// Materialize the imported templates' due occurrences, exactly as
+			// `initialize` does after hydration (KII-159). Without this the import is
+			// the one path that leaves them nowhere: derivation skips occurrences that
+			// are due, no row exists for them yet, and the civil-day throttle is
+			// already stamped with today by `initialize`, so the next
+			// `backfillRecurringIfStale()` short-circuits and the gap survives until a
+			// cold start. Re-stamping the throttle keeps the invariant that it names
+			// the civil day the last backfill actually ran on.
+			try {
+				await backfillRecurrences(
+					result.recurrenceTemplates,
+					result.transactions,
+					result.entities,
+					set
+				);
+				lastBackfillCivilDate = toCivilDate(Date.now());
+			} catch (e) {
+				// The import itself already committed; reporting it as failed would be
+				// a lie ("your previous data should be intact"). Clear the throttle
+				// instead so the next foreground or midnight run retries.
+				console.warn('Failed to backfill imported recurrences', e);
+				lastBackfillCivilDate = null;
+			}
+			// Badge included: the pre-import `updateBadgeCount(0)` describes the wiped
+			// database, not the imported one, which can carry due unconfirmed rows.
+			await syncNotificationSurfaces(get);
 		},
 
 		setCurrentPeriod: (period) => set({ currentPeriod: period }),
@@ -839,19 +882,31 @@ export const useStore = create<AppState>((set, get) => {
 		// derived on demand). Throttled to once per civil day (the shortest
 		// recurrence period) so an app foreground bounce doesn't thrash the DB.
 		backfillRecurringIfStale: async () => {
-			const today = toCivilDate(Date.now());
-			if (lastBackfillCivilDate === today) return;
-			const state = get();
-			await backfillRecurrences(
-				state.recurrenceTemplates,
-				state.transactions,
-				state.entities,
-				set
-			);
-			lastBackfillCivilDate = today;
-			// The civil day rolled over: yesterday's upcoming occurrences are now
-			// due (and materialized), so they must drop out of the pending set.
-			await syncReminders(get);
+			// Serialized (KII-159): both call sites dispatch with `void` — the
+			// foreground listener and the midnight timer — and the civil-date guard
+			// below is only set AFTER the await, so two overlapping entries both pass
+			// it, both generate the same deterministic occurrence ids, and the second
+			// batch-create dies on the primary key with nobody to catch it.
+			backfillChain = backfillChain
+				.catch(() => {})
+				.then(async () => {
+					const today = toCivilDate(Date.now());
+					if (lastBackfillCivilDate === today) return;
+					const state = get();
+					await backfillRecurrences(
+						state.recurrenceTemplates,
+						state.transactions,
+						state.entities,
+						set
+					);
+					lastBackfillCivilDate = today;
+					// The civil day rolled over: yesterday's upcoming occurrences are
+					// now due and materialized, so they must drop out of the pending
+					// reminder set — and, being unconfirmed and due, they also raise
+					// the badge count.
+					await syncNotificationSurfaces(get);
+				});
+			return backfillChain;
 		},
 
 		updateTransactionWithScope: async (id, updates, scope) => {
@@ -1052,10 +1107,9 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 			}));
-			await syncBadgeCount(get);
 			// Confirming an occurrence EARLY (before its due day) takes it out of the
 			// pending set, so its reminder has to go with it (KII-159).
-			await syncReminders(get);
+			await syncNotificationSurfaces(get);
 		},
 
 		confirmAllDueTransactions: async () => {
@@ -1086,8 +1140,7 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				transactions: state.transactions.map((t) => stampedMap.get(t.id) ?? t),
 			}));
-			await syncBadgeCount(get);
-			await syncReminders(get);
+			await syncNotificationSurfaces(get);
 		},
 
 		// LOCAL-ONLY (never an op): is_default is a per-device field per the

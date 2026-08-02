@@ -4181,6 +4181,50 @@ describe('Store Data Integrity', () => {
 			expect(tx?.timestamp).toBeLessThan(Date.now());
 		});
 
+		// KII-159: due-ness became a civil-day predicate, which moved an unconfirmed
+		// occurrence dated LATER TODAY out of `upcoming` and into `unconfirmed` —
+		// the one behavior change on this branch with money on screen. NOW is pinned
+		// by this describe's beforeEach, so the "later today" fixture can't drift.
+		test('getEntitiesWithBalance: unconfirmed later today counts as unconfirmed, not upcoming', () => {
+			const nowLocal = new Date(NOW);
+			// The last minute of the current LOCAL civil day: still ahead of NOW in
+			// every timezone, but the same civil date, which is what `isDue` compares.
+			const laterToday = new Date(
+				nowLocal.getFullYear(),
+				nowLocal.getMonth(),
+				nowLocal.getDate(),
+				23,
+				59,
+				0,
+				0
+			).getTime();
+			expect(laterToday).toBeGreaterThan(NOW);
+
+			const txns: Transaction[] = [
+				{
+					id: 'tx-later-today',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount_minor: 12500,
+					currency: 'USD',
+					timestamp: laterToday,
+					is_confirmed: false,
+				},
+			];
+
+			const categories = getEntitiesWithBalance(
+				[accountEntity, categoryEntity],
+				[],
+				txns,
+				'2026-04',
+				'category'
+			);
+
+			expect(categories[0]!.unconfirmed).toBe(12500);
+			expect(categories[0]!.upcoming).toBe(0);
+			expect(categories[0]!.actual).toBe(0);
+		});
+
 		test('getEntitiesWithBalance: future unconfirmed stays in upcoming, not unconfirmed', () => {
 			const now = Date.now();
 			const futureTimestamp = now + 86400000 * 7;
@@ -4554,6 +4598,99 @@ describe('Store Data Integrity', () => {
 			} finally {
 				cancelSpy.mockRestore();
 				badgeSpy.mockRestore();
+			}
+		});
+
+		// KII-159: derivation skips occurrences that are due and nothing else
+		// materializes them here — `initialize` already stamped the civil-day
+		// throttle, so a later `backfillRecurringIfStale()` short-circuits. Without
+		// the backfill in `replaceAllData`, an imported occurrence dated today
+		// exists in neither the virtual set nor the row set until a cold start.
+		test('replaceAllData materializes due occurrences of imported templates', async () => {
+			const account = makeEntity('imp-account', 'account');
+			const category = makeEntity('imp-category', 'category', { position: 1 });
+			// Daily series starting two days before the pinned instant: Aug 8, 9 and
+			// 10 are all due, Aug 10 being "today" — the case that regressed.
+			const start = new Date(2026, 7, 8, 15, 42, 0, 0).getTime();
+			const template: RecurrenceTemplate = {
+				id: 'imp-series',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 4000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: start,
+				end_date: null,
+				end_count: null,
+				created_at: start,
+				exclusions: [],
+			};
+
+			const dateSpy = spyOn(Date, 'now').mockReturnValue(
+				new Date(2026, 7, 10, 9, 0, 0, 0).getTime()
+			);
+			try {
+				await useStore
+					.getState()
+					.replaceAllData([account, category], [], [], [template], []);
+
+				expect(
+					useStore
+						.getState()
+						.transactions.map((t) => t.id)
+						.sort()
+				).toEqual([
+					'imp-series:2026-08-08',
+					'imp-series:2026-08-09',
+					'imp-series:2026-08-10',
+				]);
+				expect(await db.getTransactionsBySeriesId('imp-series')).toHaveLength(3);
+			} finally {
+				dateSpy.mockRestore();
+			}
+		});
+
+		// `replaceAllData` clears the reminder fingerprint BEFORE cancelling, so a
+		// re-import of identical data cannot compare equal to the stored key and
+		// short-circuit — the OS schedule has just been emptied, and short-circuiting
+		// would leave the user with no reminders at all (KII-159).
+		test('re-importing identical data still schedules the reminders it cancelled', async () => {
+			const account = makeEntity('reimport-account', 'account');
+			const category = makeEntity('reimport-category', 'category', { position: 1 });
+			// Noon three days out: a later civil day in every timezone, so the row is
+			// upcoming and unconfirmed — exactly what earns a reminder.
+			const d = new Date(Date.now() + 3 * 86_400_000);
+			const upcoming = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+			const transaction: Transaction = {
+				id: 'reimport-tx',
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 7500,
+				currency: 'USD',
+				timestamp: upcoming.getTime(),
+				is_confirmed: false,
+			};
+			const payload = () =>
+				useStore.getState().replaceAllData([account, category], [], [transaction], [], []);
+
+			const scheduleSpy = spyOn(notifications, 'scheduleTransactionNotification');
+			await setRemindersEnabled(true);
+			try {
+				await payload();
+				expect(scheduleSpy).toHaveBeenCalledTimes(1);
+				expect(await getScheduledReminderKey()).not.toBeNull();
+				scheduleSpy.mockClear();
+
+				await payload();
+
+				expect(scheduleSpy).toHaveBeenCalledTimes(1);
+				expect(scheduleSpy.mock.calls[0]![0]).toMatchObject({
+					transactionId: 'reimport-tx',
+				});
+			} finally {
+				await setRemindersEnabled(false);
+				await setScheduledReminderKey(null);
+				scheduleSpy.mockRestore();
 			}
 		});
 
@@ -5863,6 +6000,138 @@ describe('Store Data Integrity', () => {
 				// The materialized row's own timestamp is still later today — it was
 				// materialized ahead of its time-of-day, not "in the past".
 				expect(row!.timestamp).toBeGreaterThan(now);
+			} finally {
+				dateSpy.mockRestore();
+			}
+		});
+
+		// KII-159: the midnight timer exists to materialize occurrences the moment
+		// they become due. Those rows are unconfirmed AND due, so they raise the
+		// unconfirmed count — the OS badge has to move with them, not wait for the
+		// next confirm, cold start or hourly background task.
+		test('refreshes the OS badge as well as the reminders', async () => {
+			const acc: Entity = {
+				id: 'badge-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'badge-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			// Daily series starting two days ago: Aug 8, 9 and 10 are due at the
+			// pinned instant, so exactly three rows are materialized.
+			const start = new Date(2026, 7, 8, 9, 0, 0, 0).getTime();
+			const template: RecurrenceTemplate = {
+				id: 'badge-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 1000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: start,
+				end_date: null,
+				end_count: null,
+				created_at: start,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			const badgeSpy = spyOn(notifications, 'updateBadgeCount');
+			const dateSpy = spyOn(Date, 'now').mockReturnValue(
+				new Date(2026, 7, 10, 12, 0, 0, 0).getTime()
+			);
+			await setRemindersEnabled(true);
+			try {
+				await useStore.getState().backfillRecurringIfStale();
+
+				expect(useStore.getState().transactions).toHaveLength(3);
+				expect(badgeSpy).toHaveBeenCalledWith(3);
+			} finally {
+				await setRemindersEnabled(false);
+				dateSpy.mockRestore();
+				badgeSpy.mockRestore();
+			}
+		});
+
+		// Both call sites dispatch with `void` (the foreground listener and the
+		// midnight timer), and the civil-date guard is only stamped after the await,
+		// so two overlapping runs would both pass it, both generate the same
+		// deterministic occurrence ids and collide on the primary key — an
+		// unhandled rejection nobody is awaiting (KII-159).
+		test('serializes overlapping runs instead of double-materializing', async () => {
+			const acc: Entity = {
+				id: 'conc-acc',
+				type: 'account',
+				name: 'A',
+				currency: 'USD',
+				row: 0,
+				position: 0,
+			};
+			const cat: Entity = {
+				id: 'conc-cat',
+				type: 'category',
+				name: 'C',
+				currency: 'USD',
+				row: 0,
+				position: 1,
+			};
+			await db.createEntity(acc);
+			await db.createEntity(cat);
+
+			const start = new Date(2026, 7, 8, 9, 0, 0, 0).getTime();
+			const template: RecurrenceTemplate = {
+				id: 'conc-tmpl',
+				from_entity_id: acc.id,
+				to_entity_id: cat.id,
+				amount_minor: 1000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'daily' }),
+				start_date: start,
+				end_date: null,
+				end_count: null,
+				created_at: start,
+				exclusions: [],
+			};
+			await db.createRecurrenceTemplate(template);
+			useStore.setState({
+				entities: [acc, cat],
+				recurrenceTemplates: [template],
+				transactions: [],
+			});
+
+			const dateSpy = spyOn(Date, 'now').mockReturnValue(
+				new Date(2026, 7, 10, 12, 0, 0, 0).getTime()
+			);
+			try {
+				await Promise.all([
+					useStore.getState().backfillRecurringIfStale(),
+					useStore.getState().backfillRecurringIfStale(),
+				]);
+
+				// Aug 8, 9 and 10 — once each, in state and in the database.
+				expect(
+					useStore
+						.getState()
+						.transactions.map((t) => t.id)
+						.sort()
+				).toEqual(['conc-tmpl:2026-08-08', 'conc-tmpl:2026-08-09', 'conc-tmpl:2026-08-10']);
+				expect(await db.getTransactionsBySeriesId('conc-tmpl')).toHaveLength(3);
 			} finally {
 				dateSpy.mockRestore();
 			}
