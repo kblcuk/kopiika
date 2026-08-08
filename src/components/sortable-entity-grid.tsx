@@ -492,6 +492,19 @@ export function SortableEntityGrid({
 								onLayout={registerGridDropZones}
 							>
 								<Sortable.Grid
+									// Remount when the row budget changes. react-native-sortables
+									// runs `resetMeasurements()` from a useLayoutEffect on its
+									// `groups` prop (SortableGrid.tsx), which nulls the measured
+									// itemWidths a horizontal grid lays out from. Nothing
+									// re-measures — the item views keep their size, so onLayout
+									// never fires again — so calculateLayout returns null,
+									// itemPositions is never written, and every bubble renders
+									// with no position, i.e. invisible until the next app start.
+									// A fresh instance measures from scratch and skips that
+									// effect (isFirstRenderRef). Only fires when the entity count
+									// crosses a row boundary, never mid-drag: drags reorder, they
+									// don't change the count.
+									key={rows}
 									data={displayedEntities}
 									rows={rows}
 									rowHeight={BUBBLE_HEIGHT}
