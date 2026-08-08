@@ -8,6 +8,7 @@ import { generateId } from '@/src/utils/ids';
 import { DEFAULT_CURRENCY } from '@/src/utils/format';
 import { toMinor } from '@/src/utils/money';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import { isEntityActive } from '@/src/utils/entity-display';
 import { useStore } from '@/src/store';
 import type { EntityType, Transaction } from '@/src/types';
 
@@ -94,11 +95,15 @@ export default function E2EFixtureScreen() {
 					// would orphan the transactions that reference them), so a naive
 					// re-seed would stack duplicate categories across jest.retryTimes
 					// runs — see the ScrollTarget row in the history suite.
+					// Match active entities only. `useStore` keeps soft-deleted rows, so
+					// after a clearEntities pass the just-removed names still match and
+					// the whole re-seed gets skipped — leaving the caller with an empty
+					// board and a timeout on the `Main Card` anchor below.
+					// `skip-onboarding` guards the same way.
 					const alreadyExists = useStore
 						.getState()
-						.entities.some(
-							(existing) => existing.name === e.name && existing.type === e.type
-						);
+						.entities.filter(isEntityActive)
+						.some((existing) => existing.name === e.name && existing.type === e.type);
 					if (alreadyExists) continue;
 
 					const row = e.row ?? 0;
