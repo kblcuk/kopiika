@@ -20,6 +20,36 @@ java = "temurin-21.0.12+8.0.LTS"
 node = "latest"
 ruby = "latest"
 
+# --- Check tasks ---
+# The checks themselves stay bun scripts; mise only orchestrates them so they
+# run concurrently rather than sequentially (2.6s vs ~5s locally).
+#
+# `checks` depends on the glob, so a new `checks:*` task joins automatically.
+# Caveat: the first failure SIGTERMs its in-flight siblings, and
+# --continue-on-error does not change that for parallel deps (checked against
+# mise 2026.8.2) — so a failing run still reports only the check that lost the
+# race, same as package.json's `&&` chain.
+
+[tasks."checks:lint"]
+description = "Lint with oxlint"
+run = "bun run lint"
+
+[tasks."checks:fmt"]
+description = "Verify formatting with oxfmt"
+run = "bun run fmt:check"
+
+[tasks."checks:types"]
+description = "Typecheck with tsgo"
+run = "bun run types"
+
+[tasks."checks:unused"]
+description = "Report unused exports and types with knip"
+run = "bun run unused"
+
+[tasks."checks"]
+description = "Run every static check in parallel"
+depends = ["checks:*"]
+
 # --- E2E tasks ---
 # Wraps `detox build | xcpretty && detox test` with bash pipefail so a failing
 # xcodebuild propagates correctly. Fish's `cmd | xcpretty && next` ANDs on
