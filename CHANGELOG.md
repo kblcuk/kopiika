@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.30](https://codeberg.org/kblcuk/kopiika/compare/v0.3.29...v0.3.30) (2026-08-08)
+
+
+### Bug Fixes
+
+* **board:** Remount the grid when its row budget changes (KII-152) ([5a62274](https://codeberg.org/kblcuk/kopiika/commit/5a62274cefea88af2c6de4b6cb73ff3dbd744386))
+* **board:** Shrink entity sections to the rows they actually use (KII-152) ([8f68e5f](https://codeberg.org/kblcuk/kopiika/commit/8f68e5fa8bb807327bd740f64db0639e36f6db54))
+* **e2e:** Ignore soft-deleted rows when the fixture dedupes entities ([6750d13](https://codeberg.org/kblcuk/kopiika/commit/6750d13143e0def81edd2a989ea7a0401c3c42ab))
+
 ## [0.3.29](https://codeberg.org/kblcuk/kopiika/compare/v0.3.28...v0.3.29) (2026-08-02)
 
 
