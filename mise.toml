@@ -1,8 +1,4 @@
-[plugins]
-fnox-env = "https://github.com/jdx/mise-env-fnox"
-
 [env]
-_.fnox-env = { tools = true }
 HK_MISE = 1
 HK_PKL_BACKEND = 'pklr'
 
@@ -85,66 +81,77 @@ bunx detox test --configuration android.emu.debug "$@"
 # --- Release tasks ---
 # mise is the single implementation layer for release commands.
 # Bun keeps app/dev/versioning commands; deployment and store orchestration live here.
+#
+# Every fastlane call is wrapped in `fnox exec --`, which injects the secrets
+# for that process only. The `_.fnox-env` mise plugin used to export them into
+# every mise invocation instead, so any task — and `mise env` — carried the full
+# decrypted set. fastlane is the only consumer (the secret names appear nowhere
+# else outside docs/RELEASING.md), so nothing else needs them: the checks and
+# e2e tasks are secret-free, and gradle's release build type signs with the
+# debug config, so `e2e:android` never touches the upload keystore.
 
 [tasks."ios:doctor"]
 description = "Validate App Store Connect credentials for the current iOS version"
-run = "bundle exec fastlane ios doctor"
+run = "fnox exec -- bundle exec fastlane ios doctor"
 
 [tasks."ios:setup"]
 description = "Sync iOS development and App Store signing assets via match"
-run = "bundle exec fastlane ios setup_signing"
+run = "fnox exec -- bundle exec fastlane ios setup_signing"
 
 [tasks."ios:build"]
 description = "Build an iOS archive using the current app.json version metadata"
-run = "bundle exec fastlane ios build"
+run = "fnox exec -- bundle exec fastlane ios build"
 
 [tasks."ios:upload"]
 description = "Upload the latest iOS build to TestFlight without rebuilding"
-run = "bundle exec fastlane ios upload"
+run = "fnox exec -- bundle exec fastlane ios upload"
 
 [tasks."ios:promote:external"]
 description = "Promote an uploaded TestFlight build to external tester groups"
-run = "bundle exec fastlane ios promote_external"
+run = "fnox exec -- bundle exec fastlane ios promote_external"
 
 [tasks."ios:beta"]
 description = "Build and upload iOS beta to TestFlight"
-run = "bundle exec fastlane ios beta"
+run = "fnox exec -- bundle exec fastlane ios beta"
 
 [tasks."ios:cleanup"]
 description = "Expire old TestFlight builds"
-run = "bundle exec fastlane ios cleanup"
+run = "fnox exec -- bundle exec fastlane ios cleanup"
 
 [tasks."android:build:release"]
 description = "Build Android release bundle (.aab)"
-run = "bundle exec fastlane android build"
+run = "fnox exec -- bundle exec fastlane android build"
 
 [tasks."android:doctor"]
 description = "Validate Google Play credentials and package access"
-run = "bundle exec fastlane android doctor"
+run = "fnox exec -- bundle exec fastlane android doctor"
 
 [tasks."android:upload"]
 description = "Upload an Android bundle to Google Play"
-run = "bundle exec fastlane android upload"
+run = "fnox exec -- bundle exec fastlane android upload"
 
 [tasks."android:beta"]
 description = "Build and upload Android beta to internal track"
-run = "bundle exec fastlane android beta"
+run = "fnox exec -- bundle exec fastlane android beta"
 
 [tasks."android:production"]
 description = "Build and upload Android production release"
-run = "bundle exec fastlane android production"
+run = "fnox exec -- bundle exec fastlane android production"
 
 [tasks."android:promote"]
 description = "Promote an existing Android release between Play tracks"
-run = "bundle exec fastlane android promote"
+run = "fnox exec -- bundle exec fastlane android promote"
 
 [tasks."android:cleanup"]
 description = "Prune old Google Play track releases"
-run = "bundle exec fastlane android cleanup"
+run = "fnox exec -- bundle exec fastlane android cleanup"
 
 [tasks."release:doctor"]
 description = "Run iOS and Android release preflight checks"
-run = ["bundle exec fastlane ios doctor", "bundle exec fastlane android doctor"]
+run = [
+  "fnox exec -- bundle exec fastlane ios doctor",
+  "fnox exec -- bundle exec fastlane android doctor",
+]
 
 [tasks."release:tag"]
 description = "Bump the version, write the changelog, tag, and offer to push"
@@ -155,37 +162,37 @@ run = "scripts/tag-release.sh"
 
 [tasks."release:sync-build-numbers"]
 description = "Sync app.json build numbers from App Store Connect and Google Play"
-run = "bundle exec fastlane sync_build_numbers"
+run = "fnox exec -- bundle exec fastlane sync_build_numbers"
 
 [tasks."release:notify"]
 description = "Send Telegram release notification"
-run = "bundle exec fastlane notify_telegram"
+run = "fnox exec -- bundle exec fastlane notify_telegram"
 
 [tasks."release:cleanup-builds"]
 description = "Clean up old TestFlight builds and stale Play track releases"
 run = [
-  "bundle exec fastlane ios cleanup",
-  "bundle exec fastlane android cleanup",
+  "fnox exec -- bundle exec fastlane ios cleanup",
+  "fnox exec -- bundle exec fastlane android cleanup",
 ]
 
 [tasks."release:beta"]
 description = "Ship iOS + Android betas in parallel, then notify Telegram"
 run = [
-  "bundle exec fastlane sync_build_numbers",
+  "fnox exec -- bundle exec fastlane sync_build_numbers",
   { tasks = [
     "ios:beta",
     "android:beta",
   ] },
-  "bundle exec fastlane notify_telegram platform:'iOS + Android (Beta)'",
+  "fnox exec -- bundle exec fastlane notify_telegram platform:'iOS + Android (Beta)'",
 ]
 
 [tasks."release:production"]
 description = "Ship iOS beta + Android production in parallel, then notify Telegram"
 run = [
-  "bundle exec fastlane sync_build_numbers",
+  "fnox exec -- bundle exec fastlane sync_build_numbers",
   { tasks = [
     "ios:beta",
     "android:production",
   ] },
-  "bundle exec fastlane notify_telegram platform:'iOS + Android (Production)'",
+  "fnox exec -- bundle exec fastlane notify_telegram platform:'iOS + Android (Production)'",
 ]
