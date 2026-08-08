@@ -29,7 +29,15 @@ import {
 } from '@/src/utils/long-press-armer';
 import { useStore } from '@/src/store';
 import { AddEntityBubble } from './add-entity-bubble';
-import { BUBBLE_WIDTH, BUBBLE_HEIGHT, COLUMN_GAP, ROW_GAP } from './entity-grid-layout';
+import {
+	BUBBLE_WIDTH,
+	BUBBLE_HEIGHT,
+	COLUMN_GAP,
+	ROW_GAP,
+	SECTION_PADDING_H,
+	SECTION_PADDING_V,
+	resolveGridRows,
+} from './entity-grid-layout';
 import {
 	SortableEntityBubble,
 	HoveredIdContext,
@@ -105,6 +113,11 @@ export function SortableEntityGrid({
 }: SortableEntityGridProps) {
 	const reorderEntitiesByIds = useStore((state) => state.reorderEntitiesByIds);
 	const isTransactionMode = dragBehavior === 'transaction';
+
+	// KII-152: a sparsely-filled section asks for fewer rows than its budget so
+	// the grid stops reserving height for rows nothing lands in. Every layout
+	// calculation below (drop zones, persisted order) keys off this, not maxRows.
+	const rows = resolveGridRows({ entityCount: entities.length, maxRows });
 
 	// Get the global shared value for hovered drop zone - shared across all grids
 	const hoveredIdShared = useMemo(() => getGlobalHoveredId(), []);
@@ -187,10 +200,10 @@ export function SortableEntityGrid({
 
 			gridBoundsRef.current = { x: gridX, y: gridY, width: gridWidth, height: gridHeight };
 
-			// In horizontal layout: col = floor(index / maxRows), row = index % maxRows
+			// In horizontal layout: col = floor(index / rows), row = index % rows
 			sortedEntities.forEach((entity, index) => {
-				const col = Math.floor(index / maxRows);
-				const row = index % maxRows;
+				const col = Math.floor(index / rows);
+				const row = index % rows;
 				const x = gridX + col * (BUBBLE_WIDTH + COLUMN_GAP);
 				const y = gridY + row * (BUBBLE_HEIGHT + ROW_GAP);
 				registerDropZone(entity.id, {
@@ -201,7 +214,7 @@ export function SortableEntityGrid({
 				});
 			});
 		});
-	}, [sortedEntities, dropZonesDisabled, maxRows]);
+	}, [sortedEntities, dropZonesDisabled, rows]);
 
 	// Register drop zones and remeasure callback
 	const gridCallbackId = `grid-${type}`;
@@ -403,7 +416,7 @@ export function SortableEntityGrid({
 			}
 
 			if (outcome.kind === 'reorder') {
-				void reorderEntitiesByIds(type, outcome.orderedIds, maxRows);
+				void reorderEntitiesByIds(type, outcome.orderedIds, rows);
 			}
 
 			if (draggedEntity) {
@@ -412,7 +425,7 @@ export function SortableEntityGrid({
 		},
 		[
 			type,
-			maxRows,
+			rows,
 			onDragEnd,
 			reorderEntitiesByIds,
 			hoveredIdShared,
@@ -464,7 +477,10 @@ export function SortableEntityGrid({
 							testID={`section-scroll-${type}`}
 							horizontal
 							showsHorizontalScrollIndicator={false}
-							contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}
+							contentContainerStyle={{
+								paddingHorizontal: SECTION_PADDING_H,
+								paddingVertical: SECTION_PADDING_V,
+							}}
 							onScrollEndDrag={handleScrollEnd}
 							onMomentumScrollEnd={handleScrollEnd}
 							onLayout={handleScrollViewLayout}
@@ -477,7 +493,7 @@ export function SortableEntityGrid({
 							>
 								<Sortable.Grid
 									data={displayedEntities}
-									rows={maxRows}
+									rows={rows}
 									rowHeight={BUBBLE_HEIGHT}
 									columnGap={COLUMN_GAP}
 									rowGap={ROW_GAP}

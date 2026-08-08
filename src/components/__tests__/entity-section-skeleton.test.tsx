@@ -9,28 +9,37 @@ const PLACEHOLDER_COLUMNS = 5;
 
 describe('EntitySectionSkeleton', () => {
 	it('renders the section title', () => {
-		const { getByText } = render(<EntitySectionSkeleton title="Categories" isEmpty={false} />);
+		const { getByText } = render(<EntitySectionSkeleton title="Categories" entityCount={2} />);
 		expect(getByText('Categories')).toBeTruthy();
 	});
 
 	it('renders a single row of placeholders for a default (maxRows=1) section', () => {
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Savings · Goal" isEmpty={false} />
+			<EntitySectionSkeleton title="Savings · Goal" entityCount={4} />
 		);
 		expect(getAllByTestId('skeleton-bubble')).toHaveLength(PLACEHOLDER_COLUMNS);
 	});
 
-	it('reserves the full maxRows height for a multi-row section (categories, maxRows=3)', () => {
+	it('reserves the full maxRows height once the section fills its row budget', () => {
 		// maxRows=3 => 3 rows of PLACEHOLDER_COLUMNS bubbles each.
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Categories" isEmpty={false} maxRows={3} />
+			<EntitySectionSkeleton title="Categories" entityCount={5} maxRows={3} />
 		);
 		expect(getAllByTestId('skeleton-bubble')).toHaveLength(PLACEHOLDER_COLUMNS * 3);
 	});
 
+	it('reserves only the rows a partially-filled section will use (KII-152)', () => {
+		// Must track resolveGridRows exactly, or the real grid swapping in for the
+		// placeholder shifts everything below it.
+		const { getAllByTestId } = render(
+			<EntitySectionSkeleton title="Categories" entityCount={2} maxRows={3} />
+		);
+		expect(getAllByTestId('skeleton-bubble')).toHaveLength(PLACEHOLDER_COLUMNS * 2);
+	});
+
 	it('mirrors the real empty-section branch with a single placeholder bubble', () => {
 		const { getAllByTestId } = render(
-			<EntitySectionSkeleton title="Categories" isEmpty={true} maxRows={3} />
+			<EntitySectionSkeleton title="Categories" entityCount={0} maxRows={3} />
 		);
 		expect(getAllByTestId('skeleton-bubble')).toHaveLength(1);
 	});

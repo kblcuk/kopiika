@@ -1,7 +1,15 @@
 import { View } from 'react-native';
 
 import { Text } from './text';
-import { BUBBLE_WIDTH, BUBBLE_HEIGHT, COLUMN_GAP, ROW_GAP } from './entity-grid-layout';
+import {
+	BUBBLE_WIDTH,
+	BUBBLE_HEIGHT,
+	COLUMN_GAP,
+	ROW_GAP,
+	SECTION_PADDING_H,
+	SECTION_PADDING_V,
+	resolveGridRows,
+} from './entity-grid-layout';
 
 // Fixed placeholder bubble count per row. The real section scrolls horizontally,
 // so the exact column count only changes off-screen width — it has no bearing on
@@ -12,19 +20,25 @@ const PLACEHOLDER_COLUMNS = 5;
 interface EntitySectionSkeletonProps {
 	title: string;
 	// Empty sections render a single bubble (mirroring the grid's empty branch);
-	// populated sections reserve the full maxRows height. This is the only thing
-	// the real item count affects in the placeholder.
-	isEmpty: boolean;
+	// populated sections reserve however many rows the real grid will ask for.
+	// This is the only thing the real item count affects in the placeholder.
+	entityCount: number;
 	maxRows?: number;
 }
 
 /**
  * Static placeholder for a deferred entity section. Mirrors SortableEntityGrid's
- * title divider and reserves the same footprint (BUBBLE_HEIGHT × maxRows rows +
- * matching padding) so the real grid swaps in without a layout jump.
+ * title divider and reserves the same footprint (BUBBLE_HEIGHT × resolveGridRows
+ * rows + matching padding) so the real grid swaps in without a layout jump.
  * Deliberately cheap: no gestures, no reanimated, no store subscription.
  */
-export function EntitySectionSkeleton({ title, isEmpty, maxRows = 1 }: EntitySectionSkeletonProps) {
+export function EntitySectionSkeleton({
+	title,
+	entityCount,
+	maxRows = 1,
+}: EntitySectionSkeletonProps) {
+	const rows = resolveGridRows({ entityCount, maxRows });
+
 	return (
 		<View className="overflow-visible">
 			{/* Title divider — mirrors SortableEntityGrid, including the ~26px tall
@@ -37,7 +51,7 @@ export function EntitySectionSkeleton({ title, isEmpty, maxRows = 1 }: EntitySec
 				<View className="h-px flex-1 bg-paper-300" />
 			</View>
 
-			{isEmpty ? (
+			{entityCount === 0 ? (
 				// Mirrors the real empty branch: a bare `flex-row px-4` row with a
 				// single placeholder bubble, no scroll-content padding.
 				<View className="flex-row px-4">
@@ -49,8 +63,13 @@ export function EntitySectionSkeleton({ title, isEmpty, maxRows = 1 }: EntitySec
 				</View>
 			) : (
 				// Placeholder rows — same padding as the grid's scroll content.
-				<View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
-					{Array.from({ length: maxRows }).map((_, r) => (
+				<View
+					style={{
+						paddingHorizontal: SECTION_PADDING_H,
+						paddingVertical: SECTION_PADDING_V,
+					}}
+				>
+					{Array.from({ length: rows }).map((_, r) => (
 						<View
 							key={r}
 							className="flex-row"
