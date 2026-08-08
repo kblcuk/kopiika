@@ -2,7 +2,7 @@ import type { EntityDraft } from '@/src/types';
 
 export type DateFormat = 'YYYY-MM-DD' | 'DD.MM.YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
 
-export type AmountMapping =
+type AmountMapping =
 	| { kind: 'signed'; column: number }
 	| { kind: 'debitCredit'; debitColumn: number; creditColumn: number };
 
