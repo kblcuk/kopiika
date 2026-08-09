@@ -185,38 +185,75 @@ export const TransactionRow = memo(function TransactionRow({
 	const confirmTextClass = isUnconfirmed ? 'text-warning' : 'text-info';
 
 	const rowContent = (
-		<View className={`px-5 py-3 ${rowBg}`}>
-			{/* From row: icon + name + amount */}
-			<View className="flex-row items-center">
-				{/* Icon rail stretches to the row's full height. The two flex-1
-				    siblings split the leftover space evenly, which keeps the bubble
-				    centered exactly as before while the lower one doubles as the
-				    connector — so the line still starts at the bubble's bottom edge
-				    however tall the meta column grows (Confirm pill, due date). */}
-				<View className="mr-2 w-8 items-center self-stretch">
-					<View className="flex-1" />
-					<View
-						className="h-8 w-8 items-center justify-center rounded-full"
-						style={{ backgroundColor: fromColors?.bgColor ?? colors.paper['200'] }}
-					>
-						<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-					</View>
-					<View className="w-0.5 flex-1 bg-paper-300" />
-				</View>
-				<Text className="flex-1 font-sans-medium text-base text-ink" numberOfLines={1}>
-					{fromLabel}
-				</Text>
-				<View className="ml-3 items-end">
-					<View className="flex-row items-center gap-1" style={{ marginBottom: 2 }}>
-						{transaction.series_id && (
-							<Repeat
-								size={12}
-								color={isUnconfirmed ? colors.warning.DEFAULT : colors.info.DEFAULT}
+		<View className={`flex-row px-5 py-3 ${rowBg}`}>
+			{/* Left column: the transaction's story, from -> to -> note */}
+			<View className="flex-1">
+				{/* From row: icon + name */}
+				<View className="flex-row items-center">
+					{/* Icon rail stretches to the row's full height. The two flex-1
+					    siblings split the leftover space evenly, which keeps the bubble
+					    centered while the lower one doubles as the connector, so the line
+					    starts at the bubble's bottom edge even when the label's line box
+					    is taller than the bubble at large accessibility text sizes. */}
+					<View className="mr-2 w-8 items-center self-stretch">
+						<View className="flex-1" />
+						<View
+							className="h-8 w-8 items-center justify-center rounded-full"
+							style={{ backgroundColor: fromColors?.bgColor ?? colors.paper['200'] }}
+						>
+							<FromIcon
+								size={16}
+								color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR}
 							/>
-						)}
-						{isUnconfirmed && <CircleAlert size={12} color={colors.warning.DEFAULT} />}
-						{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
+						</View>
+						<View className="w-0.5 flex-1 bg-paper-300" />
 					</View>
+					<Text className="flex-1 font-sans-medium text-base text-ink" numberOfLines={1}>
+						{fromLabel}
+					</Text>
+				</View>
+
+				{/* Gap segment of the connector; the same w-8 box as the icon rails
+				    keeps it centered on both bubbles without a magic offset. */}
+				<View className="w-8 items-center">
+					<View className="h-2 w-0.5 bg-paper-300" />
+				</View>
+
+				{/* To row: icon + name */}
+				<View className="flex-row items-center">
+					<View
+						className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+						style={{ backgroundColor: toColors?.bgColor ?? colors.paper['200'] }}
+					>
+						<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+					</View>
+					<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
+						{toLabel}
+					</Text>
+				</View>
+
+				{/* Note on its own row */}
+				{transaction.note && (
+					<Text className="mt-1 pl-10 font-sans text-sm text-ink-muted" numberOfLines={3}>
+						{transaction.note}
+					</Text>
+				)}
+			</View>
+
+			{/* Right column: amount and status. Sized independently of the story, so
+			    the Confirm pill and the due date stack into the space beside the To
+			    row instead of stretching the From row and pushing the story apart. */}
+			<View className="ml-3 items-end">
+				{/* h-8 matches the bubble, lining the amount up with the From row */}
+				<View className="h-8 flex-row items-center gap-1">
+					{transaction.series_id && (
+						<Repeat
+							size={12}
+							color={isUnconfirmed ? colors.warning.DEFAULT : colors.info.DEFAULT}
+						/>
+					)}
+					{isUnconfirmed && <CircleAlert size={12} color={colors.warning.DEFAULT} />}
+					{isUpcoming && <Clock size={12} color={colors.info.DEFAULT} />}
 					<Text
 						className={`font-sans-semibold text-base ${isUnconfirmed ? 'text-warning' : isUpcoming ? 'text-info' : 'text-ink'}`}
 					>
@@ -225,61 +262,35 @@ export const TransactionRow = memo(function TransactionRow({
 							{getCurrencySymbol(transaction.currency)}
 						</Text>
 					</Text>
-
-					{/* Confirm pill: shown when due (unconfirmed) or ahead of schedule (upcoming) */}
-					{showConfirmPill && (
-						<GestureDetector gesture={confirmPillGesture}>
-							<View
-								accessibilityRole="button"
-								className={`mt-1 flex-row items-center gap-1 rounded-full px-2 py-0.5 ${confirmPillClass}`}
-								testID={`confirm-transaction-${transaction.id}`}
-							>
-								<CircleCheck size={11} color={confirmTone} />
-								<Text className={`font-sans-semibold text-xs ${confirmTextClass}`}>
-									Confirm
-								</Text>
-							</View>
-						</GestureDetector>
-					)}
-
-					{/* Scheduled date for upcoming transactions */}
-					{isUpcoming && (
-						<Text className="mt-1 pl-10 font-sans text-xs text-info">
-							{new Date(transaction.timestamp).toLocaleDateString(undefined, {
-								weekday: 'short',
-								month: 'short',
-								day: 'numeric',
-							})}
-						</Text>
-					)}
 				</View>
-			</View>
 
-			{/* Gap segment of the connector; the same w-8 box as the icon rails
-			    keeps it centered on both bubbles without a magic offset. */}
-			<View className="w-8 items-center">
-				<View className="h-2 w-0.5 bg-paper-300" />
-			</View>
+				{/* Confirm pill: shown when due (unconfirmed) or ahead of schedule (upcoming) */}
+				{showConfirmPill && (
+					<GestureDetector gesture={confirmPillGesture}>
+						<View
+							accessibilityRole="button"
+							className={`mt-1 flex-row items-center gap-1 rounded-full px-2 py-0.5 ${confirmPillClass}`}
+							testID={`confirm-transaction-${transaction.id}`}
+						>
+							<CircleCheck size={11} color={confirmTone} />
+							<Text className={`font-sans-semibold text-xs ${confirmTextClass}`}>
+								Confirm
+							</Text>
+						</View>
+					</GestureDetector>
+				)}
 
-			{/* To row: icon + name */}
-			<View className="flex-row items-center">
-				<View
-					className="mr-2 h-8 w-8 items-center justify-center rounded-full"
-					style={{ backgroundColor: toColors?.bgColor ?? colors.paper['200'] }}
-				>
-					<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
-				</View>
-				<Text className="flex-1 font-sans text-base text-ink-light" numberOfLines={1}>
-					{toLabel}
-				</Text>
+				{/* Scheduled date for upcoming transactions */}
+				{isUpcoming && (
+					<Text className="mt-1 font-sans text-xs text-info">
+						{new Date(transaction.timestamp).toLocaleDateString(undefined, {
+							weekday: 'short',
+							month: 'short',
+							day: 'numeric',
+						})}
+					</Text>
+				)}
 			</View>
-
-			{/* Note on its own row */}
-			{transaction.note && (
-				<Text className="mt-1 pl-10 font-sans text-sm text-ink-muted" numberOfLines={3}>
-					{transaction.note}
-				</Text>
-			)}
 		</View>
 	);
 
