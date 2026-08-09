@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.31](https://codeberg.org/kblcuk/kopiika/compare/v0.3.30...v0.3.31) (2026-08-09)
+
+
+### Features
+
+* **components:** add DateQuickPresets chip row (KII-160) ([52b5be4](https://codeberg.org/kblcuk/kopiika/commit/52b5be4e548945c8fb0c959c985134089d105fa2))
+* **transaction:** add duration presets to the recurrence end date (KII-160) ([ba64848](https://codeberg.org/kblcuk/kopiika/commit/ba648488a5f518cf3b277c693181afe989e55ed1))
+* **transaction:** add Today/Yesterday date presets (KII-160) ([e475ea2](https://codeberg.org/kblcuk/kopiika/commit/e475ea2672d14eaacbc8bf339822f5f64559c78d))
+
+
+### Bug Fixes
+
+* **history:** Anchor the transaction connector to the From bubble ([7c7c3ac](https://codeberg.org/kblcuk/kopiika/commit/7c7c3ac20b85032e49608e744c11f9c421b6bc0a))
+* **transaction:** stop memoizing the clock-reading date presets (KII-160) ([4e2b559](https://codeberg.org/kblcuk/kopiika/commit/4e2b5591196a6d06fbe389809620c23d060377f1))
+
 ## [0.3.30](https://codeberg.org/kblcuk/kopiika/compare/v0.3.29...v0.3.30) (2026-08-08)
 
 
