@@ -7,6 +7,7 @@ import {
 	getAmount,
 	launchAppFast,
 	tapUntilGone,
+	tapUntilText,
 	tapUntilVisible,
 } from '../support/helpers';
 import { TestIDs } from '../support/test-ids';
@@ -133,6 +134,49 @@ describe('Transactions — quick add', () => {
 		await expect(
 			element(by.text('To').withAncestor(by.id(TestIDs.transaction.toButton)))
 		).toBeVisible();
+
+		await tapUntilGone(
+			by.id(TestIDs.transaction.cancelButton),
+			by.id(TestIDs.transaction.amountInput)
+		);
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.not.toExist()
+			.withTimeout(5000);
+	});
+
+	// The saved timestamps are covered exhaustively in transaction-modal.test.tsx.
+	// What only a device can show is whether the chips are actually TAPPABLE: they
+	// sit directly beneath a native compact DateTimePicker on iOS, and native
+	// picker views have a history of swallowing neighbouring touches. The date
+	// label flipping is the signal — a swallowed tap leaves it on "Today".
+	it('date presets: Yesterday is tappable next to the native picker', async () => {
+		await element(by.id(TestIDs.addTransactionButton)).tap();
+
+		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+			.toBeVisible()
+			.withTimeout(5000);
+
+		// The date field sits below the fold in the form.
+		await element(by.id(TestIDs.transaction.formScroll)).scrollTo('bottom');
+		await waitFor(element(by.id(TestIDs.transaction.dateDisplay)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await expect(element(by.id(TestIDs.transaction.dateDisplay))).toHaveText('Today');
+
+		// tapUntilText rather than a bare tap: sync is off suite-wide (the home
+		// screen beneath this modal never idles, so it cannot be re-enabled here),
+		// which means a tap fired before the scrolled-in row settles is dropped.
+		// Retrying is safe because the chips are a selection, not a toggle.
+		await tapUntilText(
+			by.id(TestIDs.transaction.datePreset('yesterday')),
+			by.id(TestIDs.transaction.dateDisplay),
+			'Yesterday'
+		);
+		await tapUntilText(
+			by.id(TestIDs.transaction.datePreset('today')),
+			by.id(TestIDs.transaction.dateDisplay),
+			'Today'
+		);
 
 		await tapUntilGone(
 			by.id(TestIDs.transaction.cancelButton),
