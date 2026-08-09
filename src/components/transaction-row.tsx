@@ -188,11 +188,20 @@ export const TransactionRow = memo(function TransactionRow({
 		<View className={`px-5 py-3 ${rowBg}`}>
 			{/* From row: icon + name + amount */}
 			<View className="flex-row items-center">
-				<View
-					className="mr-2 h-8 w-8 items-center justify-center rounded-full"
-					style={{ backgroundColor: fromColors?.bgColor ?? '#EBE3D5' }}
-				>
-					<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+				{/* Icon rail stretches to the row's full height. The two flex-1
+				    siblings split the leftover space evenly, which keeps the bubble
+				    centered exactly as before while the lower one doubles as the
+				    connector — so the line still starts at the bubble's bottom edge
+				    however tall the meta column grows (Confirm pill, due date). */}
+				<View className="mr-2 w-8 items-center self-stretch">
+					<View className="flex-1" />
+					<View
+						className="h-8 w-8 items-center justify-center rounded-full"
+						style={{ backgroundColor: fromColors?.bgColor ?? colors.paper['200'] }}
+					>
+						<FromIcon size={16} color={fromColors?.iconColor ?? FALLBACK_ICON_COLOR} />
+					</View>
+					<View className="w-0.5 flex-1 bg-paper-300" />
 				</View>
 				<Text className="flex-1 font-sans-medium text-base text-ink" numberOfLines={1}>
 					{fromLabel}
@@ -246,14 +255,17 @@ export const TransactionRow = memo(function TransactionRow({
 				</View>
 			</View>
 
-			{/* Vertical connector line, centered under From icon */}
-			<View className="ml-4 h-2 w-0.5 bg-paper-300" />
+			{/* Gap segment of the connector; the same w-8 box as the icon rails
+			    keeps it centered on both bubbles without a magic offset. */}
+			<View className="w-8 items-center">
+				<View className="h-2 w-0.5 bg-paper-300" />
+			</View>
 
 			{/* To row: icon + name */}
 			<View className="flex-row items-center">
 				<View
 					className="mr-2 h-8 w-8 items-center justify-center rounded-full"
-					style={{ backgroundColor: toColors?.bgColor ?? '#EBE3D5' }}
+					style={{ backgroundColor: toColors?.bgColor ?? colors.paper['200'] }}
 				>
 					<ToIcon size={16} color={toColors?.iconColor ?? FALLBACK_ICON_COLOR} />
 				</View>
