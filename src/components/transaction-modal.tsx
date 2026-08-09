@@ -349,7 +349,13 @@ export function TransactionModal({
 	// time-of-day anyway (`normalizeCreateTimestamp`), but the edit path saves
 	// `selectedDate.getTime()` raw — without this, tapping "Yesterday" on an
 	// existing transaction would silently move its clock time too.
-	const datePresets = useMemo((): DatePreset[] => {
+	//
+	// Deliberately NOT memoized: it reads the clock, and `formatDateDisplay`
+	// recomputes on every render. Memoizing on `selectedDate` would let a modal
+	// left open across midnight show "Today" selected while the label beside it
+	// already reads "Yesterday". Building two objects per render is cheaper than
+	// that inconsistency.
+	const datePresets = ((): DatePreset[] => {
 		const now = new Date();
 		const today = new Date(
 			now.getFullYear(),
@@ -364,7 +370,7 @@ export function TransactionModal({
 			{ key: 'today', label: 'Today', date: today },
 			{ key: 'yesterday', label: 'Yesterday', date: shiftCivilDate(today, { days: -1 }) },
 		];
-	}, [selectedDate]);
+	})();
 
 	// Duration presets, not calendar days: the until-date's real question is how
 	// long the series should run, measured from the transaction date.
