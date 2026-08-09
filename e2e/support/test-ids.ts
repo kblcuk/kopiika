@@ -31,6 +31,7 @@ export const TestIDs = {
 		noteInput: 'transaction-note-input',
 		dateDisplay: 'transaction-date-display',
 		datePreset: (key: 'today' | 'yesterday') => `transaction-date-preset-${key}`,
+		repeatEndPreset: (key: '1m' | '6m' | '1y') => `transaction-repeat-end-preset-${key}`,
 		suggestedAmountButton: 'transaction-suggested-amount-button',
 		splitToggleButton: 'split-toggle-button',
 		splitAddButton: 'split-add-button',

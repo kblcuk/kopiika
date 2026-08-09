@@ -257,6 +257,71 @@ describe('TransactionModal', () => {
 				})
 			);
 		});
+
+		it('+1 year reads as selected on entering "Until date", matching the seeded default', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('repeat-toggle'));
+			fireEvent.press(getByTestId('repeat-end-until'));
+
+			expect(
+				getByTestId('transaction-repeat-end-preset-1y').props.accessibilityState.selected
+			).toBe(true);
+			expect(
+				getByTestId('transaction-repeat-end-preset-6m').props.accessibilityState.selected
+			).toBe(false);
+		});
+
+		it('+6 months sets the end date six months out from the transaction date', () => {
+			const addRecurringSpy = jest.fn();
+			useStore.setState({ addRecurringTransaction: addRecurringSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '20');
+			fireEvent.press(getByTestId('repeat-toggle'));
+			fireEvent.press(getByTestId('repeat-end-until'));
+			fireEvent.press(getByTestId('transaction-repeat-end-preset-6m'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			// fixedNow is 2026-01-15, so six months out is 2026-07-15.
+			const sixMonthsOut = new Date(fixedNow);
+			sixMonthsOut.setMonth(sixMonthsOut.getMonth() + 6);
+
+			expect(addRecurringSpy).toHaveBeenCalledWith(
+				expect.any(Object),
+				expect.objectContaining({ endDate: sixMonthsOut.getTime() })
+			);
+		});
+
+		it('hides the presets when the end mode is not "until"', () => {
+			const { getByTestId, queryByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('repeat-toggle'));
+
+			expect(queryByTestId('transaction-repeat-end-preset-1y')).toBeNull();
+		});
 	});
 
 	describe('Transaction Creation', () => {

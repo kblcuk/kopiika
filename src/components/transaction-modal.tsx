@@ -321,9 +321,10 @@ export function TransactionModal({
 	const handleSelectRepeatEndMode = (mode: 'never' | 'until' | 'count') => {
 		setRepeatEndMode(mode);
 		if (mode === 'until' && !repeatEndDate) {
-			const seeded = new Date(selectedDate);
-			seeded.setFullYear(seeded.getFullYear() + 1);
-			setRepeatEndDate(seeded);
+			// Seed through `shiftCivilDate` so the default lands on exactly the value
+			// the "+1 year" chip computes — `setFullYear` would turn Feb 29 into
+			// Mar 1 and leave the seeded default with no chip selected.
+			setRepeatEndDate(shiftCivilDate(selectedDate, { years: 1 }));
 		} else if (mode === 'count' && !repeatEndCount) {
 			setRepeatEndCount('12');
 		}
@@ -363,6 +364,17 @@ export function TransactionModal({
 			{ key: 'yesterday', label: 'Yesterday', date: shiftCivilDate(today, { days: -1 }) },
 		];
 	}, [selectedDate]);
+
+	// Duration presets, not calendar days: the until-date's real question is how
+	// long the series should run, measured from the transaction date.
+	const repeatEndPresets = useMemo(
+		(): DatePreset[] => [
+			{ key: '1m', label: '+1 month', date: shiftCivilDate(selectedDate, { months: 1 }) },
+			{ key: '6m', label: '+6 months', date: shiftCivilDate(selectedDate, { months: 6 }) },
+			{ key: '1y', label: '+1 year', date: shiftCivilDate(selectedDate, { years: 1 }) },
+		],
+		[selectedDate]
+	);
 
 	// ── Split mode handlers ───────────────────────────────────────────────────
 
@@ -1398,6 +1410,15 @@ export function TransactionModal({
 
 								{repeatEndMode === 'until' && (
 									<View className="mb-4">
+										{/* `repeatEndDate ?? selectedDate` leaves every chip
+										    unselected when no end date is set: all three presets
+										    are strictly after the transaction date. */}
+										<DateQuickPresets
+											options={repeatEndPresets}
+											value={repeatEndDate ?? selectedDate}
+											onSelect={setRepeatEndDate}
+											testIDPrefix="transaction-repeat-end-preset"
+										/>
 										{Platform.OS === 'ios' ? (
 											<DateTimePicker
 												value={repeatEndDate ?? new Date()}
