@@ -3007,4 +3007,121 @@ describe('TransactionModal', () => {
 			expect(input.props.value).toBe('24.42');
 		});
 	});
+
+	describe('Date quick presets', () => {
+		it('tapping Yesterday saves the previous civil day', async () => {
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '20');
+			fireEvent.press(getByTestId('transaction-date-preset-yesterday'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => expect(batchSpy).toHaveBeenCalled());
+
+			// Yesterday relative to the frozen clock, computed the same way the
+			// component does — via local components, so the assertion holds in any
+			// runner timezone.
+			const expected = new Date(fixedNow);
+			expected.setDate(expected.getDate() - 1);
+
+			const saved = new Date(batchSpy.mock.calls[0][0][0].timestamp);
+			expect(saved.getFullYear()).toBe(expected.getFullYear());
+			expect(saved.getMonth()).toBe(expected.getMonth());
+			expect(saved.getDate()).toBe(expected.getDate());
+		});
+
+		it('Today is selected by default and Yesterday is not', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			expect(
+				getByTestId('transaction-date-preset-today').props.accessibilityState.selected
+			).toBe(true);
+			expect(
+				getByTestId('transaction-date-preset-yesterday').props.accessibilityState.selected
+			).toBe(false);
+		});
+
+		it('selection follows the tapped preset', () => {
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			fireEvent.press(getByTestId('transaction-date-preset-yesterday'));
+
+			expect(
+				getByTestId('transaction-date-preset-yesterday').props.accessibilityState.selected
+			).toBe(true);
+			expect(
+				getByTestId('transaction-date-preset-today').props.accessibilityState.selected
+			).toBe(false);
+			// Asserted through the testID, not getByText('Yesterday') — the chip
+			// carries that same label, so a text query would match two elements.
+			expect(getByTestId('transaction-date-display').props.children).toBe('Yesterday');
+		});
+
+		it('preserves time-of-day when editing an existing transaction', async () => {
+			// 09:17:33 on a day well before the frozen clock, so neither preset is
+			// selected on open and the tap is an unambiguous move to yesterday.
+			const existingTransaction = {
+				id: 'txn-old',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 25000,
+				currency: 'USD',
+				timestamp: new Date(2025, 10, 4, 9, 17, 33, 0).getTime(),
+			};
+			const updateTransactionSpy = jest.fn();
+			useStore.setState({ updateTransaction: updateTransactionSpy });
+
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+					existingTransaction={existingTransaction}
+				/>
+			);
+
+			fireEvent.press(getByTestId('transaction-date-preset-yesterday'));
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => expect(updateTransactionSpy).toHaveBeenCalled());
+
+			const [, updates] = updateTransactionSpy.mock.calls[0];
+			const saved = new Date(updates.timestamp);
+			const expected = new Date(fixedNow);
+			expected.setDate(expected.getDate() - 1);
+
+			expect(saved.getDate()).toBe(expected.getDate());
+			// The edit path saves `selectedDate.getTime()` raw, so the row's own
+			// 09:17:33 must survive the tap rather than being reset to midnight or
+			// to the current clock time.
+			expect(saved.getHours()).toBe(9);
+			expect(saved.getMinutes()).toBe(17);
+			expect(saved.getSeconds()).toBe(33);
+		});
+	});
 });

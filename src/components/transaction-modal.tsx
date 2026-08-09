@@ -47,6 +47,8 @@ import {
 	normalizeCreateTimestamp,
 } from '@/src/utils/transaction-builder';
 import { generateId } from '@/src/utils/ids';
+import { DateQuickPresets, type DatePreset } from './date-quick-presets';
+import { shiftCivilDate } from '@/src/utils/date-shift';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
@@ -339,6 +341,28 @@ export function TransactionModal({
 			day: 'numeric',
 		});
 	};
+
+	// Preset dates carry `selectedDate`'s time-of-day onto the target civil day
+	// rather than starting from a bare `new Date()`. The create path normalizes
+	// time-of-day anyway (`normalizeCreateTimestamp`), but the edit path saves
+	// `selectedDate.getTime()` raw — without this, tapping "Yesterday" on an
+	// existing transaction would silently move its clock time too.
+	const datePresets = useMemo((): DatePreset[] => {
+		const now = new Date();
+		const today = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+			selectedDate.getHours(),
+			selectedDate.getMinutes(),
+			selectedDate.getSeconds(),
+			selectedDate.getMilliseconds()
+		);
+		return [
+			{ key: 'today', label: 'Today', date: today },
+			{ key: 'yesterday', label: 'Yesterday', date: shiftCivilDate(today, { days: -1 }) },
+		];
+	}, [selectedDate]);
 
 	// ── Split mode handlers ───────────────────────────────────────────────────
 
@@ -990,7 +1014,10 @@ export function TransactionModal({
 						<View className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100">
 							<View className="flex-1 flex-row items-center px-4 py-2">
 								<Calendar size={20} color={colors.ink.muted} />
-								<Text className="ml-3 font-sans text-base text-ink">
+								<Text
+									className="ml-3 font-sans text-base text-ink"
+									testID="transaction-date-display"
+								>
 									{formatDateDisplay(selectedDate)}
 								</Text>
 							</View>
@@ -1009,7 +1036,10 @@ export function TransactionModal({
 								className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-3"
 							>
 								<Calendar size={20} color={colors.ink.muted} />
-								<Text className="ml-3 font-sans text-base text-ink">
+								<Text
+									className="ml-3 font-sans text-base text-ink"
+									testID="transaction-date-display"
+								>
 									{formatDateDisplay(selectedDate)}
 								</Text>
 							</Pressable>
@@ -1023,6 +1053,12 @@ export function TransactionModal({
 							)}
 						</>
 					)}
+					<DateQuickPresets
+						options={datePresets}
+						value={selectedDate}
+						onSelect={setSelectedDate}
+						testIDPrefix="transaction-date-preset"
+					/>
 				</View>
 
 				{/* Fund from savings — show when source is an account with reservations */}

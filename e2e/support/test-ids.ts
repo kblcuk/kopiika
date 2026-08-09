@@ -29,6 +29,8 @@ export const TestIDs = {
 		cancelButton: 'transaction-cancel-button',
 		formScroll: 'transaction-form-scroll',
 		noteInput: 'transaction-note-input',
+		dateDisplay: 'transaction-date-display',
+		datePreset: (key: 'today' | 'yesterday') => `transaction-date-preset-${key}`,
 		suggestedAmountButton: 'transaction-suggested-amount-button',
 		splitToggleButton: 'split-toggle-button',
 		splitAddButton: 'split-add-button',
