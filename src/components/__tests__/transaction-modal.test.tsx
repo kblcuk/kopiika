@@ -3141,9 +3141,25 @@ describe('TransactionModal', () => {
 			expect(
 				getByTestId('transaction-date-preset-today').props.accessibilityState.selected
 			).toBe(false);
-			// Asserted through the testID, not getByText('Yesterday') — the chip
-			// carries that same label, so a text query would match two elements.
-			expect(getByTestId('transaction-date-display').props.children).toBe('Yesterday');
+			// No assertion on the field's own text here: on iOS the native compact
+			// picker IS the field's value, so there is no text of ours to read. The
+			// Android text is `formatFullDate`, covered directly in format.test.ts.
+		});
+
+		it("the date field never repeats the chips' relative wording", () => {
+			const { queryAllByText } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={mockFromEntity}
+					toEntity={mockToEntity}
+					onClose={mockOnClose}
+				/>
+			);
+
+			// Exactly one "Today" in the whole form — the chip. The field printing
+			// it as well is the redundancy this layout removes.
+			expect(queryAllByText('Today')).toHaveLength(1);
+			expect(queryAllByText('Yesterday')).toHaveLength(1);
 		});
 
 		it('preserves time-of-day when editing an existing transaction', async () => {

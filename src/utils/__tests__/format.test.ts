@@ -7,6 +7,7 @@ import {
 	reverseFormatCurrency,
 	parseAmountToMinor,
 	getCurrencySymbol,
+	formatFullDate,
 	DEFAULT_CURRENCY,
 } from '../format';
 
@@ -236,4 +237,32 @@ describe('parseAmountToMinor', () => {
 	// `sanitizeAmountInput` caps decimals to the per-currency max before
 	// `parseAmountToMinor` ever sees the string. A BHD-aware parser would
 	// be a separate refactor — out of scope for KII-120.
+});
+
+describe('formatFullDate', () => {
+	// Locale-dependent output, so these assert the CONTENT rather than an exact
+	// string: the field must always show a real date, never a relative word.
+	test('includes weekday, day, month and year', () => {
+		const formatted = formatFullDate(new Date(2026, 7, 11, 15, 42));
+		expect(formatted).toContain('2026');
+		expect(formatted).toMatch(/11/);
+		expect(formatted).not.toMatch(/today|yesterday/i);
+	});
+
+	test('stays absolute for today and yesterday', () => {
+		// The preset chips name the relative day; the field must not repeat it.
+		const today = new Date();
+		const yesterday = new Date(today);
+		yesterday.setDate(yesterday.getDate() - 1);
+
+		expect(formatFullDate(today)).not.toMatch(/today/i);
+		expect(formatFullDate(yesterday)).not.toMatch(/yesterday/i);
+		expect(formatFullDate(today)).toContain(String(today.getFullYear()));
+	});
+
+	test('distinguishes two adjacent days', () => {
+		const a = formatFullDate(new Date(2026, 7, 11));
+		const b = formatFullDate(new Date(2026, 7, 12));
+		expect(a).not.toBe(b);
+	});
 });

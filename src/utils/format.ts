@@ -73,6 +73,23 @@ export function formatPeriod(period: string): string {
 	return date.toLocaleDateString(void 0, { month: 'long', year: 'numeric' });
 }
 
+/**
+ * A date-field value: weekday, day, month, year in the device locale.
+ *
+ * Deliberately absolute even when the date is today or yesterday. The quick
+ * preset chips beside the field already name the relative day, and the
+ * highlighted chip says it more precisely than the text could — so the field's
+ * job is to supply what the chips cannot: the actual date.
+ */
+export function formatFullDate(date: Date): string {
+	return date.toLocaleDateString(void 0, {
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+	});
+}
+
 // Get progress percentage (can exceed 100% to properly detect overspending)
 export function getProgressPercent(actual: number, planned: number): number {
 	if (planned === 0) return actual > 0 ? 100 : 0;

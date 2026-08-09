@@ -1,4 +1,4 @@
-import { by, element, expect, waitFor } from 'detox';
+import { by, device, element, expect, waitFor } from 'detox';
 
 import {
 	createTransaction,
@@ -7,7 +7,6 @@ import {
 	getAmount,
 	launchAppFast,
 	tapUntilGone,
-	tapUntilText,
 	tapUntilVisible,
 } from '../support/helpers';
 import { TestIDs } from '../support/test-ids';
@@ -144,46 +143,68 @@ describe('Transactions — quick add', () => {
 			.withTimeout(5000);
 	});
 
-	// The saved timestamps are covered exhaustively in transaction-modal.test.tsx.
-	// What only a device can show is whether the chips are actually TAPPABLE: they
-	// sit directly beneath a native compact DateTimePicker on iOS, and native
-	// picker views have a history of swallowing neighbouring touches. The date
-	// label flipping is the signal — a swallowed tap leaves it on "Today".
-	it('date presets: Yesterday is tappable next to the native picker', async () => {
+	// Reads the date the field is actually showing. On iOS the native compact
+	// picker IS the field's value, so we read the picker itself; on Android there
+	// is no inline widget and our formatted text is the value.
+	//
+	// Not asserted via the chips' `selected` accessibility state: iOS updates that
+	// trait lazily after a re-render, so matching on it races the tap.
+	async function readDateValue(): Promise<string> {
+		if (device.getPlatform() === 'ios') {
+			const attrs = (await element(
+				by.type('RNDateTimePicker')
+			).getAttributes()) as unknown as {
+				dateComponents: { year: number; month: number; day: number };
+			};
+			const { year, month, day } = attrs.dateComponents;
+			return `${year}-${month}-${day}`;
+		}
+		const attrs = (await element(
+			by.id(TestIDs.transaction.dateDisplay)
+		).getAttributes()) as unknown as { text: string };
+		return attrs.text;
+	}
+
+	// The saved timestamp is covered exhaustively in transaction-modal.test.tsx.
+	// What only a device can show is that the chip's tap actually lands: it sits
+	// directly beneath a native compact DateTimePicker on iOS, and native picker
+	// views have a history of both obscuring and swallowing neighbouring touches.
+	// Asserting the field's own value — rather than that the chip is merely
+	// present — is what makes this catch a swallowed tap.
+	it('date presets: tapping Yesterday moves the date and Today restores it', async () => {
 		await element(by.id(TestIDs.addTransactionButton)).tap();
 
-		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+		// No entity picking and no typing: the form fits one screen while the
+		// amount is untouched, so the chips are reachable without a scroll and
+		// without the keyboard covering anything.
+		await waitFor(element(by.id(TestIDs.transaction.dateField)))
 			.toBeVisible()
 			.withTimeout(5000);
 
-		// The date field sits below the fold in the form.
-		await element(by.id(TestIDs.transaction.formScroll)).scrollTo('bottom');
-		await waitFor(element(by.id(TestIDs.transaction.dateDisplay)))
-			.toBeVisible()
-			.withTimeout(5000);
-		await expect(element(by.id(TestIDs.transaction.dateDisplay))).toHaveText('Today');
+		const todayChip = element(by.id(TestIDs.transaction.datePreset('today')));
+		const yesterdayChip = element(by.id(TestIDs.transaction.datePreset('yesterday')));
 
-		// tapUntilText rather than a bare tap: sync is off suite-wide (the home
-		// screen beneath this modal never idles, so it cannot be re-enabled here),
-		// which means a tap fired before the scrolled-in row settles is dropped.
-		// Retrying is safe because the chips are a selection, not a toggle.
-		await tapUntilText(
-			by.id(TestIDs.transaction.datePreset('yesterday')),
-			by.id(TestIDs.transaction.dateDisplay),
-			'Yesterday'
-		);
-		await tapUntilText(
-			by.id(TestIDs.transaction.datePreset('today')),
-			by.id(TestIDs.transaction.dateDisplay),
-			'Today'
-		);
+		const initial = await readDateValue();
+
+		await yesterdayChip.tap();
+		const afterYesterday = await readDateValue();
+		if (afterYesterday === initial) {
+			throw new Error(
+				`Yesterday chip did not move the date: still ${initial}. The tap was ` +
+					'accepted but had no effect — most likely swallowed by the native picker.'
+			);
+		}
+
+		// Back to Today, so the test cannot pass on a field that simply drifted.
+		await todayChip.tap();
+		const afterToday = await readDateValue();
+		if (afterToday !== initial) {
+			throw new Error(`Today chip did not restore the date: ${afterToday} !== ${initial}`);
+		}
 
 		await tapUntilGone(
 			by.id(TestIDs.transaction.cancelButton),
 			by.id(TestIDs.transaction.amountInput)
 		);
-		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
-			.not.toExist()
-			.withTimeout(5000);
 	});
 });

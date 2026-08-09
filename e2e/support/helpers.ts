@@ -144,37 +144,6 @@ export async function tapUntilGone(
 	throw lastError ?? new Error('tapUntilGone: timed out');
 }
 
-// Sibling of tapUntilVisible keyed on TEXT rather than visibility, for controls
-// whose effect is a label change on an already-visible element. Only safe for
-// idempotent taps — re-tapping must be a no-op, as it is for a selection control
-// (a toggle would flip back on the retry).
-export async function tapUntilText(
-	tapMatcher: Detox.NativeMatcher,
-	expectMatcher: Detox.NativeMatcher,
-	text: string,
-	{
-		totalTimeout = 8000,
-		attemptInterval = 600,
-	}: { totalTimeout?: number; attemptInterval?: number } = {}
-) {
-	const deadline = Date.now() + totalTimeout;
-	let lastError: unknown;
-	while (Date.now() < deadline) {
-		try {
-			await element(tapMatcher).tap();
-		} catch (e) {
-			lastError = e;
-		}
-		try {
-			await waitFor(element(expectMatcher)).toHaveText(text).withTimeout(attemptInterval);
-			return;
-		} catch (e) {
-			lastError = e;
-		}
-	}
-	throw lastError ?? new Error(`tapUntilText: timed out waiting for "${text}"`);
-}
-
 // Full [+] button happy path: open modal → pick from → pick to → enter amount → save.
 export async function createTransaction(fromName: string, toName: string, amount: string) {
 	await element(by.id(TestIDs.addTransactionButton)).tap();
@@ -202,6 +171,7 @@ export async function createTransaction(fromName: string, toName: string, amount
 		.withTimeout(5000);
 
 	await element(by.id(TestIDs.transaction.amountInput)).typeText(amount);
+
 	await element(by.id(TestIDs.transaction.saveButton)).tap();
 
 	// Wait for the modal to dismiss

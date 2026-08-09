@@ -29,6 +29,9 @@ export const TestIDs = {
 		cancelButton: 'transaction-cancel-button',
 		formScroll: 'transaction-form-scroll',
 		noteInput: 'transaction-note-input',
+		dateField: 'transaction-date-field',
+		// Android only: on iOS the native compact picker is the field's value, so
+		// there is no text of ours to read.
 		dateDisplay: 'transaction-date-display',
 		datePreset: (key: 'today' | 'yesterday') => `transaction-date-preset-${key}`,
 		repeatEndPreset: (key: '1m' | '6m' | '1y') => `transaction-repeat-end-preset-${key}`,

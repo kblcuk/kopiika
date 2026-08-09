@@ -26,6 +26,7 @@ import {
 	formatAmountForInput,
 	parseAmountToMinor,
 	DEFAULT_CURRENCY,
+	formatFullDate,
 	getCurrencySymbol,
 } from '@/src/utils/format';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
@@ -48,7 +49,7 @@ import {
 } from '@/src/utils/transaction-builder';
 import { generateId } from '@/src/utils/ids';
 import { DateQuickPresets, type DatePreset } from './date-quick-presets';
-import { isSameCivilDay, shiftCivilDate } from '@/src/utils/date-shift';
+import { shiftCivilDate } from '@/src/utils/date-shift';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
@@ -330,31 +331,16 @@ export function TransactionModal({
 		}
 	};
 
-	// Shares `isSameCivilDay` with the preset chips deliberately: the label and the
-	// chip selection must agree on what "Today" means, so they read the same
-	// predicate rather than two look-alike implementations.
-	const formatDateDisplay = (date: Date): string => {
-		const today = new Date();
-		if (isSameCivilDay(date, today)) return 'Today';
-		if (isSameCivilDay(date, shiftCivilDate(today, { days: -1 }))) return 'Yesterday';
-		return date.toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-		});
-	};
-
 	// Preset dates carry `selectedDate`'s time-of-day onto the target civil day
 	// rather than starting from a bare `new Date()`. The create path normalizes
 	// time-of-day anyway (`normalizeCreateTimestamp`), but the edit path saves
 	// `selectedDate.getTime()` raw — without this, tapping "Yesterday" on an
 	// existing transaction would silently move its clock time too.
 	//
-	// Deliberately NOT memoized: it reads the clock, and `formatDateDisplay`
-	// recomputes on every render. Memoizing on `selectedDate` would let a modal
-	// left open across midnight show "Today" selected while the label beside it
-	// already reads "Yesterday". Building two objects per render is cheaper than
-	// that inconsistency.
+	// Deliberately NOT memoized: it reads the clock. Memoizing on `selectedDate`
+	// would let a modal left open across midnight keep highlighting "Today" on
+	// what is now yesterday. Building two objects per render is cheaper than
+	// that staleness.
 	const datePresets = ((): DatePreset[] => {
 		const now = new Date();
 		const today = new Date(
@@ -1029,37 +1015,41 @@ export function TransactionModal({
 							<Text className="ml-2 font-sans text-xs text-info">Scheduled</Text>
 						)}
 					</View>
+					{/* One date per row. On iOS the native compact picker IS the value —
+					    rendering our own formatted text beside it printed the same date
+					    twice. Android has no inline widget, so there the text is the
+					    value and tapping it opens the dialog. Neither says "Today": the
+					    chips below name the relative day, and the highlighted chip says
+					    it more precisely than the text could. */}
 					{Platform.OS === 'ios' ? (
-						<View className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100">
-							<View className="flex-1 flex-row items-center px-4 py-2">
-								<Calendar size={20} color={colors.ink.muted} />
-								<Text
-									className="ml-3 font-sans text-base text-ink"
-									testID="transaction-date-display"
-								>
-									{formatDateDisplay(selectedDate)}
-								</Text>
+						<View
+							className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-2"
+							testID="transaction-date-field"
+						>
+							<Calendar size={20} color={colors.ink.muted} />
+							<View className="ml-2">
+								<DateTimePicker
+									value={selectedDate}
+									mode="date"
+									display="compact"
+									onChange={handleDateChange}
+									accentColor={colors.accent.deeper}
+								/>
 							</View>
-							<DateTimePicker
-								value={selectedDate}
-								mode="date"
-								display="compact"
-								onChange={handleDateChange}
-								accentColor={colors.accent.deeper}
-							/>
 						</View>
 					) : (
 						<>
 							<Pressable
 								onPress={() => setShowDatePicker(true)}
 								className="flex-row items-center rounded-lg border border-paper-300 bg-paper-100 px-4 py-3"
+								testID="transaction-date-field"
 							>
 								<Calendar size={20} color={colors.ink.muted} />
 								<Text
 									className="ml-3 font-sans text-base text-ink"
 									testID="transaction-date-display"
 								>
-									{formatDateDisplay(selectedDate)}
+									{formatFullDate(selectedDate)}
 								</Text>
 							</Pressable>
 							{showDatePicker && (
