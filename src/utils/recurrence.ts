@@ -1,4 +1,5 @@
 import type { RecurrenceRule } from '@/src/types/recurrence';
+import { shiftCivilDate } from '@/src/utils/date-shift';
 
 /**
  * Local calendar day of a timestamp as `YYYY-MM-DD`. This is the canonical
@@ -61,44 +62,22 @@ export function civilDateToTimestamp(civilDate: string): number {
 
 /**
  * Add `n` recurrence intervals to a base timestamp, preserving the base's local
- * time-of-day. Uses the local component constructor `new Date(y, m, d, h, …)`
- * so the result is the target CIVIL date at the same wall-clock time — DST-safe
- * by construction (no epoch-offset mutation that could drift an hour across a
- * DST boundary). Monthly/yearly clamp the day to the target month's last day
- * (Jan 31 → Feb 28), always derived from the base day to avoid cumulative drift.
+ * time-of-day. Delegates to `shiftCivilDate`, which is DST-safe by construction
+ * and clamps monthly/yearly results to the target month's last day
+ * (Jan 31 → Feb 28) from the base day, so drift cannot accumulate.
  */
 function addIntervals(baseTimestamp: number, n: number, rule: RecurrenceRule): number {
 	const base = new Date(baseTimestamp);
-	const y = base.getFullYear();
-	const mon = base.getMonth();
-	const day = base.getDate();
-	const h = base.getHours();
-	const min = base.getMinutes();
-	const s = base.getSeconds();
-	const ms = base.getMilliseconds();
 
 	switch (rule.type) {
 		case 'daily':
-			return new Date(y, mon, day + n, h, min, s, ms).getTime();
+			return shiftCivilDate(base, { days: n }).getTime();
 		case 'weekly':
-			return new Date(y, mon, day + n * 7, h, min, s, ms).getTime();
-		case 'monthly': {
-			const target = new Date(y, mon + n, 1, h, min, s, ms);
-			const maxDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-			return new Date(
-				target.getFullYear(),
-				target.getMonth(),
-				Math.min(day, maxDay),
-				h,
-				min,
-				s,
-				ms
-			).getTime();
-		}
-		case 'yearly': {
-			const maxDay = new Date(y + n, mon + 1, 0).getDate();
-			return new Date(y + n, mon, Math.min(day, maxDay), h, min, s, ms).getTime();
-		}
+			return shiftCivilDate(base, { days: n * 7 }).getTime();
+		case 'monthly':
+			return shiftCivilDate(base, { months: n }).getTime();
+		case 'yearly':
+			return shiftCivilDate(base, { years: n }).getTime();
 		default: {
 			const _exhaustive: never = rule.type as never;
 			throw new Error(`Unsupported recurrence type: ${_exhaustive as string}`);
