@@ -48,7 +48,7 @@ import {
 } from '@/src/utils/transaction-builder';
 import { generateId } from '@/src/utils/ids';
 import { DateQuickPresets, type DatePreset } from './date-quick-presets';
-import { shiftCivilDate } from '@/src/utils/date-shift';
+import { isSameCivilDay, shiftCivilDate } from '@/src/utils/date-shift';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { EntitySelectionSheet } from './entity-selection-sheet';
 import { SavingsFundingSection, type SavingsFundingHandle } from './savings-funding-section';
@@ -330,12 +330,13 @@ export function TransactionModal({
 		}
 	};
 
+	// Shares `isSameCivilDay` with the preset chips deliberately: the label and the
+	// chip selection must agree on what "Today" means, so they read the same
+	// predicate rather than two look-alike implementations.
 	const formatDateDisplay = (date: Date): string => {
 		const today = new Date();
-		const yesterday = new Date(today);
-		yesterday.setDate(yesterday.getDate() - 1);
-		if (date.toDateString() === today.toDateString()) return 'Today';
-		if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+		if (isSameCivilDay(date, today)) return 'Today';
+		if (isSameCivilDay(date, shiftCivilDate(today, { days: -1 }))) return 'Yesterday';
 		return date.toLocaleDateString(undefined, {
 			weekday: 'short',
 			month: 'short',
