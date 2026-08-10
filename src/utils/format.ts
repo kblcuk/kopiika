@@ -1,23 +1,8 @@
+import { CURRENCY_SYMBOLS } from '@/src/constants/currencies';
 import { getCurrencyDecimalPlaces } from './currency-precision';
 import { toMajor, toMinor } from './money';
 
 export const DEFAULT_CURRENCY = 'EUR';
-
-// Map ISO currency codes to their symbols
-const CURRENCY_SYMBOLS: Record<string, string> = {
-	EUR: '€',
-	USD: '$',
-	GBP: '£',
-	UAH: '₴',
-	PLN: 'zł',
-	CZK: 'Kč',
-	SEK: 'kr',
-	NOK: 'kr',
-	DKK: 'kr',
-	CHF: 'CHF',
-	JPY: '¥',
-	CNY: '¥',
-};
 
 // Get a display symbol for a currency code (falls back to the code itself)
 export function getCurrencySymbol(currency: string): string {
