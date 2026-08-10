@@ -25,6 +25,7 @@ import m0020 from './0020_money_to_minor_units.sql';
 import m0021 from './0021_cleanup_legacy_future_occurrences.sql';
 import m0022 from './0022_drop-unused-columns.sql';
 import m0023 from './0023_add-split-id.sql';
+import m0024 from './0024_backfill-split-id.sql';
 
 export default {
 	journal,
@@ -53,5 +54,6 @@ export default {
 		m0021,
 		m0022,
 		m0023,
+		m0024,
 	},
 };
