@@ -80,6 +80,7 @@ export default function HomeScreen() {
 		draggedEntity,
 		setDraggedEntity,
 		toggleIncomeVisible,
+		appCurrency,
 	} = useStore(
 		useShallow((s) => ({
 			isLoading: s.isLoading,
@@ -88,6 +89,7 @@ export default function HomeScreen() {
 			draggedEntity: s.draggedEntity,
 			setDraggedEntity: s.setDraggedEntity,
 			toggleIncomeVisible: s.toggleIncomeVisible,
+			appCurrency: s.appCurrency,
 		}))
 	);
 
@@ -310,7 +312,7 @@ export default function HomeScreen() {
 			edges={[]}
 		>
 			{/* Summary bar */}
-			<SummaryHeader onToggleIncome={handleToggleIncome} />
+			<SummaryHeader currency={appCurrency} onToggleIncome={handleToggleIncome} />
 
 			{/* Empty-state nudge — renders null when not applicable */}
 			<EmptyBoardNudge

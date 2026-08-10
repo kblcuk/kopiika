@@ -62,10 +62,11 @@ export function useSummary(): SummaryData {
 }
 
 interface SummaryHeaderProps {
+	currency: string;
 	onToggleIncome?: () => void;
 }
 
-export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
+export function SummaryHeader({ currency, onToggleIncome }: SummaryHeaderProps) {
 	const { balance, expenses, remaining } = useSummary();
 	const incomeVisible = useStore((state) => state.incomeVisible);
 	const insets = useSafeAreaInsets();
@@ -78,9 +79,9 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 			{/* Main summary row */}
 			<View className="flex-row items-center justify-between px-4 py-2">
 				<View className="flex-1 flex-row justify-between">
-					<SummaryItem label="Balance" value={balance} />
-					<SummaryItem label="Expenses" value={expenses} />
-					<SummaryItem label="Planned" value={remaining} />
+					<SummaryItem label="Balance" value={balance} currency={currency} />
+					<SummaryItem label="Expenses" value={expenses} currency={currency} />
+					<SummaryItem label="Planned" value={remaining} currency={currency} />
 				</View>
 
 				{/* Income toggle button */}
@@ -104,9 +105,10 @@ export function SummaryHeader({ onToggleIncome }: SummaryHeaderProps) {
 interface SummaryItemProps {
 	label: string;
 	value: number;
+	currency: string;
 }
 
-function SummaryItem({ label, value }: SummaryItemProps) {
+function SummaryItem({ label, value, currency }: SummaryItemProps) {
 	const isNegative = value < 0;
 
 	return (
@@ -115,7 +117,7 @@ function SummaryItem({ label, value }: SummaryItemProps) {
 			<Text
 				className={`font-sans-semibold text-base ${isNegative ? 'text-negative' : 'text-ink'}`}
 			>
-				{formatAmount(value)}
+				{formatAmount(value, currency)}
 			</Text>
 		</View>
 	);

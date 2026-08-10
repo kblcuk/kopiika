@@ -215,7 +215,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 										className="font-sans text-xs text-ink-muted"
 										numberOfLines={1}
 									>
-										{formatAmount(entity.latestMarketValue)}
+										{formatAmount(entity.latestMarketValue, entity.currency)}
 									</Text>
 								)
 							) : (
@@ -225,19 +225,23 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 										className="font-sans text-xs text-ink-muted"
 										numberOfLines={1}
 									>
-										{formatAmount(entity.actual + entity.reserved)} total
+										{formatAmount(
+											entity.actual + entity.reserved,
+											entity.currency
+										)}{' '}
+										total
 									</Text>
 								)
 							)
 						) : (
 							<Text className="font-sans text-xs text-ink-muted">
-								{formatAmount(entity.planned)}
+								{formatAmount(entity.planned, entity.currency)}
 							</Text>
 						)}
 						{entity.upcoming !== 0 && (
 							<Text className="font-sans text-xs text-info" numberOfLines={1}>
 								{entity.upcoming > 0 ? '+' : ''}
-								{formatAmount(entity.upcoming)}
+								{formatAmount(entity.upcoming, entity.currency)}
 							</Text>
 						)}
 					</View>

@@ -17,27 +17,27 @@ import {
 
 describe('formatAmount', () => {
 	test('formats positive minor-unit amounts as major decimals', () => {
-		expect(formatAmount(123450)).toBe('1,234.50'); // €1,234.50
-		expect(formatAmount(0)).toBe('0.00');
+		expect(formatAmount(123450, 'EUR')).toBe('1,234.50'); // €1,234.50
+		expect(formatAmount(0, 'EUR')).toBe('0.00');
 	});
 
 	test('formats negative amounts with minus sign', () => {
-		expect(formatAmount(-123450)).toBe('-1,234.50');
+		expect(formatAmount(-123450, 'EUR')).toBe('-1,234.50');
 	});
 
 	test('does not display negative zero', () => {
 		// Minor-unit inputs are exact integers — there's no float "tiny negative"
 		// path in production any more; JS `-0` still normalizes to "0.00".
-		expect(formatAmount(-0)).toBe('0.00');
+		expect(formatAmount(-0, 'EUR')).toBe('0.00');
 	});
 
 	test('coerces non-finite input to 0.00 (defensive — no "NaN" leaking to UI)', () => {
 		// Should never happen in practice (every callsite passes a DB-sourced
 		// integer or `toMinor` result), but a stray NaN must not leak into the
 		// rendered amount.
-		expect(formatAmount(NaN)).toBe('0.00');
-		expect(formatAmount(Infinity)).toBe('0.00');
-		expect(formatAmount(-Infinity)).toBe('0.00');
+		expect(formatAmount(NaN, 'EUR')).toBe('0.00');
+		expect(formatAmount(Infinity, 'EUR')).toBe('0.00');
+		expect(formatAmount(-Infinity, 'EUR')).toBe('0.00');
 	});
 
 	test('handles per-currency zero with the right decimal precision', () => {
@@ -52,29 +52,29 @@ describe('formatAmountForInput', () => {
 	// suitable for putting back into an editable amount input.
 
 	test('preserves whole-major amounts without forced .00', () => {
-		expect(formatAmountForInput(10000)).toBe('100'); // 100 EUR
-		expect(formatAmountForInput(5000)).toBe('50');
-		expect(formatAmountForInput(250000)).toBe('2500');
+		expect(formatAmountForInput(10000, 'EUR')).toBe('100'); // 100 EUR
+		expect(formatAmountForInput(5000, 'EUR')).toBe('50');
+		expect(formatAmountForInput(250000, 'EUR')).toBe('2500');
 	});
 
 	test('keeps fractional cents as decimals', () => {
-		expect(formatAmountForInput(115)).toBe('1.15');
-		expect(formatAmountForInput(8170)).toBe('81.7');
+		expect(formatAmountForInput(115, 'EUR')).toBe('1.15');
+		expect(formatAmountForInput(8170, 'EUR')).toBe('81.7');
 	});
 
 	test('drops thousands grouping so the input stays clean', () => {
 		// formatAmount produces "1,234.50"; the input variant must not group.
-		expect(formatAmountForInput(123450)).toBe('1234.5');
-		expect(formatAmountForInput(1000000)).toBe('10000');
+		expect(formatAmountForInput(123450, 'EUR')).toBe('1234.5');
+		expect(formatAmountForInput(1000000, 'EUR')).toBe('10000');
 	});
 
 	test('handles zero', () => {
-		expect(formatAmountForInput(0)).toBe('0');
+		expect(formatAmountForInput(0, 'EUR')).toBe('0');
 	});
 
 	test('handles negative amounts', () => {
-		expect(formatAmountForInput(-10000)).toBe('-100');
-		expect(formatAmountForInput(-115)).toBe('-1.15');
+		expect(formatAmountForInput(-10000, 'EUR')).toBe('-100');
+		expect(formatAmountForInput(-115, 'EUR')).toBe('-1.15');
 	});
 });
 
@@ -148,6 +148,16 @@ describe('formatAmount with currency precision', () => {
 		// 1234500 minor units = 1234.500 BHD
 		const out = formatAmount(1234500, 'BHD');
 		expect(out).toMatch(/\.500$/);
+	});
+
+	test('renders zero-decimal currencies without a fractional part', () => {
+		// JPY has 0 decimal places, so the stored integer IS the major value.
+		expect(formatAmount(1050, 'JPY')).toBe('1,050');
+		expect(formatAmountForInput(1050, 'JPY')).toBe('1050');
+	});
+
+	test('renders three-decimal currencies with three places', () => {
+		expect(formatAmount(10500, 'BHD')).toBe('10.500');
 	});
 });
 
@@ -224,6 +234,11 @@ describe('parseAmountToMinor', () => {
 
 	test('handles zero-decimal currencies (JPY)', () => {
 		expect(parseAmountToMinor('1234', 'JPY')).toBe(1234);
+	});
+
+	test('parses input at the target currency precision', () => {
+		expect(parseAmountToMinor('10.50', 'EUR')).toBe(1050);
+		expect(parseAmountToMinor('1050', 'JPY')).toBe(1050);
 	});
 
 	test('returns NaN for unparseable input', () => {

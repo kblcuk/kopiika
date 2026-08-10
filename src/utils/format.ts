@@ -11,7 +11,7 @@ export function getCurrencySymbol(currency: string): string {
 
 // KII-120: amounts are stored as integer minor units. formatAmount converts to
 // major at the display boundary; callers pass the raw DB / store value.
-export function formatAmount(amountMinor: number, currency: string = DEFAULT_CURRENCY): string {
+export function formatAmount(amountMinor: number, currency: string): string {
 	const dp = getCurrencyDecimalPlaces(currency);
 	const major = toMajor(amountMinor, currency) || 0; // -0 → 0
 	const absAmount = Math.abs(major);
@@ -28,10 +28,7 @@ export function formatAmount(amountMinor: number, currency: string = DEFAULT_CUR
 // locale decimal separator as formatAmount (so chip-fills agree with user-typed
 // values), but no thousands grouping and no forced trailing zeros — the input
 // keeps the shape the user would have typed themselves.
-export function formatAmountForInput(
-	amountMinor: number,
-	currency: string = DEFAULT_CURRENCY
-): string {
+export function formatAmountForInput(amountMinor: number, currency: string): string {
 	const dp = getCurrencyDecimalPlaces(currency);
 	const major = toMajor(amountMinor, currency) || 0;
 	return new Intl.NumberFormat(void 0, {
@@ -88,8 +85,8 @@ export function isOverspent(actual: number, planned: number): boolean {
 
 // Parse a currency string to a major-unit number, handling both European
 // (1.234,56) and US (1,234.56) formats. Detects the decimal separator from
-// the input pattern rather than relying on locale.
-export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURRENCY) {
+// the input pattern rather than relying on locale or currency.
+export function reverseFormatCurrency(amount: string) {
 	// Check for negative sign
 	const isNegative = amount.trim().startsWith('-');
 
@@ -118,8 +115,8 @@ export function reverseFormatCurrency(amount: string, _currency = DEFAULT_CURREN
 
 // KII-120: convenience helper for the common pattern of parsing user input
 // straight into minor units. Returns NaN if the string can't be parsed.
-export function parseAmountToMinor(input: string, currency: string = DEFAULT_CURRENCY): number {
-	const major = reverseFormatCurrency(input, currency);
+export function parseAmountToMinor(input: string, currency: string): number {
+	const major = reverseFormatCurrency(input);
 	if (!Number.isFinite(major)) return NaN;
 	return toMinor(major, currency);
 }

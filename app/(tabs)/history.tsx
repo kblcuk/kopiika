@@ -148,6 +148,7 @@ export default function HistoryScreen() {
 		marketValueSnapshots,
 		updateMarketValueSnapshot,
 		deleteMarketValueSnapshot,
+		appCurrency,
 	} = useStore(
 		useShallow((state) => ({
 			transactions: state.transactions,
@@ -156,6 +157,7 @@ export default function HistoryScreen() {
 			marketValueSnapshots: state.marketValueSnapshots,
 			updateMarketValueSnapshot: state.updateMarketValueSnapshot,
 			deleteMarketValueSnapshot: state.deleteMarketValueSnapshot,
+			appCurrency: state.appCurrency,
 		}))
 	);
 
@@ -319,7 +321,8 @@ export default function HistoryScreen() {
 			.sort((a, b) => b.date - a.date);
 	}, [marketValueSnapshots, selectedEntityId, isInvestmentSelected]);
 
-	const editingSnapshotCurrency = editingSnapshot?.currency ?? selectedEntity?.currency;
+	const editingSnapshotCurrency =
+		editingSnapshot?.currency ?? selectedEntity?.currency ?? appCurrency;
 	const parsedSnapshotAmountMinor = useMemo(
 		() => parseAmountToMinor(editingSnapshotAmount, editingSnapshotCurrency),
 		[editingSnapshotAmount, editingSnapshotCurrency]
@@ -531,7 +534,7 @@ export default function HistoryScreen() {
 
 	const renderSnapshotList = useCallback(() => {
 		if (!isInvestmentSelected) return null;
-		const currency = selectedEntity?.currency ?? 'EUR';
+		const currency = selectedEntity?.currency ?? appCurrency;
 		return (
 			<View className="px-5 pb-8 pt-4" testID="market-value-snapshots-section">
 				<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
@@ -577,7 +580,7 @@ export default function HistoryScreen() {
 				)}
 			</View>
 		);
-	}, [entitySnapshots, selectedEntity, handleEditSnapshot, isInvestmentSelected]);
+	}, [entitySnapshots, selectedEntity, handleEditSnapshot, isInvestmentSelected, appCurrency]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']} testID="history-screen">
@@ -623,13 +626,19 @@ export default function HistoryScreen() {
 						<Text className="font-sans text-xs text-ink-muted">
 							In:{' '}
 							<Text className="text-positive">
-								{formatAmount(periodTotals.inflow, selectedEntity?.currency)}
+								{formatAmount(
+									periodTotals.inflow,
+									selectedEntity?.currency ?? appCurrency
+								)}
 							</Text>
 						</Text>
 						<Text className="font-sans text-xs text-ink-muted">
 							Out:{' '}
 							<Text className="text-negative">
-								{formatAmount(periodTotals.outflow ?? 0, selectedEntity?.currency)}
+								{formatAmount(
+									periodTotals.outflow ?? 0,
+									selectedEntity?.currency ?? appCurrency
+								)}
 							</Text>
 						</Text>
 					</View>
@@ -764,7 +773,7 @@ export default function HistoryScreen() {
 									testID="snapshot-edit-amount-input"
 								/>
 								<Text className={textInputClassNames.suffixLarge}>
-									{getCurrencySymbol(selectedEntity?.currency ?? 'EUR')}
+									{getCurrencySymbol(selectedEntity?.currency ?? appCurrency)}
 								</Text>
 							</View>
 							{editingSnapshotAmount.length > 0 && !isSnapshotAmountValid && (

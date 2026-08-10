@@ -104,10 +104,10 @@ function SummaryRow({ entity, trendValues, onPress }: SummaryRowProps) {
 									overspent ? 'text-negative' : 'text-ink'
 								}`}
 							>
-								{formatAmount(entity.actual)}
+								{formatAmount(entity.actual, entity.currency)}
 							</Text>
 							<Text className="font-sans text-sm text-ink-muted">
-								/ {formatAmount(entity.planned)}
+								/ {formatAmount(entity.planned, entity.currency)}
 							</Text>
 						</View>
 					</View>
@@ -138,14 +138,21 @@ interface SectionProps {
 	trendActuals?: Map<string, number>[];
 	chartSlices?: AllocationPieSlice[];
 	onEntityPress: (entity: EntityWithBalance) => void;
+	currency: string;
 }
 
-function Section({ title, entities, trendActuals, chartSlices, onEntityPress }: SectionProps) {
+function Section({
+	title,
+	entities,
+	trendActuals,
+	chartSlices,
+	onEntityPress,
+	currency,
+}: SectionProps) {
 	if (entities.length === 0) return null;
 
 	const totalActual = entities.reduce((s, e) => s + e.actual, 0);
 	const totalPlanned = entities.reduce((s, e) => s + e.planned, 0);
-	const currency = entities[0]?.currency ?? 'EUR';
 
 	return (
 		<View>
@@ -161,10 +168,10 @@ function Section({ title, entities, trendActuals, chartSlices, onEntityPress }: 
 								totalActual > totalPlanned ? 'text-negative' : 'text-ink-light'
 							}
 						>
-							{formatAmount(totalActual)}
+							{formatAmount(totalActual, currency)}
 						</Text>
 						{' / '}
-						{formatAmount(totalPlanned)}
+						{formatAmount(totalPlanned, currency)}
 					</Text>
 				)}
 			</View>
@@ -210,11 +217,12 @@ export default function SummaryScreen() {
 	const deferredPeriod = useDeferredValue(selectedPeriod);
 	const isStale = deferredPeriod !== selectedPeriod;
 
-	const { entities, plans, transactions } = useStore(
+	const { entities, plans, transactions, appCurrency } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
+			appCurrency: state.appCurrency,
 		}))
 	);
 
@@ -298,11 +306,13 @@ export default function SummaryScreen() {
 								trendActuals={trendActuals}
 								chartSlices={categoryChartSlices}
 								onEntityPress={handleEntityPress}
+								currency={appCurrency}
 							/>
 							<Section
 								title="Savings"
 								entities={savings}
 								onEntityPress={handleEntityPress}
+								currency={appCurrency}
 							/>
 						</>
 					)}

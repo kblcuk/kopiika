@@ -109,7 +109,7 @@ describe('EntityDetailModal', () => {
 			);
 
 			expect(queryByText('Remaining')).toBeNull();
-			expect(getByText(formatAmount(actual))).toBeTruthy();
+			expect(getByText(formatAmount(actual, 'EUR'))).toBeTruthy();
 		});
 
 		it('never shows Remaining for income entities even with a plan', () => {
@@ -129,7 +129,7 @@ describe('EntityDetailModal', () => {
 			);
 
 			expect(queryByText('Remaining')).toBeNull();
-			expect(getByText(formatAmount(3000))).toBeTruthy();
+			expect(getByText(formatAmount(3000, 'EUR'))).toBeTruthy();
 		});
 	});
 
