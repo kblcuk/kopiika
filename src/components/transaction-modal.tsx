@@ -25,7 +25,6 @@ import {
 	formatAmount,
 	formatAmountForInput,
 	parseAmountToMinor,
-	DEFAULT_CURRENCY,
 	formatFullDate,
 	getCurrencySymbol,
 } from '@/src/utils/format';
@@ -142,6 +141,7 @@ export function TransactionModal({
 	const excludeOccurrence = useStore((state) => state.excludeOccurrence);
 	const replaceTransactionWithSplit = useStore((state) => state.replaceTransactionWithSplit);
 	const addRecurringTransaction = useStore((state) => state.addRecurringTransaction);
+	const appCurrency = useStore((state) => state.appCurrency);
 
 	const confirmTransactionFlow = useConfirmTransaction();
 
@@ -171,7 +171,7 @@ export function TransactionModal({
 		existingTransaction?.currency ??
 		selectedFromEntity?.currency ??
 		fromEntity?.currency ??
-		DEFAULT_CURRENCY;
+		appCurrency;
 
 	const maxDecimalPlaces = useMemo(() => getCurrencyDecimalPlaces(currency), [currency]);
 

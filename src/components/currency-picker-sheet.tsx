@@ -19,7 +19,6 @@ interface CurrencyPickerSheetProps {
 	selectedCode: string;
 	onSelect: (code: string) => void;
 	onClose: () => void;
-	testID?: string;
 }
 
 export function CurrencyPickerSheet({
@@ -27,7 +26,6 @@ export function CurrencyPickerSheet({
 	selectedCode,
 	onSelect,
 	onClose,
-	testID,
 }: CurrencyPickerSheetProps) {
 	const [query, setQuery] = useState('');
 
@@ -57,7 +55,7 @@ export function CurrencyPickerSheet({
 		<PageSheetModal
 			visible={visible}
 			onRequestClose={onClose}
-			testID={testID ?? TestIDs.currencyPicker.sheet}
+			testID={TestIDs.currencyPicker.sheet}
 		>
 			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
 				<Text className="font-sans-semibold text-base text-ink">Currency</Text>

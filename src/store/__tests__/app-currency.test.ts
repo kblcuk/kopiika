@@ -55,6 +55,27 @@ describe('store — appCurrency', () => {
 		expect(useStore.getState().appCurrency).toBe('UAH');
 	});
 
+	test('replaceAllData recomputes appCurrency from the imported rows', async () => {
+		// The regression this guards: `import.replace_all` (CSV import) swaps
+		// every currency-carrying row but, unlike `setAppCurrency`, previously
+		// left the store's `appCurrency` untouched. A EUR board importing a JPY
+		// export would keep rendering aggregate amounts as EUR and let
+		// `EntityCreateModal` create the next entity in EUR against JPY rows,
+		// which `transaction-validation.ts` then rejects as CURRENCY_MISMATCH.
+		const importedAccount: Entity = {
+			id: 'jpy-acc-1',
+			type: 'account',
+			name: 'Yen Wallet',
+			currency: 'JPY',
+			row: 0,
+			position: 0,
+		};
+
+		await useStore.getState().replaceAllData([importedAccount], [], [], []);
+
+		expect(useStore.getState().appCurrency).toBe('JPY');
+	});
+
 	test('a transaction between rows created after a switch validates', async () => {
 		// The regression that matters most: an entity created in the old currency
 		// on a switched board fails cross-currency validation on its very next

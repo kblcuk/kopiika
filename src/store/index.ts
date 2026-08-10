@@ -478,13 +478,23 @@ export const useStore = create<AppState>((set, get) => {
 				buildApplyContext()
 			);
 			if (result.kind !== 'import.replace_all') return;
+			// The imported CSV replaces every currency-carrying row, so the
+			// app-wide currency must be recomputed here — `initialize()` only
+			// runs at cold start or after a data reset, neither of which this
+			// path triggers. Leaving `appCurrency` stale would misrender
+			// aggregate amounts and let `EntityCreateModal` create the next
+			// entity in the old currency, which `transaction-validation.ts`
+			// would then reject as a CURRENCY_MISMATCH (KII-155).
+			const importedCurrency = resolveAppCurrency(result.entities, get().appCurrency);
 			set({
 				entities: result.entities,
 				plans: result.plans,
 				transactions: result.transactions,
 				recurrenceTemplates: result.recurrenceTemplates,
 				marketValueSnapshots: result.marketValueSnapshots,
+				appCurrency: importedCurrency,
 			});
+			await setDefaultCurrency(importedCurrency);
 			// Materialize the imported templates' due occurrences, exactly as
 			// `initialize` does after hydration (KII-159). Without this the import is
 			// the one path that leaves them nowhere: derivation skips occurrences that
