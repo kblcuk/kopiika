@@ -79,12 +79,20 @@ export const TestIDs = {
 		setupStagedCustom: (id: string) => `onboarding-setup-staged-custom-${id}`,
 		setupContinueButton: 'onboarding-setup-continue',
 		setupSkipLink: 'onboarding-setup-skip',
+		setupCurrencyRow: 'onboarding-setup-currency-row',
 	},
 
 	entitySelectionSheet: {
 		closeButton: 'entity-selection-sheet-close',
 		fromSheet: 'entity-selection-sheet-from',
 		toSheet: 'entity-selection-sheet-to',
+	},
+
+	currencyPicker: {
+		sheet: 'currency-picker-sheet',
+		close: 'currency-picker-close',
+		search: 'currency-picker-search',
+		option: (code: string) => `currency-picker-option-${code}`,
 	},
 
 	refundPicker: {
@@ -119,6 +127,7 @@ export const TestIDs = {
 	settings: {
 		helpRow: 'settings-help-row',
 		tourRow: 'settings-tour-row',
+		currencyRow: 'settings-currency-row',
 	},
 
 	historyImportButton: 'history-import-button',
