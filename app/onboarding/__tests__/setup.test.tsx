@@ -101,6 +101,10 @@ describe('Onboarding setup screen', () => {
 		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
 
 		expect(getByTestId(TestIDs.onboarding.setupCurrencyRow)).toHaveTextContent(/GBP/);
+		// EntityCreateModal reads appCurrency from the store, not from this
+		// screen's local state — a staged custom entity would be built in the
+		// stale currency if this write were dropped.
+		expect(mockUseStore.getState().appCurrency).toBe('GBP');
 	});
 
 	it('Continue writes selected chips + completion flag, then replaces to /(tabs)', async () => {
@@ -115,6 +119,15 @@ describe('Onboarding setup screen', () => {
 			expect(mockedSetHasCompleted).toHaveBeenCalledWith(true);
 			expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
 		});
+		// setAppCurrency is the only thing that relabels the migration-seeded
+		// EUR __system_balance_adjustment__ row; it must run after the entity
+		// and plan loops above, not merely exist.
+		expect(mockSetAppCurrency).toHaveBeenCalledWith('EUR');
+		expect(mockSetAppCurrency.mock.invocationCallOrder[0]).toBeGreaterThan(
+			mockAddEntity.mock.invocationCallOrder[
+				mockAddEntity.mock.invocationCallOrder.length - 1
+			]!
+		);
 	});
 
 	it('Skip link writes completion flag without creating entities', async () => {

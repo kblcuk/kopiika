@@ -64,12 +64,13 @@ export default function SetupScreen() {
 		});
 	};
 
-	// Persist the pick immediately so the suggested amounts on this screen render
-	// with the new symbol, and so a skip still keeps the choice. There is nothing
-	// to relabel yet — no entity exists until Continue, which is also why setting
-	// the store value directly is safe here: no row can disagree with it. The
-	// store write matters because EntityCreateModal (staged customs) reads
-	// `appCurrency` from the store, not from this screen's local state.
+	// Persist the pick immediately for two reasons: EntityCreateModal (staged
+	// customs) reads `appCurrency` from the store, not from this screen's local
+	// state, so a staged custom would be built in the stale currency otherwise;
+	// and writing the pref means a skip still keeps the choice. There is
+	// nothing to relabel yet — no entity exists until Continue, which is also
+	// why setting the store value directly is safe here: no row can disagree
+	// with it.
 	const handleCurrencySelect = (code: string) => {
 		setCurrency(code);
 		useStore.setState({ appCurrency: code });
