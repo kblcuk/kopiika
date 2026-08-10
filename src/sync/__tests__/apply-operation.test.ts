@@ -1071,4 +1071,35 @@ describe('applyOperation — import.replace_all', () => {
 		expect(all.find((t) => t.id === 'old-tx')).toBeUndefined();
 		expect(all.find((t) => t.id === 'imp-tx')).toBeDefined();
 	});
+
+	test('preserves split_id on restored transactions (KII-146)', async () => {
+		// A CSV restore must not silently un-split a split. This handler has its
+		// own inline insert with an explicit column list; omitting `split_id`
+		// there writes NULL, and migration 0024 cannot recover it (it runs at
+		// schema upgrade, not on import). The bank's single total line would then
+		// come back `new` and default-selected, re-adding a charge already held.
+		const result = await applyOperation(
+			{
+				kind: 'import.replace_all',
+				entities: [account, category],
+				plans: [],
+				transactions: [
+					makeTx({ id: 'leg-a', amount_minor: 6000, split_id: 'sp-1' }),
+					makeTx({ id: 'leg-b', amount_minor: 4000, split_id: 'sp-1' }),
+					makeTx({ id: 'solo', amount_minor: 500 }),
+				],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			},
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'import.replace_all') throw new Error('wrong kind');
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'leg-a')?.split_id).toBe('sp-1');
+		expect(all.find((t) => t.id === 'leg-b')?.split_id).toBe('sp-1');
+		expect(all.find((t) => t.id === 'solo')?.split_id ?? null).toBeNull();
+	});
 });
