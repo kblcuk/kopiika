@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X } from 'lucide-react-native';
+import { ChevronRight, X } from 'lucide-react-native';
 
 import { Text } from '@/src/components/text';
 import { InfoPin } from '@/src/components/info-pin';
@@ -15,12 +15,14 @@ import {
 	type PresetChip,
 } from '@/src/onboarding/presets';
 import { useStore } from '@/src/store';
-import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import { setHasCompletedOnboarding, setDefaultCurrency } from '@/src/utils/app-prefs';
 import { getCurrentPeriod, type Entity, type EntityType, type Plan } from '@/src/types';
 import { generateId } from '@/src/utils/ids';
-import { DEFAULT_CURRENCY } from '@/src/utils/format';
+import { getCurrencySymbol } from '@/src/utils/format';
+import { CurrencyPickerSheet } from '@/src/components/currency-picker-sheet';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { getIcon } from '@/src/constants/icon-registry';
+import { colors } from '@/src/theme/colors';
 import { TestIDs } from '@/e2e/support/test-ids';
 
 const SECTIONS: { type: EntityType; label: string; optional?: boolean }[] = [
@@ -41,12 +43,15 @@ export default function SetupScreen() {
 
 	const addEntity = useStore((s) => s.addEntity);
 	const setPlan = useStore((s) => s.setPlan);
+	const appCurrency = useStore((s) => s.appCurrency);
 
 	const [picked, setPicked] = useState<Set<string>>(
 		new Set(PRESET_CHIPS.filter((c) => c.defaultSelected).map(presetKey))
 	);
 	const [customs, setCustoms] = useState<StagedCustom[]>([]);
 	const [customModalType, setCustomModalType] = useState<EntityType | null>(null);
+	const [currency, setCurrency] = useState(appCurrency);
+	const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
 	const togglePick = (chip: PresetChip) => {
 		if (fromSettings) return;
@@ -57,6 +62,18 @@ export default function SetupScreen() {
 			else next.add(key);
 			return next;
 		});
+	};
+
+	// Persist the pick immediately so the suggested amounts on this screen render
+	// with the new symbol, and so a skip still keeps the choice. There is nothing
+	// to relabel yet — no entity exists until Continue, which is also why setting
+	// the store value directly is safe here: no row can disagree with it. The
+	// store write matters because EntityCreateModal (staged customs) reads
+	// `appCurrency` from the store, not from this screen's local state.
+	const handleCurrencySelect = (code: string) => {
+		setCurrency(code);
+		useStore.setState({ appCurrency: code });
+		void setDefaultCurrency(code);
 	};
 
 	const handleCustomCreate = (draft: EntityDraft) => {
@@ -83,14 +100,14 @@ export default function SetupScreen() {
 				return;
 			}
 			const selected = PRESET_CHIPS.filter((c) => picked.has(presetKey(c)));
-			const presetEntities = createEntitiesFromPresets(selected);
+			const presetEntities = createEntitiesFromPresets(selected, currency);
 			const entityToPreset = new Map(
 				presetEntities.map((e) => [
 					e.id,
 					selected.find((c) => c.name === e.name && c.type === e.type)!,
 				])
 			);
-			const presetPlans = createPlansForEntities(presetEntities, entityToPreset);
+			const presetPlans = createPlansForEntities(presetEntities, entityToPreset, currency);
 
 			// Customs: lay out after presets of the same type, respecting maxRows.
 			const customEntities: Entity[] = [];
@@ -116,7 +133,7 @@ export default function SetupScreen() {
 					id: entityId,
 					type: custom.type,
 					name: custom.name,
-					currency: DEFAULT_CURRENCY,
+					currency,
 					icon: custom.icon,
 					color: custom.color,
 					row: targetRow,
@@ -136,6 +153,16 @@ export default function SetupScreen() {
 
 			for (const entity of [...presetEntities, ...customEntities]) await addEntity(entity);
 			for (const plan of [...presetPlans, ...customPlans]) await setPlan(plan);
+
+			// The entities above were already written in the chosen currency, but
+			// the balance-adjustment system entity was NOT: migration
+			// 0001_add-balance-adjustment.sql seeds it with a hardcoded 'EUR'.
+			// It sorts first in getAllEntities (type 'account', position -1), and
+			// while resolveAppCurrency excludes it, leaving one EUR row on a GBP
+			// board is a latent inconsistency. set_all has no WHERE clause, so
+			// this fixes it — and on a board this small it costs nothing.
+			await useStore.getState().setAppCurrency(currency);
+
 			await setHasCompletedOnboarding(true);
 			router.replace('/(tabs)');
 		} catch (error) {
@@ -169,6 +196,21 @@ export default function SetupScreen() {
 				<Text className="mt-1 font-sans text-base text-ink-muted">
 					Pick what fits. You can change anything later.
 				</Text>
+
+				<Pressable
+					testID={TestIDs.onboarding.setupCurrencyRow}
+					onPress={() => setCurrencyPickerOpen(true)}
+					disabled={fromSettings}
+					className="mt-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3.5 active:bg-paper-200"
+				>
+					<Text className="font-sans text-base text-ink">Currency</Text>
+					<View className="flex-row items-center">
+						<Text className="font-sans text-base text-ink-muted">
+							{getCurrencySymbol(currency)} {currency}
+						</Text>
+						<ChevronRight size={16} color={colors.ink.muted} />
+					</View>
+				</Pressable>
 
 				{fromSettings && (
 					<View className="mt-4 rounded-2xl bg-paper-200 px-4 py-3">
@@ -276,6 +318,13 @@ export default function SetupScreen() {
 				entityType={customModalType}
 				onClose={() => setCustomModalType(null)}
 				onCreate={handleCustomCreate}
+			/>
+
+			<CurrencyPickerSheet
+				visible={currencyPickerOpen}
+				selectedCode={currency}
+				onSelect={handleCurrencySelect}
+				onClose={() => setCurrencyPickerOpen(false)}
 			/>
 		</SafeAreaView>
 	);

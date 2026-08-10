@@ -15,7 +15,7 @@ import type { EntityType, EntityColorKey, EntityDraft } from '@/src/types';
 import { EntityColorPicker } from '@/src/components/entity-color-picker';
 import { useStore } from '@/src/store';
 import { generateId } from '@/src/utils/ids';
-import { parseAmountToMinor, DEFAULT_CURRENCY, getCurrencySymbol } from '@/src/utils/format';
+import { parseAmountToMinor, getCurrencySymbol } from '@/src/utils/format';
 import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
 import { EntityIconPicker } from '@/src/components/entity-icon-picker';
 import {
@@ -56,17 +56,19 @@ export function EntityCreateModal({
 	const [isInvestment, setIsInvestment] = useState(false);
 	const nameInputRef = useRef<TextInput>(null);
 	const createPressInFlightRef = useRef(false);
-	const maxDecimalPlaces = getCurrencyDecimalPlaces(DEFAULT_CURRENCY);
-	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
 
-	const { entities, addEntity, setPlan, currentPeriod } = useStore(
+	const { entities, addEntity, setPlan, currentPeriod, appCurrency } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			addEntity: state.addEntity,
 			setPlan: state.setPlan,
 			currentPeriod: state.currentPeriod,
+			appCurrency: state.appCurrency,
 		}))
 	);
+
+	const maxDecimalPlaces = getCurrencyDecimalPlaces(appCurrency);
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
 
 	useEffect(() => {
 		if (visible && entityType) {
@@ -86,7 +88,7 @@ export function EntityCreateModal({
 		if (onCreate) {
 			const plannedMinor =
 				entityType !== 'account'
-					? parseAmountToMinor(plannedExpr.resolve(), DEFAULT_CURRENCY)
+					? parseAmountToMinor(plannedExpr.resolve(), appCurrency)
 					: NaN;
 			const plannedAmountMinor =
 				Number.isInteger(plannedMinor) && plannedMinor > 0 ? plannedMinor : null;
@@ -138,7 +140,7 @@ export function EntityCreateModal({
 			id: entityId,
 			type: entityType,
 			name: name.trim(),
-			currency: DEFAULT_CURRENCY,
+			currency: appCurrency,
 			icon: selectedIcon,
 			color: selectedColor,
 			row: targetRow,
@@ -147,7 +149,7 @@ export function EntityCreateModal({
 		});
 
 		if (entityType !== 'account') {
-			const amountMinor = parseAmountToMinor(plannedExpr.resolve(), DEFAULT_CURRENCY);
+			const amountMinor = parseAmountToMinor(plannedExpr.resolve(), appCurrency);
 			if (Number.isInteger(amountMinor) && amountMinor > 0) {
 				await setPlan({
 					id: generateId(),
@@ -171,6 +173,7 @@ export function EntityCreateModal({
 		addEntity,
 		setPlan,
 		currentPeriod,
+		appCurrency,
 		onClose,
 		onCreate,
 		isInvestment,
@@ -333,7 +336,7 @@ export function EntityCreateModal({
 								testID="entity-create-amount-input"
 							/>
 							<Text className={textInputClassNames.suffix}>
-								{getCurrencySymbol(DEFAULT_CURRENCY)}
+								{getCurrencySymbol(appCurrency)}
 							</Text>
 						</View>
 						{plannedExpr.preview && (

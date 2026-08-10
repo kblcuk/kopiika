@@ -1,7 +1,6 @@
 import type { Entity, EntityType, Plan } from '@/src/types';
 import { getCurrentPeriod } from '@/src/types';
 import { generateId } from '@/src/utils/ids';
-import { DEFAULT_CURRENCY } from '@/src/utils/format';
 import { toMinor } from '@/src/utils/money';
 
 export interface PresetChip {
@@ -9,8 +8,8 @@ export interface PresetChip {
 	name: string;
 	icon: string;
 	defaultSelected?: boolean;
-	// Authored as a major-unit number (e.g. 1500 = €1,500); converted to integer
-	// minor units (KII-120) at `createPlansForEntities`.
+	// Authored as a major-unit number (e.g. 1500 = 1,500 in the app's currency);
+	// converted to integer minor units (KII-120) at `createPlansForEntities`.
 	suggestedPlan?: number;
 }
 
@@ -69,7 +68,7 @@ export const PRESET_CHIPS: PresetChip[] = [
  * matches the sortable grid rules (categories spread across 3 rows; other
  * types sit on row 0). Order within a row is the order chips appear in `picked`.
  */
-export function createEntitiesFromPresets(picked: PresetChip[]): Entity[] {
+export function createEntitiesFromPresets(picked: PresetChip[], currency: string): Entity[] {
 	const result: Entity[] = [];
 	const positionCounters: Record<Exclude<EntityType, 'category'>, number> = {
 		income: 0,
@@ -103,7 +102,7 @@ export function createEntitiesFromPresets(picked: PresetChip[]): Entity[] {
 			id: generateId(),
 			type: chip.type,
 			name: chip.name,
-			currency: DEFAULT_CURRENCY,
+			currency,
 			icon: chip.icon,
 			row,
 			position,
@@ -120,7 +119,8 @@ export function createEntitiesFromPresets(picked: PresetChip[]): Entity[] {
  */
 export function createPlansForEntities(
 	entities: Entity[],
-	entityToPreset: Map<string, PresetChip>
+	entityToPreset: Map<string, PresetChip>,
+	currency: string
 ): Plan[] {
 	const period = getCurrentPeriod();
 	return entities.map((entity) => {
@@ -130,7 +130,7 @@ export function createPlansForEntities(
 			entity_id: entity.id,
 			period: 'all-time' as const,
 			period_start: period,
-			planned_amount_minor: suggested ? toMinor(suggested, DEFAULT_CURRENCY) : 0,
+			planned_amount_minor: suggested ? toMinor(suggested, currency) : 0,
 		};
 	});
 }

@@ -4,6 +4,7 @@ import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import SetupScreen from '../setup';
 import { PRESET_CHIPS, presetKey } from '@/src/onboarding/presets';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
+import { TestIDs } from '@/e2e/support/test-ids';
 import type { EntityDraft } from '@/src/components/entity-create-modal';
 import type { Entity, EntityType, Plan } from '@/src/types';
 
@@ -22,14 +23,36 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const mockAddEntity = jest.fn(async (_entity: Entity) => {});
 const mockSetPlan = jest.fn(async (_plan: Plan) => {});
+const mockSetAppCurrency = jest.fn(async (_code: string) => {});
+let mockAppCurrency = 'EUR';
 
-type SetupStoreSlice = { addEntity: typeof mockAddEntity; setPlan: typeof mockSetPlan };
+type SetupStoreSlice = {
+	addEntity: typeof mockAddEntity;
+	setPlan: typeof mockSetPlan;
+	appCurrency: string;
+	setAppCurrency: typeof mockSetAppCurrency;
+};
+
+function mockGetState(): SetupStoreSlice {
+	return {
+		addEntity: mockAddEntity,
+		setPlan: mockSetPlan,
+		appCurrency: mockAppCurrency,
+		setAppCurrency: mockSetAppCurrency,
+	};
+}
+
+function mockUseStore<T>(selector?: (s: SetupStoreSlice) => T): T {
+	const state = mockGetState();
+	return selector ? selector(state) : (state as unknown as T);
+}
+mockUseStore.getState = mockGetState;
+mockUseStore.setState = (partial: Partial<SetupStoreSlice>) => {
+	if (partial.appCurrency !== undefined) mockAppCurrency = partial.appCurrency;
+};
 
 jest.mock('@/src/store', () => ({
-	useStore: <T,>(selector?: (s: SetupStoreSlice) => T) => {
-		const state: SetupStoreSlice = { addEntity: mockAddEntity, setPlan: mockSetPlan };
-		return selector ? selector(state) : state;
-	},
+	useStore: mockUseStore,
 }));
 
 let modalProps: {
@@ -59,6 +82,7 @@ describe('Onboarding setup screen', () => {
 		jest.clearAllMocks();
 		mockSearchParams = {};
 		modalProps = null;
+		mockAppCurrency = 'EUR';
 	});
 
 	it('default-selects chips with defaultSelected=true', () => {
@@ -68,6 +92,15 @@ describe('Onboarding setup screen', () => {
 			const node = getByTestId(`onboarding-setup-chip-${presetKey(chip)}`);
 			expect(node.props.accessibilityState?.selected).toBe(true);
 		}
+	});
+
+	it('shows the current currency and updates it from the picker', () => {
+		const { getByTestId } = render(<SetupScreen />);
+
+		fireEvent.press(getByTestId(TestIDs.onboarding.setupCurrencyRow));
+		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
+
+		expect(getByTestId(TestIDs.onboarding.setupCurrencyRow)).toHaveTextContent(/GBP/);
 	});
 
 	it('Continue writes selected chips + completion flag, then replaces to /(tabs)', async () => {

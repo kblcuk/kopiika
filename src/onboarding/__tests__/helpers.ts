@@ -6,12 +6,12 @@ import { useStore } from '@/src/store';
  * For use in component/screen tests that don't care about specifics.
  */
 export async function seedDefaultWorld(): Promise<void> {
+	const { addEntity, setPlan, appCurrency } = useStore.getState();
 	const defaults = PRESET_CHIPS.filter((c) => c.defaultSelected);
-	const entities = createEntitiesFromPresets(defaults);
+	const entities = createEntitiesFromPresets(defaults, appCurrency);
 	const entityToPreset = new Map(entities.map((e, i) => [e.id, defaults[i]!]));
-	const plans = createPlansForEntities(entities, entityToPreset);
+	const plans = createPlansForEntities(entities, entityToPreset, appCurrency);
 
-	const { addEntity, setPlan } = useStore.getState();
 	for (const e of entities) await addEntity(e);
 	for (const p of plans) await setPlan(p);
 }

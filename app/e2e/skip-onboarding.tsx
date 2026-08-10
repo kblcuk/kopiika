@@ -35,6 +35,7 @@ export default function E2ESkipOnboardingScreen() {
 
 				const addEntity = useStore.getState().addEntity;
 				const setPlan = useStore.getState().setPlan;
+				const appCurrency = useStore.getState().appCurrency;
 				// Use only active entities when computing "missing". `useStore`
 				// holds raw entities including soft-deleted ones (getAllEntities
 				// doesn't filter), so after a clearEntities fixture call the
@@ -48,14 +49,14 @@ export default function E2ESkipOnboardingScreen() {
 					(c) => !existing.some((e) => e.type === c.type && e.name === c.name)
 				);
 				if (missing.length > 0) {
-					const entities = createEntitiesFromPresets(missing);
+					const entities = createEntitiesFromPresets(missing, appCurrency);
 					const entityToPreset = new Map(
 						entities.map((e) => [
 							e.id,
 							missing.find((c) => c.name === e.name && c.type === e.type)!,
 						])
 					);
-					const plans = createPlansForEntities(entities, entityToPreset);
+					const plans = createPlansForEntities(entities, entityToPreset, appCurrency);
 					for (const entity of entities) await addEntity(entity);
 					for (const plan of plans) await setPlan(plan);
 				}
