@@ -12,7 +12,7 @@ interface StepMapColumnsProps {
 	rawText: string;
 	mapping: ColumnMapping;
 	headers: string[];
-	currency?: string;
+	currency: string;
 	/** Detection confidence per field; renders a "please verify" hint when false. */
 	confident?: DetectionResult['confident'];
 	onChange: (next: ColumnMapping) => void;
@@ -66,7 +66,7 @@ export function StepMapColumns({
 	rawText,
 	mapping,
 	headers,
-	currency = 'EUR',
+	currency,
 	confident,
 	onChange,
 	onConfirm,

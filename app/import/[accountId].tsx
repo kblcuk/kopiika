@@ -29,6 +29,7 @@ export default function ImportScreen() {
 	const addEntity = useStore((s) => s.addEntity);
 	const setPlan = useStore((s) => s.setPlan);
 	const account = useMemo(() => entities.find((e) => e.id === accountId), [entities, accountId]);
+	const appCurrency = useStore((s) => s.appCurrency);
 
 	const [rawText, setRawText] = useState<string | null>(null);
 	const [mapping, setMapping] = useState<ColumnMapping | null>(null);
@@ -174,13 +175,13 @@ export default function ImportScreen() {
 			id: generateId(),
 			type: 'category',
 			name: draft.name,
-			currency: account?.currency ?? 'EUR',
+			currency: account?.currency ?? appCurrency,
 			icon: draft.icon || DEFAULT_ICONS.category,
 			color: draft.color,
 			row: 0,
 			position: 0,
 		}),
-		[account]
+		[account, appCurrency]
 	);
 
 	const handleCommit = useCallback(async () => {

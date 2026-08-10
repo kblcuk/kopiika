@@ -22,6 +22,7 @@ describe('StepMapColumns', () => {
 				rawText={csv}
 				mapping={mapping}
 				headers={['Date', 'Description', 'Amount']}
+				currency="EUR"
 				confident={{ date: true, amount: true }}
 				onChange={() => {}}
 				onConfirm={() => {}}
@@ -37,6 +38,7 @@ describe('StepMapColumns', () => {
 				rawText={csv}
 				mapping={mapping}
 				headers={['Date', 'Description', 'Amount']}
+				currency="EUR"
 				confident={{ date: true, amount: true }}
 				onChange={() => {}}
 				onConfirm={() => {
@@ -54,6 +56,7 @@ describe('StepMapColumns', () => {
 				rawText={csv}
 				mapping={mapping}
 				headers={['Date', 'Description', 'Amount']}
+				currency="EUR"
 				confident={{ date: false, amount: false }}
 				onChange={() => {}}
 				onConfirm={() => {}}
