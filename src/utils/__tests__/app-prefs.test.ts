@@ -53,6 +53,13 @@ describe('app prefs', () => {
 		await setScheduledReminderKey(null);
 		expect(await getScheduledReminderKey()).toBeNull();
 	});
+
+	test('defaultCurrency is null until set, then round-trips', async () => {
+		const { getDefaultCurrency, setDefaultCurrency } = await import('../app-prefs');
+		expect(await getDefaultCurrency()).toBeNull();
+		await setDefaultCurrency('GBP');
+		expect(await getDefaultCurrency()).toBe('GBP');
+	});
 });
 
 describe('app-prefs — onboarding keys', () => {

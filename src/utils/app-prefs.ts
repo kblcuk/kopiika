@@ -10,6 +10,7 @@ interface AppPrefs {
 	scheduledReminderKey?: string | null;
 	hasCompletedOnboarding?: boolean;
 	emptyBoardNudgeDismissed?: boolean;
+	defaultCurrency?: string;
 }
 
 async function read(): Promise<AppPrefs> {
@@ -115,5 +116,21 @@ export async function getEmptyBoardNudgeDismissed(): Promise<boolean> {
 export async function setEmptyBoardNudgeDismissed(value: boolean): Promise<void> {
 	const prefs = await read();
 	prefs.emptyBoardNudgeDismissed = value;
+	write(prefs);
+}
+
+/**
+ * The currency chosen at onboarding (KII-155). Only a seed: once a user entity
+ * exists, `resolveAppCurrency` reads the currency off the row data instead.
+ * `null` means "never chosen".
+ */
+export async function getDefaultCurrency(): Promise<string | null> {
+	const prefs = await read();
+	return prefs.defaultCurrency ?? null;
+}
+
+export async function setDefaultCurrency(code: string): Promise<void> {
+	const prefs = await read();
+	prefs.defaultCurrency = code;
 	write(prefs);
 }
