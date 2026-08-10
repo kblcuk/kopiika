@@ -6,6 +6,7 @@ import {
 } from '@/src/constants/system-entities';
 import { validateTransaction } from './transaction-validation';
 import { defaultIsConfirmed } from './transaction-builder';
+import { DEFAULT_CURRENCY } from './format';
 
 export interface ParsedImportData {
 	entities: Entity[];
@@ -665,7 +666,10 @@ export function parseImportCsv(content: string): ParseResult {
 	// Auto-insert system entity if missing
 	const entityIds = new Set(entities.map((e) => e.id));
 	if (!entityIds.has(BALANCE_ADJUSTMENT_ENTITY_ID)) {
-		entities.push(createBalanceAdjustmentEntity());
+		const importedCurrency =
+			entities.find((e) => e.id !== BALANCE_ADJUSTMENT_ENTITY_ID)?.currency ??
+			DEFAULT_CURRENCY;
+		entities.push(createBalanceAdjustmentEntity(importedCurrency));
 		entityIds.add(BALANCE_ADJUSTMENT_ENTITY_ID);
 	}
 

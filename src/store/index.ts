@@ -29,6 +29,8 @@ import { getTotalReservedForAccount } from '@/src/utils/savings-transactions';
 import { validateTransaction } from '@/src/utils/transaction-validation';
 import { buildRecurringTemplate, buildTransaction } from '@/src/utils/transaction-builder';
 import { applyOperation } from '@/src/sync/apply-operation';
+import { resolveAppCurrency } from '@/src/utils/app-currency';
+import { DEFAULT_CURRENCY } from '@/src/utils/format';
 import {
 	requestPermission,
 	cancelNotification,
@@ -42,6 +44,8 @@ import {
 	setRemindersEnabled,
 	setHasRequestedPermission,
 	setScheduledReminderKey,
+	getDefaultCurrency,
+	setDefaultCurrency,
 } from '@/src/utils/app-prefs';
 
 interface AppState {
@@ -57,6 +61,9 @@ interface AppState {
 	isLoading: boolean;
 	draggedEntity: Entity | null;
 	incomeVisible: boolean;
+	// The single app-wide currency (KII-155). Derived from row data at hydration;
+	// `setAppCurrency` relabels every row through the chokepoint.
+	appCurrency: string;
 
 	// Actions
 	initialize: () => Promise<void>;
@@ -122,6 +129,8 @@ interface AppState {
 
 	// Default account — toggle the default flag; only one account at a time
 	setDefaultAccount: (accountId: string | null) => Promise<void>;
+
+	setAppCurrency: (code: string) => Promise<void>;
 
 	// Savings reservation action — creates account↔saving transactions to reach
 	// `desiredTotalMinor` (integer minor units, KII-120).
@@ -353,6 +362,7 @@ export const useStore = create<AppState>((set, get) => {
 		isLoading: true,
 		draggedEntity: null,
 		incomeVisible: false,
+		appCurrency: DEFAULT_CURRENCY,
 
 		// Initialize from database
 		initialize: async () => {
@@ -387,9 +397,16 @@ export const useStore = create<AppState>((set, get) => {
 						exclusions: exclusionsByTemplate.get(t.id) ?? [],
 					}));
 
+					// The app currency comes from the row data; the pref only seeds the
+					// window before any user entity exists (KII-155). Resolve it before
+					// creating the system entity so a post-reset re-create doesn't
+					// reintroduce EUR into a non-EUR board.
+					const currencyPref = await getDefaultCurrency();
+					const appCurrency = resolveAppCurrency(entities, currencyPref);
+
 					// Ensure balance adjustment system entity exists (may be missing after data reset)
 					if (!entities.some((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID)) {
-						const systemEntity = createBalanceAdjustmentEntity();
+						const systemEntity = createBalanceAdjustmentEntity(appCurrency);
 						await db.createEntity(systemEntity);
 						entities.push(systemEntity);
 					}
@@ -404,6 +421,7 @@ export const useStore = create<AppState>((set, get) => {
 						transactions,
 						recurrenceTemplates,
 						marketValueSnapshots,
+						appCurrency,
 						isLoading: false,
 					});
 
@@ -1176,6 +1194,27 @@ export const useStore = create<AppState>((set, get) => {
 			set((state) => ({
 				entities: state.entities.map((e) => stampedMap.get(e.id) ?? e),
 			}));
+		},
+
+		// KII-155: single app-wide currency. Relabels every row through the
+		// chokepoint (currency is a shared field, so this must not bypass
+		// applyOperation) and records the choice in prefs so a later data reset
+		// starts from the user's currency rather than EUR.
+		setAppCurrency: async (code) => {
+			const result = await applyOperation(
+				{ kind: 'currency.set_all', currency: code },
+				'local',
+				buildApplyContext()
+			);
+			if (result.kind !== 'currency.set_all') return;
+			set({
+				appCurrency: code,
+				entities: result.entities,
+				transactions: result.transactions,
+				recurrenceTemplates: result.recurrenceTemplates,
+				marketValueSnapshots: result.marketValueSnapshots,
+			});
+			await setDefaultCurrency(code);
 		},
 
 		// Savings reservation — the op carries the intent (target total); delta
