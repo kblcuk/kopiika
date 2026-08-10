@@ -12,8 +12,9 @@ export type OpSource = 'local' | 'inbound';
 
 /**
  * In-memory operation union. NOT yet a persisted wire format — only the shape
- * the chokepoint dispatches on. Covers all local mutation kinds as of KII-134:
- * transaction, entity, plan, reservation, recurrence, market_value, and import.
+ * the chokepoint dispatches on. Covers all local mutation kinds as of KII-155:
+ * transaction, entity, plan, reservation, recurrence, market_value, import, and
+ * currency.
  */
 export type Op =
 	| { kind: 'transaction.create'; transaction: Transaction }
@@ -70,7 +71,8 @@ export type Op =
 			transactions: Transaction[];
 			recurrenceTemplates: RecurrenceTemplate[];
 			marketValueSnapshots: MarketValueSnapshot[];
-	  };
+	  }
+	| { kind: 'currency.set_all'; currency: string };
 
 export type OpResult =
 	| { kind: 'transaction.create'; created: Transaction }
@@ -102,6 +104,13 @@ export type OpResult =
 			kind: 'import.replace_all';
 			entities: Entity[];
 			plans: Plan[];
+			transactions: Transaction[];
+			recurrenceTemplates: RecurrenceTemplate[];
+			marketValueSnapshots: MarketValueSnapshot[];
+	  }
+	| {
+			kind: 'currency.set_all';
+			entities: Entity[];
 			transactions: Transaction[];
 			recurrenceTemplates: RecurrenceTemplate[];
 			marketValueSnapshots: MarketValueSnapshot[];

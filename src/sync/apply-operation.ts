@@ -267,6 +267,60 @@ export async function applyOperation(
 			await db.deleteAllMarketValueSnapshots(op.entityId);
 			return { kind: 'market_value.delete_all' };
 		}
+		case 'currency.set_all': {
+			// KII-155: single app-wide currency. Relabels every row that carries a
+			// currency; deliberately does NOT touch amount_minor — €10.50 stored as
+			// 1050 becomes ¥1,050, not ¥10. Rescaling would need rounding when the
+			// target has fewer decimals, which can break split-leg and reservation
+			// sums that must add up exactly.
+			//
+			// No WHERE clause: the op means "make everything this currency", which
+			// makes it idempotent and self-healing if any row has drifted.
+			const drizzleDb = await db.getDrizzleDb();
+			const now = Date.now();
+			drizzleDb.transaction((tx) => {
+				tx.update(schema.entities).set({ currency: op.currency, updated_at: now }).run();
+				tx.update(schema.transactions)
+					.set({ currency: op.currency, updated_at: now })
+					.run();
+				tx.update(schema.recurrenceTemplates)
+					.set({ currency: op.currency, updated_at: now })
+					.run();
+				tx.update(schema.marketValueSnapshots)
+					.set({ currency: op.currency, updated_at: now })
+					.run();
+			});
+
+			const [
+				entities,
+				transactions,
+				rawTemplates,
+				marketValueSnapshots,
+				exclusionsByTemplate,
+			] = await Promise.all([
+				db.getAllEntities(),
+				db.getAllTransactions(),
+				db.getAllRecurrenceTemplates(),
+				db.getAllMarketValueSnapshots(),
+				db.getAllExclusionsByTemplate(),
+			]);
+			// `getAllRecurrenceTemplates` is a plain select and does NOT attach
+			// exclusions (`src/db/recurrence-templates.ts:24`). Returning its rows
+			// straight into store state would silently clear every exclusion, so
+			// re-attach them the same way hydration does
+			// (`src/store/index.ts:385-388`).
+			const recurrenceTemplates: RecurrenceTemplate[] = rawTemplates.map((t) => ({
+				...t,
+				exclusions: exclusionsByTemplate.get(t.id) ?? [],
+			}));
+			return {
+				kind: 'currency.set_all',
+				entities,
+				transactions,
+				recurrenceTemplates,
+				marketValueSnapshots,
+			};
+		}
 		case 'import.replace_all': {
 			const drizzleDb = await db.getDrizzleDb();
 

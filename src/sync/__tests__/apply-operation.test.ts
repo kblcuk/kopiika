@@ -1103,3 +1103,181 @@ describe('applyOperation — import.replace_all', () => {
 		expect(all.find((t) => t.id === 'solo')?.split_id ?? null).toBeNull();
 	});
 });
+
+describe('applyOperation — currency.set_all', () => {
+	beforeEach(() => {
+		resetDrizzleDb();
+	});
+
+	test('relabels entities and transactions without touching amounts', async () => {
+		const entities = await seedEntities();
+		await applyOperation({ kind: 'transaction.create', transaction: makeTx() }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		const result = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'JPY' },
+			'local',
+			{
+				entities,
+				transactions: [],
+				recurrenceTemplates: [],
+			}
+		);
+
+		expect(result.kind).toBe('currency.set_all');
+		if (result.kind !== 'currency.set_all') throw new Error('wrong kind');
+		// The system balance-adjustment entity is seeded by migration
+		// 0001_add-balance-adjustment.sql, so it is present alongside acc-1/cat-1;
+		// scope the assertion to the entities this test created.
+		expect(
+			result.entities
+				.filter((e) => e.id === 'acc-1' || e.id === 'cat-1')
+				.map((e) => e.currency)
+		).toEqual(['JPY', 'JPY']);
+		expect(result.transactions.map((t) => t.currency)).toEqual(['JPY']);
+
+		// Relabel, never convert: the stored minor-unit integer is untouched.
+		expect(result.transactions.find((t) => t.id === 'tx-1')?.amount_minor).toBe(1234);
+
+		const persisted = await db.getAllTransactions();
+		expect(persisted.find((t) => t.id === 'tx-1')?.currency).toBe('JPY');
+		expect(persisted.find((t) => t.id === 'tx-1')?.amount_minor).toBe(1234);
+	});
+
+	test('relabels recurrence templates', async () => {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 5000,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+		await applyOperation({ kind: 'recurrence.create', template }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+
+		const result = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'GBP' },
+			'local',
+			{
+				entities,
+				transactions: [],
+				recurrenceTemplates: [template],
+			}
+		);
+
+		if (result.kind !== 'currency.set_all') throw new Error('wrong kind');
+		expect(result.recurrenceTemplates.map((t) => t.currency)).toEqual(['GBP']);
+		expect(result.recurrenceTemplates[0]?.amount_minor).toBe(5000);
+	});
+
+	test('relabels market value snapshots', async () => {
+		const entities = await seedEntities();
+		await applyOperation(
+			{
+				kind: 'market_value.create',
+				snapshot: {
+					id: 'mv-1',
+					entity_id: 'acc-1',
+					amount_minor: 999,
+					currency: 'USD',
+					date: 1700000000000,
+				},
+			},
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [] }
+		);
+
+		const result = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'CHF' },
+			'local',
+			{
+				entities,
+				transactions: [],
+				recurrenceTemplates: [],
+			}
+		);
+
+		if (result.kind !== 'currency.set_all') throw new Error('wrong kind');
+		expect(result.marketValueSnapshots.map((s) => s.currency)).toEqual(['CHF']);
+		expect(result.marketValueSnapshots[0]?.amount_minor).toBe(999);
+	});
+
+	test('is idempotent — applying the same currency twice is a no-op', async () => {
+		const entities = await seedEntities();
+		const ctx = { entities, transactions: [], recurrenceTemplates: [] };
+
+		await applyOperation({ kind: 'currency.set_all', currency: 'SEK' }, 'local', ctx);
+		const second = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'SEK' },
+			'local',
+			ctx
+		);
+
+		if (second.kind !== 'currency.set_all') throw new Error('wrong kind');
+		expect(second.entities.every((e) => e.currency === 'SEK')).toBe(true);
+	});
+
+	test('relabels the balance-adjustment system entity too', async () => {
+		// Migration 0001_add-balance-adjustment.sql seeds this system entity on
+		// every fresh DB, so it already exists — no need (and no ability, it
+		// would violate the id's uniqueness) to create it here.
+		const entities = await seedEntities();
+
+		const result = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'GBP' },
+			'local',
+			{
+				entities,
+				transactions: [],
+				recurrenceTemplates: [],
+			}
+		);
+
+		if (result.kind !== 'currency.set_all') throw new Error('wrong kind');
+		const system = result.entities.find((e) => e.id === BALANCE_ADJUSTMENT_ENTITY_ID);
+		expect(system?.currency).toBe('GBP');
+	});
+
+	test('preserves recurrence exclusions across a relabel', async () => {
+		const entities = await seedEntities();
+		const template = buildRecurringTemplate({
+			from_entity_id: 'acc-1',
+			to_entity_id: 'cat-1',
+			amount_minor: 5000,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			rule: { type: 'monthly' },
+		});
+		await applyOperation({ kind: 'recurrence.create', template }, 'local', {
+			entities,
+			transactions: [],
+			recurrenceTemplates: [],
+		});
+		await applyOperation(
+			{ kind: 'recurrence.exclude', seriesId: template.id, timestamp: 1700000000000 },
+			'local',
+			{ entities, transactions: [], recurrenceTemplates: [template] }
+		);
+
+		const result = await applyOperation(
+			{ kind: 'currency.set_all', currency: 'GBP' },
+			'local',
+			{
+				entities,
+				transactions: [],
+				recurrenceTemplates: [template],
+			}
+		);
+
+		if (result.kind !== 'currency.set_all') throw new Error('wrong kind');
+		expect(result.recurrenceTemplates[0]?.exclusions).toEqual([1700000000000]);
+	});
+});
