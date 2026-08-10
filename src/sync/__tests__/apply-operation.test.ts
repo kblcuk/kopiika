@@ -345,6 +345,30 @@ describe('applyOperation — transaction.split', () => {
 		expect(all.find((t) => t.id === 'split-bad')).toBeDefined();
 		expect(all.find((t) => t.id === 'split-x')).toBeUndefined();
 	});
+
+	test('preserves split_id on split children', async () => {
+		const entities = await seedEntities();
+		const original = await db.createTransaction(makeTx({ id: 'sp-orig', amount_minor: 3000 }));
+
+		const result = await applyOperation(
+			{
+				kind: 'transaction.split',
+				originalId: 'sp-orig',
+				rows: [
+					makeTx({ id: 'sp-a', amount_minor: 1000, split_id: 'group-1' }),
+					makeTx({ id: 'sp-b', amount_minor: 2000, split_id: 'group-1' }),
+				],
+			},
+			'local',
+			{ entities, transactions: [original], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'transaction.split') throw new Error('wrong kind');
+		expect(result.created.map((t) => t.split_id)).toEqual(['group-1', 'group-1']);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'sp-a')?.split_id).toBe('group-1');
+	});
 });
 
 describe('applyOperation — entity.create / entity.update / entity.delete', () => {

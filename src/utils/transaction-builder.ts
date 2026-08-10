@@ -134,6 +134,16 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 		);
 	}
 
+	// KII-146: the legs of one split share a `split_id` so bank-CSV
+	// reconciliation can fold them back into the single charge the bank
+	// reported. Stamped here rather than at the batch layer because callers
+	// commit split rows alongside savings releases, which are not legs.
+	// Fewer than two surviving rows is not a split.
+	if (rows.length >= 2) {
+		const splitId = generateId();
+		for (const row of rows) row.split_id = splitId;
+	}
+
 	return rows;
 }
 

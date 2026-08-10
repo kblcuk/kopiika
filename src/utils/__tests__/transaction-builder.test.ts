@@ -291,6 +291,58 @@ describe('transaction-builder', () => {
 			expect(rows.length).toBe(2);
 			expect(rows.map((r) => r.to_entity_id)).toEqual(['cat-2', 'cat-3']);
 		});
+
+		test('stamps every leg with one shared split_id', () => {
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 5000,
+				splits: [
+					{ toEntityId: 'groceries', amount: '' },
+					{ toEntityId: 'household', amount: '20' },
+				],
+			});
+
+			expect(rows).toHaveLength(2);
+			expect(rows[0]!.split_id).toBeTruthy();
+			expect(rows[1]!.split_id).toBe(rows[0]!.split_id);
+		});
+
+		test('gives two separate splits different ids', () => {
+			const args = {
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 5000,
+				splits: [
+					{ toEntityId: 'groceries', amount: '' },
+					{ toEntityId: 'household', amount: '20' },
+				],
+			};
+			const first = buildSplitRows(args);
+			const second = buildSplitRows(args);
+
+			expect(first[0]!.split_id).not.toBe(second[0]!.split_id);
+		});
+
+		test('leaves split_id unset when only one row survives', () => {
+			// A non-anchor leg with no entity is dropped, so this yields the anchor
+			// alone — one row is not a split.
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 5000,
+				splits: [
+					{ toEntityId: 'groceries', amount: '' },
+					{ toEntityId: null, amount: '20' },
+				],
+			});
+
+			expect(rows).toHaveLength(1);
+			expect(rows[0]!.split_id).toBeUndefined();
+		});
 	});
 
 	describe('buildSavingsReleases', () => {
