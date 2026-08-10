@@ -576,6 +576,10 @@ export function TransactionModal({
 					note: note.trim() || undefined,
 					splitTotalMinor,
 					splits: splits.map((s) => ({ toEntityId: s.toEntityId, amount: s.amount })),
+					// KII-146: re-splitting a row that is already a split leg keeps the
+					// parent's group — the sub-legs still sum into the same original
+					// bank charge, so reconciliation must still fold them into it.
+					splitId: existingTransaction.split_id ?? undefined,
 				});
 				if (txns.length === 0) {
 					setIsSubmitting(false);

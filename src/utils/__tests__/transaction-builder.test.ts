@@ -326,6 +326,43 @@ describe('transaction-builder', () => {
 			expect(first[0]!.split_id).not.toBe(second[0]!.split_id);
 		});
 
+		test('stamps every leg with an inherited splitId when one is supplied', () => {
+			// KII-146: re-splitting a row that is already a split leg must keep the
+			// parent's group — the sub-legs still sum into the same bank charge.
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 3000,
+				splits: [
+					{ toEntityId: 'produce', amount: '' },
+					{ toEntityId: 'snacks', amount: '10' },
+				],
+				splitId: 'parent-split',
+			});
+
+			expect(rows).toHaveLength(2);
+			expect(rows.map((r) => r.split_id)).toEqual(['parent-split', 'parent-split']);
+		});
+
+		test('mints a fresh id when no splitId is supplied', () => {
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 3000,
+				splits: [
+					{ toEntityId: 'produce', amount: '' },
+					{ toEntityId: 'snacks', amount: '10' },
+				],
+			});
+
+			expect(rows).toHaveLength(2);
+			expect(rows[0]!.split_id).toBeTruthy();
+			expect(rows[0]!.split_id).not.toBe('parent-split');
+			expect(rows[1]!.split_id).toBe(rows[0]!.split_id);
+		});
+
 		test('leaves split_id unset when only one row survives', () => {
 			// A non-anchor leg with no entity is dropped, so this yields the anchor
 			// alone — one row is not a split.
@@ -381,6 +418,24 @@ describe('transaction-builder', () => {
 			});
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.from_entity_id).toBe('sav-4');
+		});
+
+		test('leaves releases unstamped by split_id (KII-146)', () => {
+			// Releases are committed in the same atomic batch as the split legs
+			// (`transaction-modal.tsx`), but they are not legs of the bank charge.
+			// Stamping lives in `buildSplitRows` precisely so they are excluded;
+			// this guards that placement against a hoist to the batch layer.
+			const rows = buildSavingsReleases({
+				accountId: 'acc-1',
+				currency: 'USD',
+				timestamp: 5_000,
+				funded: [
+					{ savingEntityId: 'sav-1', fundAmountMinor: 3000 },
+					{ savingEntityId: 'sav-2', fundAmountMinor: 2000 },
+				],
+			});
+			expect(rows).toHaveLength(2);
+			for (const r of rows) expect(r.split_id).toBeUndefined();
 		});
 	});
 

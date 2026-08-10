@@ -80,6 +80,13 @@ export interface BuildSplitRowsArgs {
 	splitTotalMinor: number;
 	/** First entry is the anchor; subsequent entries are user-edited shares. */
 	splits: SplitRowInput[];
+	/**
+	 * KII-146: use this id instead of minting a fresh one. Passed when the row
+	 * being split is itself already a split leg — the sub-legs still sum into
+	 * the same original bank charge, so they belong to the parent's group. Left
+	 * undefined for a brand-new split.
+	 */
+	splitId?: string;
 	now?: number;
 }
 
@@ -138,9 +145,11 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	// reconciliation can fold them back into the single charge the bank
 	// reported. Stamped here rather than at the batch layer because callers
 	// commit split rows alongside savings releases, which are not legs.
-	// Fewer than two surviving rows is not a split.
+	// Fewer than two surviving rows is not a split. `args.splitId` inherits the
+	// group of a leg that is itself being re-split, so the sub-legs stay folded
+	// into the original charge rather than fragmenting into a second group.
 	if (rows.length >= 2) {
-		const splitId = generateId();
+		const splitId = args.splitId ?? generateId();
 		for (const row of rows) row.split_id = splitId;
 	}
 
