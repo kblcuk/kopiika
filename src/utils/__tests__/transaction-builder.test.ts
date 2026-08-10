@@ -380,6 +380,29 @@ describe('transaction-builder', () => {
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.split_id).toBeUndefined();
 		});
+
+		test('keeps an inherited split_id when the re-split collapses to one row', () => {
+			// Re-splitting an existing leg but filling only the anchor yields one
+			// row. Unlike a fresh split, that row is still a leg of the parent's
+			// multi-leg group, so dropping the id would silently detach it: the
+			// group total would fall short and the bank's original line would come
+			// back `new` and default-selected — the double-add KII-146 exists to
+			// prevent, reached by editing instead of importing.
+			const rows = buildSplitRows({
+				fromEntityId: 'acc-1',
+				currency: 'EUR',
+				timestamp: 1700000000000,
+				splitTotalMinor: 5000,
+				splits: [
+					{ toEntityId: 'groceries', amount: '' },
+					{ toEntityId: null, amount: '20' },
+				],
+				splitId: 'sp-parent',
+			});
+
+			expect(rows).toHaveLength(1);
+			expect(rows[0]!.split_id).toBe('sp-parent');
+		});
 	});
 
 	describe('buildSavingsReleases', () => {

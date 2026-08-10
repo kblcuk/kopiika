@@ -49,10 +49,10 @@ function toBucketEntries(existingAccountTxns: Transaction[], accountId: string):
 		// Legs share one account and timestamp at creation time; nothing
 		// enforces it afterwards, since `updateTransaction` writes only the
 		// keys it is given and so a per-leg date edit leaves `split_id` intact.
-		// A group straddling two civil days is keyed on its first-seen leg —
-		// and reads are ordered by timestamp DESC, so that is the latest leg.
-		// The bank's line for the original date then surfaces as `new`, which
-		// is the safe direction.
+		// A group straddling two civil days is keyed on whichever leg this loop
+		// reaches first, which depends on the caller's ordering. Either way the
+		// folded total lands on a day the bank's line for the original charge
+		// will not match, so that line surfaces as `new` — the safe direction.
 		const group = splits.get(txn.split_id);
 		if (group) group.effect += effect;
 		else splits.set(txn.split_id, { day, effect });

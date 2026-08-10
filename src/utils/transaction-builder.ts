@@ -26,7 +26,6 @@ export interface TransactionDraft extends MutationInput {
 	timestamp: number;
 	note?: string;
 	series_id?: string;
-	split_id?: string;
 	is_confirmed?: boolean;
 	notification_id?: string;
 }
@@ -59,7 +58,8 @@ export function buildTransaction(draft: TransactionDraft, now: number = Date.now
 	};
 	if (draft.note !== undefined) tx.note = draft.note;
 	if (draft.series_id !== undefined) tx.series_id = draft.series_id;
-	if (draft.split_id !== undefined) tx.split_id = draft.split_id;
+	// No `split_id` pass-through: `buildSplitRows` is the only producer and it
+	// stamps rows after building, once it knows how many legs survived.
 	if (draft.notification_id !== undefined) tx.notification_id = draft.notification_id;
 	return tx;
 }
@@ -145,10 +145,13 @@ export function buildSplitRows(args: BuildSplitRowsArgs): Transaction[] {
 	// reconciliation can fold them back into the single charge the bank
 	// reported. Stamped here rather than at the batch layer because callers
 	// commit split rows alongside savings releases, which are not legs.
-	// Fewer than two surviving rows is not a split. `args.splitId` inherits the
-	// group of a leg that is itself being re-split, so the sub-legs stay folded
-	// into the original charge rather than fragmenting into a second group.
-	if (rows.length >= 2) {
+	//
+	// A *fresh* split needs two surviving rows to be a split at all. An
+	// inherited `args.splitId` is the opposite case: the row is being carved out
+	// of a leg that already belongs to a multi-leg group, so even a lone
+	// survivor must keep the id. Dropping it would detach that row from its
+	// siblings and leave the group summing short of the original charge.
+	if (rows.length >= 2 || (rows.length === 1 && args.splitId)) {
 		const splitId = args.splitId ?? generateId();
 		for (const row of rows) row.split_id = splitId;
 	}
