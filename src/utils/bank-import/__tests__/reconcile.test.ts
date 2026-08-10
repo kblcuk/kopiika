@@ -63,23 +63,22 @@ describe('reconcile', () => {
 	});
 
 	it('matches a statement line against an already-split transaction', () => {
-		// A -50.00 charge was entered then split into -30.00 (groceries) + -20.00
-		// (household), sharing an identical timestamp + note. The bank still
-		// reports the -50.00 total.
+		// A -50.00 charge split into -30.00 (groceries) + -20.00 (household),
+		// sharing a split_id. The bank still reports the -50.00 total.
 		const ts = day(2026, 7, 12);
 		const legA = tx({
 			id: 'l1',
 			to_entity_id: 'groceries',
 			amount_minor: 3000,
 			timestamp: ts,
-			note: 'ATB',
+			split_id: 'sp-1',
 		});
 		const legB = tx({
 			id: 'l2',
 			to_entity_id: 'household',
 			amount_minor: 2000,
 			timestamp: ts,
-			note: 'ATB',
+			split_id: 'sp-1',
 		});
 		const rows: ParsedBankRow[] = [
 			{ rowIndex: 0, dateMs: ts, amountMinor: -5000, description: 'ATB' },
@@ -89,24 +88,39 @@ describe('reconcile', () => {
 		expect(result[0]!.selected).toBe(false);
 	});
 
-	it('does not collapse duplicate charges to the same category', () => {
-		// Two identical -30.00 charges, same day + note, SAME category — these are
-		// genuinely separate, not a split. Each must still match its own line.
+	it('folds a split whose legs share one category', () => {
+		// KII-146: -60 groceries + -40 groceries is one -100 charge. The old
+		// timestamp+note heuristic could not tell this from two separate charges
+		// and refused to fold, so the bank's -100 line came back as `new` and
+		// defaulted to selected — double-adding on import.
 		const ts = day(2026, 7, 12);
-		const a = tx({
-			id: 'd1',
-			to_entity_id: 'coffee',
-			amount_minor: 3000,
+		const legA = tx({
+			id: 'l1',
+			to_entity_id: 'groceries',
+			amount_minor: 6000,
 			timestamp: ts,
-			note: 'Cafe',
+			split_id: 'sp-1',
 		});
-		const b = tx({
-			id: 'd2',
-			to_entity_id: 'coffee',
-			amount_minor: 3000,
+		const legB = tx({
+			id: 'l2',
+			to_entity_id: 'groceries',
+			amount_minor: 4000,
 			timestamp: ts,
-			note: 'Cafe',
+			split_id: 'sp-1',
 		});
+		const rows: ParsedBankRow[] = [
+			{ rowIndex: 0, dateMs: ts, amountMinor: -10000, description: 'ATB' },
+		];
+		const result = reconcile(rows, [legA, legB], ACCT);
+		expect(result[0]!.status).toBe('duplicate');
+	});
+
+	it('does not collapse duplicate charges to the same category', () => {
+		// Two identical -30.00 charges, same day and category, no split_id — these
+		// are genuinely separate. Each must still match its own line.
+		const ts = day(2026, 7, 12);
+		const a = tx({ id: 'd1', to_entity_id: 'coffee', amount_minor: 3000, timestamp: ts });
+		const b = tx({ id: 'd2', to_entity_id: 'coffee', amount_minor: 3000, timestamp: ts });
 		const rows: ParsedBankRow[] = [
 			{ rowIndex: 0, dateMs: ts, amountMinor: -3000, description: 'Cafe' },
 			{ rowIndex: 1, dateMs: ts, amountMinor: -3000, description: 'Cafe' },
@@ -123,14 +137,14 @@ describe('reconcile', () => {
 			to_entity_id: 'groceries',
 			amount_minor: 3000,
 			timestamp: ts,
-			note: 'ATB',
+			split_id: 'sp-1',
 		});
 		const legB = tx({
 			id: 'l2',
 			to_entity_id: 'household',
 			amount_minor: 2000,
 			timestamp: ts,
-			note: 'ATB',
+			split_id: 'sp-1',
 		});
 		const rows: ParsedBankRow[] = [
 			{ rowIndex: 0, dateMs: ts, amountMinor: -3000, description: 'ATB' },
@@ -139,49 +153,25 @@ describe('reconcile', () => {
 		expect(result[0]!.status).toBe('new');
 	});
 
-	it('greedy 1:1 across two identical splits', () => {
-		// Two separate -50 splits on the same day (distinct timestamps) match two
-		// -50 lines; a third -50 line stays new.
-		const t1 = day(2026, 7, 12);
-		const t2 = day(2026, 7, 12) + 3600_000; // one hour later, distinct split event
-		const split1 = [
-			tx({
-				id: 's1a',
-				to_entity_id: 'groceries',
-				amount_minor: 3000,
-				timestamp: t1,
-				note: 'ATB',
-			}),
-			tx({
-				id: 's1b',
-				to_entity_id: 'household',
-				amount_minor: 2000,
-				timestamp: t1,
-				note: 'ATB',
-			}),
-		];
-		const split2 = [
-			tx({
-				id: 's2a',
-				to_entity_id: 'groceries',
-				amount_minor: 3000,
-				timestamp: t2,
-				note: 'ATB',
-			}),
-			tx({
-				id: 's2b',
-				to_entity_id: 'household',
-				amount_minor: 2000,
-				timestamp: t2,
-				note: 'ATB',
-			}),
+	it('greedy 1:1 across two identical splits at the same timestamp', () => {
+		// Two -50 splits sharing one timestamp match two -50 lines; a third stays
+		// new. Distinct split_ids keep them apart — the old heuristic needed
+		// distinct timestamps to tell these two events apart at all.
+		const ts = day(2026, 7, 12);
+		const leg = (id: string, cat: string, amt: number, split: string) =>
+			tx({ id, to_entity_id: cat, amount_minor: amt, timestamp: ts, split_id: split });
+		const existing = [
+			leg('s1a', 'groceries', 3000, 'sp-1'),
+			leg('s1b', 'household', 2000, 'sp-1'),
+			leg('s2a', 'groceries', 3000, 'sp-2'),
+			leg('s2b', 'household', 2000, 'sp-2'),
 		];
 		const rows: ParsedBankRow[] = [
-			{ rowIndex: 0, dateMs: t1, amountMinor: -5000, description: 'ATB' },
-			{ rowIndex: 1, dateMs: t1, amountMinor: -5000, description: 'ATB' },
-			{ rowIndex: 2, dateMs: t1, amountMinor: -5000, description: 'ATB' },
+			{ rowIndex: 0, dateMs: ts, amountMinor: -5000, description: 'ATB' },
+			{ rowIndex: 1, dateMs: ts, amountMinor: -5000, description: 'ATB' },
+			{ rowIndex: 2, dateMs: ts, amountMinor: -5000, description: 'ATB' },
 		];
-		const result = reconcile(rows, [...split1, ...split2], ACCT);
+		const result = reconcile(rows, existing, ACCT);
 		expect(result.map((r) => r.status)).toEqual(['duplicate', 'duplicate', 'new']);
 	});
 });
