@@ -534,7 +534,6 @@ export default function HistoryScreen() {
 
 	const renderSnapshotList = useCallback(() => {
 		if (!isInvestmentSelected) return null;
-		const currency = selectedEntity?.currency ?? appCurrency;
 		return (
 			<View className="px-5 pb-8 pt-4" testID="market-value-snapshots-section">
 				<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
@@ -568,7 +567,7 @@ export default function HistoryScreen() {
 										className="font-sans-semibold text-base text-ink"
 										style={{ fontVariant: ['tabular-nums'] }}
 									>
-										{formatAmount(snapshot.amount_minor, currency)}
+										{formatAmount(snapshot.amount_minor, snapshot.currency)}
 									</Text>
 									<Text className="font-sans text-sm text-ink-muted">
 										{dateStr}
@@ -580,7 +579,7 @@ export default function HistoryScreen() {
 				)}
 			</View>
 		);
-	}, [entitySnapshots, selectedEntity, handleEditSnapshot, isInvestmentSelected, appCurrency]);
+	}, [entitySnapshots, handleEditSnapshot, isInvestmentSelected]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top']} testID="history-screen">
