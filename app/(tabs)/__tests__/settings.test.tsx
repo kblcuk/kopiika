@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Switch } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '../settings';
+import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
 import { updateTransactionNotificationIdsBatch } from '@/src/db';
 import {
@@ -25,6 +26,8 @@ jest.mock('expo-router', () => ({
 
 jest.mock('lucide-react-native', () => ({
 	ChevronRight: 'ChevronRight',
+	Check: 'Check',
+	X: 'X',
 }));
 
 jest.mock('expo-constants', () => ({
@@ -83,6 +86,15 @@ describe('SettingsScreen', () => {
 		marketValueSnapshots: unknown[];
 		initialize: jest.Mock;
 		replaceAllData: jest.Mock;
+		appCurrency: string;
+		setAppCurrency: jest.Mock;
+	};
+
+	// Applies overrides onto the shared storeState before rendering, matching
+	// the file's existing pattern of mutating `storeState` ahead of `render`.
+	const renderSettings = (overrides: Partial<typeof storeState> = {}) => {
+		storeState = { ...storeState, ...overrides };
+		return render(<SettingsScreen />);
 	};
 
 	beforeEach(() => {
@@ -99,6 +111,8 @@ describe('SettingsScreen', () => {
 			marketValueSnapshots: [],
 			initialize: jest.fn(),
 			replaceAllData: jest.fn(),
+			appCurrency: 'EUR',
+			setAppCurrency: jest.fn().mockResolvedValue(undefined),
 		};
 
 		const mockedUseStore = useStore as typeof useStore & {
@@ -220,5 +234,70 @@ describe('SettingsScreen', () => {
 		} finally {
 			alertSpy.mockRestore();
 		}
+	});
+
+	test('shows the current app currency', () => {
+		const { getByTestId } = renderSettings();
+		// Regex match, not an exact string: the row's text content also includes
+		// the "Currency" label and symbol (matches the precedent in
+		// app/onboarding/__tests__/setup.test.tsx for the same reason).
+		expect(getByTestId(TestIDs.settings.currencyRow)).toHaveTextContent(/EUR/);
+	});
+
+	test('confirms before relabelling existing data, then dispatches', () => {
+		const alertSpy = jest.spyOn(Alert, 'alert');
+		const setAppCurrency = jest.fn().mockResolvedValue(undefined);
+		const { getByTestId } = renderSettings({ setAppCurrency });
+
+		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
+
+		// Confirm is required — nothing is written until the user agrees.
+		expect(setAppCurrency).not.toHaveBeenCalled();
+		expect(alertSpy).toHaveBeenCalled();
+
+		const buttons = alertSpy.mock.calls.at(-1)![2]!;
+		const change = buttons.find((button) => button.text === 'Change')!;
+		change.onPress!();
+
+		expect(setAppCurrency).toHaveBeenCalledWith('GBP');
+	});
+
+	test('says amounts are not converted', () => {
+		const alertSpy = jest.spyOn(Alert, 'alert');
+		const { getByTestId } = renderSettings();
+
+		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
+
+		expect(alertSpy.mock.calls.at(-1)![1]).toContain("aren't converted");
+	});
+
+	test('does not prompt when the currency is unchanged', () => {
+		const alertSpy = jest.spyOn(Alert, 'alert');
+		const setAppCurrency = jest.fn();
+		const { getByTestId } = renderSettings({ setAppCurrency });
+
+		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('EUR')));
+
+		expect(alertSpy).not.toHaveBeenCalled();
+		expect(setAppCurrency).not.toHaveBeenCalled();
+	});
+
+	test('an empty board skips the prompt and applies directly', async () => {
+		const alertSpy = jest.spyOn(Alert, 'alert');
+		const setAppCurrency = jest.fn().mockResolvedValue(undefined);
+		const { getByTestId } = renderSettings({
+			entities: [],
+			transactions: [],
+			setAppCurrency,
+		});
+
+		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
+
+		expect(alertSpy).not.toHaveBeenCalled();
+		await waitFor(() => expect(setAppCurrency).toHaveBeenCalledWith('GBP'));
 	});
 });

@@ -8,6 +8,9 @@ import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { colors } from '@/src/theme/colors';
 import { TestIDs } from '@/e2e/support/test-ids';
+import { CurrencyPickerSheet } from '@/src/components/currency-picker-sheet';
+import { getCurrencySymbol, formatAmount } from '@/src/utils/format';
+import { toMinor } from '@/src/utils/money';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
@@ -41,9 +44,12 @@ export default function SettingsScreen() {
 		marketValueSnapshots,
 		initialize,
 		replaceAllData,
+		appCurrency,
+		setAppCurrency,
 	} = useStore();
 
 	const [remindersEnabled, setRemindersToggle] = useState(true);
+	const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
 	useEffect(() => {
 		void (async () => {
@@ -108,6 +114,48 @@ export default function SettingsScreen() {
 				'Something went wrong while updating your reminder settings. Please try again.'
 			);
 		}
+	};
+
+	// KII-155: a currency change relabels every existing row. Amounts are not
+	// converted, so the confirm has to say what actually happens to the numbers.
+	const handleCurrencySelect = (code: string) => {
+		if (code === appCurrency) return;
+
+		const hasData = entities.length > 0 || transactions.length > 0;
+		const runChange = async () => {
+			try {
+				await setAppCurrency(code);
+			} catch (error) {
+				console.error('Failed to change currency:', error);
+				Alert.alert(
+					'Could not change currency',
+					'Something went wrong while updating your currency. Please try again.'
+				);
+			}
+		};
+
+		if (!hasData) {
+			void runChange();
+			return;
+		}
+
+		// Build the example by formatting ONE stored integer in both currencies —
+		// exactly what the op does — so the copy can't drift from the behaviour.
+		const exampleMinor = toMinor(10.5, appCurrency);
+		const example = `${getCurrencySymbol(appCurrency)}${formatAmount(exampleMinor, appCurrency)} will be shown as ${getCurrencySymbol(code)}${formatAmount(exampleMinor, code)}`;
+		Alert.alert(
+			`Change currency to ${code}?`,
+			`Every entity and transaction will be relabelled ${code}.\n\nAmounts aren't converted — ${example}.`,
+			[
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Change',
+					onPress: () => {
+						void runChange();
+					},
+				},
+			]
+		);
 	};
 
 	const router = useRouter();
@@ -303,6 +351,27 @@ export default function SettingsScreen() {
 					</Pressable>
 				</View>
 
+				{/* Preferences Section */}
+				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
+					Preferences
+				</Text>
+
+				<View className="mb-6 overflow-hidden rounded-lg bg-paper-100">
+					<Pressable
+						testID={TestIDs.settings.currencyRow}
+						onPress={() => setCurrencyPickerOpen(true)}
+						className="flex-row items-center justify-between px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Currency</Text>
+						<View className="flex-row items-center">
+							<Text className="font-sans text-sm text-ink-muted">
+								{getCurrencySymbol(appCurrency)} {appCurrency}
+							</Text>
+							<ChevronRight size={16} color={colors.ink.muted} />
+						</View>
+					</Pressable>
+				</View>
+
 				{/* Notifications Section */}
 				<Text className="mb-3 font-sans-semibold text-xs uppercase tracking-wider text-ink-muted">
 					Notifications
@@ -396,6 +465,13 @@ export default function SettingsScreen() {
 					</Text>
 				</View>
 			</View>
+
+			<CurrencyPickerSheet
+				visible={currencyPickerOpen}
+				selectedCode={appCurrency}
+				onSelect={handleCurrencySelect}
+				onClose={() => setCurrencyPickerOpen(false)}
+			/>
 		</SafeAreaView>
 	);
 }
