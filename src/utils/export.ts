@@ -52,6 +52,7 @@ function transactionsToCsv(transactions: Transaction[]): string {
 			t.timestamp,
 			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
 			t.series_id ?? '',
+			t.split_id ?? '',
 			t.is_confirmed !== false,
 		].join(',')
 	);

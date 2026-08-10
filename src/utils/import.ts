@@ -428,6 +428,7 @@ function parseTransactions(
 			timestamp,
 			note: row.note || null,
 			series_id: row.series_id || null,
+			split_id: row.split_id || null,
 			is_confirmed:
 				row.is_confirmed === 'true'
 					? true

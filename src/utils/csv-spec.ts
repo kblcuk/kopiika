@@ -43,6 +43,7 @@ export const TRANSACTION_HEADERS = [
 	'timestamp',
 	'note',
 	'series_id',
+	'split_id',
 	'is_confirmed',
 ] as const;
 

@@ -101,6 +101,11 @@ export const transactions = sqliteTable(
 		note: text('note'),
 		// No FK constraint: transactions can outlive a soft-deleted template
 		series_id: text('series_id'),
+		// KII-146: groups the N legs of one split transaction so bank-CSV
+		// reconciliation can fold them back into the single charge the bank
+		// reported. No FK (it references no table) and no index (reconcile groups
+		// in memory over rows it already loaded). Null = not part of a split.
+		split_id: text('split_id'),
 		is_confirmed: integer('is_confirmed', { mode: 'boolean' }).notNull().default(true),
 		notification_id: text('notification_id'),
 		created_at: createdAt(),

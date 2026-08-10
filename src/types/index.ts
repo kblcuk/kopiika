@@ -46,10 +46,17 @@ export type Plan = Omit<DrizzlePlan, 'created_at' | 'updated_at'> & {
 
 export type Transaction = Omit<
 	DrizzleTransaction,
-	'note' | 'series_id' | 'is_confirmed' | 'notification_id' | 'created_at' | 'updated_at'
+	| 'note'
+	| 'series_id'
+	| 'split_id'
+	| 'is_confirmed'
+	| 'notification_id'
+	| 'created_at'
+	| 'updated_at'
 > & {
 	note?: string | null;
 	series_id?: string | null;
+	split_id?: string | null;
 	is_confirmed?: boolean;
 	notification_id?: string | null;
 	created_at?: number;

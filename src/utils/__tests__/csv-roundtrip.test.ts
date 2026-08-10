@@ -90,6 +90,10 @@ const FULL_FIXTURE = {
 			// round-trips losslessly. rt1 below stays soft-deleted but unreferenced,
 			// preserving is_deleted/exclusion serialization coverage.
 			series_id: 'rt2',
+			// Serialization coverage only — a lone stamped row is not a real split
+			// (buildSplitRows stamps only groups of 2+). Round-trip must preserve
+			// whatever value it is given.
+			split_id: 'sp-1',
 			is_confirmed: false,
 		},
 		{
@@ -101,6 +105,7 @@ const FULL_FIXTURE = {
 			timestamp: 1706832000000,
 			note: null,
 			series_id: null,
+			split_id: null,
 			is_confirmed: true,
 		},
 	] satisfies Transaction[],

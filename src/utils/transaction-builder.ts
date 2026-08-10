@@ -26,6 +26,7 @@ export interface TransactionDraft extends MutationInput {
 	timestamp: number;
 	note?: string;
 	series_id?: string;
+	split_id?: string;
 	is_confirmed?: boolean;
 	notification_id?: string;
 }
@@ -58,6 +59,7 @@ export function buildTransaction(draft: TransactionDraft, now: number = Date.now
 	};
 	if (draft.note !== undefined) tx.note = draft.note;
 	if (draft.series_id !== undefined) tx.series_id = draft.series_id;
+	if (draft.split_id !== undefined) tx.split_id = draft.split_id;
 	if (draft.notification_id !== undefined) tx.notification_id = draft.notification_id;
 	return tx;
 }

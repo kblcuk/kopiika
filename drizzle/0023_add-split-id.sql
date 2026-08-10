@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` ADD `split_id` text;

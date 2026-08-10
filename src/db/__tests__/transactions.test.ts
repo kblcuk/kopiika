@@ -1438,4 +1438,33 @@ describe('transactions.ts', () => {
 			expect(all.find((t) => t.id === 'plain-del')).toBeUndefined();
 		});
 	});
+
+	test('persists split_id through create and read', async () => {
+		await createTransaction({
+			id: 'sp-tx-1',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 1000,
+			currency: 'USD',
+			timestamp: 1700000000000,
+			split_id: 'sp-group-1',
+		});
+
+		const all = await getAllTransactions();
+		expect(all.find((t) => t.id === 'sp-tx-1')?.split_id).toBe('sp-group-1');
+	});
+
+	test('defaults split_id to null when not supplied', async () => {
+		await createTransaction({
+			id: 'sp-tx-2',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 1000,
+			currency: 'USD',
+			timestamp: 1700000000000,
+		});
+
+		const all = await getAllTransactions();
+		expect(all.find((t) => t.id === 'sp-tx-2')?.split_id).toBeNull();
+	});
 });
