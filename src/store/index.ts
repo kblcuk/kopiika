@@ -22,6 +22,7 @@ import {
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { endOfLocalDay, isDue } from '@/src/utils/due';
 import { markPerf } from '@/src/utils/perf-marks';
+import { buildBalanceSeed } from './hydration-seed';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -56,10 +57,15 @@ interface AppState {
 	transactions: Transaction[];
 	recurrenceTemplates: RecurrenceTemplate[];
 	marketValueSnapshots: MarketValueSnapshot[];
+	/** Synthetic (from,to,currency) sums of pre-period confirmed history; only
+	 * useEntitiesWithBalance may consume these. Empty once fully hydrated. */
+	balanceSeed: Transaction[];
 
 	// UI State
 	currentPeriod: string;
 	isLoading: boolean;
+	/** False between gate-open (phase 1) and full-table hydration (phase 2). */
+	isFullyHydrated: boolean;
 	draggedEntity: Entity | null;
 	incomeVisible: boolean;
 	// The single app-wide currency (KII-155). Derived from row data at hydration;
@@ -68,6 +74,9 @@ interface AppState {
 
 	// Actions
 	initialize: () => Promise<void>;
+	/** Resolves when phase 2 + startup backfill have finished (immediately if
+	 * initialize has not run — callers treat that as "nothing pending"). */
+	whenFullyHydrated: () => Promise<void>;
 	replaceAllData: (
 		entities: Entity[],
 		plans: Plan[],
@@ -154,6 +163,11 @@ interface AppState {
 // KII-132: module-level mutable promise — not reset by `useStore.setState(...)`
 // in tests, so a rejected initialize poisons later tests. Move into store state.
 let initializePromise: Promise<void> | null = null;
+
+// KII-144: retained background promise for phase 2 + the startup recurrence
+// backfill. `whenFullyHydrated` exposes it to callers that must wait for full
+// hydration (the provider's reminder sweep, tests) without blocking gate-open.
+let fullHydrationPromise: Promise<void> | null = null;
 
 // Tracks the civil day `backfillRecurrences` last ran on, so a foreground bounce
 // doesn't thrash the DB. Civil-day rather than a 24h window: with due-ness
@@ -342,6 +356,55 @@ async function backfillRecurrences(
 	}
 }
 
+/**
+ * Phase 2 of hydration (KII-144): replace the phase-1 partial rows + seed
+ * with the full transaction table, then run the startup recurrence backfill
+ * (it must see full history — its slot dedup would otherwise regenerate
+ * pre-period occurrences). Never throws: on repeated failure the phase-1
+ * state is kept (correct, current-period-scoped) and the error is logged.
+ *
+ * Legacy materialized future occurrences are removed by migration 0021 (runs
+ * before hydration), so the rows loaded here are already free of phantom
+ * future rows.
+ */
+async function completePhase2(
+	set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+	get: () => AppState
+): Promise<void> {
+	const swapInFullTable = async (): Promise<void> => {
+		for (;;) {
+			// Every transaction mutation replaces the array, so its identity is a
+			// free mutation epoch: if it changed while the read was in flight, a
+			// write landed (all writers hit the DB before set) — re-read.
+			const snapshot = get().transactions;
+			const full = await db.getAllTransactions();
+			if (get().transactions === snapshot) {
+				markPerf('hydrate:phase2', `${full.length} rows`);
+				set({ transactions: full, balanceSeed: [], isFullyHydrated: true });
+				return;
+			}
+		}
+	};
+
+	try {
+		try {
+			await swapInFullTable();
+		} catch (firstError) {
+			console.warn('Phase-2 hydration failed, retrying once:', firstError);
+			await swapInFullTable();
+		}
+		await backfillRecurrences(
+			get().recurrenceTemplates,
+			get().transactions,
+			get().entities,
+			set
+		);
+		lastBackfillCivilDate = toCivilDate(Date.now());
+	} catch (error) {
+		console.error('Phase-2 hydration failed; keeping phase-1 state:', error);
+	}
+}
+
 export const useStore = create<AppState>((set, get) => {
 	// DRY helper — builds the read-only context snapshot applyOperation needs.
 	// Defined inside the creator so `get` is in scope; the resolved object is
@@ -359,8 +422,10 @@ export const useStore = create<AppState>((set, get) => {
 		transactions: [],
 		recurrenceTemplates: [],
 		marketValueSnapshots: [],
+		balanceSeed: [],
 		currentPeriod: getCurrentPeriod(),
 		isLoading: true,
+		isFullyHydrated: false,
 		draggedEntity: null,
 		incomeVisible: false,
 		appCurrency: DEFAULT_CURRENCY,
@@ -375,22 +440,35 @@ export const useStore = create<AppState>((set, get) => {
 				set({ isLoading: true });
 				try {
 					console.info('Hydrating store from database');
+					// KII-144: phase 1 loads everything derivation inspects row-by-row
+					// (current period, unconfirmed, series rows) plus (from,to,currency)
+					// sums of the confirmed pre-period rest. The gate opens on this —
+					// balances are exact by linearity — and phase 2 streams the full
+					// table in the background.
+					const periodStart = getPeriodRange(get().currentPeriod).start;
 					const [
 						entities,
 						plans,
-						transactions,
+						recentTransactions,
+						seedGroups,
 						rawTemplates,
 						marketValueSnapshots,
 						exclusionsByTemplate,
+						currencyPref,
 					] = await Promise.all([
 						db.getAllEntities(),
 						db.getAllPlans(),
-						db.getAllTransactions(),
+						db.getTransactionsSince(periodStart),
+						db.getBalanceSeedGroups(periodStart),
 						db.getAllRecurrenceTemplates(),
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
+						getDefaultCurrency(),
 					]);
-					markPerf('hydrate:tables', `${transactions.length} transactions`);
+					markPerf(
+						'hydrate:phase1',
+						`${recentTransactions.length} rows + ${seedGroups.length} seed groups`
+					);
 					// KII-123: attach exclusions from the normalized table. Templates
 					// without any exclusions get an empty array so consumers never
 					// need to null-check.
@@ -403,7 +481,6 @@ export const useStore = create<AppState>((set, get) => {
 					// window before any user entity exists (KII-155). Resolve it before
 					// creating the system entity so a post-reset re-create doesn't
 					// reintroduce EUR into a non-EUR board.
-					const currencyPref = await getDefaultCurrency();
 					const appCurrency = resolveAppCurrency(entities, currencyPref);
 
 					// Ensure balance adjustment system entity exists (may be missing after data reset)
@@ -420,20 +497,18 @@ export const useStore = create<AppState>((set, get) => {
 					set({
 						entities,
 						plans: validPlans,
-						transactions,
+						transactions: recentTransactions,
+						balanceSeed: buildBalanceSeed(seedGroups, periodStart),
 						recurrenceTemplates,
 						marketValueSnapshots,
 						appCurrency,
 						isLoading: false,
+						isFullyHydrated: false,
 					});
 
-					// Legacy materialized future occurrences are removed by migration
-					// 0021 (runs before hydration), so the rows loaded above are already
-					// free of phantom future rows.
-					// Backfill any missing past-due occurrences.
-					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
-					lastBackfillCivilDate = toCivilDate(Date.now());
-					markPerf('hydrate:complete');
+					// Phase 2 + startup backfill continue past the gate; whenFullyHydrated
+					// exposes completion to the provider's reminder sweep and tests.
+					fullHydrationPromise = completePhase2(set, get);
 				} catch (error) {
 					console.error('Failed to initialize store:', error);
 					set({ isLoading: false });
@@ -445,6 +520,8 @@ export const useStore = create<AppState>((set, get) => {
 
 			return initializePromise;
 		},
+
+		whenFullyHydrated: () => fullHydrationPromise ?? Promise.resolve(),
 
 		// Replace all data atomically — used by CSV import.
 		replaceAllData: async (
@@ -496,6 +573,8 @@ export const useStore = create<AppState>((set, get) => {
 				recurrenceTemplates: result.recurrenceTemplates,
 				marketValueSnapshots: result.marketValueSnapshots,
 				appCurrency: importedCurrency,
+				balanceSeed: [],
+				isFullyHydrated: true,
 			});
 			await setDefaultCurrency(importedCurrency);
 			// Materialize the imported templates' due occurrences, exactly as
