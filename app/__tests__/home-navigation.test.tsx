@@ -675,16 +675,24 @@ describe('progressive section mount', () => {
 		expect(queryByTestId('skeleton-Categories')).toBeNull();
 	});
 
-	it('logs dash-mount exactly once across re-renders', () => {
+	it('logs dash-mount exactly once across isLoading false -> true -> false', () => {
 		// Data is already ready in this describe block's beforeEach (isLoading:
 		// false), so the mount effect fires on the initial render.
 		jest.mocked(useStaggeredReveal).mockReturnValue(2);
 		const info = jest.spyOn(console, 'info').mockImplementation(() => {});
-		const { rerender } = render(<HomeScreen />);
+		render(<HomeScreen />);
 
-		// Force a re-render with unchanged props/state — the latch must not
-		// re-fire the mark on this second commit.
-		rerender(<HomeScreen />);
+		// Toggle isLoading through the store (same mounted instance, no
+		// remount) so the effect's [isLoading] dependency actually changes
+		// twice more. A latch-less implementation would log a second
+		// dash-mount line on the false -> true -> false round trip; the
+		// useRef latch must suppress it.
+		act(() => {
+			useStore.setState({ isLoading: true });
+		});
+		act(() => {
+			useStore.setState({ isLoading: false });
+		});
 
 		const dashMountLines = info.mock.calls.filter((c) =>
 			String(c[0]).startsWith('[perf] dash-mount')
