@@ -114,6 +114,7 @@ jest.mock('@/src/components', () => {
 	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
 	return {
+		PerfProfiler: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 		SortableEntityGrid: ({
 			entities,
 			onTap,
@@ -672,6 +673,24 @@ describe('progressive section mount', () => {
 		expect(getByTestId('category-drag-behavior')).toBeTruthy();
 		expect(getByTestId('saving-drag-behavior')).toBeTruthy();
 		expect(queryByTestId('skeleton-Categories')).toBeNull();
+	});
+
+	it('logs dash-mount exactly once across re-renders', () => {
+		// Data is already ready in this describe block's beforeEach (isLoading:
+		// false), so the mount effect fires on the initial render.
+		jest.mocked(useStaggeredReveal).mockReturnValue(2);
+		const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+		const { rerender } = render(<HomeScreen />);
+
+		// Force a re-render with unchanged props/state — the latch must not
+		// re-fire the mark on this second commit.
+		rerender(<HomeScreen />);
+
+		const dashMountLines = info.mock.calls.filter((c) =>
+			String(c[0]).startsWith('[perf] dash-mount')
+		);
+		expect(dashMountLines).toHaveLength(1);
+		info.mockRestore();
 	});
 });
 

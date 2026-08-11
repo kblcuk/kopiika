@@ -21,6 +21,7 @@ import {
 } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { endOfLocalDay, isDue } from '@/src/utils/due';
+import { markPerf } from '@/src/utils/perf-marks';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -389,6 +390,7 @@ export const useStore = create<AppState>((set, get) => {
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
 					]);
+					markPerf('hydrate:tables', `${transactions.length} transactions`);
 					// KII-123: attach exclusions from the normalized table. Templates
 					// without any exclusions get an empty array so consumers never
 					// need to null-check.
@@ -431,6 +433,7 @@ export const useStore = create<AppState>((set, get) => {
 					// Backfill any missing past-due occurrences.
 					await backfillRecurrences(recurrenceTemplates, transactions, entities, set);
 					lastBackfillCivilDate = toCivilDate(Date.now());
+					markPerf('hydrate:complete');
 				} catch (error) {
 					console.error('Failed to initialize store:', error);
 					set({ isLoading: false });

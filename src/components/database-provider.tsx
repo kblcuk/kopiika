@@ -10,6 +10,7 @@ import { setupNotificationChannel, updateBadgeCount } from '@/src/services/notif
 import { syncScheduledReminders } from '@/src/services/reminders';
 import { getRemindersEnabled } from '@/src/utils/app-prefs';
 import { endOfLocalDay } from '@/src/utils/due';
+import { markPerf } from '@/src/utils/perf-marks';
 
 /**
  * Milliseconds from `now` to the next local midnight. Derived from
@@ -64,7 +65,10 @@ export default function DatabaseProvider({
 	// straight to content — no unstyled intermediate frame. (If the splash has
 	// already auto-hidden, the themed LoadingScreen below covers the gap.)
 	useEffect(() => {
-		if (appReady) void SplashScreen.hideAsync();
+		if (appReady) {
+			markPerf('gate-open');
+			void SplashScreen.hideAsync();
+		}
 	}, [appReady]);
 
 	useEffect(() => {
@@ -73,6 +77,7 @@ export default function DatabaseProvider({
 		void (async () => {
 			try {
 				await getDrizzleDb();
+				markPerf('db-ready');
 				await initialize();
 			} catch (err) {
 				console.error('App startup error:', err);
