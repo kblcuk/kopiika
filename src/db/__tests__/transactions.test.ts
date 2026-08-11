@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
-import type { Transaction, Entity } from '@/src/types';
+import type { Transaction, Entity, BalanceSeedGroup } from '@/src/types';
 import {
 	getAllTransactions,
 	getTransactionsByPeriod,
@@ -19,9 +19,12 @@ import {
 	updateTransactionNotificationId,
 	updateTransactionNotificationIdsBatch,
 	replaceTransactionAtomic,
+	getTransactionsSince,
+	getBalanceSeedGroups,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
+import { partitionForPhase1 } from '@/src/store/hydration-seed';
 
 describe('transactions.ts', () => {
 	beforeEach(async () => {
@@ -1466,5 +1469,80 @@ describe('transactions.ts', () => {
 
 		const all = await getAllTransactions();
 		expect(all.find((t) => t.id === 'sp-tx-2')?.split_id).toBeNull();
+	});
+
+	describe('phase-1 hydration queries (KII-144)', () => {
+		const CUTOFF = 1_750_000_000_000;
+
+		const mk = (over: Partial<Transaction>): Transaction => ({
+			id: over.id!,
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 100,
+			currency: 'USD',
+			timestamp: CUTOFF - 1000,
+			note: null,
+			is_confirmed: true,
+			...over,
+		});
+
+		const rows: Transaction[] = [
+			mk({ id: 'p1-old-a', amount_minor: 100 }),
+			mk({ id: 'p1-old-b', amount_minor: 250 }),
+			mk({
+				id: 'p1-old-reverse',
+				from_entity_id: 'category-1',
+				to_entity_id: 'account-1',
+				amount_minor: 40,
+			}),
+			mk({ id: 'p1-old-unconf', amount_minor: 999, is_confirmed: false }),
+			mk({ id: 'p1-old-series', amount_minor: 500, series_id: 'series-1' }),
+			mk({ id: 'p1-recent', timestamp: CUTOFF + 1000 }),
+			mk({ id: 'p1-at-cutoff', timestamp: CUTOFF }),
+		];
+
+		beforeEach(async () => {
+			for (const r of rows) {
+				await createTransaction(r);
+			}
+		});
+
+		test('getTransactionsSince returns recent, unconfirmed, and series rows only', async () => {
+			const result = await getTransactionsSince(CUTOFF);
+			expect(result.map((t) => t.id).sort()).toEqual([
+				'p1-at-cutoff',
+				'p1-old-series',
+				'p1-old-unconf',
+				'p1-recent',
+			]);
+		});
+
+		test('getBalanceSeedGroups matches the JS partition oracle', async () => {
+			const dbGroups = await getBalanceSeedGroups(CUTOFF);
+			const { seedGroups: oracle } = partitionForPhase1(rows, CUTOFF);
+			const sort = (g: BalanceSeedGroup[]) =>
+				[...g].sort((a, b) =>
+					`${a.from_entity_id}|${a.to_entity_id}|${a.currency}`.localeCompare(
+						`${b.from_entity_id}|${b.to_entity_id}|${b.currency}`
+					)
+				);
+			expect(sort(dbGroups)).toEqual(sort(oracle));
+			// And explicitly: the two confirmed old rows collapse into one 350 group,
+			// the reverse-direction row keeps its own group.
+			expect(sort(dbGroups)).toEqual([
+				{
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					currency: 'USD',
+					total_minor: 350,
+				},
+				{
+					from_entity_id: 'category-1',
+					to_entity_id: 'account-1',
+					currency: 'USD',
+					total_minor: 40,
+				},
+			]);
+		});
 	});
 });

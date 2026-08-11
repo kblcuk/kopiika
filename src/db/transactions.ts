@@ -1,5 +1,5 @@
-import { eq, and, between, or, desc, sum, inArray, gte } from 'drizzle-orm';
-import type { Transaction } from '@/src/types';
+import { eq, and, between, or, desc, sum, inArray, gte, lt, isNull, isNotNull } from 'drizzle-orm';
+import type { BalanceSeedGroup, Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizzle-schema';
 
@@ -36,6 +36,59 @@ function recurrenceTemplateExists(tx: DrizzleTx, templateId: string): boolean {
 export async function getAllTransactions(): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	return await db.select().from(transactions).orderBy(desc(transactions.timestamp));
+}
+
+/**
+ * Phase-1 hydration rows (KII-144): everything the balance derivation and
+ * virtual-occurrence dedup must see row-by-row — current-period rows,
+ * unconfirmed rows (any age), and series occurrences (any age; an edited
+ * timestamp must not hide a slot from dedup). The pre-cutoff confirmed rest
+ * is covered by getBalanceSeedGroups.
+ */
+export async function getTransactionsSince(cutoff: number): Promise<Transaction[]> {
+	const db = await getDrizzleDb();
+	return await db
+		.select()
+		.from(transactions)
+		.where(
+			or(
+				gte(transactions.timestamp, cutoff),
+				eq(transactions.is_confirmed, false),
+				isNotNull(transactions.series_id)
+			)
+		)
+		.orderBy(desc(transactions.timestamp));
+}
+
+/**
+ * (from, to, currency) sums of pre-cutoff confirmed non-series history —
+ * the exact complement of getTransactionsSince. Balance derivation is linear
+ * in these fields, so the sums reproduce full-history balances exactly.
+ */
+export async function getBalanceSeedGroups(cutoff: number): Promise<BalanceSeedGroup[]> {
+	const db = await getDrizzleDb();
+	const rows = await db
+		.select({
+			from_entity_id: transactions.from_entity_id,
+			to_entity_id: transactions.to_entity_id,
+			currency: transactions.currency,
+			total: sum(transactions.amount_minor),
+		})
+		.from(transactions)
+		.where(
+			and(
+				lt(transactions.timestamp, cutoff),
+				eq(transactions.is_confirmed, true),
+				isNull(transactions.series_id)
+			)
+		)
+		.groupBy(transactions.from_entity_id, transactions.to_entity_id, transactions.currency);
+	return rows.map((r) => ({
+		from_entity_id: r.from_entity_id,
+		to_entity_id: r.to_entity_id,
+		currency: r.currency,
+		total_minor: Number(r.total ?? 0),
+	}));
 }
 
 export async function getTransactionsByPeriod(
