@@ -22,6 +22,13 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Entity, Transaction } from '@/src/types';
 
+export interface PerfFixtureCounts {
+	income: number;
+	accounts: number;
+	categories: number;
+	savings: number;
+}
+
 export interface PerfFixtureOptions {
 	/** Years of daily history to generate (default 5). */
 	years?: number;
@@ -29,12 +36,22 @@ export interface PerfFixtureOptions {
 	seed?: number;
 	/** Fixed reference "now" (ms). Transactions land in [now - years, now]. */
 	now?: number;
+	/** Entity counts (default: production 5-year fixture). */
+	counts?: PerfFixtureCounts;
 }
 
 export interface PerfFixture {
 	entities: Entity[];
 	transactions: Transaction[];
 }
+
+/** Typical-user board (KII-144 round 2): used for the realistic baseline. */
+export const REALISTIC_COUNTS: PerfFixtureCounts = {
+	income: 2,
+	accounts: 4,
+	categories: 12,
+	savings: 6,
+};
 
 const CURRENCY = 'EUR';
 const N_ACCOUNTS = 10;
@@ -69,6 +86,13 @@ export function generatePerfFixture(opts: PerfFixtureOptions = {}): PerfFixture 
 	const randInt = (min: number, max: number) => min + Math.floor(rnd() * (max - min + 1));
 	const pick = <T>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)]!;
 
+	const counts = opts.counts ?? {
+		income: N_INCOME,
+		accounts: N_ACCOUNTS,
+		categories: N_CATEGORIES,
+		savings: N_SAVINGS,
+	};
+
 	const entities: Entity[] = [];
 	const add = (id: string, type: Entity['type'], name: string, position: number) => {
 		entities.push({
@@ -86,12 +110,14 @@ export function generatePerfFixture(opts: PerfFixtureOptions = {}): PerfFixture 
 			is_investment: false,
 		});
 	};
-	for (let i = 1; i <= N_INCOME; i++) add(`inc-${pad(i)}`, 'income', `Income ${pad(i)}`, i - 1);
-	for (let i = 1; i <= N_ACCOUNTS; i++)
+	for (let i = 1; i <= counts.income; i++)
+		add(`inc-${pad(i)}`, 'income', `Income ${pad(i)}`, i - 1);
+	for (let i = 1; i <= counts.accounts; i++)
 		add(`acc-${pad(i)}`, 'account', `Account ${pad(i)}`, i - 1);
-	for (let i = 1; i <= N_CATEGORIES; i++)
+	for (let i = 1; i <= counts.categories; i++)
 		add(`cat-${pad(i)}`, 'category', `Category ${pad(i)}`, i - 1);
-	for (let i = 1; i <= N_SAVINGS; i++) add(`sav-${pad(i)}`, 'saving', `Saving ${pad(i)}`, i - 1);
+	for (let i = 1; i <= counts.savings; i++)
+		add(`sav-${pad(i)}`, 'saving', `Saving ${pad(i)}`, i - 1);
 
 	const accounts = entities.filter((e) => e.type === 'account').map((e) => e.id);
 	const cats = entities.filter((e) => e.type === 'category').map((e) => e.id);
@@ -213,10 +239,18 @@ export function toCombinedCsv({ entities, transactions }: PerfFixture): string {
 
 // CLI: write a CSV for manual import testing. Skipped when imported (tests).
 if (import.meta.main) {
-	const years = Number(process.argv[2] ?? 5);
-	const out =
-		process.argv[3] ?? new URL('./fixtures/kopiika-5yr-fixture.csv', import.meta.url).pathname;
-	const fixture = generatePerfFixture({ years });
+	const flagArgs = process.argv.slice(2);
+	const realistic = flagArgs.includes('--realistic');
+	const positional = flagArgs.filter((a) => a !== '--realistic');
+	const years = Number(positional[0] ?? (realistic ? 1 : 5));
+	const defaultName = realistic
+		? './fixtures/kopiika-realistic-fixture.csv'
+		: './fixtures/kopiika-5yr-fixture.csv';
+	const out = positional[1] ?? new URL(defaultName, import.meta.url).pathname;
+	const fixture = generatePerfFixture({
+		years,
+		counts: realistic ? REALISTIC_COUNTS : undefined,
+	});
 	const csv = toCombinedCsv(fixture);
 	mkdirSync(dirname(out), { recursive: true });
 	writeFileSync(out, csv);
