@@ -359,9 +359,14 @@ async function backfillRecurrences(
 /**
  * Phase 2 of hydration (KII-144): replace the phase-1 partial rows + seed
  * with the full transaction table, then run the startup recurrence backfill
- * (it must see full history — its slot dedup would otherwise regenerate
- * pre-period occurrences). Never throws: on repeated failure the phase-1
- * state is kept (correct, current-period-scoped) and the error is logged.
+ * through the shared `backfillChain` (it must see full history — its slot
+ * dedup would otherwise regenerate pre-period occurrences; and it must
+ * serialize with `backfillRecurringIfStale`, since the gate is already open
+ * by the time this runs — see the comment at the `backfillChain` assignment
+ * below). Never throws: if the full-table swap fails twice, phase-1 state
+ * (correct, current-period-scoped) is kept and the error is logged; if the
+ * swap succeeds but the backfill fails, that failure is logged separately —
+ * "keeping phase-1 state" would be wrong once `isFullyHydrated` is true.
  *
  * Legacy materialized future occurrences are removed by migration 0021 (runs
  * before hydration), so the rows loaded here are already free of phantom
@@ -387,22 +392,45 @@ async function completePhase2(
 	};
 
 	try {
+		await swapInFullTable();
+	} catch (firstError) {
+		console.warn('Phase-2 hydration failed, retrying once:', firstError);
 		try {
 			await swapInFullTable();
-		} catch (firstError) {
-			console.warn('Phase-2 hydration failed, retrying once:', firstError);
-			await swapInFullTable();
+		} catch (secondError) {
+			// The swap never landed — phase-1 state (correct, current-period-scoped)
+			// stays in place. Distinct from the backfill's error log below: once the
+			// swap has succeeded, "keeping phase-1 state" would be a lie.
+			console.error('Phase-2 hydration failed; keeping phase-1 state:', secondError);
+			return;
 		}
-		await backfillRecurrences(
-			get().recurrenceTemplates,
-			get().transactions,
-			get().entities,
-			set
-		);
-		lastBackfillCivilDate = toCivilDate(Date.now());
-	} catch (error) {
-		console.error('Phase-2 hydration failed; keeping phase-1 state:', error);
 	}
+
+	// The swap landed (isFullyHydrated is true). Route the startup backfill
+	// through `backfillChain` — the same serialization `backfillRecurringIfStale`
+	// uses (KII-159) — because the gate is already open at this point (phase 1
+	// resolved `initialize()`), so the foreground listener can invoke
+	// `backfillRecurringIfStale` concurrently with this backfill. Without a
+	// shared chain both would compute the same deterministic occurrence ids
+	// independently and collide on insert (the exact PK-collision failure
+	// `backfillChain` exists to prevent). `.catch` applies to the chain, never
+	// to this function.
+	backfillChain = backfillChain
+		.catch(() => {})
+		.then(async () => {
+			try {
+				await backfillRecurrences(
+					get().recurrenceTemplates,
+					get().transactions,
+					get().entities,
+					set
+				);
+				lastBackfillCivilDate = toCivilDate(Date.now());
+			} catch (error) {
+				console.error('Startup recurrence backfill failed:', error);
+			}
+		});
+	await backfillChain;
 }
 
 export const useStore = create<AppState>((set, get) => {
@@ -437,7 +465,14 @@ export const useStore = create<AppState>((set, get) => {
 			}
 
 			initializePromise = (async () => {
-				set({ isLoading: true });
+				// KII-144: clear both synchronously, before the first await, so a
+				// re-initialize (e.g. replaceAllData's reset-then-rehydrate flow)
+				// never leaves `isFullyHydrated`/`whenFullyHydrated()` pointing at the
+				// PREVIOUS run between now and phase 1's `set` below — a caller that
+				// reads either in that window must see "hydration is in progress",
+				// not stale prior-run state.
+				fullHydrationPromise = null;
+				set({ isLoading: true, isFullyHydrated: false });
 				try {
 					console.info('Hydrating store from database');
 					// KII-144: phase 1 loads everything derivation inspects row-by-row

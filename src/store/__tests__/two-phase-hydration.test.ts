@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach, spyOn } from 'bun:test';
 import type { Entity, Transaction } from '@/src/types';
 import { getPeriodRange, getCurrentPeriod } from '@/src/types';
 import { useStore } from '../index';
@@ -92,12 +92,8 @@ describe('two-phase initialize (KII-144)', () => {
 		]);
 	});
 
-	test('backfill of past-due recurrences runs after phase 2 and does not duplicate pre-period occurrences', async () => {
+	test('startup backfill runs against the full table, not phase-1 partial rows, so a detached occurrence is not re-inserted under its own id', async () => {
 		await seedDb();
-		// A monthly template whose first occurrence is already materialized with a
-		// pre-period timestamp and confirmed — invisible to phase 1's row set if it
-		// weren't a series row. If backfill regenerated this slot it would collide
-		// on the deterministic occurrence id (PK collision).
 		const templateId = 'tmpl-1';
 		const startDate = PERIOD_START - 40 * 86_400_000;
 		await db.createRecurrenceTemplate({
@@ -113,26 +109,93 @@ describe('two-phase initialize (KII-144)', () => {
 			end_count: null,
 			created_at: startDate,
 		});
-		// Materialized pre-period occurrence, confirmed (user confirmed it long
-		// ago). Its id is the deterministic occurrence id backfillRecurrences uses:
-		// occurrenceId(templateId, toCivilDate(ts)) for the first due occurrence
-		// (the template's start_date, since the rule has no earlier due date).
+
+		// A DETACHED materialized occurrence (e.g. left behind by a past
+		// "delete future" scope edit that cleared series_id): it carries the
+		// deterministic occurrence id backfillRecurrences would compute for the
+		// template's first due slot (occurrenceId(templateId, civilDate)), but
+		// series_id is null. Being confirmed, pre-period, AND series_id: null,
+		// it is SEEDABLE (src/store/hydration-seed.ts) — collapsed into
+		// balanceSeed and invisible to phase 1's row set. Only the full table
+		// (phase 2) contains it.
+		//
+		// If backfillRecurrences ran against phase-1's partial view, neither
+		// guard would see it: the per-series `existingSlots` check filters on
+		// `series_id === template.id` (null here, so it's excluded), and the
+		// `existingIds` PK backstop only works for rows actually loaded — which
+		// this row is not, pre-phase-2. It would materialize a "new" occurrence
+		// under the SAME id, and the INSERT would hit the primary key that's
+		// already sitting in the (as yet unloaded) DB row — a PK collision.
+		const detachedId = occurrenceId(templateId, toCivilDate(startDate));
 		await db.createTransaction(
-			tx(occurrenceId(templateId, toCivilDate(startDate)), {
+			tx(detachedId, {
 				timestamp: startDate,
-				series_id: templateId,
+				series_id: null,
 				is_confirmed: true,
+				// Distinguishes "the original row survived untouched" from "a
+				// freshly-backfilled row landed under the same id" — a fresh
+				// backfill row would carry template.amount_minor (100).
+				amount_minor: 999,
 			})
 		);
 
+		const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		let errorCalls: unknown[][] = [];
+		let warnCalls: unknown[][] = [];
+		try {
+			await useStore.getState().initialize();
+			await useStore.getState().whenFullyHydrated();
+			// Snapshot before restoring: `mockRestore()` clears `.mock.calls`
+			// along with the implementation, so it must be read first.
+			errorCalls = [...errorSpy.mock.calls];
+			warnCalls = [...warnSpy.mock.calls];
+		} finally {
+			errorSpy.mockRestore();
+			warnSpy.mockRestore();
+		}
+
+		// completePhase2 swallows failures internally (it must never reject —
+		// whenFullyHydrated is awaited by callers that must not crash), so a PK
+		// collision would surface as a logged failure, not a thrown rejection.
+		const loggedBackfillFailure = [...errorCalls, ...warnCalls].some((args) =>
+			args.some((arg) => typeof arg === 'string' && /backfill/i.test(arg))
+		);
+		expect(loggedBackfillFailure).toBe(false);
+
+		// Exactly the original detached row occupies that slot: not duplicated,
+		// and not silently replaced by a freshly-backfilled one.
+		const atSlot = useStore.getState().transactions.filter((t) => t.id === detachedId);
+		expect(atSlot).toHaveLength(1);
+		expect(atSlot[0]).toMatchObject({
+			id: detachedId,
+			series_id: null,
+			amount_minor: 999,
+			is_confirmed: true,
+		});
+	});
+
+	test('a re-initialize immediately clears the prior run isFullyHydrated/whenFullyHydrated, before phase 1 lands', async () => {
+		await seedDb();
 		await useStore.getState().initialize();
 		await useStore.getState().whenFullyHydrated();
+		expect(useStore.getState().isFullyHydrated).toBe(true);
+		const staleWhenFullyHydrated = useStore.getState().whenFullyHydrated();
 
-		const state = useStore.getState();
-		const occurrences = state.transactions.filter((t) => t.series_id === templateId);
-		const slots = occurrences.map((t) => t.id).sort();
-		// No duplicate ids, and initialize did not throw (PK collision would).
-		expect(new Set(slots).size).toBe(slots.length);
+		// Calling initialize() runs synchronously up to its first internal
+		// `await` (the Promise.all of the phase-1 reads) — so everything before
+		// that point, including the isFullyHydrated/fullHydrationPromise reset,
+		// has already executed by the time this call expression returns. A
+		// caller reading state in this window (e.g. the reset-then-rehydrate
+		// flow in replaceAllData callers) must NOT see the PREVIOUS run's
+		// "fully hydrated" state and resolved promise.
+		const second = useStore.getState().initialize();
+		expect(useStore.getState().isFullyHydrated).toBe(false);
+		expect(useStore.getState().whenFullyHydrated()).not.toBe(staleWhenFullyHydrated);
+
+		await second;
+		await useStore.getState().whenFullyHydrated();
+		expect(useStore.getState().isFullyHydrated).toBe(true);
 	});
 
 	test('replaceAllData marks the store fully hydrated with an empty seed', async () => {
