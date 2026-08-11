@@ -67,6 +67,18 @@ export type Transaction = Omit<
 	isVirtual?: boolean;
 };
 
+/**
+ * One (from, to, currency) SQL aggregate of pre-period confirmed history
+ * (KII-144). Flows through the normal balance derivation as a synthetic
+ * Transaction so first paint gets exact balances without the full table.
+ */
+export interface BalanceSeedGroup {
+	from_entity_id: string;
+	to_entity_id: string;
+	currency: string;
+	total_minor: number;
+}
+
 export type MarketValueSnapshot = {
 	id: string;
 	entity_id: string;
