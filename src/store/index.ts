@@ -1045,6 +1045,11 @@ export const useStore = create<AppState>((set, get) => {
 		// derived on demand). Throttled to once per civil day (the shortest
 		// recurrence period) so an app foreground bounce doesn't thrash the DB.
 		backfillRecurringIfStale: async () => {
+			// KII-144: phase-1 state lacks pre-period occurrence rows; running the
+			// slot-dedup against it would regenerate them. Startup backfill is owned
+			// by completePhase2; this staleness path waits for full hydration.
+			if (!get().isFullyHydrated) return;
+
 			// Serialized (KII-159): both call sites dispatch with `void` — the
 			// foreground listener and the midnight timer — and the civil-date guard
 			// below is only set AFTER the await, so two overlapping entries both pass

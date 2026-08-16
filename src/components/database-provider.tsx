@@ -107,6 +107,13 @@ export default function DatabaseProvider({
 			registrationTimeout = setTimeout(() => {
 				void (async () => {
 					try {
+						// KII-144: phase-1 state only covers the current period; the
+						// reminder sweep needs the full transaction table (past series
+						// rows determine what's already materialized), so it waits for
+						// phase 2 before reading anything.
+						await useStore.getState().whenFullyHydrated();
+						if (cancelled) return;
+
 						const remindersEnabled = await getRemindersEnabled();
 						if (!remindersEnabled || cancelled) {
 							return;

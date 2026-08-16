@@ -46,6 +46,7 @@ describe('DatabaseProvider', () => {
 	const storeState = {
 		initialize: mockInitialize,
 		backfillRecurringIfStale: mockBackfillRecurringIfStale,
+		whenFullyHydrated: () => Promise.resolve(),
 		entities: [{ id: 'acc-1', name: 'Checking' }],
 		transactions: [{ id: 'tx-1' }],
 		recurrenceTemplates: [{ id: 'tpl-1' }],
