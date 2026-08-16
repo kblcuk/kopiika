@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, screen } from '@testing-library/react-native';
 
 import HomeScreen from '../(tabs)/index';
 import { useHasOpened } from '@/src/hooks/use-has-opened';
@@ -212,7 +212,7 @@ jest.mock('@/src/components', () => {
 			</View>
 		),
 		EntityCreateModal: () => <View testID="entity-create-modal" />,
-		EmptyBoardNudge: () => null,
+		EmptyBoardNudge: () => <View testID="empty-board-nudge" />,
 		ReservationModal: ({
 			visible,
 			account,
@@ -711,6 +711,7 @@ describe('modal startup gating', () => {
 			transactions: [],
 			currentPeriod: '2026-01',
 			isLoading: false,
+			isFullyHydrated: true,
 			draggedEntity: null,
 			incomeVisible: false,
 			initialize: jest.fn(),
@@ -744,5 +745,40 @@ describe('modal startup gating', () => {
 		expect(queryByTestId('reservation-modal-mount')).not.toBeNull();
 		expect(queryByTestId('entity-detail-modal-mount')).not.toBeNull();
 		expect(queryByTestId('entity-create-modal')).not.toBeNull();
+	});
+});
+
+describe('empty-board nudge hydration gating', () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+		useStore.setState({
+			entities: [],
+			plans: [],
+			transactions: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			isFullyHydrated: false,
+			draggedEntity: null,
+			incomeVisible: false,
+			initialize: jest.fn(),
+			addEntity: jest.fn(),
+			setPlan: jest.fn(),
+			setDraggedEntity: jest.fn(),
+			toggleIncomeVisible: jest.fn(),
+		});
+		jest.mocked(useEntitiesWithBalance).mockReturnValue([]);
+		jest.mocked(useHasOpened).mockImplementation((visible: boolean) => visible);
+	});
+
+	it('hides the empty-board nudge until hydration completes', () => {
+		// Seed a data-ready store with zero user entities/transactions but
+		// isFullyHydrated: false (phase-1 window).
+		render(<HomeScreen />);
+		expect(screen.queryByTestId('empty-board-nudge')).toBeNull();
+
+		act(() => {
+			useStore.setState({ isFullyHydrated: true });
+		});
+		expect(screen.getByTestId('empty-board-nudge')).toBeTruthy();
 	});
 });

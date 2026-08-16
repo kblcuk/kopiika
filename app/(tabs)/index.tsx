@@ -83,6 +83,7 @@ export default function HomeScreen() {
 		setDraggedEntity,
 		toggleIncomeVisible,
 		appCurrency,
+		isFullyHydrated,
 	} = useStore(
 		useShallow((s) => ({
 			isLoading: s.isLoading,
@@ -92,6 +93,7 @@ export default function HomeScreen() {
 			setDraggedEntity: s.setDraggedEntity,
 			toggleIncomeVisible: s.toggleIncomeVisible,
 			appCurrency: s.appCurrency,
+			isFullyHydrated: s.isFullyHydrated,
 		}))
 	);
 
@@ -333,12 +335,15 @@ export default function HomeScreen() {
 				<SummaryHeader currency={appCurrency} onToggleIncome={handleToggleIncome} />
 			</PerfProfiler>
 
-			{/* Empty-state nudge — renders null when not applicable */}
-			<EmptyBoardNudge
-				entityCount={userEntityCount}
-				transactionCount={transactions.length}
-				onAddEntity={() => createFlow.open('account')}
-			/>
+			{/* Empty-state nudge — gated on full hydration so a board whose history
+			    is entirely pre-period can't flash it during the phase-2 window */}
+			{isFullyHydrated && (
+				<EmptyBoardNudge
+					entityCount={userEntityCount}
+					transactionCount={transactions.length}
+					onAddEntity={() => createFlow.open('account')}
+				/>
+			)}
 
 			{/* PortalProvider ensures dragged items render above all other content */}
 			<Sortable.PortalProvider>
