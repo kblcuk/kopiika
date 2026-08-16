@@ -1,4 +1,18 @@
-import { eq, and, between, or, desc, sum, inArray, gte, lt, isNull, isNotNull } from 'drizzle-orm';
+import {
+	eq,
+	and,
+	between,
+	or,
+	desc,
+	asc,
+	sum,
+	inArray,
+	gte,
+	gt,
+	lt,
+	isNull,
+	isNotNull,
+} from 'drizzle-orm';
 import type { BalanceSeedGroup, Transaction } from '@/src/types';
 import { getDrizzleDb } from './drizzle-client';
 import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizzle-schema';
@@ -33,25 +47,70 @@ function recurrenceTemplateExists(tx: DrizzleTx, templateId: string): boolean {
 	);
 }
 
+// `id ASC` is a deterministic tiebreaker for rows sharing a timestamp (two
+// transactions logged in the same millisecond aren't rare — batch imports and
+// backfill all stamp several rows with one `Date.now()`). Without it, ties
+// are ordered however SQLite's index walk happens to return them, which is
+// unspecified and can differ page-to-page — exactly the property
+// getTransactionsPageAfter's keyset cursor depends on to never skip or repeat
+// a row (KII-144).
 export async function getAllTransactions(): Promise<Transaction[]> {
-	const db = await getDrizzleDb();
-	return await db.select().from(transactions).orderBy(desc(transactions.timestamp));
-}
-
-/**
- * One page of the full-table scan, newest first (KII-144). The expo-sqlite
- * driver is synchronous, so phase-2 hydration reads the table in bounded
- * pages with frame yields between them — a single getAllTransactions()
- * would block the JS thread for the whole scan.
- */
-export async function getTransactionsPage(limit: number, offset: number): Promise<Transaction[]> {
 	const db = await getDrizzleDb();
 	return await db
 		.select()
 		.from(transactions)
-		.orderBy(desc(transactions.timestamp))
-		.limit(limit)
-		.offset(offset);
+		.orderBy(desc(transactions.timestamp), asc(transactions.id));
+}
+
+/** Cursor into the (timestamp DESC, id ASC) ordering `getTransactionsPageAfter` walks. */
+export type TransactionPageCursor = { timestamp: number; id: string };
+
+/**
+ * One KEYSET-paginated page of the full-table scan, newest first (KII-144).
+ * `cursor` is the (timestamp, id) of the last row returned by the previous
+ * page (or `null` for the first page); the next page is every row strictly
+ * after that position in (timestamp DESC, id ASC) order:
+ * `timestamp < cursor.timestamp OR (timestamp = cursor.timestamp AND id >
+ * cursor.id)`.
+ *
+ * This replaced an OFFSET-based `getTransactionsPage(limit, offset)`
+ * (KII-144 round 2): OFFSET repeats the whole ordering query from scratch on
+ * every page, so a row inserted or deleted while paging shifts every LATER
+ * offset window — a delete before the cursor silently skips a row that was
+ * about to be read, an insert duplicates one across two pages. A keyset
+ * cursor pins each page to a concrete row identity instead of a row COUNT, so
+ * a concurrent write only ever affects rows adjacent to its own position,
+ * never an unrelated window further down the scan. (The store-level
+ * whole-scan snapshot guard in `completePhase2` still exists on top of this —
+ * it catches the write itself via the store's mutation-epoch reference, this
+ * just stops the read from tearing while that guard's snapshot is being
+ * assembled.)
+ *
+ * The expo-sqlite driver is synchronous, so phase-2 hydration reads the table
+ * in bounded pages like this with idle/frame yields between them — a single
+ * getAllTransactions() would block the JS thread for the whole scan.
+ */
+export async function getTransactionsPageAfter(
+	limit: number,
+	cursor: TransactionPageCursor | null
+): Promise<Transaction[]> {
+	const db = await getDrizzleDb();
+	return await db
+		.select()
+		.from(transactions)
+		.where(
+			cursor
+				? or(
+						lt(transactions.timestamp, cursor.timestamp),
+						and(
+							eq(transactions.timestamp, cursor.timestamp),
+							gt(transactions.id, cursor.id)
+						)
+					)
+				: undefined
+		)
+		.orderBy(desc(transactions.timestamp), asc(transactions.id))
+		.limit(limit);
 }
 
 /**

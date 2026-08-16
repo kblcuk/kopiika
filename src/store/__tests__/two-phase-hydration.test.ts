@@ -263,24 +263,26 @@ describe('phase-2 guards (KII-144)', () => {
 		await seedDb();
 		// The 4-row fixture fits in a single page (page size 2000), so the read
 		// path used here is exactly "one page per swap attempt" — the same shape
-		// production sees at every offset boundary, just with one page instead
+		// production sees at every cursor boundary, just with one page instead
 		// of many.
-		const realGetPage = db.getTransactionsPage;
+		const realGetPageAfter = db.getTransactionsPageAfter;
 		let intercepted = false;
-		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
-			const rows = await realGetPage(limit, offset);
-			if (!intercepted) {
-				intercepted = true;
-				// Simulate a user write racing the read: lands after the page
-				// resolved but before the whole-assembly snapshot check.
-				await useStore.getState().addTransaction(
-					tx('mid-flight', {
-						timestamp: PERIOD_START + 5000,
-					})
-				);
+		const spy = spyOn(db, 'getTransactionsPageAfter').mockImplementation(
+			async (limit, cursor) => {
+				const rows = await realGetPageAfter(limit, cursor);
+				if (!intercepted) {
+					intercepted = true;
+					// Simulate a user write racing the read: lands after the page
+					// resolved but before the whole-assembly snapshot check.
+					await useStore.getState().addTransaction(
+						tx('mid-flight', {
+							timestamp: PERIOD_START + 5000,
+						})
+					);
+				}
+				return rows;
 			}
-			return rows;
-		});
+		);
 
 		await useStore.getState().initialize();
 		await useStore.getState().whenFullyHydrated();
@@ -298,7 +300,7 @@ describe('phase-2 guards (KII-144)', () => {
 		await seedDb();
 
 		// Force a real multi-page scan: the production page size is 2000, so
-		// seed enough rows that a single attempt needs two `getTransactionsPage`
+		// seed enough rows that a single attempt needs two `getTransactionsPageAfter`
 		// calls. Bulk-inserted (one DB transaction) rather than one `createTransaction`
 		// await per row, which would make this test glacially slow.
 		const BULK_COUNT = 2005;
@@ -308,24 +310,29 @@ describe('phase-2 guards (KII-144)', () => {
 		await db.createTransactionBatch(bulkRows);
 		const totalRowsBeforeMutation = BULK_COUNT + 4; // + the 4 seedDb rows
 
-		const realGetPage = db.getTransactionsPage;
+		const realGetPageAfter = db.getTransactionsPageAfter;
 		let firstPageSeen = false;
-		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
-			const rows = await realGetPage(limit, offset);
-			// Inject the write right after the FIRST page of the FIRST attempt
-			// resolves — before the second page (offset 2000) is fetched. This is
-			// exactly the "mid-pagination" case: the new row shifts every
-			// subsequent OFFSET window for the rest of this attempt.
-			if (!firstPageSeen && offset === 0) {
-				firstPageSeen = true;
-				await useStore.getState().addTransaction(
-					tx('mid-flight', {
-						timestamp: PERIOD_START + 5000,
-					})
-				);
+		const spy = spyOn(db, 'getTransactionsPageAfter').mockImplementation(
+			async (limit, cursor) => {
+				const rows = await realGetPageAfter(limit, cursor);
+				// Inject the write right after the FIRST page of the FIRST attempt
+				// resolves — before the second page (cursor set from the first
+				// page's last row) is fetched. This is the "mid-pagination" case:
+				// with the old OFFSET scheme the new row would shift every
+				// subsequent offset window for the rest of this attempt; with the
+				// keyset cursor it doesn't shift anything, but the store's
+				// mutation-epoch guard still (correctly) forces a full restart.
+				if (!firstPageSeen && cursor === null) {
+					firstPageSeen = true;
+					await useStore.getState().addTransaction(
+						tx('mid-flight', {
+							timestamp: PERIOD_START + 5000,
+						})
+					);
+				}
+				return rows;
 			}
-			return rows;
-		});
+		);
 
 		await useStore.getState().initialize();
 		await useStore.getState().whenFullyHydrated();
@@ -340,19 +347,21 @@ describe('phase-2 guards (KII-144)', () => {
 		expect(new Set(state.transactions.map((t) => t.id)).size).toBe(totalRowsBeforeMutation + 1);
 		expect(state.transactions.map((t) => t.id)).toContain('mid-flight');
 		// Two pages per attempt (2000 + remainder), two attempts (the mismatch
-		// forced a full restart from offset 0) = 4 page reads.
+		// forced a full restart from the first page) = 4 page reads.
 		expect(callCount).toBe(4);
 	});
 
 	test('phase-2 read failure retries once and succeeds', async () => {
 		await seedDb();
-		const realGetPage = db.getTransactionsPage;
+		const realGetPageAfter = db.getTransactionsPageAfter;
 		let calls = 0;
-		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
-			calls++;
-			if (calls === 1) throw new Error('transient read failure');
-			return realGetPage(limit, offset);
-		});
+		const spy = spyOn(db, 'getTransactionsPageAfter').mockImplementation(
+			async (limit, cursor) => {
+				calls++;
+				if (calls === 1) throw new Error('transient read failure');
+				return realGetPageAfter(limit, cursor);
+			}
+		);
 
 		await useStore.getState().initialize();
 		await useStore.getState().whenFullyHydrated();
@@ -364,7 +373,7 @@ describe('phase-2 guards (KII-144)', () => {
 
 	test('persistent phase-2 failure keeps the painted phase-1 state without throwing', async () => {
 		await seedDb();
-		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async () => {
+		const spy = spyOn(db, 'getTransactionsPageAfter').mockImplementation(async () => {
 			throw new Error('disk on fire');
 		});
 
@@ -376,6 +385,67 @@ describe('phase-2 guards (KII-144)', () => {
 		expect(state.isFullyHydrated).toBe(false);
 		expect(state.transactions.map((t) => t.id).sort()).toEqual(['recent-1', 'unconf-1']);
 		expect(state.balanceSeed).toHaveLength(1);
+	});
+
+	test('a sustained writer that invalidates every paged attempt falls back to one atomic read after the cap', async () => {
+		await seedDb();
+
+		// A writer landing a mutation after EVERY paged read (this 4-row fixture
+		// is a single page per attempt) is the livelock scenario the attempt cap
+		// exists for: without it, `swapInFullTable` would retry the paged read
+		// forever as long as something keeps invalidating it.
+		const realGetPageAfter = db.getTransactionsPageAfter;
+		let pagedCalls = 0;
+		const pageSpy = spyOn(db, 'getTransactionsPageAfter').mockImplementation(
+			async (limit, cursor) => {
+				pagedCalls++;
+				const rows = await realGetPageAfter(limit, cursor);
+				if (pagedCalls <= 3) {
+					await useStore.getState().addTransaction(
+						tx(`writer-${pagedCalls}`, {
+							timestamp: PERIOD_START + 1000 + pagedCalls,
+						})
+					);
+				}
+				return rows;
+			}
+		);
+		const realGetAll = db.getAllTransactions;
+		const atomicSpy = spyOn(db, 'getAllTransactions').mockImplementation(async () =>
+			realGetAll()
+		);
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+		await useStore.getState().initialize();
+		await useStore.getState().whenFullyHydrated();
+
+		// Snapshot before restoring: `mockRestore()` clears `.mock.calls` along
+		// with the implementation, so all three must be read first.
+		const pagedCallCount = pageSpy.mock.calls.length;
+		const atomicCallCount = atomicSpy.mock.calls.length;
+		const warnCalls = [...warnSpy.mock.calls];
+		pageSpy.mockRestore();
+		atomicSpy.mockRestore();
+		warnSpy.mockRestore();
+
+		// Exactly the cap's worth of paged attempts, then exactly one atomic
+		// fallback read — not an unbounded retry loop.
+		expect(pagedCallCount).toBe(3);
+		expect(atomicCallCount).toBe(1);
+		expect(
+			warnCalls.some((args) =>
+				args.some((arg) => typeof arg === 'string' && /fallback|atomic/i.test(arg))
+			)
+		).toBe(true);
+
+		// The fallback read isn't itself invalidated (nothing mutates during it),
+		// so it converges immediately with everything the sustained writer added.
+		const state = useStore.getState();
+		expect(state.isFullyHydrated).toBe(true);
+		const ids = state.transactions.map((t) => t.id);
+		expect(ids).toContain('writer-1');
+		expect(ids).toContain('writer-2');
+		expect(ids).toContain('writer-3');
 	});
 
 	test('backfillRecurringIfStale no-ops until fully hydrated', async () => {

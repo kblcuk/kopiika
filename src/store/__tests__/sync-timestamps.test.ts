@@ -28,6 +28,15 @@ const baseEntity = (id: string, overrides: Partial<Entity> = {}): Entity => ({
 
 describe('store state mirrors DB-stamped timestamps (KII-126)', () => {
 	beforeEach(async () => {
+		// KII-144: drain any phase-2 hydration a PRIOR test left running in the
+		// background (this file calls `initialize()` here and again inside
+		// 'reorderEntitiesByIds' without awaiting `whenFullyHydrated()`) before
+		// wiping the DB/store out from under it — see the longer explanation in
+		// two-phase-hydration.test.ts's beforeEach.
+		await useStore
+			.getState()
+			.whenFullyHydrated()
+			.catch(() => {});
 		resetDrizzleDb();
 		await setRemindersEnabled(false);
 		useStore.setState({

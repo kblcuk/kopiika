@@ -365,30 +365,73 @@ async function backfillRecurrences(
 // of synchronous work short enough for React to interleave rendering.
 const PHASE2_PAGE_SIZE = 2000;
 
+// KII-144 round 2: cap on paged-read attempts before falling back to one
+// atomic read. Each attempt is invalidated only by a genuine concurrent
+// write (the store's mutation-epoch guard below), so sustained invalidation
+// means a writer is landing roughly as often as the scan itself — a large
+// batch import racing hydration is the realistic case. Bounding it stops
+// that from livelocking phase 2 forever.
+const PHASE2_MAX_PAGED_ATTEMPTS = 3;
+
 // Yields once to the idle queue (falling back to a macrotask where
 // `requestIdleCallback` doesn't exist, e.g. under bun test). Mirrors
 // `runWhenIdle` in src/components/database-provider.tsx, duplicated as a
 // small local helper rather than imported: that module pulls in
 // `react-native`, which bun's plain-Node test environment can't load.
+//
+// Called through the `globalThis.xxx(...)` member expression rather than
+// destructured into a local first: some environments (browser-hosted
+// `requestIdleCallback`/`requestAnimationFrame`, notably) throw "Illegal
+// invocation" if the function is invoked without its receiver.
 function yieldToIdle(): Promise<void> {
 	return new Promise<void>((resolve) => {
-		const ric = globalThis.requestIdleCallback;
-		if (ric) {
-			ric(() => resolve(), { timeout: 2000 });
+		if (globalThis.requestIdleCallback) {
+			globalThis.requestIdleCallback(() => resolve(), { timeout: 2000 });
 		} else {
 			setTimeout(resolve, 0);
 		}
 	});
 }
 
-// Yields one frame (falling back to a macrotask). Used between pages so React
-// gets a chance to commit/paint between synchronous DB chunks.
+// Yields one frame (falling back to a macrotask). Used between later pages so
+// React gets a chance to commit/paint between synchronous DB chunks.
 function yieldToFrame(): Promise<void> {
 	return new Promise<void>((resolve) => {
-		const raf = globalThis.requestAnimationFrame;
-		if (raf) raf(() => resolve());
-		else setTimeout(resolve, 0);
+		if (globalThis.requestAnimationFrame) {
+			globalThis.requestAnimationFrame(() => resolve());
+		} else {
+			setTimeout(resolve, 0);
+		}
 	});
+}
+
+/**
+ * Keyset-paginated read of the whole transactions table (KII-144 round 2).
+ * Page 0 is fetched immediately with no yield at all — for an empty or small
+ * board (the common case: a brand-new user, or any dataset under
+ * PHASE2_PAGE_SIZE rows) the entire scan finishes in this one call, so
+ * `isFullyHydrated` flips right behind phase 1 with no added latency. That
+ * matters because EmptyBoardNudge gates its primary CTA on
+ * `isFullyHydrated`; an unconditional idle wait before the first page was
+ * delaying that CTA for exactly the users who need it fastest. Only once a
+ * second page is known to be needed does this yield to idle (once) and then
+ * to a frame between every later page, so React can interleave rendering
+ * with the rest of a large scan.
+ */
+async function readFullTransactionTablePaged(): Promise<Transaction[]> {
+	const full: Transaction[] = [];
+	let cursor: db.TransactionPageCursor | null = null;
+	for (let pageIndex = 0; ; pageIndex++) {
+		if (pageIndex === 1) await yieldToIdle();
+		else if (pageIndex > 1) await yieldToFrame();
+
+		const page = await db.getTransactionsPageAfter(PHASE2_PAGE_SIZE, cursor);
+		full.push(...page);
+		if (page.length < PHASE2_PAGE_SIZE) break;
+		const last = page[page.length - 1]!;
+		cursor = { timestamp: last.timestamp, id: last.id };
+	}
+	return full;
 }
 
 /**
@@ -407,45 +450,74 @@ function yieldToFrame(): Promise<void> {
  * before hydration), so the rows loaded here are already free of phantom
  * future rows.
  *
- * The read itself is paged (`getTransactionsPage`) rather than a single
- * `getAllTransactions()` call: the expo-sqlite driver is synchronous end to
- * end, so one big read is one long uninterrupted JS-thread burst that delays
- * the gate-open paint this phase is meant to run behind. An initial idle
- * yield lets the gate/board mount win the thread first, and a frame yield
- * between pages gives React room to interleave rendering with the scan.
+ * The read itself is paged (`getTransactionsPageAfter`, keyset-paginated —
+ * see its doc comment) rather than a single `getAllTransactions()` call: the
+ * expo-sqlite driver is synchronous end to end, so one big read is one long
+ * uninterrupted JS-thread burst that delays the gate-open paint this phase is
+ * meant to run behind.
  */
 async function completePhase2(
 	set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
 	get: () => AppState
 ): Promise<void> {
 	const swapInFullTable = async (): Promise<void> => {
-		for (;;) {
-			// Every transaction mutation replaces the array, so its identity is a
-			// free mutation epoch: if it changed while the read was in flight, a
-			// write landed (all writers hit the DB before set) — re-read. This
-			// guard wraps the WHOLE paged assembly below, not just one page: a
-			// write landing mid-pagination shifts every subsequent OFFSET window
-			// (rows added/removed between pages), so a reference change anywhere
-			// during the scan discards the partial assembly and restarts it from
-			// page 0, not just the affected page.
+		// Every transaction mutation replaces the array, so its identity is a
+		// free mutation epoch: if it changed while the read was in flight, a
+		// write landed (all writers hit the DB before set) — re-read. This guard
+		// wraps the WHOLE paged assembly below, not just one page: even with
+		// keyset pagination (each page pinned to a row identity, not an offset —
+		// a concurrent write only ever perturbs rows adjacent to its own cursor
+		// position, never a distant window), the assembly as a whole can still
+		// observe a table that changed mid-scan, so any reference change
+		// anywhere during it discards the partial assembly and restarts from
+		// the first page.
+		//
+		// Accepted residual: a transaction TIMESTAMP EDIT whose own DB write
+		// lands mid-scan, straddling the cursor's already-consumed region (see
+		// getTransactionsPageAfter's doc comment), can fall into neither the
+		// pages already read nor the ones still to come — and if that writer's
+		// own `set()` call (updating the row in the store) is delayed long
+		// enough to land AFTER this function's snapshot check passes but
+		// (unluckily) BEFORE its own `set()` normally would have raced it into a
+		// retry, the row is briefly absent from `transactions` until the next
+		// full hydration re-reads it correctly from the DB. This window is
+		// vanishingly narrow (it requires the edit's OWN store update to be
+		// delayed past this function's already-completed check) and self-healing
+		// (the DB row itself is never wrong) — documented here rather than
+		// defended against, since closing it fully would mean reintroducing the
+		// whole-array identity comparison this keyset design replaced.
+		for (let attempt = 1; attempt <= PHASE2_MAX_PAGED_ATTEMPTS; attempt++) {
 			const snapshot = get().transactions;
-
-			await yieldToIdle();
-
-			const full: Transaction[] = [];
-			for (let offset = 0; ; offset += PHASE2_PAGE_SIZE) {
-				const page = await db.getTransactionsPage(PHASE2_PAGE_SIZE, offset);
-				full.push(...page);
-				if (page.length < PHASE2_PAGE_SIZE) break;
-				await yieldToFrame();
-			}
-
+			const full = await readFullTransactionTablePaged();
 			if (get().transactions === snapshot) {
 				markPerf('hydrate:phase2', `${full.length} rows`);
 				set({ transactions: full, balanceSeed: [], isFullyHydrated: true });
 				return;
 			}
 		}
+
+		// Sustained-writer livelock guard: PHASE2_MAX_PAGED_ATTEMPTS consecutive
+		// concurrent writes invalidated the paged assembly. Fall back to a
+		// single atomic getAllTransactions() read — one synchronous snapshot,
+		// the pre-KII-144-round-2 semantics — under the same reference guard.
+		// A single synchronous call has no internal window for a write to land
+		// mid-read, so this fallback doesn't need (and isn't given) the same
+		// bounded-attempt treatment; if it still loses the race, that's
+		// reported as a read failure so the existing retry-once wrapper below
+		// handles it, rather than looping here unbounded.
+		console.warn(
+			`Phase-2 paged read was invalidated ${PHASE2_MAX_PAGED_ATTEMPTS} times in a row by concurrent writes; falling back to one atomic read`
+		);
+		const fallbackSnapshot = get().transactions;
+		const fallbackFull = await db.getAllTransactions();
+		if (get().transactions === fallbackSnapshot) {
+			markPerf('hydrate:phase2', `${fallbackFull.length} rows (atomic fallback)`);
+			set({ transactions: fallbackFull, balanceSeed: [], isFullyHydrated: true });
+			return;
+		}
+		throw new Error(
+			'Phase-2 hydration: atomic fallback read also raced with a concurrent write'
+		);
 	};
 
 	try {

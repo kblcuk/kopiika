@@ -21,7 +21,7 @@ import {
 	replaceTransactionAtomic,
 	getTransactionsSince,
 	getBalanceSeedGroups,
-	getTransactionsPage,
+	getTransactionsPageAfter,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -1547,7 +1547,7 @@ describe('transactions.ts', () => {
 		});
 	});
 
-	describe('getTransactionsPage (KII-144)', () => {
+	describe('getTransactionsPageAfter (KII-144 round 2 — keyset pagination)', () => {
 		// Distinct timestamps so newest-first order is unambiguous.
 		const rows: Transaction[] = [
 			{
@@ -1598,17 +1598,102 @@ describe('transactions.ts', () => {
 			}
 		});
 
-		test('returns newest-first pages that concatenate to exactly getAllTransactions()', async () => {
-			const page0 = await getTransactionsPage(2, 0);
-			const page1 = await getTransactionsPage(2, 2);
-			const page2 = await getTransactionsPage(2, 4);
-
+		test('returns newest-first pages, cursoring off the last row, that concatenate to exactly getAllTransactions()', async () => {
+			const page0 = await getTransactionsPageAfter(2, null);
 			expect(page0.map((t) => t.id)).toEqual(['page-5', 'page-4']);
+
+			const cursor0 = { timestamp: page0[1]!.timestamp, id: page0[1]!.id };
+			const page1 = await getTransactionsPageAfter(2, cursor0);
 			expect(page1.map((t) => t.id)).toEqual(['page-3', 'page-2']);
+
+			const cursor1 = { timestamp: page1[1]!.timestamp, id: page1[1]!.id };
+			const page2 = await getTransactionsPageAfter(2, cursor1);
 			expect(page2.map((t) => t.id)).toEqual(['page-1']);
 
 			const full = await getAllTransactions();
 			expect([...page0, ...page1, ...page2]).toEqual(full);
+		});
+
+		test('a delete landing between two page reads is not skipped or duplicated (the OFFSET failure mode this replaced)', async () => {
+			// With OFFSET pagination, deleting 'page-4' (the 2nd row) after page 0
+			// but before page 1 would shift every later row up by one, causing
+			// page 1 (OFFSET 2) to skip 'page-3'. The keyset cursor pins to
+			// 'page-4' itself, so deleting some OTHER row has no effect on where
+			// the cursor resumes.
+			const page0 = await getTransactionsPageAfter(2, null);
+			expect(page0.map((t) => t.id)).toEqual(['page-5', 'page-4']);
+
+			await deleteTransaction('page-3'); // a row NOT yet read, ahead of the cursor
+
+			const cursor0 = { timestamp: page0[1]!.timestamp, id: page0[1]!.id };
+			const page1 = await getTransactionsPageAfter(2, cursor0);
+			// 'page-3' is gone (deleted); 'page-2' and 'page-1' are unaffected —
+			// no skip, no duplicate.
+			expect(page1.map((t) => t.id)).toEqual(['page-2', 'page-1']);
+		});
+	});
+
+	describe('tied-timestamp ordering (KII-144 round 2)', () => {
+		// Three rows sharing one timestamp — batch imports and backfill commonly
+		// stamp several rows with a single `Date.now()`. `id ASC` is the
+		// deterministic tiebreaker both getAllTransactions() and
+		// getTransactionsPageAfter's keyset cursor rely on to agree on a single
+		// total order.
+		const TIE_TS = 5000;
+
+		beforeEach(async () => {
+			await createTransaction({
+				id: 'newer',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 100,
+				currency: 'USD',
+				timestamp: 6000,
+			});
+			for (const id of ['tie-c', 'tie-a', 'tie-b']) {
+				await createTransaction({
+					id,
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount_minor: 100,
+					currency: 'USD',
+					timestamp: TIE_TS,
+				});
+			}
+			await createTransaction({
+				id: 'older',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 100,
+				currency: 'USD',
+				timestamp: 4000,
+			});
+		});
+
+		test('getAllTransactions orders tied timestamps by id ASC', async () => {
+			const all = await getAllTransactions();
+			expect(all.map((t) => t.id)).toEqual(['newer', 'tie-a', 'tie-b', 'tie-c', 'older']);
+		});
+
+		test('getTransactionsPageAfter walks a tied-timestamp group in id ASC order across pages, exactly matching getAllTransactions', async () => {
+			const full = await getAllTransactions();
+
+			const pages: Transaction[][] = [];
+			let cursor: { timestamp: number; id: string } | null = null;
+			for (;;) {
+				const page = await getTransactionsPageAfter(2, cursor);
+				pages.push(page);
+				if (page.length < 2) break;
+				const last = page[page.length - 1]!;
+				cursor = { timestamp: last.timestamp, id: last.id };
+			}
+
+			expect(pages.map((p) => p.map((t) => t.id))).toEqual([
+				['newer', 'tie-a'],
+				['tie-b', 'tie-c'],
+				['older'],
+			]);
+			expect(pages.flat()).toEqual(full);
 		});
 	});
 });
