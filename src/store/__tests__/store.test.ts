@@ -5529,6 +5529,10 @@ describe('Store Data Integrity', () => {
 			// Now force another backfill (simulates an app foreground). The deleted
 			// occurrence must NOT come back.
 			_resetBackfillThrottleForTests();
+			// backfillRecurringIfStale no-ops unless isFullyHydrated (KII-144); the
+			// shared beforeEach now resets it to false, so it must be set here for
+			// this call to actually run instead of passing vacuously.
+			useStore.setState({ isFullyHydrated: true });
 			await useStore.getState().backfillRecurringIfStale();
 
 			const afterCivilDates = (await db.getTransactionsBySeriesId(seriesId)).map((t) =>
