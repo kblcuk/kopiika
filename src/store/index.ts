@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type {
 	Entity,
 	EntityType,
@@ -22,7 +22,7 @@ import {
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
 import { endOfLocalDay, isDue } from '@/src/utils/due';
 import { markPerf } from '@/src/utils/perf-marks';
-import { buildBalanceSeed } from './hydration-seed';
+import { buildBalanceSeed, isSameEntitiesWithBalance } from './hydration-seed';
 import {
 	BALANCE_ADJUSTMENT_ENTITY_ID,
 	createBalanceAdjustmentEntity,
@@ -1557,6 +1557,7 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 		entities,
 		plans,
 		transactions,
+		balanceSeed,
 		currentPeriod,
 		marketValueSnapshots,
 		recurrenceTemplates,
@@ -1565,13 +1566,14 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
+			balanceSeed: state.balanceSeed,
 			currentPeriod: state.currentPeriod,
 			marketValueSnapshots: state.marketValueSnapshots,
 			recurrenceTemplates: state.recurrenceTemplates,
 		}))
 	);
 
-	return useMemo(() => {
+	const derived = useMemo(() => {
 		const { start, end } = getPeriodRange(currentPeriod);
 		const now = Date.now();
 		const exclusionsByTemplate = new Map(
@@ -1588,7 +1590,7 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 		return getEntitiesWithBalance(
 			entities,
 			plans,
-			[...transactions, ...virtual],
+			[...transactions, ...balanceSeed, ...virtual],
 			currentPeriod,
 			type,
 			marketValueSnapshots
@@ -1597,9 +1599,20 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 		entities,
 		plans,
 		transactions,
+		balanceSeed,
 		currentPeriod,
 		type,
 		marketValueSnapshots,
 		recurrenceTemplates,
 	]);
+
+	// KII-144: the phase-2 swap replaces the seed with real rows deriving the
+	// same values; returning the previous identity keeps the memoized bubbles
+	// (and Sortable.Grid) from recommitting the whole board post-paint.
+	const prevRef = useRef<EntityWithBalance[] | null>(null);
+	if (prevRef.current !== null && isSameEntitiesWithBalance(prevRef.current, derived)) {
+		return prevRef.current;
+	}
+	prevRef.current = derived;
+	return derived;
 }

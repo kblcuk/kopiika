@@ -31,6 +31,8 @@ describe('Store Data Integrity', () => {
 			entities: [],
 			plans: [],
 			transactions: [],
+			balanceSeed: [],
+			isFullyHydrated: false,
 			currentPeriod: '2026-01',
 			isLoading: false,
 			draggedEntity: null,
@@ -5825,6 +5827,10 @@ describe('Store Data Integrity', () => {
 
 		beforeEach(() => {
 			_resetBackfillThrottleForTests();
+			// These tests call backfillRecurringIfStale directly (bypassing
+			// initialize's phase 1/2 dance), so the gate it added (KII-144) must
+			// be pre-satisfied here rather than left to leak in from elsewhere.
+			useStore.setState({ isFullyHydrated: true });
 		});
 
 		test('materializes missing occurrences when throttle is cold', async () => {
@@ -6688,6 +6694,11 @@ describe('reminder sweep wiring', () => {
 			entities: [account, category],
 			plans: [],
 			transactions: [],
+			balanceSeed: [],
+			// These tests call backfillRecurringIfStale directly (bypassing
+			// initialize's phase 1/2 dance), so the gate it added (KII-144) must
+			// be pre-satisfied here rather than left to leak in from elsewhere.
+			isFullyHydrated: true,
 			recurrenceTemplates: [],
 			marketValueSnapshots: [],
 		});
