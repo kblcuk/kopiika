@@ -39,6 +39,22 @@ export async function getAllTransactions(): Promise<Transaction[]> {
 }
 
 /**
+ * One page of the full-table scan, newest first (KII-144). The expo-sqlite
+ * driver is synchronous, so phase-2 hydration reads the table in bounded
+ * pages with frame yields between them — a single getAllTransactions()
+ * would block the JS thread for the whole scan.
+ */
+export async function getTransactionsPage(limit: number, offset: number): Promise<Transaction[]> {
+	const db = await getDrizzleDb();
+	return await db
+		.select()
+		.from(transactions)
+		.orderBy(desc(transactions.timestamp))
+		.limit(limit)
+		.offset(offset);
+}
+
+/**
  * Phase-1 hydration rows (KII-144): everything the balance derivation and
  * virtual-occurrence dedup must see row-by-row — current-period rows,
  * unconfirmed rows (any age), and series occurrences (any age; an edited

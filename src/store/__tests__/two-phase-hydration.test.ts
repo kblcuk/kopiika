@@ -41,7 +41,20 @@ async function seedDb() {
 }
 
 describe('two-phase initialize (KII-144)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
+		// KII-144: drain any phase-2 hydration a PRIOR test (in this file or
+		// another — `fullHydrationPromise` is a module-level singleton) left
+		// running in the background before wiping the database out from under
+		// it. Phase 2 pages its read with real idle/frame yields now, so a test
+		// that only awaits `initialize()` (not `whenFullyHydrated()`) leaves
+		// `completePhase2` genuinely in flight across several event-loop ticks;
+		// without this drain its eventual `set({ transactions: ... })` can land
+		// mid-test here and falsify the very reference-equality checks these
+		// tests assert on.
+		await useStore
+			.getState()
+			.whenFullyHydrated()
+			.catch(() => {});
 		resetDrizzleDb();
 		useStore.setState({
 			entities: [],
@@ -219,7 +232,20 @@ describe('two-phase initialize (KII-144)', () => {
 });
 
 describe('phase-2 guards (KII-144)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
+		// KII-144: drain any phase-2 hydration a PRIOR test (in this file or
+		// another — `fullHydrationPromise` is a module-level singleton) left
+		// running in the background before wiping the database out from under
+		// it. Phase 2 pages its read with real idle/frame yields now, so a test
+		// that only awaits `initialize()` (not `whenFullyHydrated()`) leaves
+		// `completePhase2` genuinely in flight across several event-loop ticks;
+		// without this drain its eventual `set({ transactions: ... })` can land
+		// mid-test here and falsify the very reference-equality checks these
+		// tests assert on.
+		await useStore
+			.getState()
+			.whenFullyHydrated()
+			.catch(() => {});
 		resetDrizzleDb();
 		_resetBackfillThrottleForTests();
 		useStore.setState({
@@ -233,16 +259,20 @@ describe('phase-2 guards (KII-144)', () => {
 		});
 	});
 
-	test('a mutation landing during the phase-2 read triggers a re-read (no lost rows)', async () => {
+	test('a mutation landing between pages triggers a full re-read (no lost rows)', async () => {
 		await seedDb();
-		const realGetAll = db.getAllTransactions;
+		// The 4-row fixture fits in a single page (page size 2000), so the read
+		// path used here is exactly "one page per swap attempt" — the same shape
+		// production sees at every offset boundary, just with one page instead
+		// of many.
+		const realGetPage = db.getTransactionsPage;
 		let intercepted = false;
-		const spy = spyOn(db, 'getAllTransactions').mockImplementation(async () => {
-			const rows = await realGetAll();
+		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
+			const rows = await realGetPage(limit, offset);
 			if (!intercepted) {
 				intercepted = true;
-				// Simulate a user write racing the read: lands after the query
-				// resolved but before the swap.
+				// Simulate a user write racing the read: lands after the page
+				// resolved but before the whole-assembly snapshot check.
 				await useStore.getState().addTransaction(
 					tx('mid-flight', {
 						timestamp: PERIOD_START + 5000,
@@ -261,17 +291,67 @@ describe('phase-2 guards (KII-144)', () => {
 
 		const ids = useStore.getState().transactions.map((t) => t.id);
 		expect(ids).toContain('mid-flight');
-		expect(callCount).toBe(2); // snapshot mismatch forced a re-read
+		expect(callCount).toBe(2); // snapshot mismatch forced a full re-read (second pass saw the page spy again)
+	});
+
+	test('a mutation landing between pages (real pagination, >1 page per attempt) triggers a full re-read that loses nothing', async () => {
+		await seedDb();
+
+		// Force a real multi-page scan: the production page size is 2000, so
+		// seed enough rows that a single attempt needs two `getTransactionsPage`
+		// calls. Bulk-inserted (one DB transaction) rather than one `createTransaction`
+		// await per row, which would make this test glacially slow.
+		const BULK_COUNT = 2005;
+		const bulkRows: Transaction[] = Array.from({ length: BULK_COUNT }, (_, i) =>
+			tx(`bulk-${i}`, { timestamp: 1000 + i })
+		);
+		await db.createTransactionBatch(bulkRows);
+		const totalRowsBeforeMutation = BULK_COUNT + 4; // + the 4 seedDb rows
+
+		const realGetPage = db.getTransactionsPage;
+		let firstPageSeen = false;
+		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
+			const rows = await realGetPage(limit, offset);
+			// Inject the write right after the FIRST page of the FIRST attempt
+			// resolves — before the second page (offset 2000) is fetched. This is
+			// exactly the "mid-pagination" case: the new row shifts every
+			// subsequent OFFSET window for the rest of this attempt.
+			if (!firstPageSeen && offset === 0) {
+				firstPageSeen = true;
+				await useStore.getState().addTransaction(
+					tx('mid-flight', {
+						timestamp: PERIOD_START + 5000,
+					})
+				);
+			}
+			return rows;
+		});
+
+		await useStore.getState().initialize();
+		await useStore.getState().whenFullyHydrated();
+		const callCount = spy.mock.calls.length;
+		spy.mockRestore();
+
+		const state = useStore.getState();
+		expect(state.isFullyHydrated).toBe(true);
+		// Nothing lost or duplicated: the re-read assembled the full table
+		// (bulk rows + seedDb rows + the mid-flight row that landed mid-scan).
+		expect(state.transactions).toHaveLength(totalRowsBeforeMutation + 1);
+		expect(new Set(state.transactions.map((t) => t.id)).size).toBe(totalRowsBeforeMutation + 1);
+		expect(state.transactions.map((t) => t.id)).toContain('mid-flight');
+		// Two pages per attempt (2000 + remainder), two attempts (the mismatch
+		// forced a full restart from offset 0) = 4 page reads.
+		expect(callCount).toBe(4);
 	});
 
 	test('phase-2 read failure retries once and succeeds', async () => {
 		await seedDb();
-		const realGetAll = db.getAllTransactions;
+		const realGetPage = db.getTransactionsPage;
 		let calls = 0;
-		const spy = spyOn(db, 'getAllTransactions').mockImplementation(async () => {
+		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async (limit, offset) => {
 			calls++;
 			if (calls === 1) throw new Error('transient read failure');
-			return realGetAll();
+			return realGetPage(limit, offset);
 		});
 
 		await useStore.getState().initialize();
@@ -284,7 +364,7 @@ describe('phase-2 guards (KII-144)', () => {
 
 	test('persistent phase-2 failure keeps the painted phase-1 state without throwing', async () => {
 		await seedDb();
-		const spy = spyOn(db, 'getAllTransactions').mockImplementation(async () => {
+		const spy = spyOn(db, 'getTransactionsPage').mockImplementation(async () => {
 			throw new Error('disk on fire');
 		});
 

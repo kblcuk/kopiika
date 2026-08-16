@@ -21,6 +21,21 @@ import {
 
 describe('Store Data Integrity', () => {
 	beforeEach(async () => {
+		// KII-144: drain any phase-2 hydration left running in the background by
+		// the PREVIOUS test. Most tests here call `initialize()` without awaiting
+		// `whenFullyHydrated()` (they only care about phase-1 state), so
+		// `completePhase2` keeps running after the test body returns. Phase 2 now
+		// pages the read with real idle/frame yields (KII-144), so it can still be
+		// in flight when the next test's `resetDrizzleDb()` below wipes the
+		// database out from under it — its eventual `set({ transactions: ... })`
+		// would then land mid-test and corrupt unrelated state. Awaiting it here
+		// first (against the PREVIOUS test's still-live DB) lets it finish
+		// harmlessly before anything is reset.
+		await useStore
+			.getState()
+			.whenFullyHydrated()
+			.catch(() => {});
+
 		// Reset database and store state before each test
 		resetDrizzleDb();
 		await setRemindersEnabled(false);

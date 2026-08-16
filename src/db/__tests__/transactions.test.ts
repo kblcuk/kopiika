@@ -21,6 +21,7 @@ import {
 	replaceTransactionAtomic,
 	getTransactionsSince,
 	getBalanceSeedGroups,
+	getTransactionsPage,
 } from '../transactions';
 import { createEntity } from '../entities';
 import { resetDrizzleDb } from '../drizzle-client';
@@ -1543,6 +1544,71 @@ describe('transactions.ts', () => {
 					total_minor: 40,
 				},
 			]);
+		});
+	});
+
+	describe('getTransactionsPage (KII-144)', () => {
+		// Distinct timestamps so newest-first order is unambiguous.
+		const rows: Transaction[] = [
+			{
+				id: 'page-1',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 100,
+				currency: 'USD',
+				timestamp: 1000,
+			},
+			{
+				id: 'page-2',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 200,
+				currency: 'USD',
+				timestamp: 2000,
+			},
+			{
+				id: 'page-3',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 300,
+				currency: 'USD',
+				timestamp: 3000,
+			},
+			{
+				id: 'page-4',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 400,
+				currency: 'USD',
+				timestamp: 4000,
+			},
+			{
+				id: 'page-5',
+				from_entity_id: 'account-1',
+				to_entity_id: 'category-1',
+				amount_minor: 500,
+				currency: 'USD',
+				timestamp: 5000,
+			},
+		];
+
+		beforeEach(async () => {
+			for (const r of rows) {
+				await createTransaction(r);
+			}
+		});
+
+		test('returns newest-first pages that concatenate to exactly getAllTransactions()', async () => {
+			const page0 = await getTransactionsPage(2, 0);
+			const page1 = await getTransactionsPage(2, 2);
+			const page2 = await getTransactionsPage(2, 4);
+
+			expect(page0.map((t) => t.id)).toEqual(['page-5', 'page-4']);
+			expect(page1.map((t) => t.id)).toEqual(['page-3', 'page-2']);
+			expect(page2.map((t) => t.id)).toEqual(['page-1']);
+
+			const full = await getAllTransactions();
+			expect([...page0, ...page1, ...page2]).toEqual(full);
 		});
 	});
 });

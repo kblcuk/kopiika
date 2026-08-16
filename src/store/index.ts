@@ -356,6 +356,41 @@ async function backfillRecurrences(
 	}
 }
 
+// KII-144: page size for the phase-2 full-table scan. The expo-sqlite driver
+// is fully synchronous (prepareSync/executeSync/getAllSync), so a single
+// `getAllTransactions()` over a large table runs entirely on the JS thread in
+// one uninterrupted burst — measured ~535ms at 14.7k rows, blocking the
+// gate-open paint that phase 2 is supposed to happen behind. Reading in
+// bounded pages with a frame yield between each keeps every individual chunk
+// of synchronous work short enough for React to interleave rendering.
+const PHASE2_PAGE_SIZE = 2000;
+
+// Yields once to the idle queue (falling back to a macrotask where
+// `requestIdleCallback` doesn't exist, e.g. under bun test). Mirrors
+// `runWhenIdle` in src/components/database-provider.tsx, duplicated as a
+// small local helper rather than imported: that module pulls in
+// `react-native`, which bun's plain-Node test environment can't load.
+function yieldToIdle(): Promise<void> {
+	return new Promise<void>((resolve) => {
+		const ric = globalThis.requestIdleCallback;
+		if (ric) {
+			ric(() => resolve(), { timeout: 2000 });
+		} else {
+			setTimeout(resolve, 0);
+		}
+	});
+}
+
+// Yields one frame (falling back to a macrotask). Used between pages so React
+// gets a chance to commit/paint between synchronous DB chunks.
+function yieldToFrame(): Promise<void> {
+	return new Promise<void>((resolve) => {
+		const raf = globalThis.requestAnimationFrame;
+		if (raf) raf(() => resolve());
+		else setTimeout(resolve, 0);
+	});
+}
+
 /**
  * Phase 2 of hydration (KII-144): replace the phase-1 partial rows + seed
  * with the full transaction table, then run the startup recurrence backfill
@@ -371,6 +406,13 @@ async function backfillRecurrences(
  * Legacy materialized future occurrences are removed by migration 0021 (runs
  * before hydration), so the rows loaded here are already free of phantom
  * future rows.
+ *
+ * The read itself is paged (`getTransactionsPage`) rather than a single
+ * `getAllTransactions()` call: the expo-sqlite driver is synchronous end to
+ * end, so one big read is one long uninterrupted JS-thread burst that delays
+ * the gate-open paint this phase is meant to run behind. An initial idle
+ * yield lets the gate/board mount win the thread first, and a frame yield
+ * between pages gives React room to interleave rendering with the scan.
  */
 async function completePhase2(
 	set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
@@ -380,9 +422,24 @@ async function completePhase2(
 		for (;;) {
 			// Every transaction mutation replaces the array, so its identity is a
 			// free mutation epoch: if it changed while the read was in flight, a
-			// write landed (all writers hit the DB before set) — re-read.
+			// write landed (all writers hit the DB before set) — re-read. This
+			// guard wraps the WHOLE paged assembly below, not just one page: a
+			// write landing mid-pagination shifts every subsequent OFFSET window
+			// (rows added/removed between pages), so a reference change anywhere
+			// during the scan discards the partial assembly and restarts it from
+			// page 0, not just the affected page.
 			const snapshot = get().transactions;
-			const full = await db.getAllTransactions();
+
+			await yieldToIdle();
+
+			const full: Transaction[] = [];
+			for (let offset = 0; ; offset += PHASE2_PAGE_SIZE) {
+				const page = await db.getTransactionsPage(PHASE2_PAGE_SIZE, offset);
+				full.push(...page);
+				if (page.length < PHASE2_PAGE_SIZE) break;
+				await yieldToFrame();
+			}
+
 			if (get().transactions === snapshot) {
 				markPerf('hydrate:phase2', `${full.length} rows`);
 				set({ transactions: full, balanceSeed: [], isFullyHydrated: true });
