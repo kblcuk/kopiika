@@ -1,8 +1,10 @@
 /**
  * Permanent, dev-only cold-start instrumentation (KII-144). Marks log
  * `[perf] <label> +<ms since JS start> (Δ<ms since previous mark>)` so any
- * future perf round can re-measure without re-instrumenting. Compiled out of
- * release builds via __DEV__; enabled under test runners via NODE_ENV.
+ * future perf round can re-measure without re-instrumenting. Calls become
+ * runtime no-ops in release builds via the __DEV__ check below (the call
+ * site's argument construction still happens — nothing is stripped at
+ * compile time); enabled under test runners via NODE_ENV.
  */
 declare const __DEV__: boolean | undefined;
 

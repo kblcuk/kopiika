@@ -74,6 +74,10 @@ export default function E2EFixtureScreen() {
 					useStore.getState();
 
 				if (payload.clearTransactions) {
+					// KII-144: wait for the phase-2 background swap first — snapshotting
+					// ids off the phase-1 partial array would leave pre-period rows
+					// (only visible via balanceSeed at that point) undeleted.
+					await useStore.getState().whenFullyHydrated();
 					// Snapshot ids first — deleteTransaction mutates the store array.
 					const ids = useStore.getState().transactions.map((t) => t.id);
 					for (const id of ids) {

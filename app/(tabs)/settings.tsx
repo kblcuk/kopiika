@@ -38,10 +38,8 @@ export default function SettingsScreen() {
 	// `useShallow` selector — settings doesn't need fine-grained reactivity.
 	const {
 		entities,
-		plans,
 		transactions,
 		recurrenceTemplates,
-		marketValueSnapshots,
 		initialize,
 		replaceAllData,
 		appCurrency,
@@ -181,12 +179,22 @@ export default function SettingsScreen() {
 
 	const handleExport = async () => {
 		try {
+			// KII-144: block until the phase-2 background hydration completes —
+			// exporting mid-window would write a CSV missing all pre-period
+			// history (it's only visible via `balanceSeed`, not
+			// `state.transactions`, until the full-table swap lands). Resolves
+			// instantly once already hydrated.
+			await useStore.getState().whenFullyHydrated();
+			// Re-read fresh state rather than the values this closure captured
+			// at render time: those may still be the phase-1 partial arrays even
+			// after the wait above resolves.
+			const fresh = useStore.getState();
 			await exportAllData(
-				entities,
-				plans,
-				transactions,
-				recurrenceTemplates,
-				marketValueSnapshots
+				fresh.entities,
+				fresh.plans,
+				fresh.transactions,
+				fresh.recurrenceTemplates,
+				fresh.marketValueSnapshots
 			);
 		} catch (error) {
 			console.error('Failed to export data', error);

@@ -3869,6 +3869,55 @@ describe('Store Data Integrity', () => {
 			expect(releaseTx.amount_minor).toBe(80000);
 		});
 
+		test('awaits full hydration before computing the delta, so a pre-period reservation hidden in the seed is not double-counted (KII-144)', async () => {
+			await setupSavingEntities();
+			const periodStart = getPeriodRange('2026-01').start;
+
+			// Pre-period confirmed reservation: phase 1 collapses this into a
+			// `balanceSeed` aggregate (src/store/hydration-seed.ts) — invisible to
+			// `state.transactions` until phase 2's background full-table swap
+			// lands. `reserveToSaving`'s delta math reads `ctx.transactions`
+			// (buildApplyContext), so if it doesn't wait for the swap it computes
+			// the net reservation from an incomplete view.
+			await db.createTransaction({
+				id: 'old-reservation',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-1',
+				amount_minor: 30000,
+				currency: 'USD',
+				timestamp: periodStart - 86_400_000,
+				note: null,
+				is_confirmed: true,
+			});
+
+			await useStore.getState().initialize();
+			// Phase 1 has opened the gate but the background swap has not landed:
+			// the pre-period reservation is only visible via the seed.
+			expect(useStore.getState().isFullyHydrated).toBe(false);
+			expect(useStore.getState().transactions).toHaveLength(0);
+			expect(useStore.getState().balanceSeed).toEqual([
+				{
+					id: '__balance_seed__:account-1:saving-1:USD',
+					from_entity_id: 'account-1',
+					to_entity_id: 'saving-1',
+					amount_minor: 30000,
+					currency: 'USD',
+					timestamp: periodStart - 1,
+					note: null,
+					is_confirmed: true,
+				},
+			]);
+
+			// Re-affirming the SAME total (30000) must be a no-op: the net
+			// reservation is already 30000. Reading `ctx.transactions` before
+			// hydration completes would see net reservation 0 (the seed hides the
+			// only reservation row) and wrongly create a second 30000 top-up.
+			await useStore.getState().reserveToSaving('account-1', 'saving-1', 30000);
+
+			expect(useStore.getState().isFullyHydrated).toBe(true);
+			expect(useStore.getState().transactions.map((t) => t.id)).toEqual(['old-reservation']);
+		});
+
 		test('account reserved field reflects transaction-derived savings', () => {
 			const income: Entity = {
 				id: 'income-1',

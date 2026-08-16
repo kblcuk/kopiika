@@ -17,21 +17,28 @@ interface SummaryData {
 
 // Hook to compute summary values
 export function useSummary(): SummaryData {
-	const { entities, plans, transactions, currentPeriod } = useStore(
+	const { entities, plans, transactions, balanceSeed, currentPeriod } = useStore(
 		useShallow((state) => ({
 			entities: state.entities,
 			plans: state.plans,
 			transactions: state.transactions,
+			balanceSeed: state.balanceSeed,
 			currentPeriod: state.currentPeriod,
 		}))
 	);
 
 	return useMemo(() => {
 		// Use getEntitiesWithBalance for correct balance calculation (handles both in/out transactions)
+		// KII-144: accounts are all-time, so during the phase-2 hydration window
+		// they must also see `balanceSeed` — the pre-period confirmed history
+		// collapsed into synthetic aggregate rows — or the headline balance
+		// undercounts by exactly that history until the background swap lands.
+		// Categories are period-scoped and never see seed rows (they're always
+		// pre-period), so they're left on `transactions` alone.
 		const accountsWithBalance = getEntitiesWithBalance(
 			entities,
 			plans,
-			transactions,
+			[...transactions, ...balanceSeed],
 			currentPeriod,
 			'account'
 		);
@@ -58,7 +65,7 @@ export function useSummary(): SummaryData {
 			.reduce((sum, c) => sum + Math.max(0, c.planned - c.actual), 0);
 
 		return { balance, expenses, remaining };
-	}, [entities, plans, transactions, currentPeriod]);
+	}, [entities, plans, transactions, balanceSeed, currentPeriod]);
 }
 
 interface SummaryHeaderProps {

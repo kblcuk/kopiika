@@ -132,7 +132,7 @@ export async function getTransactionsSince(cutoff: number): Promise<Transaction[
 				isNotNull(transactions.series_id)
 			)
 		)
-		.orderBy(desc(transactions.timestamp));
+		.orderBy(desc(transactions.timestamp), asc(transactions.id));
 }
 
 /**

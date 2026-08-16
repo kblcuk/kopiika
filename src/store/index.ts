@@ -1481,6 +1481,13 @@ export const useStore = create<AppState>((set, get) => {
 		// Savings reservation — the op carries the intent (target total); delta
 		// computation and row construction live in applyOperation.
 		reserveToSaving: async (accountEntityId, savingEntityId, desiredTotalMinor) => {
+			// KII-144: the delta math reads reservation history from
+			// `ctx.transactions` (buildApplyContext), but during the phase-2
+			// hydration window pre-period reservations are hidden inside
+			// `balanceSeed`, not `state.transactions`. Wait for the background
+			// full-table swap first so the delta is computed against complete
+			// history. Resolves instantly once already hydrated.
+			await get().whenFullyHydrated();
 			const result = await applyOperation(
 				{ kind: 'reservation.set', accountEntityId, savingEntityId, desiredTotalMinor },
 				'local',
@@ -1716,10 +1723,21 @@ export function useEntitiesWithBalance(type: EntityType): EntityWithBalance[] {
 			end,
 			now
 		);
+		// `balanceSeed` rows are always pre-period (they're the seedable
+		// complement built in hydration-seed.ts), so income/category buckets —
+		// which are period-scoped — already skip them whether or not they're in
+		// the array; only account/saving are all-time and actually need them.
+		// Gating explicitly here (rather than relying on that timestamp filter)
+		// future-proofs month navigation: nothing about `getEntitiesWithBalance`
+		// guarantees "pre-period" stays true if the seed's shape ever changes.
+		const withSeed =
+			type === 'account' || type === 'saving'
+				? [...transactions, ...balanceSeed, ...virtual]
+				: [...transactions, ...virtual];
 		return getEntitiesWithBalance(
 			entities,
 			plans,
-			[...transactions, ...balanceSeed, ...virtual],
+			withSeed,
 			currentPeriod,
 			type,
 			marketValueSnapshots

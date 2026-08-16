@@ -5,6 +5,7 @@ import SettingsScreen from '../settings';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
 import { updateTransactionNotificationIdsBatch } from '@/src/db';
+import { exportAllData } from '@/src/utils/export';
 import {
 	getRemindersEnabled,
 	setHasRequestedPermission,
@@ -73,6 +74,7 @@ jest.mock('@/src/utils/export', () => ({
 jest.mock('@/src/store', () => {
 	const mockUseStore = Object.assign(jest.fn(), {
 		setState: jest.fn(),
+		getState: jest.fn(),
 	});
 	return { useStore: mockUseStore };
 });
@@ -88,6 +90,8 @@ describe('SettingsScreen', () => {
 		replaceAllData: jest.Mock;
 		appCurrency: string;
 		setAppCurrency: jest.Mock;
+		// KII-144: handleExport awaits this before reading fresh state.
+		whenFullyHydrated: jest.Mock;
 	};
 
 	// Applies overrides onto the shared storeState before rendering, matching
@@ -113,10 +117,12 @@ describe('SettingsScreen', () => {
 			replaceAllData: jest.fn(),
 			appCurrency: 'EUR',
 			setAppCurrency: jest.fn().mockResolvedValue(undefined),
+			whenFullyHydrated: jest.fn().mockResolvedValue(undefined),
 		};
 
 		const mockedUseStore = useStore as typeof useStore & {
 			setState: jest.Mock;
+			getState: jest.Mock;
 			mockImplementation: jest.Mock;
 		};
 		mockedUseStore.mockImplementation(() => storeState as never);
@@ -124,6 +130,7 @@ describe('SettingsScreen', () => {
 			const partial = typeof updater === 'function' ? updater(storeState) : updater;
 			storeState = { ...storeState, ...partial };
 		});
+		mockedUseStore.getState.mockImplementation(() => storeState as never);
 	});
 
 	test('turning reminders off clears persisted notification ids', async () => {
@@ -299,5 +306,42 @@ describe('SettingsScreen', () => {
 
 		expect(alertSpy).not.toHaveBeenCalled();
 		await waitFor(() => expect(setAppCurrency).toHaveBeenCalledWith('GBP'));
+	});
+
+	test('exporting waits for full hydration and exports fresh state, not the closure captured at render time (KII-144)', async () => {
+		jest.mocked(getRemindersEnabled).mockResolvedValue(true);
+
+		// Hydration is still in flight when the export button is pressed: the
+		// render-time closure only has the phase-1 partial `transactions`.
+		let resolveHydration!: () => void;
+		storeState.whenFullyHydrated.mockReturnValue(
+			new Promise<void>((resolve) => {
+				resolveHydration = resolve;
+			})
+		);
+
+		const { getByText } = render(<SettingsScreen />);
+		await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
+
+		fireEvent.press(getByText('Export to CSV'));
+		await waitFor(() => expect(storeState.whenFullyHydrated).toHaveBeenCalled());
+
+		// While hydration is still pending, the export must not have fired yet
+		// — otherwise it would ship the phase-1 partial array.
+		expect(exportAllData).not.toHaveBeenCalled();
+
+		// Simulate the phase-2 swap landing with the full table, then let
+		// hydration resolve.
+		storeState.transactions = [{ id: 'full-history-tx' }];
+		resolveHydration();
+
+		await waitFor(() => expect(exportAllData).toHaveBeenCalled());
+		expect(exportAllData).toHaveBeenCalledWith(
+			storeState.entities,
+			storeState.plans,
+			[{ id: 'full-history-tx' }],
+			storeState.recurrenceTemplates,
+			storeState.marketValueSnapshots
+		);
 	});
 });

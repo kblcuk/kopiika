@@ -48,6 +48,7 @@ describe('useSummary', () => {
 			entities: [],
 			plans: [],
 			transactions: [],
+			balanceSeed: [],
 			currentPeriod,
 			isLoading: false,
 			draggedEntity: null,
@@ -452,5 +453,58 @@ describe('useSummary', () => {
 		expect(result.current.balance).toBe(0);
 		expect(result.current.expenses).toBe(0);
 		expect(result.current.remaining).toBe(0);
+	});
+
+	it('should include balanceSeed pre-period history in the balance during the phase-2 hydration window (KII-144)', () => {
+		// Full-history equivalent: everything as real rows, no seed involved.
+		const oldIncomeToAccount: Transaction = {
+			id: 'tx-old',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount_minor: 400000,
+			currency: 'USD',
+			timestamp: periodStart - 30 * 86_400_000,
+		};
+		const recentIncomeToAccount: Transaction = {
+			id: 'tx-recent',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount_minor: 100000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+
+		useStore.setState({
+			entities: [mockIncome, mockAccount],
+			transactions: [oldIncomeToAccount, recentIncomeToAccount],
+			balanceSeed: [],
+		});
+		const { result: full, unmount: unmountFull } = renderHook(() => useSummary());
+		const expectedBalance = full.current.balance;
+		expect(expectedBalance).toBe(500000);
+		unmountFull();
+
+		// Phase-1-style store state: the old row is collapsed into a
+		// balanceSeed aggregate and is NOT part of `transactions`.
+		useStore.setState({
+			entities: [mockIncome, mockAccount],
+			transactions: [recentIncomeToAccount],
+			balanceSeed: [
+				{
+					id: '__balance_seed__:income-1:account-1:USD',
+					from_entity_id: 'income-1',
+					to_entity_id: 'account-1',
+					amount_minor: 400000,
+					currency: 'USD',
+					timestamp: periodStart - 1,
+					note: null,
+					is_confirmed: true,
+				},
+			],
+		});
+
+		const { result } = renderHook(() => useSummary());
+
+		expect(result.current.balance).toBe(expectedBalance);
 	});
 });
