@@ -12,7 +12,7 @@ bun = "latest"
 fnox = "latest"
 gradle = "9.6.1"
 hk = "latest"
-java = "temurin-21.0.12+8.0.LTS"
+java = "temurin-21.0.12+101.0.LTS"
 node = "latest"
 ruby = "latest"
 
