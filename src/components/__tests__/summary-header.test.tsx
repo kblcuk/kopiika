@@ -1,5 +1,5 @@
-import { renderHook } from '@testing-library/react-native';
-import { useSummary } from '../summary-header';
+import { render, renderHook } from '@testing-library/react-native';
+import { useSummary, SummaryHeader } from '../summary-header';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
 
@@ -506,5 +506,96 @@ describe('useSummary', () => {
 		const { result } = renderHook(() => useSummary());
 
 		expect(result.current.balance).toBe(expectedBalance);
+	});
+});
+
+describe('SummaryHeader (KII-166: currency-threading tripwire)', () => {
+	beforeEach(() => {
+		useStore.setState({
+			entities: [],
+			plans: [],
+			transactions: [],
+			balanceSeed: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			incomeVisible: false,
+		});
+	});
+
+	// Every other fixture in this repo is EUR, so a display site that regresses
+	// to a hardcoded/wrong currency would still pass every other test. Entity
+	// currency is irrelevant here — SummaryHeader formats its three totals with
+	// the `currency` prop it's given (app-wide currency), never the entities'
+	// own currency — so JPY's zero decimal places is the tripwire: the same
+	// minor-unit integers would render with a decimal point under EUR/USD.
+	it('renders balance/expenses/planned at JPY (0dp) precision from the currency prop, not 2dp', () => {
+		const income: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const account: Entity = {
+			id: 'account-1',
+			type: 'account',
+			name: 'Checking',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const category: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const plan: Plan = {
+			id: 'plan-1',
+			entity_id: 'category-1',
+			period: 'all-time',
+			period_start: '2026-01',
+			planned_amount_minor: 50000,
+		};
+		const periodStart = new Date('2026-01-01T00:00:00').getTime();
+		const incomeToAccount: Transaction = {
+			id: 'tx-1',
+			from_entity_id: 'income-1',
+			to_entity_id: 'account-1',
+			amount_minor: 150000,
+			currency: 'USD',
+			timestamp: periodStart,
+		};
+		const accountToCategory: Transaction = {
+			id: 'tx-2',
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 20000,
+			currency: 'USD',
+			timestamp: periodStart + 1000,
+		};
+
+		useStore.setState({
+			entities: [income, account, category],
+			plans: [plan],
+			transactions: [incomeToAccount, accountToCategory],
+		});
+
+		// balance = 150000 - 20000 = 130000; expenses = 20000; planned remaining = 50000 - 20000 = 30000
+		const { getByText, queryByText } = render(<SummaryHeader currency="JPY" />);
+
+		expect(getByText('130,000')).toBeTruthy();
+		expect(getByText('20,000')).toBeTruthy();
+		expect(getByText('30,000')).toBeTruthy();
+
+		// Guard: none of these should ever render at 2-decimal precision, which is
+		// what the original KII-155 bug (and a future regression) would produce.
+		expect(queryByText('1,300.00')).toBeNull();
+		expect(queryByText('200.00')).toBeNull();
+		expect(queryByText('300.00')).toBeNull();
 	});
 });

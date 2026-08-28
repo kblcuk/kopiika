@@ -363,4 +363,57 @@ describe('SummaryScreen', () => {
 			expect(queryByText('Salary')).toBeNull();
 		});
 	});
+
+	describe('Currency threading (KII-166 tripwire)', () => {
+		// Every fixture elsewhere in this file is USD, so a Section total that
+		// regresses to a hardcoded/wrong currency would still pass every other
+		// test here. `appCurrency` (JPY, 0dp) is deliberately different from the
+		// saving entity's own currency (EUR, 2dp): the row keeps rendering at its
+		// own precision (correct — unaffected), while the section total must
+		// switch to JPY precision, since it formats with `appCurrency`, not the
+		// entity's currency.
+		it("renders the savings section total at appCurrency's precision, not the entity's own currency", () => {
+			const mockSavingEUR: Entity = {
+				id: 'saving-jpy-test',
+				type: 'saving',
+				name: 'Trip fund',
+				currency: 'EUR',
+				row: 0,
+				position: 0,
+			};
+			const planEUR: Plan = {
+				id: 'plan-jpy-test',
+				entity_id: 'saving-jpy-test',
+				period: 'all-time',
+				period_start: '2026-01',
+				planned_amount_minor: 50000,
+			};
+			const txEUR: Transaction = {
+				id: 'tx-jpy-test',
+				from_entity_id: 'account-1',
+				to_entity_id: 'saving-jpy-test',
+				amount_minor: 105000,
+				currency: 'EUR',
+				timestamp: Date.now(),
+			};
+
+			useStore.setState({
+				entities: [mockSavingEUR, mockAccount],
+				plans: [planEUR],
+				transactions: [txEUR],
+				appCurrency: 'JPY',
+			});
+
+			const { getByText } = render(<SummaryScreen />);
+
+			// Row keeps its own EUR precision (correct, unaffected by appCurrency).
+			expect(getByText('1,050.00')).toBeTruthy();
+			// Section total switches to JPY (0dp) precision via appCurrency — if it
+			// regressed to the entity's own currency instead, these would render as
+			// "1,050.00" / "500.00" (colliding with the row's own text above) rather
+			// than existing on their own.
+			expect(getByText('105,000')).toBeTruthy();
+			expect(getByText(/50,000/)).toBeTruthy();
+		});
+	});
 });

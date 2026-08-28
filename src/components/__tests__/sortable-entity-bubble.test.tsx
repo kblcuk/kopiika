@@ -273,4 +273,40 @@ describe('SortableEntityBubble', () => {
 			expect(secondaryTexts).toBeNull();
 		});
 	});
+
+	describe('Currency threading (KII-166 tripwire)', () => {
+		// Every other fixture in this file is EUR, so a display site that
+		// regresses to a hardcoded/wrong currency would still pass every other
+		// test here. JPY's zero decimal places make the bug visible: the same
+		// minor-unit integer would render with a decimal point under EUR/USD.
+		const jpyAccount: EntityWithBalance = {
+			id: 'account-jpy',
+			type: 'account',
+			name: 'Yen wallet',
+			currency: 'JPY',
+			icon: 'wallet',
+			row: 0,
+			position: 0,
+			actual: 105000,
+			planned: 0,
+			remaining: -105000,
+			upcoming: 0,
+			reserved: 21000,
+		};
+
+		it('renders the main amount at JPY (0dp) precision, not 2dp', () => {
+			const { getByText, queryByText } = render(<SortableEntityBubble entity={jpyAccount} />);
+
+			expect(getByText('105,000')).toBeTruthy();
+			expect(queryByText('1,050.00')).toBeNull();
+		});
+
+		it('renders the reserved-total secondary line at JPY (0dp) precision, not 2dp', () => {
+			const { getByText, queryByText } = render(<SortableEntityBubble entity={jpyAccount} />);
+
+			// 105000 (actual) + 21000 (reserved) = 126000
+			expect(getByText('126,000 total')).toBeTruthy();
+			expect(queryByText('1,260.00 total')).toBeNull();
+		});
+	});
 });

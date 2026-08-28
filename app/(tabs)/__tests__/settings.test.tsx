@@ -253,59 +253,107 @@ describe('SettingsScreen', () => {
 
 	test('confirms before relabelling existing data, then dispatches', () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
-		const setAppCurrency = jest.fn().mockResolvedValue(undefined);
-		const { getByTestId } = renderSettings({ setAppCurrency });
+		try {
+			const setAppCurrency = jest.fn().mockResolvedValue(undefined);
+			const { getByTestId } = renderSettings({ setAppCurrency });
 
-		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
-		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
+			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
 
-		// Confirm is required — nothing is written until the user agrees.
-		expect(setAppCurrency).not.toHaveBeenCalled();
-		expect(alertSpy).toHaveBeenCalled();
+			// Confirm is required — nothing is written until the user agrees.
+			expect(setAppCurrency).not.toHaveBeenCalled();
+			expect(alertSpy).toHaveBeenCalled();
 
-		const buttons = alertSpy.mock.calls.at(-1)![2]!;
-		const change = buttons.find((button) => button.text === 'Change')!;
-		change.onPress!();
+			const buttons = alertSpy.mock.calls.at(-1)![2]!;
+			const change = buttons.find((button) => button.text === 'Change')!;
+			change.onPress!();
 
-		expect(setAppCurrency).toHaveBeenCalledWith('GBP');
+			expect(setAppCurrency).toHaveBeenCalledWith('GBP');
+		} finally {
+			alertSpy.mockRestore();
+		}
 	});
 
-	test('says amounts are not converted', () => {
+	test('says amounts are not converted, with a precision-correct example (KII-166)', () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
-		const { getByTestId } = renderSettings();
+		try {
+			const { getByTestId } = renderSettings();
 
-		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
-		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
+			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
 
-		expect(alertSpy.mock.calls.at(-1)![1]).toContain("aren't converted");
+			const message = alertSpy.mock.calls.at(-1)![1];
+			expect(message).toContain("aren't converted");
+			// The example is the whole point of the dialog — a hardcoded or
+			// wrong figure (e.g. ¥10 instead of ¥1,050) would still pass a bare
+			// "aren't converted" check. The same stored minor-unit integer
+			// (1050) renders as 10.50 under EUR (2dp) but 1,050 under JPY (0dp).
+			expect(message).toContain('will be shown as');
+			expect(message).toContain('€10.50');
+			expect(message).toContain('¥1,050');
+		} finally {
+			alertSpy.mockRestore();
+		}
 	});
 
 	test('does not prompt when the currency is unchanged', () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
-		const setAppCurrency = jest.fn();
-		const { getByTestId } = renderSettings({ setAppCurrency });
+		try {
+			const setAppCurrency = jest.fn();
+			const { getByTestId } = renderSettings({ setAppCurrency });
 
-		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
-		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('EUR')));
+			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('EUR')));
 
-		expect(alertSpy).not.toHaveBeenCalled();
-		expect(setAppCurrency).not.toHaveBeenCalled();
+			expect(alertSpy).not.toHaveBeenCalled();
+			expect(setAppCurrency).not.toHaveBeenCalled();
+		} finally {
+			alertSpy.mockRestore();
+		}
 	});
 
 	test('an empty board skips the prompt and applies directly', async () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
-		const setAppCurrency = jest.fn().mockResolvedValue(undefined);
-		const { getByTestId } = renderSettings({
-			entities: [],
-			transactions: [],
-			setAppCurrency,
-		});
+		try {
+			const setAppCurrency = jest.fn().mockResolvedValue(undefined);
+			const { getByTestId } = renderSettings({
+				entities: [],
+				transactions: [],
+				setAppCurrency,
+			});
 
-		fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
-		fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
+			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
 
-		expect(alertSpy).not.toHaveBeenCalled();
-		await waitFor(() => expect(setAppCurrency).toHaveBeenCalledWith('GBP'));
+			expect(alertSpy).not.toHaveBeenCalled();
+			await waitFor(() => expect(setAppCurrency).toHaveBeenCalledWith('GBP'));
+		} finally {
+			alertSpy.mockRestore();
+		}
+	});
+
+	test('shows an error alert when changing currency fails (KII-166)', async () => {
+		const alertSpy = jest
+			.spyOn(Alert, 'alert')
+			.mockImplementation((_title, _message, buttons) => {
+				buttons?.find((button) => button.text === 'Change')?.onPress?.();
+			});
+		try {
+			const setAppCurrency = jest.fn().mockRejectedValue(new Error('write failed'));
+			const { getByTestId } = renderSettings({ setAppCurrency });
+
+			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
+			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
+
+			await waitFor(() => {
+				expect(alertSpy).toHaveBeenCalledWith(
+					'Could not change currency',
+					'Something went wrong while updating your currency. Please try again.'
+				);
+			});
+		} finally {
+			alertSpy.mockRestore();
+		}
 	});
 
 	test('exporting waits for full hydration and exports fresh state, not the closure captured at render time (KII-144)', async () => {
