@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.33](https://codeberg.org/kblcuk/kopiika/compare/v0.3.31...v0.3.33) (2026-08-28)
+
+
+### Features
+
+* **currency:** Add a currency.set_all op ([7a81d4f](https://codeberg.org/kblcuk/kopiika/commit/7a81d4fc7adb8f6353e53ab5ed0a405a34cfa0d6))
+* **currency:** Add the currency options table ([6354c42](https://codeberg.org/kblcuk/kopiika/commit/6354c42e9a74145c0e4e16dd7a4b78f2607ecd10))
+* **currency:** Add the currency picker sheet ([e0e63fc](https://codeberg.org/kblcuk/kopiika/commit/e0e63fc2747e46c8633ec914eb23e90c4b50e004))
+* **currency:** Resolve the app currency from row data ([406bb71](https://codeberg.org/kblcuk/kopiika/commit/406bb71f6ac5fbb2ef0275b56952cf3e17752b46))
+* **currency:** Track the app currency in the store ([ac73d01](https://codeberg.org/kblcuk/kopiika/commit/ac73d01d4889a5164f805fb4046ef5bb3c06199c))
+* **db:** phase-1 hydration queries with JS-parity test (KII-144) ([ed2bbd4](https://codeberg.org/kblcuk/kopiika/commit/ed2bbd4bd388c9c32f8026119c4849c5276dcb23))
+* **hooks:** Add shellcheck autofix step to hk pre-commit ([84926ac](https://codeberg.org/kblcuk/kopiika/commit/84926ac88721a32ae1bb1cc1a5fc6a10df8366cc))
+* **import:** add a split_id column to transactions (KII-146) ([e707bb9](https://codeberg.org/kblcuk/kopiika/commit/e707bb9d4e270745beccc329ce294817391eb2e4))
+* **import:** backfill split_id on existing split legs (KII-146) ([a070e43](https://codeberg.org/kblcuk/kopiika/commit/a070e43d6d4dc8d3f2e6bdadbf4786675b758932))
+* **import:** reconcile splits by split_id instead of inference (KII-146) ([c42dcd3](https://codeberg.org/kblcuk/kopiika/commit/c42dcd3e8bafd6848e0f8612e7210ff169f442d5))
+* **onboarding:** Pick the app currency during setup ([b6e0c7a](https://codeberg.org/kblcuk/kopiika/commit/b6e0c7a030ab6ca96c3e801da7b7cc505e43a023))
+* **perf:** add dev-gated markPerf cold-start instrumentation (KII-144) ([c2ff0ad](https://codeberg.org/kblcuk/kopiika/commit/c2ff0ad99f7e5d5d8719a5f0accf13c509c5d449))
+* **perf:** add PerfProfiler dev render-cost probe (KII-144) ([a9cc4f3](https://codeberg.org/kblcuk/kopiika/commit/a9cc4f365988a1097bf596d16acf0d85fe411cfd))
+* **perf:** realistic entity-count variant for the perf fixture (KII-144) ([b3cbee7](https://codeberg.org/kblcuk/kopiika/commit/b3cbee7f71cb28a8697188e8ac90e9f8a8ea4d4f))
+* **perf:** wire permanent cold-start probes through provider, store, home (KII-144) ([6718bfc](https://codeberg.org/kblcuk/kopiika/commit/6718bfc995fd066883dfd2f25a77b3cedbd09dac))
+* **settings:** Change the app currency ([5c50bfa](https://codeberg.org/kblcuk/kopiika/commit/5c50bfa6c86f6b4ae6fe17192c3f0aeb51b28cb3))
+* **store:** derive balances from the seed; identity-stable phase-2 swap (KII-144) ([e0b6e29](https://codeberg.org/kblcuk/kopiika/commit/e0b6e29eadd97aa371c881a03c7924bbaec50441))
+* **store:** gate stale backfill and reminder sweep on full hydration (KII-144) ([a2cc423](https://codeberg.org/kblcuk/kopiika/commit/a2cc4234d65bccce64509ea7f8e5e1f0a0af9937))
+* **store:** hydration seed partition with derivation-equivalence property test (KII-144) ([48d3eed](https://codeberg.org/kblcuk/kopiika/commit/48d3eed81c9b25aaf104f51cdf08babe27274336))
+* **store:** two-phase hydration opens the gate before the full-table scan (KII-144) ([56679e1](https://codeberg.org/kblcuk/kopiika/commit/56679e13c79d77aa450b783ae0086163312a9f6c))
+* **transaction:** stamp split legs with a shared split_id (KII-146) ([8288871](https://codeberg.org/kblcuk/kopiika/commit/8288871becfb74ee93dd1965e015c3b258c328f1))
+
+
+### Bug Fixes
+
+* **currency:** format market-value snapshots with their own currency ([b6236fd](https://codeberg.org/kblcuk/kopiika/commit/b6236fd31b8a10a5cf5b2ae92d2d424c3b39b240))
+* **currency:** recompute appCurrency after CSV import ([a4a6325](https://codeberg.org/kblcuk/kopiika/commit/a4a6325f4e24735576c962d83521bfb6adb0cd74))
+* **currency:** Require an explicit currency when formatting ([ee28554](https://codeberg.org/kblcuk/kopiika/commit/ee28554130285cdc2e0f50d4cded1cc869203026))
+* **home:** hide empty-board nudge during the phase-2 hydration window (KII-144) ([62a2c31](https://codeberg.org/kblcuk/kopiika/commit/62a2c31a92cf6d9022183e8991021a639e809bf8))
+* **import:** Drop the hardcoded EUR fallbacks ([bf4e7d6](https://codeberg.org/kblcuk/kopiika/commit/bf4e7d6ce1a26a125b8173094ed9289ff8be16b5))
+* **store:** close two-phase hydration races found in review (KII-144) ([7711107](https://codeberg.org/kblcuk/kopiika/commit/7711107b1d029f078b380ff170f8ae69e4bb6798))
+* **store:** keyset phase-2 paging with eager first page and bounded retries (KII-144) ([45b7110](https://codeberg.org/kblcuk/kopiika/commit/45b7110aabb119d8b3e505eefd6a8efd60019c10))
+* **store:** seed-aware summary balance and hydration write guards (KII-144) ([0d77bd3](https://codeberg.org/kblcuk/kopiika/commit/0d77bd303aa1afa69162f682cf9e505a6ae404f7))
+* **sync:** preserve split_id through CSV restore (KII-146) ([0119308](https://codeberg.org/kblcuk/kopiika/commit/0119308d58bb2f6991c3788374e1fe57799205ed))
+* **transaction:** inherit split_id when re-splitting a leg (KII-146) ([a5e68ba](https://codeberg.org/kblcuk/kopiika/commit/a5e68bafb106e1f6b26053e8343e958aa547740a))
+* **transaction:** keep an inherited split_id on a lone surviving leg (KII-146) ([0cf8d12](https://codeberg.org/kblcuk/kopiika/commit/0cf8d124d73aedf46e5b2b24aebc397b85ea0f40))
+
 ## [0.3.31](https://codeberg.org/kblcuk/kopiika/compare/v0.3.30...v0.3.31) (2026-08-09)
 
 
