@@ -68,6 +68,15 @@ local linters = new Mapping<String, Step> {
   }
 
   ["pkl"] = Builtins.pkl
+
+  ["shellcheck"] = (Builtins.shellcheck) {
+    // check_diff would let hk treat "diff applied" as step success without
+    // re-checking, silently passing files that still have non-autofixable
+    // issues (e.g. SC2045) alongside a fixable one. Do the autofix and the
+    // gating check in one command instead, so the final shellcheck call is
+    // always what decides pass/fail.
+    fix = "shellcheck --format=diff {{files}} | git apply --allow-empty - || true; shellcheck {{files}}"
+  }
 }
 
 local shared = new Mapping<String, Step> {

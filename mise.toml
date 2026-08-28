@@ -15,6 +15,7 @@ hk = "latest"
 java = "temurin-21.0.12+101.0.LTS"
 node = "latest"
 ruby = "latest"
+shellcheck = "latest"
 
 # --- Check tasks ---
 # The checks themselves stay bun scripts; mise only orchestrates them so they
