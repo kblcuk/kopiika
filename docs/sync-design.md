@@ -193,7 +193,7 @@ Editing UX:
 
 ## Operation Model
 
-As of KII-134, the authoritative op union lives in `src/sync/ops.ts` and supersedes the sketch below where they differ: (1) `recurrence.update` split into `update_future`, `exclude`, and `deactivate`; (2) `market_value.snapshot` expanded to `{create,update,delete,delete_all}`; (3) `transaction.confirm` takes `ids[]` not a single id; (4) `plan.delete` keys by plan id not entity id. Additions like `transaction.split` and `import.replace_all` are also implemented.
+As of KII-134, the authoritative op union lives in `src/sync/ops.ts` and supersedes the sketch below where they differ: (1) `recurrence.update` split into `update_future`, `exclude`, and `deactivate`; (2) `market_value.snapshot` expanded to `{create,update,delete,delete_all}`; (3) `transaction.confirm` takes `ids[]` not a single id; (4) `plan.delete` keys by plan id not entity id. Additions like `transaction.split` and `import.replace_all` are also implemented. KII-155 added a 25th op kind, `currency.set_all`, described below.
 
 ### The Op union
 
@@ -217,6 +217,7 @@ type Op =
   | { kind: 'recurrence.update', id: string, patch: Partial<RecurrenceTemplate>, ... }
   | { kind: 'recurrence.delete_future', id: string, from_date: number, ... }
   | { kind: 'market_value.snapshot', entity_id: string, amount: number, date: number, ... }
+  | { kind: 'currency.set_all', currency: string, ... }
 
 interface OpEnvelope {
   op_id: string;       // ULID-ish, generated at op creation, never reused
@@ -260,20 +261,40 @@ Behavior:
 Outbound sync runs separately: collect `state='pending'` rows, encrypt for each peer, push, mark
 `sent`, await ack, mark `acked`.
 
+### `currency.set_all`
+
+Single app-wide currency (KII-155). One op relabels the `currency` column on all four tables that
+carry it — `entities`, `transactions`, `recurrence_templates`, `market_value_snapshots` — inside one
+drizzle transaction, with **no `WHERE` clause**. "Set everything to this currency" is naturally
+idempotent and self-healing: replaying the op, or applying it to a row that drifted out of sync
+with the rest, converges to the same state rather than needing a targeted patch.
+
+It goes through `applyOperation` rather than a direct bulk update specifically because `currency` is
+a **shared** field (see [Field locality on entities](#field-locality-on-entities)) — routed through
+the chokepoint, the relabel becomes one journal entry and one HLC stamp, so a second household
+device learns of the change once the op-log ships. A direct bulk update would bypass that.
+
+**Not value-preserving across currencies.** The op relabels rows; it never rescales amounts. The
+stored integer minor units are untouched, so `1050` stays `1050` whether it's read as €10.50 or
+¥1,050 after the switch. This is deliberate, not an oversight: rescaling for a currency with a
+different decimal count needs rounding, and rounding can break split-leg and reservation sums that
+must add up exactly. See the value-preserving note in the Conflict Policy table below.
+
 ## Conflict Policy
 
-| Scenario                                                                  | Policy                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Two devices edit different fields on same row                             | Per-field LWW (rename + recolor both win)                                                                                                                                                                                                                |
-| Two devices edit same field on same row                                   | LWW by HLC                                                                                                                                                                                                                                               |
-| Delete vs concurrent edit (same row)                                      | **Delete wins.** Edit becomes no-op. Surface a one-time "your edit didn't apply, item was deleted on another device" toast on the editing device when the delete arrives                                                                                 |
-| Two creates with different IDs (e.g., both add a "Groceries" transaction) | Both apply. They are independent events, not duplicates. Users decide if one was a mistake                                                                                                                                                               |
-| `reservation.set` from two devices                                        | LWW on `total_amount` (intent semantics, not additive)                                                                                                                                                                                                   |
-| Recurrence: delete-future from D vs edit instance ≥ D                     | Delete-future wins for affected instances                                                                                                                                                                                                                |
-| Recurrence: edit instance < D unaffected                                  | Apply normally                                                                                                                                                                                                                                           |
-| Reorder (sort position)                                                   | Never syncs (per-device)                                                                                                                                                                                                                                 |
-| Visibility flip (private ↔ household)                                     | LWW on visibility field. Edge case: entity goes private after transactions referencing it have synced — historical transactions stay visible to household; the now-private entity renders as a typed placeholder for any new transactions referencing it |
-| Ownership transfer (`entity.transfer_ownership`)                          | LWW by HLC on `owner_device_id`. If two devices simultaneously transfer same entity, last write wins; the loser device sees the corrected owner on next sync                                                                                             |
+| Scenario                                                                  | Policy                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two devices edit different fields on same row                             | Per-field LWW (rename + recolor both win)                                                                                                                                                                                                                                                                         |
+| Two devices edit same field on same row                                   | LWW by HLC                                                                                                                                                                                                                                                                                                        |
+| Delete vs concurrent edit (same row)                                      | **Delete wins.** Edit becomes no-op. Surface a one-time "your edit didn't apply, item was deleted on another device" toast on the editing device when the delete arrives                                                                                                                                          |
+| Two creates with different IDs (e.g., both add a "Groceries" transaction) | Both apply. They are independent events, not duplicates. Users decide if one was a mistake                                                                                                                                                                                                                        |
+| `reservation.set` from two devices                                        | LWW on `total_amount` (intent semantics, not additive)                                                                                                                                                                                                                                                            |
+| Recurrence: delete-future from D vs edit instance ≥ D                     | Delete-future wins for affected instances                                                                                                                                                                                                                                                                         |
+| Recurrence: edit instance < D unaffected                                  | Apply normally                                                                                                                                                                                                                                                                                                    |
+| Reorder (sort position)                                                   | Never syncs (per-device)                                                                                                                                                                                                                                                                                          |
+| Visibility flip (private ↔ household)                                     | LWW on visibility field. Edge case: entity goes private after transactions referencing it have synced — historical transactions stay visible to household; the now-private entity renders as a typed placeholder for any new transactions referencing it                                                          |
+| Ownership transfer (`entity.transfer_ownership`)                          | LWW by HLC on `owner_device_id`. If two devices simultaneously transfer same entity, last write wins; the loser device sees the corrected owner on next sync                                                                                                                                                      |
+| `currency.set_all` from two devices (concurrent currency switch)          | LWW: whichever op has the later HLC applies last and wins, since the op has no `WHERE` clause and touches every row. **Not value-preserving** — amounts are relabeled, never rescaled, so switching currency and switching back does not restore original amounts unless the two currencies share a decimal count |
 
 The unifying rule: **same row ID → LWW per field; tombstone trumps edit; creates are independent.**
 
