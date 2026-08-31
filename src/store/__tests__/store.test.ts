@@ -1,4 +1,13 @@
-import { describe, expect, test, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import {
+	describe,
+	expect,
+	test,
+	beforeEach,
+	afterEach,
+	mock,
+	spyOn,
+	setSystemTime,
+} from 'bun:test';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import { useStore, getEntitiesWithBalance, _resetBackfillThrottleForTests } from '../index';
@@ -6609,7 +6618,7 @@ describe('Store Data Integrity', () => {
 		expect(stateTemplate?.exclusions).toContain(occurrenceTs);
 	});
 
-	test('getEntitiesWithBalance counts derived virtual occurrences in upcoming', async () => {
+	test('getEntitiesWithBalance counts derived virtual occurrences in upcoming', () => {
 		const acc: Entity = {
 			id: 'accU',
 			type: 'account',
@@ -6626,27 +6635,82 @@ describe('Store Data Integrity', () => {
 			row: 0,
 			position: 1,
 		};
-		const now = Date.now();
-		const period = getCurrentPeriod();
-		const { end } = getPeriodRange(period);
-		// A point strictly after now but still inside the current period — robust
-		// against month-boundary days where now + 1 day would cross into the next
-		// period and drop out of the upcoming window.
-		const upcomingTs = Math.floor((now + end) / 2);
-		const virtual: Transaction = {
-			id: 'tmplU:x',
-			from_entity_id: 'accU',
-			to_entity_id: 'catU',
-			amount_minor: 2500,
+		// KII-159 made due-ness a civil-DAY comparison, so "upcoming" means a later
+		// DAY, not merely a later instant. The clock is frozen mid-month because on
+		// the last day of a month no timestamp is both not-yet-due and still inside
+		// the current period, so there is nothing the real clock could be handed.
+		setSystemTime(new Date(2026, 4, 12, 9, 0, 0, 0));
+		try {
+			const period = getCurrentPeriod();
+			const upcomingTs = new Date(2026, 4, 20, 9, 0, 0, 0).getTime();
+			const virtual: Transaction = {
+				id: 'tmplU:x',
+				from_entity_id: 'accU',
+				to_entity_id: 'catU',
+				amount_minor: 2500,
+				currency: 'USD',
+				timestamp: upcomingTs,
+				series_id: 'tmplU',
+				is_confirmed: false,
+				isVirtual: true,
+			};
+			const result = getEntitiesWithBalance([acc, cat], [], [virtual], period, 'category');
+			const groceries = result.find((e) => e.id === 'catU')!;
+			expect(groceries.upcoming).toBeCloseTo(2500, 0);
+			expect(groceries.unconfirmed).toBe(0);
+		} finally {
+			setSystemTime();
+		}
+	});
+
+	// The other half of the KII-159 civil-day rule, and the case that broke the
+	// test above on 2026-08-31: an occurrence later TODAY is already due, so it
+	// belongs to `unconfirmed` (confirmable now) rather than `upcoming`.
+	test('getEntitiesWithBalance counts a later-today occurrence as unconfirmed, not upcoming', () => {
+		const acc: Entity = {
+			id: 'accT',
+			type: 'account',
+			name: 'A',
 			currency: 'USD',
-			timestamp: upcomingTs,
-			series_id: 'tmplU',
-			is_confirmed: false,
-			isVirtual: true,
+			row: 0,
+			position: 0,
 		};
-		const result = getEntitiesWithBalance([acc, cat], [], [virtual], period, 'category');
-		const groceries = result.find((e) => e.id === 'catU')!;
-		expect(groceries.upcoming).toBeCloseTo(2500, 0);
+		const cat: Entity = {
+			id: 'catT',
+			type: 'category',
+			name: 'C',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+		};
+		// Last day of a month, so "later today" is also the last instant of the
+		// period — the exact shape that used to be filed as `upcoming`.
+		setSystemTime(new Date(2026, 4, 31, 20, 0, 0, 0));
+		try {
+			const virtual: Transaction = {
+				id: 'tmplT:x',
+				from_entity_id: 'accT',
+				to_entity_id: 'catT',
+				amount_minor: 2500,
+				currency: 'USD',
+				timestamp: new Date(2026, 4, 31, 22, 0, 0, 0).getTime(),
+				series_id: 'tmplT',
+				is_confirmed: false,
+				isVirtual: true,
+			};
+			const result = getEntitiesWithBalance(
+				[acc, cat],
+				[],
+				[virtual],
+				getCurrentPeriod(),
+				'category'
+			);
+			const groceries = result.find((e) => e.id === 'catT')!;
+			expect(groceries.unconfirmed).toBe(2500);
+			expect(groceries.upcoming).toBe(0);
+		} finally {
+			setSystemTime();
+		}
 	});
 
 	test('addEntity persists the entity and mirrors it into state', async () => {
