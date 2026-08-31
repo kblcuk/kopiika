@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.34](https://codeberg.org/kblcuk/kopiika/compare/v0.3.33...v0.3.34) (2026-08-31)
+
+
+### Features
+
+* **board:** Let users swap the tap and long-press bubble actions ([462f019](https://codeberg.org/kblcuk/kopiika/commit/462f019483035fcba5bcc213d85ed8138c74b22d))
+
 ## [0.3.33](https://codeberg.org/kblcuk/kopiika/compare/v0.3.31...v0.3.33) (2026-08-28)
 
 
