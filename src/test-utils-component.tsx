@@ -26,6 +26,9 @@ export function setupStoreForTest({
 		isLoading: false,
 		draggedEntity: null,
 		incomeVisible: false,
+		// Explicit so a test that flips the pref can't leak it into the next one
+		// (`setState` merges).
+		bubbleGestureMode: 'tap-adds',
 	});
 }
 

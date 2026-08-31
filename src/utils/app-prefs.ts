@@ -1,4 +1,9 @@
 import { File, Paths } from 'expo-file-system';
+import {
+	DEFAULT_BUBBLE_GESTURE_MODE,
+	isBubbleGestureMode,
+	type BubbleGestureMode,
+} from './bubble-gestures';
 
 const prefsFile = new File(Paths.document, 'app-prefs.json');
 
@@ -11,6 +16,7 @@ interface AppPrefs {
 	hasCompletedOnboarding?: boolean;
 	emptyBoardNudgeDismissed?: boolean;
 	defaultCurrency?: string;
+	bubbleGestureMode?: BubbleGestureMode;
 }
 
 async function read(): Promise<AppPrefs> {
@@ -132,5 +138,28 @@ export async function getDefaultCurrency(): Promise<string | null> {
 export async function setDefaultCurrency(code: string): Promise<void> {
 	const prefs = await read();
 	prefs.defaultCurrency = code;
+	write(prefs);
+}
+
+/**
+ * Which board gesture opens quick-add and which opens history.
+ *
+ * Device-local on purpose: this is an input preference, not household state, so
+ * it stays out of the sync op-log — two people sharing a board can each hold
+ * the phone their own way.
+ *
+ * Validated on read because the file is user-writable via a restored backup and
+ * an unrecognised value would otherwise flip both gestures to `history`.
+ */
+export async function getBubbleGestureMode(): Promise<BubbleGestureMode> {
+	const prefs = await read();
+	return isBubbleGestureMode(prefs.bubbleGestureMode)
+		? prefs.bubbleGestureMode
+		: DEFAULT_BUBBLE_GESTURE_MODE;
+}
+
+export async function setBubbleGestureMode(mode: BubbleGestureMode): Promise<void> {
+	const prefs = await read();
+	prefs.bubbleGestureMode = mode;
 	write(prefs);
 }

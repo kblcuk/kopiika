@@ -9,6 +9,14 @@ import { ChevronRight } from 'lucide-react-native';
 import { colors } from '@/src/theme/colors';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { CurrencyPickerSheet } from '@/src/components/currency-picker-sheet';
+import { BubbleGesturePickerSheet } from '@/src/components/bubble-gesture-picker-sheet';
+import {
+	actionForGesture,
+	modeForGestureAction,
+	BUBBLE_ACTION_LABELS,
+	type BubbleAction,
+	type BubbleGesture,
+} from '@/src/utils/bubble-gestures';
 import { getCurrencySymbol, formatAmount } from '@/src/utils/format';
 import { toMinor } from '@/src/utils/money';
 
@@ -44,10 +52,14 @@ export default function SettingsScreen() {
 		replaceAllData,
 		appCurrency,
 		setAppCurrency,
+		bubbleGestureMode,
+		setBubbleGestureMode,
 	} = useStore();
 
 	const [remindersEnabled, setRemindersToggle] = useState(true);
 	const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+	// Which gesture row opened the picker; null keeps the sheet closed.
+	const [gesturePickerFor, setGesturePickerFor] = useState<BubbleGesture | null>(null);
 
 	useEffect(() => {
 		void (async () => {
@@ -155,6 +167,17 @@ export default function SettingsScreen() {
 			]
 		);
 	};
+
+	// Both rows write the same single preference: picking an action for one
+	// gesture implies the other, so they can never disagree or both mean the same
+	// thing. Nothing to undo on failure — the write is best-effort and state is
+	// already applied, so at worst the choice is lost on next launch.
+	const handleGestureActionSelect = (gesture: BubbleGesture, action: BubbleAction) => {
+		void setBubbleGestureMode(modeForGestureAction(gesture, action));
+	};
+
+	const tapAction = actionForGesture(bubbleGestureMode, 'tap');
+	const longPressAction = actionForGesture(bubbleGestureMode, 'longPress');
 
 	const router = useRouter();
 	const version = Constants.expoConfig?.version || 'unknown';
@@ -378,6 +401,34 @@ export default function SettingsScreen() {
 							<ChevronRight size={16} color={colors.ink.muted} />
 						</View>
 					</Pressable>
+
+					<Pressable
+						testID={TestIDs.settings.tapActionRow}
+						onPress={() => setGesturePickerFor('tap')}
+						className="flex-row items-center justify-between border-t border-paper-300 px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Tap a bubble</Text>
+						<View className="flex-row items-center">
+							<Text className="font-sans text-sm text-ink-muted">
+								{BUBBLE_ACTION_LABELS[tapAction]}
+							</Text>
+							<ChevronRight size={16} color={colors.ink.muted} />
+						</View>
+					</Pressable>
+
+					<Pressable
+						testID={TestIDs.settings.longPressActionRow}
+						onPress={() => setGesturePickerFor('longPress')}
+						className="flex-row items-center justify-between border-t border-paper-300 px-4 py-3.5 active:bg-paper-200"
+					>
+						<Text className="font-sans text-base text-ink">Long-press a bubble</Text>
+						<View className="flex-row items-center">
+							<Text className="font-sans text-sm text-ink-muted">
+								{BUBBLE_ACTION_LABELS[longPressAction]}
+							</Text>
+							<ChevronRight size={16} color={colors.ink.muted} />
+						</View>
+					</Pressable>
 				</View>
 
 				{/* Notifications Section */}
@@ -479,6 +530,15 @@ export default function SettingsScreen() {
 				selectedCode={appCurrency}
 				onSelect={handleCurrencySelect}
 				onClose={() => setCurrencyPickerOpen(false)}
+			/>
+
+			<BubbleGesturePickerSheet
+				gesture={gesturePickerFor}
+				selectedAction={gesturePickerFor === 'longPress' ? longPressAction : tapAction}
+				onSelect={(action) => {
+					if (gesturePickerFor) handleGestureActionSelect(gesturePickerFor, action);
+				}}
+				onClose={() => setGesturePickerFor(null)}
 			/>
 		</SafeAreaView>
 	);

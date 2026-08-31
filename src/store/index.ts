@@ -48,7 +48,10 @@ import {
 	setScheduledReminderKey,
 	getDefaultCurrency,
 	setDefaultCurrency,
+	getBubbleGestureMode,
+	setBubbleGestureMode as persistBubbleGestureMode,
 } from '@/src/utils/app-prefs';
+import { DEFAULT_BUBBLE_GESTURE_MODE, type BubbleGestureMode } from '@/src/utils/bubble-gestures';
 
 interface AppState {
 	// Data
@@ -71,6 +74,8 @@ interface AppState {
 	// The single app-wide currency (KII-155). Derived from row data at hydration;
 	// `setAppCurrency` relabels every row through the chokepoint.
 	appCurrency: string;
+	/** Which board gesture opens quick-add vs. history. Device-local pref. */
+	bubbleGestureMode: BubbleGestureMode;
 
 	// Actions
 	initialize: () => Promise<void>;
@@ -141,6 +146,8 @@ interface AppState {
 	setDefaultAccount: (accountId: string | null) => Promise<void>;
 
 	setAppCurrency: (code: string) => Promise<void>;
+
+	setBubbleGestureMode: (mode: BubbleGestureMode) => Promise<void>;
 
 	// Savings reservation action — creates account↔saving transactions to reach
 	// `desiredTotalMinor` (integer minor units, KII-120).
@@ -586,6 +593,7 @@ export const useStore = create<AppState>((set, get) => {
 		draggedEntity: null,
 		incomeVisible: false,
 		appCurrency: DEFAULT_CURRENCY,
+		bubbleGestureMode: DEFAULT_BUBBLE_GESTURE_MODE,
 
 		// Initialize from database
 		initialize: async () => {
@@ -619,6 +627,7 @@ export const useStore = create<AppState>((set, get) => {
 						marketValueSnapshots,
 						exclusionsByTemplate,
 						currencyPref,
+						bubbleGestureMode,
 					] = await Promise.all([
 						db.getAllEntities(),
 						db.getAllPlans(),
@@ -628,6 +637,7 @@ export const useStore = create<AppState>((set, get) => {
 						db.getAllMarketValueSnapshots(),
 						db.getAllExclusionsByTemplate(),
 						getDefaultCurrency(),
+						getBubbleGestureMode(),
 					]);
 					markPerf(
 						'hydrate:phase1',
@@ -666,6 +676,7 @@ export const useStore = create<AppState>((set, get) => {
 						recurrenceTemplates,
 						marketValueSnapshots,
 						appCurrency,
+						bubbleGestureMode,
 						isLoading: false,
 						isFullyHydrated: false,
 					});
@@ -1476,6 +1487,14 @@ export const useStore = create<AppState>((set, get) => {
 				marketValueSnapshots: result.marketValueSnapshots,
 			});
 			await setDefaultCurrency(code);
+		},
+
+		// Purely local UI preference — no operation, nothing to sync. Applied to
+		// state first so the board responds immediately; the file write is the
+		// slow part and a failure there only costs the choice on next launch.
+		setBubbleGestureMode: async (mode) => {
+			set({ bubbleGestureMode: mode });
+			await persistBubbleGestureMode(mode);
 		},
 
 		// Savings reservation — the op carries the intent (target total); delta

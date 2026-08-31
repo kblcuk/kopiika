@@ -22,7 +22,8 @@ import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useTransactionFlow } from '@/src/hooks/use-transaction-flow';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
 import type { EntityWithBalance } from '@/src/types';
-import { resolveBubbleTapFlow } from '@/src/utils/bubble-tap-flow';
+import { resolveBubbleAddFlow } from '@/src/utils/bubble-add-flow';
+import { actionForGesture, type BubbleGesture } from '@/src/utils/bubble-gestures';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
 import { resolveDropFlow } from '@/src/utils/drop-flow';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
@@ -84,6 +85,7 @@ export default function HomeScreen() {
 		toggleIncomeVisible,
 		appCurrency,
 		isFullyHydrated,
+		bubbleGestureMode,
 	} = useStore(
 		useShallow((s) => ({
 			isLoading: s.isLoading,
@@ -94,6 +96,7 @@ export default function HomeScreen() {
 			toggleIncomeVisible: s.toggleIncomeVisible,
 			appCurrency: s.appCurrency,
 			isFullyHydrated: s.isFullyHydrated,
+			bubbleGestureMode: s.bubbleGestureMode,
 		}))
 	);
 
@@ -200,15 +203,13 @@ export default function HomeScreen() {
 		[setDraggedEntity, stopAutoScroll, allEntities, transactionFlow, reservationFlow]
 	);
 
-	// KII-154: testers read a tap as "record something here", so a tap opens the
-	// add flow pre-filled and long-press takes over the old navigate-to-history
-	// behaviour. resolveBubbleTapFlow owns the per-type routing.
-	const handleTap = useCallback(
+	// KII-154 made a tap mean "record something here" and moved the old
+	// navigate-to-history behaviour onto long-press. Testers split on which way
+	// round they want it, so the pair is a user preference: both gestures route
+	// through `actionForGesture`, which guarantees they never collide.
+	const openAddFlow = useCallback(
 		(entity: EntityWithBalance) => {
-			const flow = resolveBubbleTapFlow(entity, {
-				isEditing: editModes.isEditing(entity.type),
-				entities: allEntities,
-			});
+			const flow = resolveBubbleAddFlow(entity, { entities: allEntities });
 			switch (flow.kind) {
 				case 'detail':
 					detailFlow.open(flow.entity);
@@ -221,15 +222,48 @@ export default function HomeScreen() {
 					return;
 			}
 		},
-		[allEntities, detailFlow, editModes, reservationFlow, transactionFlow]
+		[allEntities, detailFlow, reservationFlow, transactionFlow]
 	);
 
-	const handleLongPress = useCallback(
+	const openHistory = useCallback(
 		(entity: EntityWithBalance) => {
 			setPendingHistoryFilter({ entityId: entity.id });
 			router.push('/history');
 		},
 		[router]
+	);
+
+	const runBubbleGesture = useCallback(
+		(gesture: BubbleGesture, entity: EntityWithBalance) => {
+			if (actionForGesture(bubbleGestureMode, gesture) === 'history') {
+				openHistory(entity);
+				return;
+			}
+			openAddFlow(entity);
+		},
+		[bubbleGestureMode, openAddFlow, openHistory]
+	);
+
+	const handleTap = useCallback(
+		(entity: EntityWithBalance) => {
+			// Edit mode always means "tap edits this entity", whichever way the
+			// preference is set. Bound to the tap gesture rather than to the add
+			// flow: the section's pencil toggle would otherwise have no reachable
+			// target for anyone who puts history on tap.
+			if (editModes.isEditing(entity.type)) {
+				detailFlow.open(entity);
+				return;
+			}
+			runBubbleGesture('tap', entity);
+		},
+		[detailFlow, editModes, runBubbleGesture]
+	);
+
+	// No edit-mode guard needed here: SortableEntityGrid only arms the long-press
+	// in transaction mode, so this never fires while a section is being reordered.
+	const handleLongPress = useCallback(
+		(entity: EntityWithBalance) => runBubbleGesture('longPress', entity),
+		[runBubbleGesture]
 	);
 
 	// Re-measure drop zones when scrolling ends to account for position changes

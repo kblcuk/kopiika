@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '../settings';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
+import type { BubbleGestureMode } from '@/src/utils/bubble-gestures';
 import { updateTransactionNotificationIdsBatch } from '@/src/db';
 import { exportAllData } from '@/src/utils/export';
 import {
@@ -90,6 +91,8 @@ describe('SettingsScreen', () => {
 		replaceAllData: jest.Mock;
 		appCurrency: string;
 		setAppCurrency: jest.Mock;
+		bubbleGestureMode: BubbleGestureMode;
+		setBubbleGestureMode: jest.Mock;
 		// KII-144: handleExport awaits this before reading fresh state.
 		whenFullyHydrated: jest.Mock;
 	};
@@ -117,6 +120,8 @@ describe('SettingsScreen', () => {
 			replaceAllData: jest.fn(),
 			appCurrency: 'EUR',
 			setAppCurrency: jest.fn().mockResolvedValue(undefined),
+			bubbleGestureMode: 'tap-adds',
+			setBubbleGestureMode: jest.fn().mockResolvedValue(undefined),
 			whenFullyHydrated: jest.fn().mockResolvedValue(undefined),
 		};
 
@@ -391,5 +396,56 @@ describe('SettingsScreen', () => {
 			storeState.recurrenceTemplates,
 			storeState.marketValueSnapshots
 		);
+	});
+
+	describe('bubble gesture preference', () => {
+		test('shows the default assignment: tap adds, long-press opens history', () => {
+			const { getByTestId } = renderSettings();
+
+			expect(getByTestId(TestIDs.settings.tapActionRow)).toHaveTextContent(
+				/Add transaction$/
+			);
+			expect(getByTestId(TestIDs.settings.longPressActionRow)).toHaveTextContent(
+				/Open history$/
+			);
+		});
+
+		test('reflects the flipped preference on both rows', () => {
+			const { getByTestId } = renderSettings({ bubbleGestureMode: 'tap-opens-history' });
+
+			expect(getByTestId(TestIDs.settings.tapActionRow)).toHaveTextContent(/Open history$/);
+			expect(getByTestId(TestIDs.settings.longPressActionRow)).toHaveTextContent(
+				/Add transaction$/
+			);
+		});
+
+		test('choosing history for tap flips the whole pair', () => {
+			const { getByTestId } = renderSettings();
+
+			fireEvent.press(getByTestId(TestIDs.settings.tapActionRow));
+			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('history')));
+
+			expect(storeState.setBubbleGestureMode).toHaveBeenCalledWith('tap-opens-history');
+		});
+
+		// The long-press row writes the same single preference, so picking `add`
+		// there must land on the same mode as picking `history` on the tap row.
+		test('choosing add for long-press flips the whole pair', () => {
+			const { getByTestId } = renderSettings();
+
+			fireEvent.press(getByTestId(TestIDs.settings.longPressActionRow));
+			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('add')));
+
+			expect(storeState.setBubbleGestureMode).toHaveBeenCalledWith('tap-opens-history');
+		});
+
+		test('re-picking the action a gesture already has keeps the current mode', () => {
+			const { getByTestId } = renderSettings();
+
+			fireEvent.press(getByTestId(TestIDs.settings.tapActionRow));
+			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('add')));
+
+			expect(storeState.setBubbleGestureMode).toHaveBeenCalledWith('tap-adds');
+		});
 	});
 });

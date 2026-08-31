@@ -310,6 +310,7 @@ describe('HomeScreen entity interactions', () => {
 			isLoading: false,
 			draggedEntity: null,
 			incomeVisible: false,
+			bubbleGestureMode: 'tap-adds',
 			initialize: mockInitialize,
 			addEntity: jest.fn(),
 			setPlan: jest.fn(),
@@ -353,6 +354,53 @@ describe('HomeScreen entity interactions', () => {
 			expect(mockPush).toHaveBeenCalledWith('/history');
 		});
 		expect(consumePendingHistoryFilter()).toEqual({ entityId: 'cat-1' });
+	});
+
+	describe('with the gesture preference flipped to tap-opens-history', () => {
+		beforeEach(() => {
+			useStore.setState({ bubbleGestureMode: 'tap-opens-history' });
+		});
+
+		it('navigates to history when tapping a category', async () => {
+			consumePendingHistoryFilter();
+			const { getByTestId } = render(<HomeScreen />);
+
+			fireEvent.press(getByTestId('entity-cat-1').parent!);
+
+			await waitFor(() => {
+				expect(mockPush).toHaveBeenCalledWith('/history');
+			});
+			expect(consumePendingHistoryFilter()).toEqual({ entityId: 'cat-1' });
+		});
+
+		it('opens the quick-add transaction modal when long-pressing a category', async () => {
+			const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+			fireEvent(getByTestId('entity-cat-1').parent!, 'longPress');
+
+			await waitFor(() => {
+				expect(queryByTestId('transaction-modal')).toBeTruthy();
+			});
+			expect(getByTestId('transaction-modal-from')).toHaveTextContent('acc-1');
+			expect(getByTestId('transaction-modal-to')).toHaveTextContent('cat-1');
+			expect(getByTestId('transaction-modal-quick-add')).toHaveTextContent('true');
+			expect(mockPush).not.toHaveBeenCalled();
+		});
+
+		// Edit mode is bound to the tap gesture, not to the add flow — otherwise
+		// flipping the preference would leave the pencil toggle with no way to
+		// open the entity it just armed for editing.
+		it('still opens the edit modal when tapping a category in edit mode', async () => {
+			const { getByTestId, queryByTestId } = render(<HomeScreen />);
+
+			fireEvent.press(getByTestId('category-edit-toggle'));
+			fireEvent.press(getByTestId('entity-cat-1').parent!);
+
+			await waitFor(() => {
+				expect(queryByTestId('entity-detail-modal')).toBeTruthy();
+			});
+			expect(mockPush).not.toHaveBeenCalled();
+		});
 	});
 
 	it('opens edit modal when tapping category in categories edit mode', async () => {

@@ -128,6 +128,14 @@ export const TestIDs = {
 		helpRow: 'settings-help-row',
 		tourRow: 'settings-tour-row',
 		currencyRow: 'settings-currency-row',
+		tapActionRow: 'settings-tap-action-row',
+		longPressActionRow: 'settings-long-press-action-row',
+	},
+
+	bubbleGesturePicker: {
+		sheet: 'bubble-gesture-picker-sheet',
+		close: 'bubble-gesture-picker-close',
+		option: (action: string) => `bubble-gesture-picker-option-${action}`,
 	},
 
 	historyImportButton: 'history-import-button',

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 
-import { resolveBubbleTapFlow, resolveFundingAccount } from '../bubble-tap-flow';
+import { resolveBubbleAddFlow, resolveFundingAccount } from '../bubble-add-flow';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 
@@ -69,38 +69,30 @@ describe('resolveFundingAccount', () => {
 	});
 });
 
-describe('resolveBubbleTapFlow', () => {
-	describe('edit mode', () => {
-		test('every type opens the detail modal', () => {
-			for (const tapped of [income, account, category, saving]) {
-				expect(
-					resolveBubbleTapFlow(tapped, { isEditing: true, entities: [account] })
-				).toEqual({ kind: 'detail', entity: tapped });
-			}
-		});
-	});
-
+describe('resolveBubbleAddFlow', () => {
 	describe('category', () => {
 		test('fills the destination slot and resolves the flagged account as source', () => {
 			const flagged = entity('acc-flagged', 'account', { is_default: true });
 
-			expect(
-				resolveBubbleTapFlow(category, { isEditing: false, entities: [account, flagged] })
-			).toEqual({ kind: 'transaction', from: flagged, to: category });
+			expect(resolveBubbleAddFlow(category, { entities: [account, flagged] })).toEqual({
+				kind: 'transaction',
+				from: flagged,
+				to: category,
+			});
 		});
 
 		test('falls back to the first account when none is flagged', () => {
 			const second = entity('acc-2', 'account', { position: 1 });
 
-			expect(
-				resolveBubbleTapFlow(category, { isEditing: false, entities: [second, account] })
-			).toEqual({ kind: 'transaction', from: account, to: category });
+			expect(resolveBubbleAddFlow(category, { entities: [second, account] })).toEqual({
+				kind: 'transaction',
+				from: account,
+				to: category,
+			});
 		});
 
 		test('leaves the source null when there are no accounts at all', () => {
-			expect(
-				resolveBubbleTapFlow(category, { isEditing: false, entities: [income] })
-			).toEqual({
+			expect(resolveBubbleAddFlow(category, { entities: [income] })).toEqual({
 				kind: 'transaction',
 				from: null,
 				to: category,
@@ -110,31 +102,38 @@ describe('resolveBubbleTapFlow', () => {
 
 	describe('income and account', () => {
 		test('income fills the source slot, destination left empty', () => {
-			expect(resolveBubbleTapFlow(income, { isEditing: false, entities: [account] })).toEqual(
-				{ kind: 'transaction', from: income, to: null }
-			);
+			expect(resolveBubbleAddFlow(income, { entities: [account] })).toEqual({
+				kind: 'transaction',
+				from: income,
+				to: null,
+			});
 		});
 
 		test('account fills the source slot, destination left empty', () => {
-			expect(
-				resolveBubbleTapFlow(account, { isEditing: false, entities: [account] })
-			).toEqual({ kind: 'transaction', from: account, to: null });
+			expect(resolveBubbleAddFlow(account, { entities: [account] })).toEqual({
+				kind: 'transaction',
+				from: account,
+				to: null,
+			});
 		});
 	});
 
 	describe('saving', () => {
 		test('opens a reservation from the resolved funding account', () => {
-			expect(resolveBubbleTapFlow(saving, { isEditing: false, entities: [account] })).toEqual(
-				{ kind: 'reservation', account, saving }
-			);
+			expect(resolveBubbleAddFlow(saving, { entities: [account] })).toEqual({
+				kind: 'reservation',
+				account,
+				saving,
+			});
 		});
 
 		test('falls back to the detail modal when no account can fund it', () => {
 			const usdSaving = entity('sav-usd', 'saving', { currency: 'USD' });
 
-			expect(
-				resolveBubbleTapFlow(usdSaving, { isEditing: false, entities: [account] })
-			).toEqual({ kind: 'detail', entity: usdSaving });
+			expect(resolveBubbleAddFlow(usdSaving, { entities: [account] })).toEqual({
+				kind: 'detail',
+				entity: usdSaving,
+			});
 		});
 	});
 });
