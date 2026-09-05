@@ -106,7 +106,7 @@
 		"knip": "^6.13.1",
 		"oxfmt": "^0.65.0",
 		"oxlint": "^1.71.0",
-		"oxlint-tsgolint": "^0.25.0",
+		"oxlint-tsgolint": "^7.0.0",
 		"react-test-renderer": "19.2.0",
 		"ts-jest": "^29.4.9"
 	},
