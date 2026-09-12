@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.35](https://codeberg.org/kblcuk/kopiika/compare/v0.3.34...v0.3.35) (2026-09-12)
+
+
+### Features
+
+* **add:** Add a quick-add mini-menu to the "+" tab button ([95b4120](https://codeberg.org/kblcuk/kopiika/commit/95b4120eb10ccc69826f5e4c56635684083bff82))
+
 ## [0.3.34](https://codeberg.org/kblcuk/kopiika/compare/v0.3.33...v0.3.34) (2026-08-31)
 
 
