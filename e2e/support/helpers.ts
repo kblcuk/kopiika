@@ -1,5 +1,6 @@
 import { device, waitFor, element, by } from 'detox';
 import { TestIDs } from './test-ids';
+import type { QuickAddKind } from '@/src/utils/quick-add-kinds';
 
 // KII-120: previously imported from `src/utils/format` — the helper was removed
 // when monetary fields moved to integer minor units. The UI still displays
@@ -144,9 +145,35 @@ export async function tapUntilGone(
 	throw lastError ?? new Error('tapUntilGone: timed out');
 }
 
-// Full [+] button happy path: open modal → pick from → pick to → enter amount → save.
-export async function createTransaction(fromName: string, toName: string, amount: string) {
-	await element(by.id(TestIDs.addTransactionButton)).tap();
+// Opens the [+] mini-menu and picks a row (KII-161). The menu is a native
+// modal that fades in over the tab bar, so the option tap is retried until the
+// form behind it is up — sync is off suite-wide and a tap issued mid-fade is
+// dropped.
+export async function openQuickAdd(kind: QuickAddKind = 'expense') {
+	// A retry here re-taps where the "+" was, which is now the menu's backdrop —
+	// that closes it, and the next retry reopens it. It converges, but each
+	// wasted cycle eats the deadline, so give the fade a wide interval instead
+	// of the default 600 ms.
+	await tapUntilVisible(
+		by.id(TestIDs.addTransactionButton),
+		by.id(TestIDs.quickAddMenu.option(kind)),
+		{ attemptInterval: 2000 }
+	);
+	await tapUntilVisible(
+		by.id(TestIDs.quickAddMenu.option(kind)),
+		by.id(TestIDs.transaction.amountInput)
+	);
+}
+
+// Full [+] button happy path: open menu → pick kind → pick from → pick to →
+// enter amount → save.
+export async function createTransaction(
+	fromName: string,
+	toName: string,
+	amount: string,
+	kind: QuickAddKind = 'expense'
+) {
+	await openQuickAdd(kind);
 
 	// Tap the from-button until the from-picker actually opens. Sync is off
 	// suite-wide, so taps issued during the modal's slide-up animation can be

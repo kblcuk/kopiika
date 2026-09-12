@@ -5,6 +5,12 @@ export const TestIDs = {
 	addTransactionButton: 'add-transaction-button',
 	addEntityButton: (type: string) => `add-entity-button-${type}`,
 
+	quickAddMenu: {
+		card: 'quick-add-menu',
+		backdrop: 'quick-add-menu-backdrop',
+		option: (kind: string) => `quick-add-option-${kind}`,
+	},
+
 	infoPin: (articleId: string) => `info-pin-${articleId}`,
 
 	emptyBoardNudge: {

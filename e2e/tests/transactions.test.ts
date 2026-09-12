@@ -6,6 +6,8 @@ import {
 	expectAmount,
 	getAmount,
 	launchAppFast,
+	openIncomeSection,
+	openQuickAdd,
 	tapUntilGone,
 	tapUntilVisible,
 } from '../support/helpers';
@@ -38,6 +40,63 @@ describe('Transactions — quick add', () => {
 		await expectAmount('Main Card', before.acct - 43.21);
 	});
 
+	// KII-161: the menu's whole point is that income has a named entry. The
+	// device-only part is the popup itself — a native modal over the tab bar
+	// whose row has to seed the form behind it.
+	it('[+] Income row: seeds the only income source and records income', async () => {
+		// The income section is collapsed on a fresh board, so Salary's bubble
+		// has no height to be visible at until it is opened — the picker can
+		// still reach income entities either way, since it reads the store.
+		await openIncomeSection();
+
+		const before = {
+			income: await getAmount('Salary'),
+			acct: await getAmount('Main Card'),
+		};
+
+		await openQuickAdd('income');
+
+		// Salary is the board's only income entity, so the source arrives
+		// filled in and the picker opens straight on the destination.
+		await tapUntilVisible(
+			by.id(TestIDs.transaction.toButton),
+			by.id(TestIDs.toOption('Main Card'))
+		);
+		await tapUntilVisible(
+			by.id(TestIDs.toOption('Main Card')),
+			by.id(TestIDs.transaction.amountInput)
+		);
+		await waitFor(element(by.text('Select Destination')))
+			.not.toBeVisible()
+			.withTimeout(5000);
+
+		await element(by.id(TestIDs.transaction.amountInput)).typeText('120');
+		await element(by.id(TestIDs.transaction.saveButton)).tap();
+
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(5000);
+
+		await expectAmount('Main Card', before.acct + 120);
+		// Income bubbles show `actual` — money received so far — so recording
+		// income moves Salary up, not down.
+		await expectAmount('Salary', before.income + 120);
+	});
+
+	it('[+] Menu: tapping outside dismisses without opening the form', async () => {
+		await tapUntilVisible(
+			by.id(TestIDs.addTransactionButton),
+			by.id(TestIDs.quickAddMenu.option('expense'))
+		);
+
+		await element(by.id(TestIDs.quickAddMenu.backdrop)).tap();
+
+		await waitFor(element(by.id(TestIDs.quickAddMenu.card)))
+			.not.toBeVisible()
+			.withTimeout(5000);
+		await expect(element(by.id(TestIDs.homeScreen))).toBeVisible();
+	});
+
 	it('[+] Destination picker: dismissal preserves the parent modal state', async () => {
 		const amount = 29.43;
 		const before = {
@@ -45,7 +104,7 @@ describe('Transactions — quick add', () => {
 			acct: await getAmount('Main Card'),
 		};
 
-		await element(by.id(TestIDs.addTransactionButton)).tap();
+		await openQuickAdd();
 		await waitFor(element(by.id(TestIDs.transaction.amountInput)))
 			.toBeVisible()
 			.withTimeout(5000);
@@ -172,7 +231,7 @@ describe('Transactions — quick add', () => {
 	// Asserting the field's own value — rather than that the chip is merely
 	// present — is what makes this catch a swallowed tap.
 	it('date presets: tapping Yesterday moves the date and Today restores it', async () => {
-		await element(by.id(TestIDs.addTransactionButton)).tap();
+		await openQuickAdd();
 
 		// No entity picking and no typing: the form fits one screen while the
 		// amount is untouched, so the chips are reachable without a scroll and

@@ -7,6 +7,7 @@ import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
 import { useStore } from '@/src/store';
 import { formatAmount, formatAmountForInput } from '@/src/utils/format';
 import { earlyConfirmPrompt } from '@/src/utils/early-confirm';
+import type { QuickAddKind } from '@/src/utils/quick-add-kinds';
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: jest.fn() }),
@@ -3203,6 +3204,203 @@ describe('TransactionModal', () => {
 			expect(saved.getHours()).toBe(9);
 			expect(saved.getMinutes()).toBe(17);
 			expect(saved.getSeconds()).toBe(33);
+		});
+	});
+
+	// KII-161: the "+" mini-menu passes the kind it was opened for. A kind is a
+	// pair of type filters plus a seed — the pickers never offer a pairing the
+	// transaction rules would reject anyway.
+	describe('Quick Add kinds', () => {
+		const salary: Entity = {
+			id: 'income-1',
+			type: 'income',
+			name: 'Salary',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const freelance: Entity = {
+			id: 'income-2',
+			type: 'income',
+			name: 'Freelance',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+		};
+		const mainCard: Entity = {
+			id: 'account-main',
+			type: 'account',
+			name: 'Main Card',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+			is_default: true,
+		};
+		const cash: Entity = {
+			id: 'account-cash',
+			type: 'account',
+			name: 'Cash',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+		};
+		const groceries: Entity = {
+			id: 'category-1',
+			type: 'category',
+			name: 'Groceries',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+		const transport: Entity = {
+			id: 'category-2',
+			type: 'category',
+			name: 'Transport',
+			currency: 'USD',
+			row: 0,
+			position: 1,
+		};
+		const japan: Entity = {
+			id: 'saving-1',
+			type: 'saving',
+			name: 'Trip to Japan',
+			currency: 'USD',
+			row: 0,
+			position: 0,
+		};
+
+		const board = [salary, freelance, mainCard, cash, groceries, transport, japan];
+
+		const renderKind = (kind: QuickAddKind, entities: Entity[] = board) => {
+			useStore.setState({ entities });
+			return render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+					quickAddKind={kind}
+				/>
+			);
+		};
+
+		it('offers only income sources when opened as Income', () => {
+			const { getByTestId, queryByTestId } = renderKind('income');
+
+			fireEvent.press(getByTestId('transaction-from-button'));
+
+			expect(getByTestId('from-option-Salary')).toBeTruthy();
+			expect(getByTestId('from-option-Freelance')).toBeTruthy();
+			expect(queryByTestId('from-option-Main Card')).toBeNull();
+			expect(queryByTestId('from-option-Groceries')).toBeNull();
+		});
+
+		it('offers only accounts as the destination of a Transfer', () => {
+			const { getByTestId, queryByTestId } = renderKind('transfer');
+
+			fireEvent.press(getByTestId('transaction-to-button'));
+
+			expect(getByTestId('to-option-Cash')).toBeTruthy();
+			// The source account cannot also be the destination.
+			expect(queryByTestId('to-option-Main Card')).toBeNull();
+			expect(queryByTestId('to-option-Groceries')).toBeNull();
+			expect(queryByTestId('to-option-Trip to Japan')).toBeNull();
+		});
+
+		it('offers only savings goals as the destination of a Reserve', () => {
+			const { getByTestId, queryByTestId } = renderKind('reserve');
+
+			fireEvent.press(getByTestId('transaction-to-button'));
+
+			expect(getByTestId('to-option-Trip to Japan')).toBeTruthy();
+			expect(queryByTestId('to-option-Groceries')).toBeNull();
+			expect(queryByTestId('to-option-Cash')).toBeNull();
+		});
+
+		it('offers only categories as the destination of an Expense', () => {
+			const { getByTestId, queryByTestId } = renderKind('expense');
+
+			fireEvent.press(getByTestId('transaction-to-button'));
+
+			expect(getByTestId('to-option-Groceries')).toBeTruthy();
+			expect(getByTestId('to-option-Transport')).toBeTruthy();
+			expect(queryByTestId('to-option-Cash')).toBeNull();
+			expect(queryByTestId('to-option-Trip to Japan')).toBeNull();
+		});
+
+		it('seeds Income from the only income source into the default account', () => {
+			const { getByText, queryByText } = renderKind('income', [salary, mainCard, cash]);
+
+			expect(getByText('Salary')).toBeTruthy();
+			expect(getByText('Main Card')).toBeTruthy();
+			expect(queryByText('From')).toBeNull();
+			expect(queryByText('To')).toBeNull();
+		});
+
+		it('saves the income flow the menu row promised', async () => {
+			const batchSpy = jest.fn();
+			useStore.setState({ createTransactionBatch: batchSpy });
+			const { getByTestId } = renderKind('income', [salary, mainCard, cash]);
+
+			fireEvent.changeText(getByTestId('transaction-amount-input'), '500');
+			fireEvent.press(getByTestId('transaction-save-button'));
+
+			await waitFor(() => {
+				expect(batchSpy).toHaveBeenCalledWith(
+					expect.arrayContaining([
+						expect.objectContaining({
+							from_entity_id: 'income-1',
+							to_entity_id: 'account-main',
+							amount_minor: 50000,
+						}),
+					])
+				);
+			});
+		});
+
+		it('never seeds a transfer from an account to itself', () => {
+			const { getByText } = renderKind('transfer', [mainCard, cash]);
+
+			expect(getByText('Main Card')).toBeTruthy();
+			expect(getByText('To')).toBeTruthy();
+		});
+
+		it('keeps a seeded destination that matches the source picked afterwards', () => {
+			// Two income entities leave the source ambiguous, so only the
+			// destination seeds. Until a source exists the form falls back to the
+			// app currency (EUR) — which must not be what the USD destination is
+			// judged against when Salary (USD) is finally picked.
+			const { getByTestId, getByText, queryByText } = renderKind('income', [
+				salary,
+				freelance,
+				mainCard,
+			]);
+
+			fireEvent.press(getByTestId('transaction-from-button'));
+			fireEvent.press(getByTestId('from-option-Salary'));
+
+			expect(getByText('Main Card')).toBeTruthy();
+			expect(queryByText('To')).toBeNull();
+		});
+
+		it('keeps the unfiltered picker when no kind is given', () => {
+			useStore.setState({ entities: board });
+			const { getByTestId } = render(
+				<TransactionModal
+					visible={true}
+					fromEntity={null}
+					toEntity={null}
+					onClose={mockOnClose}
+					quickAdd
+				/>
+			);
+
+			fireEvent.press(getByTestId('transaction-from-button'));
+
+			expect(getByTestId('from-option-Salary')).toBeTruthy();
+			expect(getByTestId('from-option-Cash')).toBeTruthy();
+			expect(getByTestId('from-option-Groceries')).toBeTruthy();
 		});
 	});
 });

@@ -64,6 +64,11 @@ import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { InfoPin } from '@/src/components/info-pin';
 import {
+	getQuickAddKind,
+	seedQuickAddSelection,
+	type QuickAddKind,
+} from '@/src/utils/quick-add-kinds';
+import {
 	showSeriesDeleteConfirm,
 	showSeriesScopeAlert,
 	type SeriesScope,
@@ -87,6 +92,13 @@ interface TransactionModalProps {
 	existingTransaction?: Transaction;
 	/** Opens in quick-add mode: entity pickers shown upfront, no drag required */
 	quickAdd?: boolean;
+	/**
+	 * Which "+" mini-menu row opened this form (KII-161). Narrows both pickers
+	 * to that flow's entity types and seeds whatever the board makes
+	 * unambiguous. Without it quick-add stays unfiltered, as it was before the
+	 * menu existed.
+	 */
+	quickAddKind?: QuickAddKind;
 	seriesScope?: SeriesScope;
 }
 
@@ -97,6 +109,7 @@ export function TransactionModal({
 	onClose,
 	existingTransaction,
 	quickAdd,
+	quickAddKind,
 	seriesScope,
 }: TransactionModalProps) {
 	const [amount, setAmount] = useState('');
@@ -200,26 +213,37 @@ export function TransactionModal({
 		return getValidFromEntities(entities, selectedToEntity, currency);
 	}, [selectedToEntity, entities, currency]);
 
-	// In quickAdd mode, valid from-sources are income + account entities (things that can send money)
+	// The mini-menu row this form was opened for, if any (KII-161).
+	const kindSpec = useMemo(
+		() => (quickAddKind ? getQuickAddKind(quickAddKind) : null),
+		[quickAddKind]
+	);
+
+	// In quickAdd mode, valid from-sources are income + account entities (things
+	// that can send money) — narrowed further to the kind's own types when the
+	// form was opened from the mini-menu.
 	const quickAddFromEntities = useMemo(() => {
 		if (!quickAdd) return [];
+		const allowed = kindSpec?.fromTypes ?? ['income', 'account', 'category'];
 		return entities.filter(
 			(e) =>
-				(e.type === 'income' || e.type === 'account' || e.type === 'category') &&
+				allowed.includes(e.type) &&
 				isEntityActive(e) &&
 				e.id !== BALANCE_ADJUSTMENT_ENTITY_ID
 		);
-	}, [quickAdd, entities]);
+	}, [quickAdd, kindSpec, entities]);
 
 	const validToEntities = useMemo(() => {
 		if (!selectedFromEntity) return [];
-		return getValidToEntities(
+		const valid = getValidToEntities(
 			entities,
 			selectedFromEntity,
 			currency,
 			selectedFromId ?? undefined
 		);
-	}, [selectedFromEntity, entities, currency, selectedFromId]);
+		if (!kindSpec) return valid;
+		return valid.filter((e) => kindSpec.toTypes.includes(e.type));
+	}, [selectedFromEntity, entities, currency, selectedFromId, kindSpec]);
 
 	// Valid targets for split entity picker
 	const validSplitTargets = useMemo(() => {
@@ -256,15 +280,18 @@ export function TransactionModal({
 				setAmount('');
 				setNote('');
 				setSelectedDate(new Date());
-				// Pre-fill with default account in quickAdd mode
+				// Pre-fill with default account in quickAdd mode; a mini-menu kind
+				// seeds both sides as far as the board makes them unambiguous.
 				const currentEntities = useStore.getState().entities;
-				const defaultAccount = quickAdd
-					? currentEntities.find(
-							(e) => e.type === 'account' && e.is_default && !e.is_deleted
-						)
-					: null;
-				setSelectedFromId(fromEntity?.id ?? defaultAccount?.id ?? null);
-				setSelectedToId(toEntity?.id ?? null);
+				const seed = kindSpec ? seedQuickAddSelection(kindSpec, currentEntities) : null;
+				const defaultAccount =
+					quickAdd && !kindSpec
+						? currentEntities.find(
+								(e) => e.type === 'account' && e.is_default && !e.is_deleted
+							)
+						: null;
+				setSelectedFromId(fromEntity?.id ?? seed?.fromId ?? defaultAccount?.id ?? null);
+				setSelectedToId(toEntity?.id ?? seed?.toId ?? null);
 			}
 			setShowDatePicker(false);
 			setShowFromSheet(false);
@@ -285,13 +312,27 @@ export function TransactionModal({
 			const ref = amountExpr.inputRef;
 			setTimeout(() => ref.current?.focus(), 100);
 		}
-	}, [visible, existingTransaction, quickAdd, amountExpr.inputRef, fromEntity?.id, toEntity?.id]);
+	}, [
+		visible,
+		existingTransaction,
+		quickAdd,
+		kindSpec,
+		amountExpr.inputRef,
+		fromEntity?.id,
+		toEntity?.id,
+	]);
 
 	const handleFromSelect = (entity: Entity) => {
 		setSelectedFromId(entity.id);
 		let toInvalidated = false;
 		if (selectedToId) {
-			const validTos = getValidToEntities(entities, entity, currency, entity.id);
+			// The currency this picks *becomes* — mirrors the `currency` memo,
+			// which follows the selected source unless editing pins it. Using the
+			// render-time `currency` instead would judge the destination against
+			// the previous source, and a seeded destination can now outlive an
+			// empty source (KII-161), where that fell back to the app currency.
+			const nextCurrency = existingTransaction?.currency ?? entity.currency;
+			const validTos = getValidToEntities(entities, entity, nextCurrency, entity.id);
 			if (!validTos.some((e) => e.id === selectedToId)) {
 				setSelectedToId(null);
 				toInvalidated = true;
