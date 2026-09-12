@@ -36,7 +36,7 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 	{
 		id: 'board-gestures',
 		title: 'Board gestures',
-		summary: 'Tap, long-press, drag, and the pencil toggle.',
+		summary: 'Tap, long-press, drag, and the board-wide edit mode.',
 		related: ['tabs-and-views', 'transaction-types', 'reservations'],
 	},
 	{

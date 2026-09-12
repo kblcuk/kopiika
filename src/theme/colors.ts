@@ -16,6 +16,10 @@ export const colors = {
 		200: '#EBE3D5', // Subtle borders / dividers
 		300: '#D4C8B3', // Disabled states
 		warm: '#FFFBF5', // Icon on accent background, switch thumb
+		// KII-148: the board's background while edit mode is on — paper-50 warmed
+		// toward the terracotta accent. Solid rather than alpha so it can't stack
+		// on itself if something ever renders it twice.
+		edit: '#FBEFE8',
 	},
 
 	// ── Ink (text & icons) ──────────────────────────────────────────────────

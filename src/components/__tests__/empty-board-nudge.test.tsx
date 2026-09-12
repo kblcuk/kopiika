@@ -29,6 +29,16 @@ describe('EmptyBoardNudge', () => {
 		expect(await findByText(/tap a category to record a spend/i)).toBeTruthy();
 	});
 
+	// KII-148: the board-edit pencil moved to the summary header, and nothing in
+	// onboarding pointed at it. This nudge is the first screen a user sees with
+	// entities but no history, so it's where the mode gets introduced.
+	it('points at the header pencil for rearranging, once entities exist', async () => {
+		const { findByText } = render(
+			<EmptyBoardNudge entityCount={3} transactionCount={0} onAddEntity={() => {}} />
+		);
+		expect(await findByText(/pencil/i)).toBeTruthy();
+	});
+
 	it('renders nothing when transactions exist', async () => {
 		const { toJSON } = render(
 			<EmptyBoardNudge entityCount={3} transactionCount={1} onAddEntity={() => {}} />
