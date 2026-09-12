@@ -6,6 +6,7 @@ import { useHasOpened } from '@/src/hooks/use-has-opened';
 import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
+import { TestIDs } from '@/e2e/support/test-ids';
 import type { EntityWithBalance, EntityType, Transaction } from '@/src/types';
 
 const mockPush = jest.fn();
@@ -113,6 +114,9 @@ jest.mock('@/src/hooks/use-has-opened', () => ({
 jest.mock('@/src/components', () => {
 	const { View, Text, Pressable } = jest.requireActual('react-native');
 	const Sortable = jest.requireMock('react-native-sortables').default;
+	// jest.mock factories can't close over module-scope imports, so the id has
+	// to be re-required in here rather than reusing the one at the top.
+	const { TestIDs: ids } = jest.requireActual('@/e2e/support/test-ids');
 	return {
 		PerfProfiler: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 		SortableEntityGrid: ({
@@ -121,8 +125,6 @@ jest.mock('@/src/components', () => {
 			onLongPress,
 			onDragStart,
 			onDragEnd,
-			onToggleEditMode,
-			editMode,
 			type,
 			dragBehavior,
 		}: {
@@ -131,8 +133,6 @@ jest.mock('@/src/components', () => {
 			onLongPress?: (entity: EntityWithBalance) => void;
 			onDragStart?: (entity: EntityWithBalance) => void;
 			onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
-			onToggleEditMode?: () => void;
-			editMode?: boolean;
 			type: EntityType;
 			dragBehavior?: 'transaction' | 'reorder';
 		}) => {
@@ -142,11 +142,6 @@ jest.mock('@/src/components', () => {
 			mockDragHandlers.onDragEnd = onDragEnd;
 			return (
 				<View>
-					{onToggleEditMode ? (
-						<Pressable testID={`${type}-edit-toggle`} onPress={onToggleEditMode}>
-							<Text>{editMode ? 'edit-on' : 'edit-off'}</Text>
-						</Pressable>
-					) : null}
 					<Text testID={`${type}-drag-behavior`}>{dragBehavior}</Text>
 					<Sortable.Grid
 						data={entities}
@@ -167,7 +162,19 @@ jest.mock('@/src/components', () => {
 				<Text testID={`skeleton-${title}`}>{title}</Text>
 			</View>
 		),
-		SummaryHeader: () => null,
+		// KII-148: the board-wide edit toggle lives here now, so the screen's
+		// edit-mode wiring is only reachable through the header.
+		SummaryHeader: ({
+			editMode,
+			onToggleEditMode,
+		}: {
+			editMode?: boolean;
+			onToggleEditMode?: () => void;
+		}) => (
+			<Pressable testID={ids.boardEditToggle} onPress={onToggleEditMode}>
+				<Text testID="board-edit-state">{editMode ? 'edit-on' : 'edit-off'}</Text>
+			</Pressable>
+		),
 		TransactionModal: ({
 			visible,
 			fromEntity,
@@ -393,7 +400,7 @@ describe('HomeScreen entity interactions', () => {
 		it('still opens the edit modal when tapping a category in edit mode', async () => {
 			const { getByTestId, queryByTestId } = render(<HomeScreen />);
 
-			fireEvent.press(getByTestId('category-edit-toggle'));
+			fireEvent.press(getByTestId(TestIDs.boardEditToggle));
 			fireEvent.press(getByTestId('entity-cat-1').parent!);
 
 			await waitFor(() => {
@@ -403,12 +410,12 @@ describe('HomeScreen entity interactions', () => {
 		});
 	});
 
-	it('opens edit modal when tapping category in categories edit mode', async () => {
+	it('opens edit modal when tapping a category in board edit mode', async () => {
 		const { getByTestId, queryByTestId } = render(<HomeScreen />);
 
 		expect(queryByTestId('entity-detail-modal')).toBeNull();
 
-		fireEvent.press(getByTestId('category-edit-toggle'));
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
 		fireEvent.press(getByTestId('entity-cat-1').parent!);
 
 		await waitFor(() => {
@@ -417,12 +424,12 @@ describe('HomeScreen entity interactions', () => {
 		});
 	});
 
-	it('opens edit modal when tapping account in accounts edit mode', async () => {
+	it('opens edit modal when tapping an account in board edit mode', async () => {
 		const { getByTestId, queryByTestId } = render(<HomeScreen />);
 
 		expect(queryByTestId('entity-detail-modal')).toBeNull();
 
-		fireEvent.press(getByTestId('account-edit-toggle'));
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
 		fireEvent.press(getByTestId('entity-acc-1').parent!);
 
 		await waitFor(() => {
@@ -431,14 +438,42 @@ describe('HomeScreen entity interactions', () => {
 		});
 	});
 
-	it('toggling a section edit mode flips its drag behavior to reorder', () => {
+	// KII-148: one toggle, one mode. Every section flips together — the point of
+	// the whole-screen tint is that there is no longer a per-section answer to
+	// "am I editing right now?".
+	it('toggling board edit mode flips every section to reorder', () => {
 		const { getByTestId } = render(<HomeScreen />);
 
-		expect(getByTestId('account-drag-behavior')).toHaveTextContent('transaction');
+		for (const type of ['income', 'account', 'category', 'saving']) {
+			expect(getByTestId(`${type}-drag-behavior`)).toHaveTextContent('transaction');
+		}
 
-		fireEvent.press(getByTestId('account-edit-toggle'));
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
 
-		expect(getByTestId('account-drag-behavior')).toHaveTextContent('reorder');
+		for (const type of ['income', 'account', 'category', 'saving']) {
+			expect(getByTestId(`${type}-drag-behavior`)).toHaveTextContent('reorder');
+		}
+	});
+
+	it('toggling board edit mode a second time returns every section to transaction drags', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+
+		for (const type of ['income', 'account', 'category', 'saving']) {
+			expect(getByTestId(`${type}-drag-behavior`)).toHaveTextContent('transaction');
+		}
+	});
+
+	it('reports its edit state to the summary header', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		expect(getByTestId('board-edit-state')).toHaveTextContent('edit-off');
+
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+
+		expect(getByTestId('board-edit-state')).toHaveTextContent('edit-on');
 	});
 });
 

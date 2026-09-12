@@ -76,10 +76,17 @@ export function EmptyBoardNudge({
 			className="mx-5 my-3 rounded-2xl bg-paper-100 px-4 py-3"
 		>
 			<View className="flex-row items-start justify-between">
-				<Text className="flex-1 pr-2 font-sans text-base text-ink">
-					Tap a category to record a spend. Or drag an income onto an account to record
-					getting paid.
-				</Text>
+				<View className="flex-1 pr-2">
+					<Text className="font-sans text-base text-ink">
+						Tap a category to record a spend. Or drag an income onto an account to
+						record getting paid.
+					</Text>
+					{/* KII-148: the only place onboarding mentions edit mode at all. */}
+					<Text className="mt-2 font-sans text-base text-ink">
+						To rename, reorder or delete, tap the pencil at the top right — the board
+						turns orange while you edit.
+					</Text>
+				</View>
 				<Pressable
 					testID={TestIDs.emptyBoardNudge.dismiss}
 					onPress={() => {

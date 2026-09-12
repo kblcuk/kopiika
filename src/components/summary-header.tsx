@@ -2,9 +2,11 @@ import { View, Pressable } from 'react-native';
 import { Text } from './text';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Pencil } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { colors } from '@/src/theme/colors';
+import { TestIDs } from '@/e2e/support/test-ids';
 
 import { useStore, getEntitiesWithBalance } from '@/src/store';
 import { formatAmount } from '@/src/utils/format';
@@ -68,12 +70,39 @@ export function useSummary(): SummaryData {
 	}, [entities, plans, transactions, balanceSeed, currentPeriod]);
 }
 
+/**
+ * Horizontal gap between the two header toggles, in points.
+ *
+ * KII-148: these two controls sit side by side in a corner with very little
+ * room, so their geometry is spelled out here rather than left to utility
+ * classes — the invariant that matters (their hit regions must not overlap)
+ * is a relationship between this gap and the facing `hitSlop` edges, and it
+ * has a test that reads both.
+ */
+export const HEADER_TOGGLE_GAP = 16;
+
+/** Touch-target box for each header toggle, in points. */
+export const HEADER_TOGGLE_SIZE = { width: 32, height: 40 };
+
+/** Slop on each toggle's outward-facing edge; the facing edges get none. */
+const TOGGLE_SLOP_OUTER = 8;
+const TOGGLE_SLOP_VERTICAL = 10;
+
 interface SummaryHeaderProps {
 	currency: string;
 	onToggleIncome?: () => void;
+	/** KII-148: whether the board is in edit mode, for the pencil's on-state. */
+	editMode?: boolean;
+	/** Flips the whole board in and out of edit mode. */
+	onToggleEditMode?: () => void;
 }
 
-export function SummaryHeader({ currency, onToggleIncome }: SummaryHeaderProps) {
+export function SummaryHeader({
+	currency,
+	onToggleIncome,
+	editMode = false,
+	onToggleEditMode,
+}: SummaryHeaderProps) {
 	const { balance, expenses, remaining } = useSummary();
 	const incomeVisible = useStore((state) => state.incomeVisible);
 	const insets = useSafeAreaInsets();
@@ -91,19 +120,70 @@ export function SummaryHeader({ currency, onToggleIncome }: SummaryHeaderProps) 
 					<SummaryItem label="Planned" value={remaining} currency={currency} />
 				</View>
 
-				{/* Income toggle button */}
-				<Pressable
-					onPress={onToggleIncome}
-					hitSlop={8}
-					testID="income-toggle-button"
-					className="ml-4 h-6 w-6 items-center justify-center"
-				>
-					{incomeVisible ? (
-						<ChevronUp size={18} color={colors.ink.muted} />
-					) : (
-						<ChevronDown size={18} color={colors.ink.muted} />
-					)}
-				</Pressable>
+				<View className="ml-4 flex-row items-center" style={{ gap: HEADER_TOGGLE_GAP }}>
+					{/* Income toggle button. Slop reaches left and vertically but
+					    never right — the pencil is that way. */}
+					<Pressable
+						onPress={onToggleIncome}
+						hitSlop={{
+							top: TOGGLE_SLOP_VERTICAL,
+							bottom: TOGGLE_SLOP_VERTICAL,
+							left: TOGGLE_SLOP_OUTER,
+							right: 0,
+						}}
+						testID={TestIDs.incomeToggleButton}
+						style={HEADER_TOGGLE_SIZE}
+						className="items-center justify-center"
+					>
+						{incomeVisible ? (
+							<ChevronUp size={18} color={colors.ink.muted} />
+						) : (
+							<ChevronDown size={18} color={colors.ink.muted} />
+						)}
+					</Pressable>
+
+					{/* KII-148: board-wide edit mode. Testers read the old per-section
+					    pencil/checkmark pair as a status indicator, so the action moved
+					    here — one control, always in the same corner, wearing a filled
+					    circle while it's on. `accessibilityState.selected` carries that
+					    on-state for screen readers (and for tests, since the pill is a
+					    NativeWind class and NativeWind is mocked under Jest).
+
+					    The pill is an inner view, not the Pressable itself: the touch
+					    box is deliberately taller than it is wide, and `rounded-full`
+					    on that would render a stadium rather than the circle the
+					    design calls for. */}
+					<Pressable
+						onPress={() => {
+							void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+							onToggleEditMode?.();
+						}}
+						hitSlop={{
+							top: TOGGLE_SLOP_VERTICAL,
+							bottom: TOGGLE_SLOP_VERTICAL,
+							left: 0,
+							right: TOGGLE_SLOP_OUTER,
+						}}
+						testID={TestIDs.boardEditToggle}
+						accessibilityRole="button"
+						accessibilityLabel="Edit board"
+						accessibilityState={{ selected: editMode }}
+						style={HEADER_TOGGLE_SIZE}
+						className="items-center justify-center"
+					>
+						<View
+							className={`h-7 w-7 items-center justify-center rounded-full ${
+								editMode ? 'bg-accent/20' : 'bg-transparent'
+							}`}
+						>
+							<Pencil
+								size={16}
+								color={editMode ? colors.accent.DEFAULT : colors.ink.muted}
+								strokeWidth={editMode ? 2.5 : 2}
+							/>
+						</View>
+					</Pressable>
+				</View>
 			</View>
 		</View>
 	);

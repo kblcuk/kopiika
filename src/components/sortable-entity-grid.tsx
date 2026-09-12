@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './text';
 import Sortable from 'react-native-sortables';
 import type { TouchData } from 'react-native-gesture-handler';
@@ -10,10 +10,8 @@ import Animated, {
 	type AnimatedRef,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Check, Pencil } from 'lucide-react-native';
 
 import type { EntityType, EntityWithBalance } from '@/src/types';
-import { colors } from '@/src/theme/colors';
 import {
 	findDropTarget,
 	unregisterDropZone,
@@ -75,10 +73,6 @@ interface SortableEntityGridProps {
 	maxRows?: number;
 	/** Controls whether drags create transactions/reservations or reorder within the section. */
 	dragBehavior?: 'transaction' | 'reorder';
-	/** Whether section tap behavior is in edit mode (for header toggle state). */
-	editMode?: boolean;
-	/** Callback to toggle edit mode in the section header. */
-	onToggleEditMode?: () => void;
 	/** Report drag touch position for auto-scroll. */
 	updateDragTouch?: (x: number, y: number) => void;
 	/** Animated ref for this section's horizontal ScrollView (from useDragAutoScroll). */
@@ -103,8 +97,6 @@ export function SortableEntityGrid({
 	dropZonesDisabled = false,
 	maxRows = 1,
 	dragBehavior = 'transaction',
-	editMode = false,
-	onToggleEditMode,
 	updateDragTouch,
 	sectionScrollRef,
 	sectionIndex,
@@ -444,28 +436,14 @@ export function SortableEntityGrid({
 
 	return (
 		<View ref={sectionViewRef} className="overflow-visible" onLayout={measureSectionBounds}>
-			{/* Inset divider with section title */}
+			{/* Inset divider with section title. KII-148 took the per-section
+			    pencil/checkmark toggle out of here — edit mode is now one
+			    board-wide control in the summary header. */}
 			<View className="flex-row items-center px-4">
 				<View className="h-px flex-1 bg-paper-300" />
 				<Text className="px-3 font-sans text-xs uppercase tracking-wider text-ink-muted">
 					{title}
 				</Text>
-				{onToggleEditMode && (
-					<Pressable
-						onPress={() => {
-							void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-							onToggleEditMode();
-						}}
-						className={`mx-1 rounded-full p-1.5 ${editMode ? 'bg-accent/20' : 'bg-transparent'}`}
-						hitSlop={8}
-					>
-						{editMode ? (
-							<Check size={14} color={colors.accent.DEFAULT} strokeWidth={2.5} />
-						) : (
-							<Pencil size={14} color={colors.ink.muted} strokeWidth={2} />
-						)}
-					</Pressable>
-				)}
 				<View className="h-px flex-1 bg-paper-300" />
 			</View>
 

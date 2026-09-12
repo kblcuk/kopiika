@@ -1,7 +1,13 @@
-import { render, renderHook } from '@testing-library/react-native';
-import { useSummary, SummaryHeader } from '../summary-header';
+import { render, renderHook, fireEvent } from '@testing-library/react-native';
+import {
+	useSummary,
+	SummaryHeader,
+	HEADER_TOGGLE_GAP,
+	HEADER_TOGGLE_SIZE,
+} from '../summary-header';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
+import { TestIDs } from '@/e2e/support/test-ids';
 
 describe('useSummary', () => {
 	const mockIncome: Entity = {
@@ -597,5 +603,96 @@ describe('SummaryHeader (KII-166: currency-threading tripwire)', () => {
 		expect(queryByText('1,300.00')).toBeNull();
 		expect(queryByText('200.00')).toBeNull();
 		expect(queryByText('300.00')).toBeNull();
+	});
+});
+
+describe('SummaryHeader board edit toggle (KII-148)', () => {
+	beforeEach(() => {
+		useStore.setState({
+			entities: [],
+			plans: [],
+			transactions: [],
+			balanceSeed: [],
+			currentPeriod: '2026-01',
+			isLoading: false,
+			draggedEntity: null,
+			incomeVisible: false,
+		});
+	});
+
+	it('calls onToggleEditMode when the edit toggle is pressed', () => {
+		const onToggleEditMode = jest.fn();
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={onToggleEditMode} />
+		);
+
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+
+		expect(onToggleEditMode).toHaveBeenCalledTimes(1);
+	});
+
+	// The pencil's "I am on" state is carried by colour and a circular pill,
+	// neither of which survives the NativeWind mock — so the assertion rides
+	// the accessibility state, which is the same signal a screen reader gets.
+	it('reports the edit toggle as unselected while the board is not in edit mode', () => {
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
+		);
+
+		expect(getByTestId(TestIDs.boardEditToggle).props.accessibilityState).toMatchObject({
+			selected: false,
+		});
+	});
+
+	it('reports the edit toggle as selected while the board is in edit mode', () => {
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={true} onToggleEditMode={jest.fn()} />
+		);
+
+		expect(getByTestId(TestIDs.boardEditToggle).props.accessibilityState).toMatchObject({
+			selected: true,
+		});
+	});
+
+	// KII-148 follow-up: the edit pencil landed next to the income chevron with
+	// 24pt boxes and 8pt of hitSlop each, separated by an 8pt gap — so each one's
+	// slop reached all the way across into the other's, leaving a strip where both
+	// hit boxes were live and RN's back-to-front order silently picked the winner.
+	// These two assertions are the geometry that stops that recurring.
+	const flatStyle = (style: unknown): Record<string, number> =>
+		Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+
+	it('gives both header toggles a touch target no smaller than the declared size', () => {
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
+		);
+
+		for (const id of [TestIDs.incomeToggleButton, TestIDs.boardEditToggle]) {
+			const box = flatStyle(getByTestId(id).props.style);
+			expect(box.width).toBeGreaterThanOrEqual(HEADER_TOGGLE_SIZE.width);
+			expect(box.height).toBeGreaterThanOrEqual(HEADER_TOGGLE_SIZE.height);
+		}
+	});
+
+	it('keeps the two header toggles hit regions from overlapping', () => {
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
+		);
+
+		const incomeSlop = getByTestId(TestIDs.incomeToggleButton).props.hitSlop;
+		const editSlop = getByTestId(TestIDs.boardEditToggle).props.hitSlop;
+
+		// The chevron sits left of the pencil, so the strip between them is only
+		// safe while their facing slops together stay inside the gap.
+		expect(incomeSlop.right + editSlop.left).toBeLessThanOrEqual(HEADER_TOGGLE_GAP);
+	});
+
+	it('keeps the income toggle alongside the edit toggle', () => {
+		const { getByTestId } = render(
+			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
+		);
+
+		expect(getByTestId(TestIDs.incomeToggleButton)).toBeTruthy();
+		expect(getByTestId(TestIDs.boardEditToggle)).toBeTruthy();
 	});
 });

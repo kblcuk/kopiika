@@ -17,7 +17,7 @@ import { useEntityCreateFlow } from '@/src/hooks/use-entity-create-flow';
 import { useEntityDetailFlow } from '@/src/hooks/use-entity-detail-flow';
 import { useHasOpened } from '@/src/hooks/use-has-opened';
 import { useReservationFlow } from '@/src/hooks/use-reservation-flow';
-import { useSectionEditModes } from '@/src/hooks/use-section-edit-modes';
+import { useBoardEditMode } from '@/src/hooks/use-board-edit-mode';
 import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useTransactionFlow } from '@/src/hooks/use-transaction-flow';
 import { useEntitiesWithBalance, useStore } from '@/src/store';
@@ -25,6 +25,7 @@ import type { EntityWithBalance } from '@/src/types';
 import { resolveBubbleAddFlow } from '@/src/utils/bubble-add-flow';
 import { actionForGesture, type BubbleGesture } from '@/src/utils/bubble-gestures';
 import { SECTION_INDEX } from '@/src/utils/drag-auto-scroll';
+import { colors } from '@/src/theme/colors';
 import { resolveDropFlow } from '@/src/utils/drop-flow';
 import { remeasureAllDropZones } from '@/src/utils/drop-zone';
 import { setPendingHistoryFilter } from '@/src/utils/history-nav-signal';
@@ -34,6 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import Animated, {
 	Easing,
+	interpolateColor,
 	useAnimatedStyle,
 	useSharedValue,
 	withTiming,
@@ -127,8 +129,9 @@ export default function HomeScreen() {
 	const categories = useEntitiesWithBalance('category');
 	const savings = useEntitiesWithBalance('saving');
 
-	// Section edit modes - when true, taps open the detail modal and drags reorder locally.
-	const editModes = useSectionEditModes();
+	// Board-wide edit mode — when on, taps open the detail modal and drags reorder
+	// within their own section instead of moving money between sections.
+	const boardEdit = useBoardEditMode();
 
 	// Reset initial layout flag when entities change
 	useEffect(() => {
@@ -169,11 +172,11 @@ export default function HomeScreen() {
 			remeasureAllDropZones();
 			// Reorder-mode drags rely on Sortable.Grid's built-in auto-scroll;
 			// activating the hook would race it on the source section's ScrollView.
-			if (editModes.isEditing(entity.type)) return;
+			if (boardEdit.editing) return;
 			setDragSourceIndex(SECTION_INDEX[entity.type]);
 			startAutoScroll();
 		},
-		[setDraggedEntity, setDragSourceIndex, startAutoScroll, editModes]
+		[setDraggedEntity, setDragSourceIndex, startAutoScroll, boardEdit.editing]
 	);
 
 	const handleDragEnd = useCallback(
@@ -248,15 +251,15 @@ export default function HomeScreen() {
 		(entity: EntityWithBalance) => {
 			// Edit mode always means "tap edits this entity", whichever way the
 			// preference is set. Bound to the tap gesture rather than to the add
-			// flow: the section's pencil toggle would otherwise have no reachable
+			// flow: the header's pencil toggle would otherwise have no reachable
 			// target for anyone who puts history on tap.
-			if (editModes.isEditing(entity.type)) {
+			if (boardEdit.editing) {
 				detailFlow.open(entity);
 				return;
 			}
 			runBubbleGesture('tap', entity);
 		},
-		[detailFlow, editModes, runBubbleGesture]
+		[detailFlow, boardEdit.editing, runBubbleGesture]
 	);
 
 	// No edit-mode guard needed here: SortableEntityGrid only arms the long-press
@@ -350,6 +353,26 @@ export default function HomeScreen() {
 		toggleIncomeVisible();
 	}, [toggleIncomeVisible]);
 
+	// KII-148: edit mode warms the whole board toward the accent so there is no
+	// mistaking it for the normal recording mode. Driven off one shared value so
+	// the change eases rather than snapping; `backgroundColor` is the only key on
+	// every branch, which is what keeps it resettable when the flag flips back.
+	const editTint = useSharedValue(0);
+	useEffect(() => {
+		editTint.value = withTiming(boardEdit.editing ? 1 : 0, {
+			duration: 220,
+			easing: Easing.out(Easing.cubic),
+		});
+	}, [boardEdit.editing, editTint]);
+
+	const boardSurfaceStyle = useAnimatedStyle(() => ({
+		backgroundColor: interpolateColor(
+			editTint.value,
+			[0, 1],
+			[colors.paper[50], colors.paper.edit]
+		),
+	}));
+
 	if (isLoading) {
 		return (
 			<SafeAreaView className="flex-1 items-center justify-center bg-paper-100">
@@ -359,196 +382,191 @@ export default function HomeScreen() {
 	}
 
 	return (
-		<SafeAreaView
-			testID="home-screen"
-			className="flex-1 overflow-visible bg-paper-50"
-			edges={[]}
-		>
-			{/* Summary bar */}
-			<PerfProfiler id="summary-header">
-				<SummaryHeader currency={appCurrency} onToggleIncome={handleToggleIncome} />
-			</PerfProfiler>
+		<Animated.View style={[{ flex: 1 }, boardSurfaceStyle]}>
+			<SafeAreaView testID="home-screen" className="flex-1 overflow-visible" edges={[]}>
+				{/* Summary bar */}
+				<PerfProfiler id="summary-header">
+					<SummaryHeader
+						currency={appCurrency}
+						onToggleIncome={handleToggleIncome}
+						editMode={boardEdit.editing}
+						onToggleEditMode={boardEdit.toggle}
+					/>
+				</PerfProfiler>
 
-			{/* Empty-state nudge — gated on full hydration so a board whose history
+				{/* Empty-state nudge — gated on full hydration so a board whose history
 			    is entirely pre-period can't flash it during the phase-2 window */}
-			{isFullyHydrated && (
-				<EmptyBoardNudge
-					entityCount={userEntityCount}
-					transactionCount={transactions.length}
-					onAddEntity={() => createFlow.open('account')}
-				/>
-			)}
+				{isFullyHydrated && (
+					<EmptyBoardNudge
+						entityCount={userEntityCount}
+						transactionCount={transactions.length}
+						onAddEntity={() => createFlow.open('account')}
+					/>
+				)}
 
-			{/* PortalProvider ensures dragged items render above all other content */}
-			<Sortable.PortalProvider>
-				{/* Content */}
-				<Animated.ScrollView
-					ref={outerScrollRef}
-					testID="home-scroll-view"
-					className="flex-1 overflow-visible"
-					contentContainerClassName="overflow-visible"
-					contentContainerStyle={{ paddingVertical: 12 }}
-					onScroll={scrollHandler}
-					scrollEventThrottle={16}
-					onScrollEndDrag={handleScrollEnd}
-					onMomentumScrollEnd={handleScrollEnd}
-					onLayout={handleOuterLayout}
-					onContentSizeChange={handleOuterContentSizeChange}
-				>
-					<View onLayout={handleContentLayout}>
-						<PerfProfiler id="scroll-content">
-							{/* Always render income section, control visibility with animation */}
-							<Animated.View
-								style={[
-									animatedStyle,
-									{
-										zIndex: isDraggingIncome ? 1000 : 10,
-										elevation: isDraggingIncome ? 1000 : 10,
-									},
-								]}
-							>
-								<View
-									{...(incomeContentHeight === null && {
-										onLayout: handleIncomeLayout,
-									})}
-									pointerEvents={incomeVisible ? 'auto' : 'none'}
+				{/* PortalProvider ensures dragged items render above all other content */}
+				<Sortable.PortalProvider>
+					{/* Content */}
+					<Animated.ScrollView
+						ref={outerScrollRef}
+						testID="home-scroll-view"
+						className="flex-1 overflow-visible"
+						contentContainerClassName="overflow-visible"
+						contentContainerStyle={{ paddingVertical: 12 }}
+						onScroll={scrollHandler}
+						scrollEventThrottle={16}
+						onScrollEndDrag={handleScrollEnd}
+						onMomentumScrollEnd={handleScrollEnd}
+						onLayout={handleOuterLayout}
+						onContentSizeChange={handleOuterContentSizeChange}
+					>
+						<View onLayout={handleContentLayout}>
+							<PerfProfiler id="scroll-content">
+								{/* Always render income section, control visibility with animation */}
+								<Animated.View
+									style={[
+										animatedStyle,
+										{
+											zIndex: isDraggingIncome ? 1000 : 10,
+											elevation: isDraggingIncome ? 1000 : 10,
+										},
+									]}
 								>
-									<PerfProfiler id="grid-income">
+									<View
+										{...(incomeContentHeight === null && {
+											onLayout: handleIncomeLayout,
+										})}
+										pointerEvents={incomeVisible ? 'auto' : 'none'}
+									>
+										<PerfProfiler id="grid-income">
+											<SortableEntityGrid
+												title="Income"
+												type="income"
+												entities={income}
+												onDragStart={handleDragStart}
+												onDragEnd={handleDragEnd}
+												onTap={handleTap}
+												onLongPress={handleLongPress}
+												onAdd={createFlow.open}
+												dropZonesDisabled={!incomeVisible}
+												dragBehavior={
+													boardEdit.editing ? 'reorder' : 'transaction'
+												}
+												updateDragTouch={updateDragTouch}
+												sectionScrollRef={sectionRefs[0]}
+												sectionIndex={0}
+												onSectionMaxOffset={updateSectionMaxOffset}
+												onSectionBounds={updateSectionBounds}
+											/>
+										</PerfProfiler>
+									</View>
+								</Animated.View>
+								<PerfProfiler id="grid-account">
+									<SortableEntityGrid
+										title="Accounts"
+										type="account"
+										entities={accounts}
+										onDragStart={handleDragStart}
+										onDragEnd={handleDragEnd}
+										onTap={handleTap}
+										onLongPress={handleLongPress}
+										onAdd={createFlow.open}
+										dragBehavior={boardEdit.editing ? 'reorder' : 'transaction'}
+										updateDragTouch={updateDragTouch}
+										sectionScrollRef={sectionRefs[1]}
+										sectionIndex={1}
+										onSectionMaxOffset={updateSectionMaxOffset}
+										onSectionBounds={updateSectionBounds}
+									/>
+								</PerfProfiler>
+								{revealed >= 1 ? (
+									<PerfProfiler id="grid-category">
 										<SortableEntityGrid
-											title="Income"
-											type="income"
-											entities={income}
+											title="Categories"
+											type="category"
+											entities={categories}
 											onDragStart={handleDragStart}
 											onDragEnd={handleDragEnd}
 											onTap={handleTap}
 											onLongPress={handleLongPress}
 											onAdd={createFlow.open}
-											dropZonesDisabled={!incomeVisible}
+											maxRows={3}
 											dragBehavior={
-												editModes.modes.income ? 'reorder' : 'transaction'
+												boardEdit.editing ? 'reorder' : 'transaction'
 											}
-											editMode={editModes.modes.income}
-											onToggleEditMode={editModes.toggle.income}
 											updateDragTouch={updateDragTouch}
-											sectionScrollRef={sectionRefs[0]}
-											sectionIndex={0}
+											sectionScrollRef={sectionRefs[2]}
+											sectionIndex={2}
 											onSectionMaxOffset={updateSectionMaxOffset}
 											onSectionBounds={updateSectionBounds}
 										/>
 									</PerfProfiler>
-								</View>
-							</Animated.View>
-							<PerfProfiler id="grid-account">
-								<SortableEntityGrid
-									title="Accounts"
-									type="account"
-									entities={accounts}
-									onDragStart={handleDragStart}
-									onDragEnd={handleDragEnd}
-									onTap={handleTap}
-									onLongPress={handleLongPress}
-									onAdd={createFlow.open}
-									dragBehavior={
-										editModes.modes.account ? 'reorder' : 'transaction'
-									}
-									editMode={editModes.modes.account}
-									onToggleEditMode={editModes.toggle.account}
-									updateDragTouch={updateDragTouch}
-									sectionScrollRef={sectionRefs[1]}
-									sectionIndex={1}
-									onSectionMaxOffset={updateSectionMaxOffset}
-									onSectionBounds={updateSectionBounds}
-								/>
-							</PerfProfiler>
-							{revealed >= 1 ? (
-								<PerfProfiler id="grid-category">
-									<SortableEntityGrid
+								) : (
+									<EntitySectionSkeleton
 										title="Categories"
-										type="category"
-										entities={categories}
-										onDragStart={handleDragStart}
-										onDragEnd={handleDragEnd}
-										onTap={handleTap}
-										onLongPress={handleLongPress}
-										onAdd={createFlow.open}
+										entityCount={categories.length}
 										maxRows={3}
-										dragBehavior={
-											editModes.modes.category ? 'reorder' : 'transaction'
-										}
-										editMode={editModes.modes.category}
-										onToggleEditMode={editModes.toggle.category}
-										updateDragTouch={updateDragTouch}
-										sectionScrollRef={sectionRefs[2]}
-										sectionIndex={2}
-										onSectionMaxOffset={updateSectionMaxOffset}
-										onSectionBounds={updateSectionBounds}
 									/>
-								</PerfProfiler>
-							) : (
-								<EntitySectionSkeleton
-									title="Categories"
-									entityCount={categories.length}
-									maxRows={3}
-								/>
-							)}
-							{revealed >= 2 ? (
-								<PerfProfiler id="grid-saving">
-									<SortableEntityGrid
+								)}
+								{revealed >= 2 ? (
+									<PerfProfiler id="grid-saving">
+										<SortableEntityGrid
+											title="Savings · Goal"
+											type="saving"
+											entities={savings}
+											onDragStart={handleDragStart}
+											onDragEnd={handleDragEnd}
+											onTap={handleTap}
+											onLongPress={handleLongPress}
+											onAdd={createFlow.open}
+											dragBehavior={
+												boardEdit.editing ? 'reorder' : 'transaction'
+											}
+											updateDragTouch={updateDragTouch}
+											sectionScrollRef={sectionRefs[3]}
+											sectionIndex={3}
+											onSectionMaxOffset={updateSectionMaxOffset}
+											onSectionBounds={updateSectionBounds}
+										/>
+									</PerfProfiler>
+								) : (
+									<EntitySectionSkeleton
 										title="Savings · Goal"
-										type="saving"
-										entities={savings}
-										onDragStart={handleDragStart}
-										onDragEnd={handleDragEnd}
-										onTap={handleTap}
-										onLongPress={handleLongPress}
-										onAdd={createFlow.open}
-										dragBehavior={
-											editModes.modes.saving ? 'reorder' : 'transaction'
-										}
-										editMode={editModes.modes.saving}
-										onToggleEditMode={editModes.toggle.saving}
-										updateDragTouch={updateDragTouch}
-										sectionScrollRef={sectionRefs[3]}
-										sectionIndex={3}
-										onSectionMaxOffset={updateSectionMaxOffset}
-										onSectionBounds={updateSectionBounds}
+										entityCount={savings.length}
 									/>
-								</PerfProfiler>
-							) : (
-								<EntitySectionSkeleton
-									title="Savings · Goal"
-									entityCount={savings.length}
-								/>
-							)}
+								)}
 
-							{entities.length === 0 && (
-								<View className="items-center px-4 py-10">
-									<Text className="text-center font-sans text-ink-muted">
-										Setting up your dashboard...
-									</Text>
-								</View>
-							)}
-						</PerfProfiler>
-					</View>
-				</Animated.ScrollView>
-			</Sortable.PortalProvider>
+								{entities.length === 0 && (
+									<View className="items-center px-4 py-10">
+										<Text className="text-center font-sans text-ink-muted">
+											Setting up your dashboard...
+										</Text>
+									</View>
+								)}
+							</PerfProfiler>
+						</View>
+					</Animated.ScrollView>
+				</Sortable.PortalProvider>
 
-			{/* Transaction Modal */}
-			{transactionModalOpened && (
-				<TransactionModal {...transactionFlow.transactionModalProps} />
-			)}
+				{/* Transaction Modal */}
+				{transactionModalOpened && (
+					<TransactionModal {...transactionFlow.transactionModalProps} />
+				)}
 
-			{/* Refund Picker Modal (category → account, account → income) */}
-			{refundPickerOpened && <RefundPickerModal {...transactionFlow.refundPickerProps} />}
+				{/* Refund Picker Modal (category → account, account → income) */}
+				{refundPickerOpened && <RefundPickerModal {...transactionFlow.refundPickerProps} />}
 
-			{/* Reservation Modal (account → saving) */}
-			{reservationOpened && <ReservationModal {...reservationFlow.reservationModalProps} />}
+				{/* Reservation Modal (account → saving) */}
+				{reservationOpened && (
+					<ReservationModal {...reservationFlow.reservationModalProps} />
+				)}
 
-			{/* Entity Detail Modal */}
-			{detailOpened && <EntityDetailModal {...detailFlow.detailModalProps} />}
+				{/* Entity Detail Modal */}
+				{detailOpened && <EntityDetailModal {...detailFlow.detailModalProps} />}
 
-			{/* Entity Create Modal */}
-			{createOpened && <EntityCreateModal {...createFlow.createModalProps} />}
-		</SafeAreaView>
+				{/* Entity Create Modal */}
+				{createOpened && <EntityCreateModal {...createFlow.createModalProps} />}
+			</SafeAreaView>
+		</Animated.View>
 	);
 }
