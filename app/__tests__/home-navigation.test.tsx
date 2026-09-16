@@ -7,6 +7,7 @@ import { useStaggeredReveal } from '@/src/hooks/use-staggered-reveal';
 import { useStore, useEntitiesWithBalance } from '@/src/store';
 import { consumePendingHistoryFilter } from '@/src/utils/history-nav-signal';
 import { TestIDs } from '@/e2e/support/test-ids';
+import { colors } from '@/src/theme/colors';
 import type { EntityWithBalance, EntityType, Transaction } from '@/src/types';
 
 const mockPush = jest.fn();
@@ -67,11 +68,15 @@ jest.mock('react-native-sortables', () => {
 
 jest.mock('react-native-reanimated', () => {
 	const RN = jest.requireActual('react-native');
+	const React = jest.requireActual('react');
 	return {
 		__esModule: true,
 		default: { View: RN.View, ScrollView: RN.ScrollView },
 		useAnimatedRef: () => ({ current: null }),
-		useSharedValue: <T,>(val: T) => ({ value: val }),
+		// Identity-stable across renders, like the real thing. A fresh object per
+		// render would re-fire every effect that lists a shared value in its deps,
+		// which hides exactly the dependency-array bugs these tests are here for.
+		useSharedValue: <T,>(val: T) => React.useRef({ value: val }).current,
 		useScrollOffset: () => ({ value: 0 }),
 		useAnimatedScrollHandler: () => jest.fn(),
 		useFrameCallback: () => ({ setActive: jest.fn() }),
@@ -79,7 +84,15 @@ jest.mock('react-native-reanimated', () => {
 		runOnJS: <T,>(fn: T) => fn,
 		makeMutable: <T,>(val: T) => ({ value: val }),
 		useAnimatedReaction: jest.fn(),
-		useAnimatedStyle: () => ({}),
+		// Hand the style factory back instead of a frozen snapshot. A worklet is
+		// only re-run by Reanimated's own runtime, which isn't here, so a snapshot
+		// taken during render never sees the shared value the effect writes after
+		// it — tests call the factory themselves once effects have settled.
+		useAnimatedStyle: (factory: () => Record<string, unknown>) => ({ factory }),
+		// Two-stop lookup: enough to tell the endpoints apart, which is all the
+		// board tint has.
+		interpolateColor: (value: number, input: number[], output: string[]) =>
+			value >= input[input.length - 1]! ? output[output.length - 1]! : output[0]!,
 		withTiming: <T,>(val: T) => val,
 		withSpring: <T,>(val: T) => val,
 		Easing: { out: () => (x: number) => x, cubic: (x: number) => x },
@@ -474,6 +487,35 @@ describe('HomeScreen entity interactions', () => {
 		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
 
 		expect(getByTestId('board-edit-state')).toHaveTextContent('edit-on');
+	});
+
+	// The tint is the only thing telling the user which mode they are in, and the
+	// board behind it is otherwise identical either way. Assert the colour the
+	// surface actually resolves to, so losing the style off the view, or losing
+	// `editing` from the effect's deps, fails here rather than shipping a mode
+	// with no visible label.
+	it('warms the board surface while edit mode is on', () => {
+		const { getByTestId } = render(<HomeScreen />);
+
+		const surfaceColor = () => {
+			const style = getByTestId(TestIDs.boardSurface).props.style as unknown[];
+			const animated = style
+				.flat(Infinity)
+				.find(
+					(entry): entry is { factory: () => Record<string, unknown> } =>
+						!!entry && typeof entry === 'object' && 'factory' in entry
+				);
+			expect(animated).toBeTruthy();
+			return animated!.factory().backgroundColor;
+		};
+
+		expect(surfaceColor()).toBe(colors.paper[50]);
+
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+		expect(surfaceColor()).toBe(colors.paper.edit);
+
+		fireEvent.press(getByTestId(TestIDs.boardEditToggle));
+		expect(surfaceColor()).toBe(colors.paper[50]);
 	});
 });
 

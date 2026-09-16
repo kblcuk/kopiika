@@ -34,8 +34,8 @@ export function BoardGestures() {
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Pencil — edit mode</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				Tap the pencil in the top right of the summary bar to put the whole board into edit
-				mode. The pencil fills in and the background turns a warm orange, so you can always
-				tell which mode you are in at a glance.
+				mode. The pencil fills in and the background warms to a soft peach, so you can tell
+				which mode you are in at a glance.
 			</Text>
 			<Text className="font-sans text-base text-ink">
 				While edit mode is on, tapping a bubble opens its settings instead of recording

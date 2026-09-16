@@ -10,6 +10,7 @@ import {
 	SummaryHeader,
 	TransactionModal,
 } from '@/src/components';
+import { TestIDs } from '@/e2e/support/test-ids';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { Text } from '@/src/components/text';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
@@ -353,8 +354,9 @@ export default function HomeScreen() {
 		toggleIncomeVisible();
 	}, [toggleIncomeVisible]);
 
-	// KII-148: edit mode warms the whole board toward the accent so there is no
-	// mistaking it for the normal recording mode. Driven off one shared value so
+	// KII-148: edit mode warms the whole board toward the accent so it reads as a
+	// different mode from plain recording — see `paper.edit` for how far that can
+	// go before the bubble amounts stop clearing AA. Driven off one shared value so
 	// the change eases rather than snapping; `backgroundColor` is the only key on
 	// every branch, which is what keeps it resettable when the flag flips back.
 	const editTint = useSharedValue(0);
@@ -382,7 +384,7 @@ export default function HomeScreen() {
 	}
 
 	return (
-		<Animated.View style={[{ flex: 1 }, boardSurfaceStyle]}>
+		<Animated.View testID={TestIDs.boardSurface} style={[{ flex: 1 }, boardSurfaceStyle]}>
 			<SafeAreaView testID="home-screen" className="flex-1 overflow-visible" edges={[]}>
 				{/* Summary bar */}
 				<PerfProfiler id="summary-header">

@@ -1,5 +1,7 @@
 export const TestIDs = {
 	homeScreen: 'home-screen',
+	/** The board's outermost surface — the view that carries the edit-mode tint. */
+	boardSurface: 'board-surface',
 	homeScrollView: 'home-scroll-view',
 
 	addTransactionButton: 'add-transaction-button',

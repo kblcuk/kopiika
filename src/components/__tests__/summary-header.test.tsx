@@ -1,10 +1,5 @@
 import { render, renderHook, fireEvent } from '@testing-library/react-native';
-import {
-	useSummary,
-	SummaryHeader,
-	HEADER_TOGGLE_GAP,
-	HEADER_TOGGLE_SIZE,
-} from '../summary-header';
+import { useSummary, SummaryHeader, HEADER_TOGGLE_GAP } from '../summary-header';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
 import { TestIDs } from '@/e2e/support/test-ids';
@@ -592,7 +587,9 @@ describe('SummaryHeader (KII-166: currency-threading tripwire)', () => {
 		});
 
 		// balance = 150000 - 20000 = 130000; expenses = 20000; planned remaining = 50000 - 20000 = 30000
-		const { getByText, queryByText } = render(<SummaryHeader currency="JPY" />);
+		const { getByText, queryByText } = render(
+			<SummaryHeader currency="JPY" editMode={false} onToggleEditMode={jest.fn()} />
+		);
 
 		expect(getByText('130,000')).toBeTruthy();
 		expect(getByText('20,000')).toBeTruthy();
@@ -662,15 +659,23 @@ describe('SummaryHeader board edit toggle (KII-148)', () => {
 	const flatStyle = (style: unknown): Record<string, number> =>
 		Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
 
-	it('gives both header toggles a touch target no smaller than the declared size', () => {
+	// The 44pt floor both platforms publish for a tappable control. A literal,
+	// not the component's own constants: asserting the box against the constant
+	// that defines it passes for any value, including a 10pt one.
+	const MIN_TOUCH_TARGET = 44;
+
+	it('leaves both header toggles reachable at 44pt once hitSlop is counted', () => {
 		const { getByTestId } = render(
 			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
 		);
 
 		for (const id of [TestIDs.incomeToggleButton, TestIDs.boardEditToggle]) {
-			const box = flatStyle(getByTestId(id).props.style);
-			expect(box.width).toBeGreaterThanOrEqual(HEADER_TOGGLE_SIZE.width);
-			expect(box.height).toBeGreaterThanOrEqual(HEADER_TOGGLE_SIZE.height);
+			const toggle = getByTestId(id);
+			const box = flatStyle(toggle.props.style);
+			const slop = toggle.props.hitSlop;
+
+			expect(box.width + slop.left + slop.right).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+			expect(box.height + slop.top + slop.bottom).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
 		}
 	});
 
@@ -685,14 +690,5 @@ describe('SummaryHeader board edit toggle (KII-148)', () => {
 		// The chevron sits left of the pencil, so the strip between them is only
 		// safe while their facing slops together stay inside the gap.
 		expect(incomeSlop.right + editSlop.left).toBeLessThanOrEqual(HEADER_TOGGLE_GAP);
-	});
-
-	it('keeps the income toggle alongside the edit toggle', () => {
-		const { getByTestId } = render(
-			<SummaryHeader currency="EUR" editMode={false} onToggleEditMode={jest.fn()} />
-		);
-
-		expect(getByTestId(TestIDs.incomeToggleButton)).toBeTruthy();
-		expect(getByTestId(TestIDs.boardEditToggle)).toBeTruthy();
 	});
 });

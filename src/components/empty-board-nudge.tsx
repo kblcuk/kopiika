@@ -84,7 +84,7 @@ export function EmptyBoardNudge({
 					{/* KII-148: the only place onboarding mentions edit mode at all. */}
 					<Text className="mt-2 font-sans text-base text-ink">
 						To rename, reorder or delete, tap the pencil at the top right — the board
-						turns orange while you edit.
+						warms to a soft peach while you edit.
 					</Text>
 				</View>
 				<Pressable

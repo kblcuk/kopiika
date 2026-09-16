@@ -16,10 +16,23 @@ export const colors = {
 		200: '#EBE3D5', // Subtle borders / dividers
 		300: '#D4C8B3', // Disabled states
 		warm: '#FFFBF5', // Icon on accent background, switch thumb
-		// KII-148: the board's background while edit mode is on — paper-50 warmed
-		// toward the terracotta accent. Solid rather than alpha so it can't stack
-		// on itself if something ever renders it twice.
-		edit: '#FBEFE8',
+		// KII-148: the board's background while edit mode is on. Solid rather than
+		// alpha so it can't stack on itself if something ever renders it twice.
+		//
+		// paper-50 pushed toward the terracotta accent — same hue (51°), a little
+		// brighter and a little more saturated than plain paper. How far it can go
+		// is a contrast ceiling, not a taste one: bubble amounts render in
+		// `positive` and `negative` directly on this surface, and `positive` only
+		// clears AA by 11% on paper-50. Warmth in this hue costs luminance, which
+		// is the same budget the text contrast spends, so this is roughly the
+		// strongest accent-hue tint that keeps every board foreground at AA — the
+		// previous #FBEFE8 was already a shade past it (`positive` at 4.48).
+		//
+		// A gold tint buys ~2x the perceptual distance for free (luminance stays
+		// put when you spend the difference on hue instead), but it lands in the
+		// palette's caution family next to `track.warning`, which misreads.
+		// See board-tint-contrast.test.ts.
+		edit: '#FFEFE8',
 	},
 
 	// ── Ink (text & icons) ──────────────────────────────────────────────────

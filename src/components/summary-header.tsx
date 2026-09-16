@@ -81,26 +81,37 @@ export function useSummary(): SummaryData {
  */
 export const HEADER_TOGGLE_GAP = 16;
 
-/** Touch-target box for each header toggle, in points. */
-export const HEADER_TOGGLE_SIZE = { width: 32, height: 40 };
+/**
+ * Touch-target box for each header toggle, in points.
+ *
+ * Deliberately smaller than the 44pt platform minimum — two 44pt boxes plus the
+ * gap would not fit beside the three summary figures. The outward `hitSlop`
+ * below is what carries each control up to 44, and the test asserts that sum
+ * against a literal 44 rather than against these constants.
+ */
+const HEADER_TOGGLE_SIZE = { width: 32, height: 40 };
 
 /** Slop on each toggle's outward-facing edge; the facing edges get none. */
-const TOGGLE_SLOP_OUTER = 8;
+const TOGGLE_SLOP_OUTER = 12;
 const TOGGLE_SLOP_VERTICAL = 10;
 
 interface SummaryHeaderProps {
 	currency: string;
 	onToggleIncome?: () => void;
 	/** KII-148: whether the board is in edit mode, for the pencil's on-state. */
-	editMode?: boolean;
-	/** Flips the whole board in and out of edit mode. */
-	onToggleEditMode?: () => void;
+	editMode: boolean;
+	/**
+	 * Flips the whole board in and out of edit mode. Required: the pencil is
+	 * rendered unconditionally, so an optional handler would ship a control that
+	 * fires haptics and announces `selected` while doing nothing.
+	 */
+	onToggleEditMode: () => void;
 }
 
 export function SummaryHeader({
 	currency,
 	onToggleIncome,
-	editMode = false,
+	editMode,
 	onToggleEditMode,
 }: SummaryHeaderProps) {
 	const { balance, expenses, remaining } = useSummary();
@@ -156,7 +167,7 @@ export function SummaryHeader({
 					<Pressable
 						onPress={() => {
 							void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-							onToggleEditMode?.();
+							onToggleEditMode();
 						}}
 						hitSlop={{
 							top: TOGGLE_SLOP_VERTICAL,
