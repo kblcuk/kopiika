@@ -16,7 +16,7 @@
 		"build:e2e:android": "detox build --configuration android.emu.debug",
 		"test:watch": "jest --watch",
 		"test:coverage": "bun test --coverage && jest --coverage",
-		"lint": "oxlint",
+		"lint": "oxlint --deny-warnings",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"generate:splash": "bun run scripts/generate-splash.ts",

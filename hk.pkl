@@ -1,61 +1,18 @@
-amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.0.1/hk@2.0.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.0.1/hk@2.0.1#/Builtins.pkl"
 
-local linters = new Mapping<String, Step> {
+// Top-level steps materialise the check, fix and pre-commit hooks from one list.
+steps {
+  // Builtin commands are structured argv in hk v2, and argv commands reject a
+  // shell-string prefix — pass the prefix as argv too.
   ["oxlint"] = (Builtins.ox_lint) {
-    prefix = "bun run"
+    prefix = List("bun", "run")
   }
 
-  ["oxfmt"] {
-    prefix = "bun run"
-    // https://github.com/jdx/hk/blob/1656efee5cc82abb8d772df25ec7102e453a3fd4/pkl/builtins/oxfmt.pkl
-    // probably will be live in kh@1.46
-    glob =
-      List(
-        // JS/TS
-        "**/*.js",
-        "**/*.mjs",
-        "**/*.cjs",
-        "**/*.ts",
-        "**/*.mts",
-        "**/*.cts",
-        // React
-        "**/*.jsx",
-        "**/*.tsx",
-        "**/*.mdx",
-        // Frontend Frameworks
-        "**/*.vue",
-        // JSON
-        "**/*.json",
-        "**/*.jsonc",
-        "**/*.json5",
-        // YAML
-        "**/*.yaml",
-        "**/*.yml",
-        // TOML
-        "**/*.toml",
-        // Markdown
-        "**/*.md",
-        "**/*.markdown",
-        // HTML
-        "**/*.html",
-        "**/*.htm",
-        // CSS
-        "**/*.css",
-        "**/*.scss",
-        "**/*.less",
-        // GraphQL
-        "**/*.graphql",
-        "**/*.gql",
-        // Handlebars
-        "**/*.handlebars",
-        "**/*.hbs",
-      )
+  ["oxfmt"] = (Builtins.oxfmt) {
+    prefix = List("bun", "run")
     // Mise has it's own formatter
     exclude = List("**/mise.toml", "**/mise.local.toml")
-    check = "oxfmt --check {{ files }}"
-    check_list_files = "oxfmt --list-different {{ files }}"
-    fix = "oxfmt --write {{ files }}"
   }
 
   ["tsgo"] {
@@ -69,40 +26,20 @@ local linters = new Mapping<String, Step> {
 
   ["pkl"] = Builtins.pkl
 
-  ["shellcheck"] = (Builtins.shellcheck) {
-    // check_diff would let hk treat "diff applied" as step success without
-    // re-checking, silently passing files that still have non-autofixable
-    // issues (e.g. SC2045) alongside a fixable one. Do the autofix and the
-    // gating check in one command instead, so the final shellcheck call is
-    // always what decides pass/fail.
-    fix = "shellcheck --format=diff {{files}} | git apply --allow-empty - || true; shellcheck {{files}}"
-  }
-}
+  // The builtin pairs check_diff with check_after_diff, which is what our own
+  // fix override used to emulate: shellcheck --format=diff only fixes some
+  // findings, so hk re-runs the gating check after applying the patch instead
+  // of treating a clean apply as success.
+  ["shellcheck"] = Builtins.shellcheck
 
-local shared = new Mapping<String, Step> {
   ["mise"] = Builtins.mise
 }
 
 hooks {
   ["pre-commit"] {
+    // Implicit hooks default to stash = "none"; keep git stashing so a partial
+    // `git add -p` commit is linted against the staged content only.
     fix = true
     stash = "git"
-    steps {
-      ...linters
-      ...shared
-    }
-  }
-  ["fix"] {
-    fix = true
-    steps {
-      ...linters
-      ...shared
-    }
-  }
-  ["check"] {
-    steps {
-      ...linters
-      ...shared
-    }
   }
 }
