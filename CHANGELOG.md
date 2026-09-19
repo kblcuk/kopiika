@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.36](https://codeberg.org/kblcuk/kopiika/compare/v0.3.35...v0.3.36) (2026-09-19)
+
+
+### Features
+
+* **board:** Replace per-section pencils with one board-wide edit mode ([00c539e](https://codeberg.org/kblcuk/kopiika/commit/00c539e29ac5dc5737d9151df6cfbe09bd9733eb))
+
+
+### Bug Fixes
+
+* **board:** Restore AA contrast on the edit tint and cover its wiring ([45d1936](https://codeberg.org/kblcuk/kopiika/commit/45d1936a8dc8462ec5dad8c11aa22ec923c9496a)), closes [#FBEFE8](https://codeberg.org/kblcuk/kopiika/issues/FBEFE8) [#FFEFE8](https://codeberg.org/kblcuk/kopiika/issues/FFEFE8)
+* **hk:** Migrate hk config to the v2 pkl package ([852602f](https://codeberg.org/kblcuk/kopiika/commit/852602faebf8a8b037fa58e34a249045884f675f))
+
 ## [0.3.35](https://codeberg.org/kblcuk/kopiika/compare/v0.3.34...v0.3.35) (2026-09-12)
 
 
