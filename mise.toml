@@ -8,6 +8,7 @@ postinstall = "hk install --mise"
 [tools]
 age = "latest"
 bun = "latest"
+bundler = "4.0.20"
 fnox = "latest"
 gradle = "9.7.1"
 hk = "2"
