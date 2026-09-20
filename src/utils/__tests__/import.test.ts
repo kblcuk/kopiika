@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { parseImportCsv, parseCsvLine } from '../import';
+import { parseImportCsv, parseCsvLine, formatImportNotices } from '../import';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 const VALID_CSV = `# ENTITIES
@@ -235,6 +235,7 @@ t1,nonexistent,e1,10000,EUR,1706745600000,`;
 			id: 't1',
 		});
 		expect(result.droppable[0]!.reason).toContain('from_entity_id "nonexistent"');
+		expect(result.adjusted).toEqual([]);
 	});
 
 	test('drops transaction referencing non-existent to entity', () => {
@@ -606,11 +607,12 @@ rt1,e-gone,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,false,170674
 		expect(result.droppable[0]!.reason).toContain('from_entity_id "e-gone"');
 	});
 
-	test('happy-path parse returns empty droppable', () => {
+	test('happy-path parse returns empty droppable and adjusted', () => {
 		const result = parseImportCsv(VALID_CSV);
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.droppable).toEqual([]);
+		expect(result.adjusted).toEqual([]);
 	});
 
 	// A transaction can carry a series_id whose template is absent from the file
@@ -641,11 +643,15 @@ id,from_entity_id,to_entity_id,amount_minor,currency,note,rule,start_date,end_da
 		expect(result.data.transactions).toHaveLength(1);
 		expect(result.data.transactions[0]!.id).toBe('t1');
 		expect(result.data.transactions[0]!.series_id).toBeNull();
-		// The dropped recurrence link must be surfaced, not silently severed
-		// (import contract: "Never silently drop user data on import").
-		expect(result.droppable).toContainEqual(
+		// The severed recurrence link must be surfaced, not silently dropped
+		// (import contract: "Never silently drop user data on import") — and it
+		// belongs in `adjusted`, since the transaction itself is imported in
+		// full. Reporting it as droppable made the prompt claim the row would
+		// be skipped.
+		expect(result.adjusted).toContainEqual(
 			expect.objectContaining({ kind: 'transaction', id: 't1' })
 		);
+		expect(result.droppable).toEqual([]);
 	});
 
 	test('clears series_id when its template is present but soft-deleted', () => {
@@ -673,9 +679,10 @@ rt-dead,e1,e2,5000,EUR,,"{""type"":""weekly""}",1706745600000,,,90,,true,1706745
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.transactions[0]!.series_id).toBeNull();
-		expect(result.droppable).toContainEqual(
+		expect(result.adjusted).toContainEqual(
 			expect.objectContaining({ kind: 'transaction', id: 't1' })
 		);
+		expect(result.droppable).toEqual([]);
 	});
 
 	test('keeps series_id when its template is present in the import', () => {
@@ -944,5 +951,66 @@ t2,e2,e3,2500,EUR,1706745700000,`;
 			expect(result.errors.length).toBeGreaterThan(0);
 			expect(result.errors.join('\n')).toMatch(/category to category/i);
 		});
+	});
+});
+
+describe('formatImportNotices', () => {
+	const dropped = {
+		kind: 'transaction' as const,
+		id: 't1',
+		reason: 'from_entity_id "e-gone" not present in this import',
+	};
+	const severed = {
+		kind: 'transaction' as const,
+		id: 't2',
+		reason: 'series_id "rt-gone" references a recurrence template that is absent or deleted in this import; imported as a one-off',
+	};
+
+	test('says an adjusted-only file WILL be imported, never that it cannot be', () => {
+		const { title, message } = formatImportNotices([], [severed]);
+		// The bug this replaces: a file whose only notice was a severed
+		// series_id was announced as "N item(s) can't be imported … continue
+		// without them", so the user could not tell whether their
+		// transactions were kept or discarded. They are kept.
+		expect(title).toBe('Some items need a change');
+		expect(message).toContain('1 item(s) will be imported, with a change:');
+		expect(message).not.toContain("can't be imported");
+		expect(message).not.toContain('without them');
+		expect(message).toContain('t2');
+	});
+
+	test('says a droppable-only file will be skipped', () => {
+		const { title, message } = formatImportNotices([dropped], []);
+		expect(title).toBe("Some items can't be imported");
+		expect(message).toContain("1 item(s) can't be imported and will be skipped:");
+		expect(message).not.toContain('will be imported, with a change');
+		expect(message).toContain('t1');
+	});
+
+	test('reports both buckets separately when a file has each', () => {
+		const { title, message } = formatImportNotices([dropped], [severed]);
+		expect(title).toBe('Review before importing');
+		expect(message).toContain("1 item(s) can't be imported and will be skipped:");
+		expect(message).toContain('1 item(s) will be imported, with a change:');
+		expect(message.indexOf('t1')).toBeLessThan(message.indexOf('t2'));
+	});
+
+	test('caps each bucket at five entries and counts the rest per bucket', () => {
+		const many = (prefix: string, n: number) =>
+			Array.from({ length: n }, (_, i) => ({ ...dropped, id: `${prefix}${i}` }));
+		const { message } = formatImportNotices(many('d', 7), many('a', 9));
+		// Each group gets its own preview and its own remainder — a shared cap
+		// would hide one bucket entirely behind the other's entries.
+		expect(message).toContain('and 2 more');
+		expect(message).toContain('and 4 more');
+		expect(message).toContain('d4');
+		expect(message).not.toContain('d5');
+		expect(message).toContain('a4');
+		expect(message).not.toContain('a5');
+	});
+
+	test('always closes with the choice the buttons offer', () => {
+		const { message } = formatImportNotices([dropped], []);
+		expect(message.endsWith('Continue, or cancel to fix the file?')).toBe(true);
 	});
 });

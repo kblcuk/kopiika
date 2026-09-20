@@ -160,6 +160,7 @@ describe('csv roundtrip', () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.droppable).toEqual([]);
+		expect(result.adjusted).toEqual([]);
 
 		// Compare each section independently for clearer diff output.
 		expect(result.data.entities).toEqual(FULL_FIXTURE.entities);

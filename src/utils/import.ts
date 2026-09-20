@@ -16,14 +16,28 @@ export interface ParsedImportData {
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
-type DroppableItem = {
+export type ImportNotice = {
 	kind: 'transaction' | 'recurrenceTemplate';
 	id: string;
 	reason: string;
 };
 
 type ParseResult =
-	| { ok: true; data: ParsedImportData; droppable: DroppableItem[] }
+	| {
+			ok: true;
+			data: ParsedImportData;
+			/** Rows that will NOT reach the database — skipped entirely. */
+			droppable: ImportNotice[];
+			/**
+			 * Rows that WILL be imported, with the single change named in
+			 * `reason` (today: a dead `series_id` severed). Kept apart from
+			 * `droppable` so the confirmation prompt can say which is which —
+			 * they used to share one list under one "can't be imported"
+			 * summary, which told users their transactions were about to be
+			 * discarded when they were not.
+			 */
+			adjusted: ImportNotice[];
+	  }
 	| { ok: false; errors: string[] };
 
 const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
@@ -348,7 +362,7 @@ function parseTransactions(
 	entities: Entity[],
 	entityIds: Set<string>,
 	errors: string[],
-	droppable: DroppableItem[]
+	droppable: ImportNotice[]
 ): Transaction[] {
 	const result: Transaction[] = [];
 
@@ -447,7 +461,7 @@ function parseRecurrenceTemplates(
 	entities: Entity[],
 	entityIds: Set<string>,
 	errors: string[],
-	droppable: DroppableItem[]
+	droppable: ImportNotice[]
 ): RecurrenceTemplate[] {
 	const result: RecurrenceTemplate[] = [];
 
@@ -658,7 +672,8 @@ export function parseImportCsv(content: string): ParseResult {
 	}
 
 	const errors: string[] = [];
-	const droppable: DroppableItem[] = [];
+	const droppable: ImportNotice[] = [];
+	const adjusted: ImportNotice[] = [];
 
 	const entityRows = parseSection(sections.entities);
 	const entities = parseEntities(entityRows, errors);
@@ -700,13 +715,15 @@ export function parseImportCsv(content: string): ParseResult {
 	// soft-deleted template would otherwise render as recurring with an invisible
 	// series and could no longer be deleted or split ("recurrence template … not
 	// found"). Sever the dead link, keeping the row as a one-off — but surface it
-	// via `droppable` rather than silently mutating user data (import contract).
+	// via `adjusted` rather than silently mutating user data (import contract).
+	// It belongs in `adjusted`, not `droppable`: the transaction itself is kept
+	// in full and only its dead series link is severed.
 	const activeTemplateIds = new Set(
 		recurrenceTemplates.filter((t) => !t.is_deleted).map((t) => t.id)
 	);
 	for (const tx of transactions) {
 		if (tx.series_id && !activeTemplateIds.has(tx.series_id)) {
-			droppable.push({
+			adjusted.push({
 				kind: 'transaction',
 				id: tx.id,
 				reason: `series_id "${tx.series_id}" references a recurrence template that is absent or deleted in this import; imported as a one-off`,
@@ -739,9 +756,67 @@ export function parseImportCsv(content: string): ParseResult {
 		ok: true,
 		data: { entities, plans, transactions, recurrenceTemplates, marketValueSnapshots },
 		droppable,
+		adjusted,
 	};
 }
 
 export function formatImportErrors(errors: string[]): string {
 	return errors.join('\n');
+}
+
+const NOTICE_PREVIEW_LIMIT = 5;
+
+function formatNoticeGroup(heading: string, notices: ImportNotice[]): string {
+	const preview = notices
+		.slice(0, NOTICE_PREVIEW_LIMIT)
+		.map((n) => `• ${n.kind} ${n.id}: ${n.reason}`)
+		.join('\n');
+	const remaining = notices.length - NOTICE_PREVIEW_LIMIT;
+	const more = remaining > 0 ? `\nand ${remaining} more` : '';
+	return `${heading}\n${preview}${more}`;
+}
+
+/**
+ * Build the pre-import confirmation prompt from a parse result.
+ *
+ * The two buckets are worded apart on purpose: a `droppable` row never reaches
+ * the database, while an `adjusted` row is imported in full and only loses the
+ * part named in its reason. The prompt used to summarise both as "N item(s)
+ * can't be imported … continue without them", so a file whose only notice was a
+ * severed `series_id` read as though its transactions were about to be thrown
+ * away.
+ */
+export function formatImportNotices(
+	droppable: ImportNotice[],
+	adjusted: ImportNotice[]
+): { title: string; message: string } {
+	const sections: string[] = [];
+	if (droppable.length > 0) {
+		sections.push(
+			formatNoticeGroup(
+				`${droppable.length} item(s) can't be imported and will be skipped:`,
+				droppable
+			)
+		);
+	}
+	if (adjusted.length > 0) {
+		sections.push(
+			formatNoticeGroup(
+				`${adjusted.length} item(s) will be imported, with a change:`,
+				adjusted
+			)
+		);
+	}
+
+	let title = 'Review before importing';
+	if (droppable.length > 0 && adjusted.length === 0) {
+		title = "Some items can't be imported";
+	} else if (adjusted.length > 0 && droppable.length === 0) {
+		title = 'Some items need a change';
+	}
+
+	return {
+		title,
+		message: `${sections.join('\n\n')}\n\nContinue, or cancel to fix the file?`,
+	};
 }

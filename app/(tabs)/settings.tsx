@@ -22,7 +22,12 @@ import { toMinor } from '@/src/utils/money';
 
 import { useStore } from '@/src/store';
 import { exportAllData } from '@/src/utils/export';
-import { parseImportCsv, formatImportErrors, type ParsedImportData } from '@/src/utils/import';
+import {
+	parseImportCsv,
+	formatImportErrors,
+	formatImportNotices,
+	type ParsedImportData,
+} from '@/src/utils/import';
 import { updateTransactionNotificationIdsBatch } from '@/src/db';
 import Constants from 'expo-constants';
 import {
@@ -278,21 +283,12 @@ export default function SettingsScreen() {
 				return;
 			}
 
-			if (parsed.droppable.length > 0) {
-				const preview = parsed.droppable
-					.slice(0, 5)
-					.map((d) => `• ${d.kind} ${d.id}: ${d.reason}`)
-					.join('\n');
-				const more =
-					parsed.droppable.length > 5 ? `\nand ${parsed.droppable.length - 5} more` : '';
-				Alert.alert(
-					"Some items can't be imported",
-					`${parsed.droppable.length} item(s) can't be imported with your current data:\n\n${preview}${more}\n\nContinue without them, or cancel to fix the file?`,
-					[
-						{ text: 'Cancel', style: 'cancel' },
-						{ text: 'Continue', onPress: () => confirmReplace(parsed.data) },
-					]
-				);
+			if (parsed.droppable.length > 0 || parsed.adjusted.length > 0) {
+				const { title, message } = formatImportNotices(parsed.droppable, parsed.adjusted);
+				Alert.alert(title, message, [
+					{ text: 'Cancel', style: 'cancel' },
+					{ text: 'Continue', onPress: () => confirmReplace(parsed.data) },
+				]);
 				return;
 			}
 
