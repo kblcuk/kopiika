@@ -21,7 +21,7 @@ export interface ParsedImportData {
  * `id` is an internal string a user can neither recognise nor act on, and one
  * bullet per row overflowed a small phone screen for even a modest import.
  */
-export type ImportNoticeCode = 'missing-entity' | 'dangling-series';
+type ImportNoticeCode = 'missing-entity' | 'dangling-series';
 
 export type ImportNotice = {
 	kind: 'transaction' | 'recurrenceTemplate';
