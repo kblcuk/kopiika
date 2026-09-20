@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import type { Transaction } from '@/src/types';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import { deriveVirtualOccurrences } from '../recurrence-derivation';
@@ -107,14 +107,17 @@ describe('deriveVirtualOccurrences', () => {
 	test('a date-edited occurrence does not shadow the slot it was moved onto (KII-157)', () => {
 		const now = localTs(2026, 4, 3, 12);
 		// Daily series: Apr 4 has an occurrence of its own. A row whose SLOT is Apr 5
-		// but which was moved to Apr 4 must not swallow Apr 4's occurrence.
+		// but which was moved to Apr 4 must not swallow Apr 4's occurrence. Uses a
+		// distinct hour (14:00) from the template's generated 09:00 occurrences so
+		// this only collides on civil day, not on the exact instant — that
+		// exact-instant coincidence is its own scenario, covered separately below.
 		const moved: Transaction = {
 			id: 'tmpl-1:2026-04-05',
 			from_entity_id: 'acc',
 			to_entity_id: 'cat',
 			amount_minor: 1000,
 			currency: 'USD',
-			timestamp: localTs(2026, 4, 4),
+			timestamp: localTs(2026, 4, 4, 14),
 			series_id: 'tmpl-1',
 			is_confirmed: false,
 		};
@@ -187,5 +190,74 @@ describe('deriveVirtualOccurrences', () => {
 
 		expect(civilDates).not.toContain('2026-08-03'); // today — materialized instead
 		expect(civilDates).toContain('2026-08-04');
+	});
+});
+
+describe('deriveVirtualOccurrences — instant dedup across a stale civil-date label', () => {
+	// Confirmed field bug: one raw instant, two different occurrence ids —
+	// `<series>:2026-07-01` (is_confirmed: false) and `<series>:2026-07-02`
+	// (is_confirmed: true) — both carrying timestamp 1782940925537. That ms
+	// value is 2026-07-01 21:22:05 UTC, which is 2026-07-02 00:22:05 in
+	// Helsinki (UTC+3): the exact instant straddles the UTC/local civil-day
+	// boundary. A materialized row's slot label is baked into its id at
+	// creation time and never recomputed; if it was minted under a different
+	// civil-day derivation than the one running now, it can permanently
+	// disagree with a fresh `toCivilDate` of the very same instant, and
+	// `deriveVirtualOccurrences` would keep resurrecting a "new" virtual
+	// occurrence for that instant under the label of the day. Pin TZ to
+	// Helsinki so the test reproduces the exact reported labels regardless of
+	// the host running this suite, and restore it after — bun runs every test
+	// file in one process, so a leaked TZ would leak into unrelated files.
+	const REAL_TS = 1782940925537;
+	let originalTz: string | undefined;
+
+	beforeAll(() => {
+		originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Helsinki';
+	});
+
+	afterAll(() => {
+		if (originalTz === undefined) delete process.env.TZ;
+		else process.env.TZ = originalTz;
+	});
+
+	test('a real row whose baked-in slot disagrees with a fresh toCivilDate of its own timestamp is not re-derived', () => {
+		expect(toCivilDate(REAL_TS)).toBe('2026-07-02'); // sanity: confirms the TZ pin reproduces the field values
+
+		const template = dailyTemplate({
+			id: 'series-1',
+			start_date: REAL_TS,
+			created_at: REAL_TS,
+		});
+
+		// The real, materialized row: same series, same exact instant, but its id
+		// was minted with the OTHER side of the boundary as its slot label.
+		const materialized: Transaction = {
+			id: 'series-1:2026-07-01',
+			from_entity_id: 'acc',
+			to_entity_id: 'cat',
+			amount_minor: 1000,
+			currency: 'USD',
+			timestamp: REAL_TS,
+			series_id: 'series-1',
+			is_confirmed: true,
+		};
+
+		const now = new Date(2026, 6, 1, 9, 0).getTime(); // 2026-07-01 09:00 Helsinki — before REAL_TS
+		const rangeStart = new Date(2026, 6, 1, 0, 0).getTime();
+		const rangeEnd = new Date(2026, 6, 5, 0, 0).getTime();
+
+		const result = deriveVirtualOccurrences(
+			[template],
+			new Map(),
+			[materialized],
+			rangeStart,
+			rangeEnd,
+			now
+		);
+
+		// Without the exact-instant guard this would wrongly include a second,
+		// virtual occurrence at REAL_TS labeled `series-1:2026-07-02`.
+		expect(result.filter((t) => t.timestamp === REAL_TS)).toEqual([]);
 	});
 });

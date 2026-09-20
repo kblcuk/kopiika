@@ -6422,6 +6422,98 @@ describe('Store Data Integrity', () => {
 			await useStore.getState().backfillRecurringIfStale();
 			expect(await db.getTransactionsBySeriesId(template.id)).toHaveLength(0);
 		});
+
+		test('does not re-materialize an already-confirmed row whose slot label disagrees with a fresh recompute of its own timestamp', async () => {
+			// Confirmed field bug: one raw instant, two different occurrence ids —
+			// `<series>:2026-07-01` and `<series>:2026-07-02` — both carrying the
+			// same timestamp, 1782940925537. That ms value is 2026-07-01 21:22:05
+			// UTC, which is 2026-07-02 00:22:05 in Helsinki (UTC+3): the instant
+			// straddles the UTC/local civil-day boundary. A materialized row's slot
+			// label is baked into its id at creation time and never recomputed, so a
+			// row minted under a different civil-day derivation than the one running
+			// now can permanently disagree with a fresh `toCivilDate` of the very
+			// same instant — and backfill would keep re-inserting a "new" row for
+			// that instant under today's label. Pin TZ to Helsinki so the test
+			// reproduces the exact reported labels regardless of the host running
+			// this suite, and restore it after — bun runs every test file in one
+			// process, so a leaked TZ would leak into unrelated files.
+			const REAL_TS = 1782940925537;
+			const originalTz = process.env.TZ;
+			process.env.TZ = 'Europe/Helsinki';
+			try {
+				expect(toCivilDate(REAL_TS)).toBe('2026-07-02'); // sanity: confirms the TZ pin reproduces the field values
+
+				const acc: Entity = {
+					id: 'tz-acc',
+					type: 'account',
+					name: 'Bank',
+					currency: 'EUR',
+					row: 0,
+					position: 0,
+				};
+				const cat: Entity = {
+					id: 'tz-cat',
+					type: 'category',
+					name: 'Savings',
+					currency: 'EUR',
+					row: 0,
+					position: 1,
+				};
+				await db.createEntity(acc);
+				await db.createEntity(cat);
+
+				const template: RecurrenceTemplate = {
+					id: 'tz-tmpl',
+					from_entity_id: acc.id,
+					to_entity_id: cat.id,
+					amount_minor: 10000,
+					currency: 'EUR',
+					note: 'Monthly saving',
+					rule: JSON.stringify({ type: 'monthly' }),
+					start_date: REAL_TS,
+					end_date: null,
+					end_count: 1, // only the one confirmed field occurrence
+					created_at: REAL_TS,
+					exclusions: [],
+				};
+				await db.createRecurrenceTemplate(template);
+
+				// The real, already-confirmed row: same series, same exact instant,
+				// but its id was minted with the OTHER side of the boundary as its
+				// slot label (as the field export shows).
+				const materialized: Transaction = {
+					id: `${template.id}:2026-07-01`,
+					from_entity_id: acc.id,
+					to_entity_id: cat.id,
+					amount_minor: 10000,
+					currency: 'EUR',
+					timestamp: REAL_TS,
+					note: 'Monthly saving',
+					series_id: template.id,
+					is_confirmed: true,
+				};
+
+				useStore.setState({
+					entities: [acc, cat],
+					recurrenceTemplates: [template],
+					transactions: [materialized],
+				});
+
+				_resetBackfillThrottleForTests();
+				await useStore.getState().backfillRecurringIfStale();
+
+				// Without the fix, this would wrongly add a second row at REAL_TS
+				// labeled `tz-tmpl:2026-07-02`.
+				const rows = useStore
+					.getState()
+					.transactions.filter((t) => t.series_id === template.id);
+				expect(rows).toHaveLength(1);
+				expect(rows[0]!.id).toBe(materialized.id);
+			} finally {
+				if (originalTz === undefined) delete process.env.TZ;
+				else process.env.TZ = originalTz;
+			}
+		});
 	});
 
 	test('rescheduling a single upcoming occurrence to an earlier date leaves no duplicate (KII-157)', async () => {

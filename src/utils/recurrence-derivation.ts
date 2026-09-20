@@ -24,6 +24,22 @@ import {
  * occurrence as a duplicate while shadowing whichever slot it landed on
  * (KII-157).
  *
+ * It ALSO falls back to matching a materialized row by its raw millisecond
+ * timestamp, but ONLY when that row's slot is "orphaned" — i.e. does not equal
+ * the civil date of any occurrence this series currently generates. A slot's
+ * label is baked into its id at creation time and never recomputed; a fresh
+ * candidate's label is computed right here via the same `toCivilDate`. The two
+ * are normally the same day for the same instant, but they can disagree for a
+ * row created under a different civil-day derivation than the one running now
+ * (an older app build, a different device/OS timezone database, a DST-table
+ * update) — confirmed in the field as two rows for one instant, 21:22 UTC /
+ * 00:22 next-day Helsinki, that landed on different sides of that boundary.
+ * The orphan check is what keeps this from breaking KII-157: a row
+ * legitimately moved onto another occurrence's exact instant (e.g. a
+ * date-only edit that keeps the series' fixed hour-of-day) still has a real,
+ * currently-generated slot of its own, so it is never treated as a stray
+ * mislabeling of the instant it now merely coincides with.
+ *
  * @param exclusionsByTemplate template_id → Set of excluded civil dates (YYYY-MM-DD)
  */
 export function deriveVirtualOccurrences(
@@ -34,16 +50,17 @@ export function deriveVirtualOccurrences(
 	rangeEnd: number,
 	now: number
 ): Transaction[] {
-	// Occurrence slots already materialized per series (any real row counts).
-	const realBySeries = new Map<string, Set<string>>();
+	// Materialized rows grouped by series, keeping the row (not just its slot)
+	// so the per-template loop below can compute the orphan-timestamp fallback.
+	const realBySeries = new Map<string, Transaction[]>();
 	for (const tx of realTransactions) {
 		if (!tx.series_id) continue;
-		let set = realBySeries.get(tx.series_id);
-		if (!set) {
-			set = new Set();
-			realBySeries.set(tx.series_id, set);
+		let list = realBySeries.get(tx.series_id);
+		if (!list) {
+			list = [];
+			realBySeries.set(tx.series_id, list);
 		}
-		set.add(occurrenceSlotCivilDate(tx.id, tx.series_id) ?? toCivilDate(tx.timestamp));
+		list.push(tx);
 	}
 
 	const out: Transaction[] = [];
@@ -53,7 +70,12 @@ export function deriveVirtualOccurrences(
 
 		const rule: RecurrenceRule = JSON.parse(template.rule);
 		const excludedCivil = exclusionsByTemplate.get(template.id) ?? new Set<string>();
-		const materializedSlots = realBySeries.get(template.id) ?? new Set<string>();
+		const seriesRows = realBySeries.get(template.id) ?? [];
+		const materializedSlots = new Set(
+			seriesRows.map(
+				(t) => occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
+			)
+		);
 
 		// generateOccurrences is bounded by min(endDate, now + horizonDays); pass a
 		// horizon wide enough to reach rangeEnd, then filter to (now, rangeEnd].
@@ -70,8 +92,24 @@ export function deriveVirtualOccurrences(
 			exclusions: template.exclusions,
 		});
 
+		// Rows whose slot doesn't match ANY occurrence this series currently
+		// generates are orphaned — see doc comment. Their raw timestamp is the
+		// only remaining reliable identity, so index them by it as a fallback.
+		const generatedCivilDates = new Set(timestamps.map(toCivilDate));
+		const orphanTimestamps = new Set(
+			seriesRows
+				.filter(
+					(t) =>
+						!generatedCivilDates.has(
+							occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
+						)
+				)
+				.map((t) => t.timestamp)
+		);
+
 		for (const ts of timestamps) {
 			if (isDue(ts, now) || ts < rangeStart || ts > rangeEnd) continue;
+			if (orphanTimestamps.has(ts)) continue;
 			const civil = toCivilDate(ts);
 			if (excludedCivil.has(civil)) continue;
 			if (materializedSlots.has(civil)) continue;
