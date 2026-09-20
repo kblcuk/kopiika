@@ -955,62 +955,80 @@ t2,e2,e3,2500,EUR,1706745700000,`;
 });
 
 describe('formatImportNotices', () => {
-	const dropped = {
+	const dropped = (id: string) => ({
 		kind: 'transaction' as const,
-		id: 't1',
-		reason: 'from_entity_id "e-gone" not present in this import',
-	};
-	const severed = {
+		code: 'missing-entity' as const,
+		id,
+		reason: `from_entity_id "e-gone" not present in this import`,
+	});
+	const severed = (id: string) => ({
 		kind: 'transaction' as const,
-		id: 't2',
+		code: 'dangling-series' as const,
+		id,
 		reason: 'series_id "rt-gone" references a recurrence template that is absent or deleted in this import; imported as a one-off',
-	};
+	});
 
 	test('says an adjusted-only file WILL be imported, never that it cannot be', () => {
-		const { title, message } = formatImportNotices([], [severed]);
+		const { title, message } = formatImportNotices([], [severed('t1')]);
 		// The bug this replaces: a file whose only notice was a severed
 		// series_id was announced as "N item(s) can't be imported … continue
-		// without them", so the user could not tell whether their
-		// transactions were kept or discarded. They are kept.
+		// without them", so the user could not tell whether their transactions
+		// were kept or discarded. They are kept.
 		expect(title).toBe('Some items need a change');
-		expect(message).toContain('1 item(s) will be imported, with a change:');
+		expect(message).toContain('Imported, with a change:');
+		expect(message).toContain("1 transaction whose repeating series isn't in the file");
 		expect(message).not.toContain("can't be imported");
 		expect(message).not.toContain('without them');
-		expect(message).toContain('t2');
+		expect(message).not.toContain('Skipped');
 	});
 
 	test('says a droppable-only file will be skipped', () => {
-		const { title, message } = formatImportNotices([dropped], []);
+		const { title, message } = formatImportNotices([dropped('t1')], []);
 		expect(title).toBe("Some items can't be imported");
-		expect(message).toContain("1 item(s) can't be imported and will be skipped:");
-		expect(message).not.toContain('will be imported, with a change');
-		expect(message).toContain('t1');
+		expect(message).toContain('Skipped, not imported:');
+		expect(message).toContain(
+			"1 transaction using an account or category that isn't in the file"
+		);
+		expect(message).not.toContain('Imported, with a change');
 	});
 
-	test('reports both buckets separately when a file has each', () => {
-		const { title, message } = formatImportNotices([dropped], [severed]);
+	test('leads with the skipped bucket when a file has both', () => {
+		const { title, message } = formatImportNotices([dropped('t1')], [severed('t2')]);
 		expect(title).toBe('Review before importing');
-		expect(message).toContain("1 item(s) can't be imported and will be skipped:");
-		expect(message).toContain('1 item(s) will be imported, with a change:');
-		expect(message.indexOf('t1')).toBeLessThan(message.indexOf('t2'));
+		// Skipped is the outcome that loses data, so it must not sit below a
+		// list of rows that are being kept.
+		expect(message.indexOf('Skipped, not imported:')).toBeLessThan(
+			message.indexOf('Imported, with a change:')
+		);
 	});
 
-	test('caps each bucket at five entries and counts the rest per bucket', () => {
-		const many = (prefix: string, n: number) =>
-			Array.from({ length: n }, (_, i) => ({ ...dropped, id: `${prefix}${i}` }));
-		const { message } = formatImportNotices(many('d', 7), many('a', 9));
-		// Each group gets its own preview and its own remainder — a shared cap
-		// would hide one bucket entirely behind the other's entries.
-		expect(message).toContain('and 2 more');
-		expect(message).toContain('and 4 more');
-		expect(message).toContain('d4');
-		expect(message).not.toContain('d5');
-		expect(message).toContain('a4');
-		expect(message).not.toContain('a5');
+	test('collapses same-cause rows into one counted bullet, naming no ids', () => {
+		// The regression this pins: nine sessions from one deleted template
+		// produced nine identical sentences, each led by an opaque internal
+		// id, running past the bottom of an iPhone 13 mini.
+		const many = Array.from({ length: 9 }, (_, i) => severed(`1776782927529-abc${i}`));
+		const { message } = formatImportNotices([], many);
+		expect(message).toContain("9 transactions whose repeating series isn't in the file");
+		expect(message).not.toContain('1776782927529');
+		expect(message.split('\n').filter((line) => line.startsWith('•'))).toHaveLength(1);
+		expect(message.split('\n')).toHaveLength(4);
+	});
+
+	test('keeps causes apart within a bucket', () => {
+		const templateGone = {
+			kind: 'recurrenceTemplate' as const,
+			code: 'missing-entity' as const,
+			id: 'rt1',
+			reason: 'to_entity_id "e-gone" not present in this import',
+		};
+		const { message } = formatImportNotices([dropped('t1'), dropped('t2'), templateGone], []);
+		expect(message).toContain('2 transactions using an account or category');
+		// "series" is already plural — never "1 repeating seriess".
+		expect(message).toContain('1 repeating series using an account or category');
 	});
 
 	test('always closes with the choice the buttons offer', () => {
-		const { message } = formatImportNotices([dropped], []);
+		const { message } = formatImportNotices([dropped('t1')], []);
 		expect(message.endsWith('Continue, or cancel to fix the file?')).toBe(true);
 	});
 });

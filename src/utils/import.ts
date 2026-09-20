@@ -16,9 +16,18 @@ export interface ParsedImportData {
 	marketValueSnapshots: MarketValueSnapshot[];
 }
 
+/**
+ * Why a row was flagged. The prompt groups by this rather than listing rows:
+ * `id` is an internal string a user can neither recognise nor act on, and one
+ * bullet per row overflowed a small phone screen for even a modest import.
+ */
+export type ImportNoticeCode = 'missing-entity' | 'dangling-series';
+
 export type ImportNotice = {
 	kind: 'transaction' | 'recurrenceTemplate';
+	code: ImportNoticeCode;
 	id: string;
+	/** Full detail, kept for logs and tests; the prompt shows the summary. */
 	reason: string;
 };
 
@@ -380,6 +389,7 @@ function parseTransactions(
 		if (!entityIds.has(row.from_entity_id)) {
 			droppable.push({
 				kind: 'transaction',
+				code: 'missing-entity',
 				id: row.id,
 				reason: `from_entity_id "${row.from_entity_id}" not present in this import`,
 			});
@@ -392,6 +402,7 @@ function parseTransactions(
 		if (!entityIds.has(row.to_entity_id)) {
 			droppable.push({
 				kind: 'transaction',
+				code: 'missing-entity',
 				id: row.id,
 				reason: `to_entity_id "${row.to_entity_id}" not present in this import`,
 			});
@@ -571,6 +582,7 @@ function parseRecurrenceTemplates(
 		if (!entityIds.has(from_entity_id)) {
 			droppable.push({
 				kind: 'recurrenceTemplate',
+				code: 'missing-entity',
 				id,
 				reason: `from_entity_id "${from_entity_id}" not present in this import`,
 			});
@@ -579,6 +591,7 @@ function parseRecurrenceTemplates(
 		if (!entityIds.has(to_entity_id)) {
 			droppable.push({
 				kind: 'recurrenceTemplate',
+				code: 'missing-entity',
 				id,
 				reason: `to_entity_id "${to_entity_id}" not present in this import`,
 			});
@@ -725,6 +738,7 @@ export function parseImportCsv(content: string): ParseResult {
 		if (tx.series_id && !activeTemplateIds.has(tx.series_id)) {
 			adjusted.push({
 				kind: 'transaction',
+				code: 'dangling-series',
 				id: tx.id,
 				reason: `series_id "${tx.series_id}" references a recurrence template that is absent or deleted in this import; imported as a one-off`,
 			});
@@ -764,16 +778,55 @@ export function formatImportErrors(errors: string[]): string {
 	return errors.join('\n');
 }
 
-const NOTICE_PREVIEW_LIMIT = 5;
+const NOTICE_SUMMARIES: Record<
+	ImportNotice['kind'],
+	Record<ImportNoticeCode, (count: number) => string>
+> = {
+	transaction: {
+		'missing-entity': (n) =>
+			`${plural(n, 'transaction')} using an account or category that isn't in the file`,
+		'dangling-series': (n) =>
+			`${plural(n, 'transaction')} whose repeating series isn't in the file - kept as one-offs`,
+	},
+	recurrenceTemplate: {
+		'missing-entity': (n) =>
+			`${plural(n, 'repeating series')} using an account or category that isn't in the file`,
+		// Unreachable today (a template is only ever skipped, never adjusted),
+		// but the table is total so a future adjustment can't fall through to
+		// an empty bullet.
+		'dangling-series': (n) => `${plural(n, 'repeating series')} with a broken link`,
+	},
+};
 
-function formatNoticeGroup(heading: string, notices: ImportNotice[]): string {
-	const preview = notices
-		.slice(0, NOTICE_PREVIEW_LIMIT)
-		.map((n) => `• ${n.kind} ${n.id}: ${n.reason}`)
-		.join('\n');
-	const remaining = notices.length - NOTICE_PREVIEW_LIMIT;
-	const more = remaining > 0 ? `\nand ${remaining} more` : '';
-	return `${heading}\n${preview}${more}`;
+function plural(count: number, noun: string): string {
+	if (noun.endsWith('s')) return `${count} ${noun}`;
+	return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+/**
+ * Collapse notices to one bullet per (kind, cause), in first-seen order.
+ *
+ * Listing every row put nine identical sentences on screen for one deleted
+ * template, each led by an opaque internal id - past the bottom of an iPhone
+ * 13 mini. The count is the part a user can act on.
+ */
+function summarizeNotices(notices: ImportNotice[]): string[] {
+	const counts = new Map<
+		string,
+		{ kind: ImportNotice['kind']; code: ImportNoticeCode; n: number }
+	>();
+	for (const notice of notices) {
+		const key = `${notice.kind}:${notice.code}`;
+		const seen = counts.get(key);
+		if (seen) {
+			seen.n += 1;
+		} else {
+			counts.set(key, { kind: notice.kind, code: notice.code, n: 1 });
+		}
+	}
+	return [...counts.values()].map(
+		(group) => `• ${NOTICE_SUMMARIES[group.kind][group.code](group.n)}`
+	);
 }
 
 /**
@@ -791,21 +844,13 @@ export function formatImportNotices(
 	adjusted: ImportNotice[]
 ): { title: string; message: string } {
 	const sections: string[] = [];
+	// Skipped first: it is the outcome that loses data, so it should not sit
+	// below a list of rows that are being kept.
 	if (droppable.length > 0) {
-		sections.push(
-			formatNoticeGroup(
-				`${droppable.length} item(s) can't be imported and will be skipped:`,
-				droppable
-			)
-		);
+		sections.push(['Skipped, not imported:', ...summarizeNotices(droppable)].join('\n'));
 	}
 	if (adjusted.length > 0) {
-		sections.push(
-			formatNoticeGroup(
-				`${adjusted.length} item(s) will be imported, with a change:`,
-				adjusted
-			)
-		);
+		sections.push(['Imported, with a change:', ...summarizeNotices(adjusted)].join('\n'));
 	}
 
 	let title = 'Review before importing';
