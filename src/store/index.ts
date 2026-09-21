@@ -17,6 +17,7 @@ import {
 	generateOccurrences,
 	occurrenceId,
 	occurrenceSlotCivilDate,
+	seriesOccupancy,
 	toCivilDate,
 } from '@/src/utils/recurrence';
 import { deriveVirtualOccurrences } from '@/src/utils/recurrence-derivation';
@@ -310,46 +311,16 @@ async function backfillRecurrences(
 			exclusions: template.exclusions,
 		});
 
-		// Which occurrence SLOTS this series already occupies. A materialized row's
-		// slot is read from its deterministic id (stable under date edits), falling
-		// back to `toCivilDate(timestamp)` for legacy random-id rows whose slot is
-		// only knowable that way. Keying on the slot (not the row's current civil
-		// date) stops an edited row from either resurrecting its original slot or
-		// shadowing a different slot it happened to be dragged onto.
+		// Which occurrence slots this series' rows already occupy, plus the
+		// raw-timestamp fallback for rows whose slot is orphaned — see
+		// `seriesOccupancy`, the shared definition of dedup semantics that this and
+		// `deriveVirtualOccurrences` both go through. Only the DUE timestamps are
+		// passed: those are the occurrences this loop can materialize.
 		const seriesRows = existingTransactions.filter((t) => t.series_id === template.id);
-		const existingSlots = new Set(
-			seriesRows.map(
-				(t) => occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
-			)
-		);
-
-		// Rows whose slot doesn't match ANY occurrence this series currently
-		// generates are orphaned: a materialized row's slot label is baked into
-		// its id at creation time and never recomputed, and it can disagree with
-		// a fresh `toCivilDate` of its own timestamp for a row created under a
-		// different civil-day derivation than the one running now (an older app
-		// build, a different device/OS timezone database, a DST-table update) —
-		// confirmed in the field as two rows for one instant, 21:22 UTC / 00:22
-		// next-day Helsinki, that landed on different sides of that boundary. An
-		// orphaned row's raw timestamp is the only remaining reliable identity,
-		// so match candidates against it as a fallback. Checking "does this slot
-		// match a currently-generated occurrence" first (rather than matching
-		// raw timestamps unconditionally) is what keeps this from breaking
-		// KII-157: a row legitimately moved onto another occurrence's exact
-		// instant (e.g. a date-only edit that keeps the series' fixed
-		// hour-of-day) still has a real, currently-generated slot of its own, so
-		// it is never treated as a stray mislabeling of the instant it now
-		// merely coincides with.
-		const generatedCivilDates = new Set(dueTimestamps.map(toCivilDate));
-		const orphanTimestamps = new Set(
-			seriesRows
-				.filter(
-					(t) =>
-						!generatedCivilDates.has(
-							occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
-						)
-				)
-				.map((t) => t.timestamp)
+		const { slots: existingSlots, orphanTimestamps } = seriesOccupancy(
+			template.id,
+			seriesRows,
+			dueTimestamps
 		);
 
 		for (const ts of dueTimestamps) {

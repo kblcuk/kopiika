@@ -49,6 +49,79 @@ export function occurrenceSlotCivilDate(id: string, seriesId: string): string | 
 	return CIVIL_DATE_RE.test(civil) ? civil : null;
 }
 
+/** The minimum shape of a materialized occurrence row the helpers below need. */
+export interface OccurrenceRow {
+	id: string;
+	timestamp: number;
+}
+
+/** What a series' materialized rows occupy — see `seriesOccupancy`. */
+export interface SeriesOccupancy {
+	/** Civil SLOT dates already occupied by this series' materialized rows. */
+	slots: Set<string>;
+	/** Raw timestamps of rows whose slot matches no generated occurrence. */
+	orphanTimestamps: Set<number>;
+}
+
+/**
+ * A row's occurrence slot: read from its deterministic id, falling back to the
+ * civil date of its raw timestamp for legacy random-id rows (pre-KII-136),
+ * whose slot is only knowable that way.
+ */
+function rowSlotCivilDate(row: OccurrenceRow, seriesId: string): string {
+	return occurrenceSlotCivilDate(row.id, seriesId) ?? toCivilDate(row.timestamp);
+}
+
+/**
+ * Which occurrence SLOTS a series' materialized rows already occupy, plus the
+ * raw-timestamp fallback for rows whose slot is orphaned. This is THE shared
+ * definition of occurrence-dedup semantics: `backfillRecurrences`
+ * (materialization) and `deriveVirtualOccurrences` (virtual occurrences) both
+ * go through it, so the two surfaces can never drift. Each caller passes the
+ * timestamps IT generates — backfill only the due ones, derivation the whole
+ * horizon — and skips any candidate occurrence whose civil date is in `slots`
+ * or whose raw timestamp is in `orphanTimestamps`.
+ *
+ * Keying on the SLOT (not on the row's current civil date) stops an edited row
+ * from either resurrecting its original slot or shadowing a different slot it
+ * happened to be dragged onto (KII-157).
+ *
+ * Rows whose slot matches NO occurrence in `generatedTimestamps` are ORPHANED.
+ * A slot label is baked into the id at creation time and never recomputed, so
+ * it can disagree with a fresh `toCivilDate` of the row's own timestamp when
+ * the row was created under a different civil-day derivation than the one
+ * running now (an older app build, a different device/OS timezone database, a
+ * DST-table update) — confirmed in the field as two rows for one instant,
+ * 21:22 UTC / 00:22 next-day Helsinki, that landed on different sides of that
+ * boundary. An orphaned row's raw timestamp is its only remaining reliable
+ * identity, hence the fallback.
+ *
+ * Testing "does this slot match a currently-generated occurrence" FIRST,
+ * rather than matching raw timestamps unconditionally, is what keeps that
+ * fallback from breaking KII-157: a row legitimately moved onto another
+ * occurrence's exact instant (e.g. a date-only edit that keeps the series'
+ * fixed hour-of-day) still has a real, currently-generated slot of its own, so
+ * it is never treated as a stray mislabeling of the instant it now merely
+ * coincides with.
+ */
+export function seriesOccupancy(
+	seriesId: string,
+	rows: readonly OccurrenceRow[],
+	generatedTimestamps: readonly number[]
+): SeriesOccupancy {
+	const generatedCivilDates = new Set(generatedTimestamps.map(toCivilDate));
+	const slots = new Set<string>();
+	const orphanTimestamps = new Set<number>();
+
+	for (const row of rows) {
+		const slot = rowSlotCivilDate(row, seriesId);
+		slots.add(slot);
+		if (!generatedCivilDates.has(slot)) orphanTimestamps.add(row.timestamp);
+	}
+
+	return { slots, orphanTimestamps };
+}
+
 /**
  * A canonical timestamp on a civil date, used when recording a recurrence
  * exclusion for a SLOT (exclusions are stored as timestamps but matched by civil

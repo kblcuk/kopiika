@@ -1,12 +1,7 @@
 import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
 import { isDue } from './due';
-import {
-	generateOccurrences,
-	occurrenceId,
-	occurrenceSlotCivilDate,
-	toCivilDate,
-} from './recurrence';
+import { generateOccurrences, occurrenceId, seriesOccupancy, toCivilDate } from './recurrence';
 
 /**
  * Derive the recurrence occurrences that are NOT YET DUE (strictly later than
@@ -16,29 +11,12 @@ import {
  * Pure — the single shared source of "upcoming" occurrences for both the
  * balance hook and the history screen, so the two surfaces can never drift.
  *
- * Dedup keys on `(series_id, occurrence SLOT)`, where the slot is read from the
- * real row's deterministic id and falls back to `toCivilDate(timestamp)` for
- * legacy random-id rows. Keying on the slot (not the row's current civil date)
- * matches `backfillRecurrences`: a row whose date the user edited still
- * suppresses the occurrence it was generated for, instead of resurrecting that
- * occurrence as a duplicate while shadowing whichever slot it landed on
- * (KII-157).
- *
- * It ALSO falls back to matching a materialized row by its raw millisecond
- * timestamp, but ONLY when that row's slot is "orphaned" — i.e. does not equal
- * the civil date of any occurrence this series currently generates. A slot's
- * label is baked into its id at creation time and never recomputed; a fresh
- * candidate's label is computed right here via the same `toCivilDate`. The two
- * are normally the same day for the same instant, but they can disagree for a
- * row created under a different civil-day derivation than the one running now
- * (an older app build, a different device/OS timezone database, a DST-table
- * update) — confirmed in the field as two rows for one instant, 21:22 UTC /
- * 00:22 next-day Helsinki, that landed on different sides of that boundary.
- * The orphan check is what keeps this from breaking KII-157: a row
- * legitimately moved onto another occurrence's exact instant (e.g. a
- * date-only edit that keeps the series' fixed hour-of-day) still has a real,
- * currently-generated slot of its own, so it is never treated as a stray
- * mislabeling of the instant it now merely coincides with.
+ * Dedup keys on `(series_id, occurrence SLOT)`, with a raw-timestamp fallback
+ * for rows whose slot is orphaned. Both rules live in `seriesOccupancy` and are
+ * shared verbatim with `backfillRecurrences`, so the two surfaces can never
+ * drift on what suppresses an occurrence (KII-157) — see that helper for the
+ * field-confirmed case behind the fallback and why the orphan check is ordered
+ * the way it is.
  *
  * @param exclusionsByTemplate template_id → Set of excluded civil dates (YYYY-MM-DD)
  */
@@ -71,11 +49,6 @@ export function deriveVirtualOccurrences(
 		const rule: RecurrenceRule = JSON.parse(template.rule);
 		const excludedCivil = exclusionsByTemplate.get(template.id) ?? new Set<string>();
 		const seriesRows = realBySeries.get(template.id) ?? [];
-		const materializedSlots = new Set(
-			seriesRows.map(
-				(t) => occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
-			)
-		);
 
 		// generateOccurrences is bounded by min(endDate, now + horizonDays); pass a
 		// horizon wide enough to reach rangeEnd, then filter to (now, rangeEnd].
@@ -92,19 +65,10 @@ export function deriveVirtualOccurrences(
 			exclusions: template.exclusions,
 		});
 
-		// Rows whose slot doesn't match ANY occurrence this series currently
-		// generates are orphaned — see doc comment. Their raw timestamp is the
-		// only remaining reliable identity, so index them by it as a fallback.
-		const generatedCivilDates = new Set(timestamps.map(toCivilDate));
-		const orphanTimestamps = new Set(
-			seriesRows
-				.filter(
-					(t) =>
-						!generatedCivilDates.has(
-							occurrenceSlotCivilDate(t.id, template.id) ?? toCivilDate(t.timestamp)
-						)
-				)
-				.map((t) => t.timestamp)
+		const { slots: materializedSlots, orphanTimestamps } = seriesOccupancy(
+			template.id,
+			seriesRows,
+			timestamps
 		);
 
 		for (const ts of timestamps) {
