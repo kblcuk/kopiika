@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.37](/codeberg.org/kblcuk/kopiika/compare/v0.3.36...v0.3.37) (2026-09-21)
+
+### Bug Fixes
+
+* **bank-import:** widen dup-match to a date window and series-aware amount tolerance ([2876d2d](/codeberg.org/kblcuk/kopiika/commit/2876d2dcaeed9a6ef6c40041ac50d51600d9d51e))
+* **import:** distinguish skipped rows from rows imported with a change ([c440f4f](/codeberg.org/kblcuk/kopiika/commit/c440f4ff8e7e46a23a95208fb2d9fef51ae10df1))
+* **import:** stop exporting ImportNoticeCode ([f22c7fd](/codeberg.org/kblcuk/kopiika/commit/f22c7fdbc41cd88aae63e2c6959f929f02906778))
+* **import:** summarise the import prompt by cause instead of by row ([396f2ce](/codeberg.org/kblcuk/kopiika/commit/396f2ce6c53c14c7df7063e6ca19b82407fd6cb9))
+
 ## [0.3.36](https://codeberg.org/kblcuk/kopiika/compare/v0.3.35...v0.3.36) (2026-09-19)
 
 
