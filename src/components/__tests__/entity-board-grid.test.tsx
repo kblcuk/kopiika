@@ -33,6 +33,12 @@ jest.mock('@/src/store', () => {
 	throw new Error('The practice grid must not import personal state');
 });
 
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+	act(() => jest.runOnlyPendingTimers());
+	jest.useRealTimers();
+});
+
 test('uses practice lookup and private drop targets during the native drag lifecycle', () => {
 	const entities = getPracticeEntities(createPracticeSession('EUR'));
 	const source = entities.find((e) => e.type === 'income')!;

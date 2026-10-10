@@ -155,7 +155,7 @@ export const SortableEntityBubble = memo(function SortableEntityBubble({
 					style={[
 						highlightStyle,
 						{
-							borderWidth: 1,
+							borderWidth: highlighted ? 1 : 0,
 							borderColor: highlighted ? colors.ink.muted : 'transparent',
 							borderRadius: 16,
 						},
