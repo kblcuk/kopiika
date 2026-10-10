@@ -7,7 +7,7 @@ module.exports = {
 		'**/hooks/__tests__/**/*.test.tsx',
 		'**/app/**/__tests__/**/*.test.tsx',
 	],
-	testPathIgnorePatterns: ['/node_modules/', '\\.worktrees/'],
+	testPathIgnorePatterns: ['/node_modules/', '<rootDir>/\\.worktrees/'],
 	moduleNameMapper: {
 		// CSS imports are not valid in Jest (no bundler) — must come before @/ alias
 		'^@/.*\\.css$': '<rootDir>/src/__mocks__/style-mock.js',
