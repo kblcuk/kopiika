@@ -7,6 +7,7 @@ import {
 	KeyboardExtender,
 } from 'react-native-keyboard-controller';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { TransactionEntryFields } from './transaction-entry-fields';
 import { PageSheetModal } from './page-sheet-modal';
 import {
 	ArrowRight,
@@ -985,20 +986,7 @@ export function TransactionModal({
 					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
 						Amount
 					</Text>
-					<View className={textInputClassNames.inlineContainer}>
-						<TextInput
-							{...sharedNumericTextInputProps}
-							{...amountExpr.inputProps}
-							placeholder="0"
-							className={textInputClassNames.heroAmountInput}
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-							testID="transaction-amount-input"
-						/>
-						<Text className={textInputClassNames.suffixLarge}>
-							{getCurrencySymbol(currency)}
-						</Text>
-					</View>
+					<TransactionEntryFields currency={currency} expression={amountExpr} />
 					{amountExpr.preview && (
 						<Text className="mt-1 font-sans text-base text-ink-muted">
 							{amountExpr.preview}

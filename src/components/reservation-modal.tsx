@@ -1,262 +1,28 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, TextInput, Pressable, Platform, Alert } from 'react-native';
-import { Text } from './text';
-import {
-	KeyboardAwareScrollView,
-	KeyboardController,
-	KeyboardExtender,
-} from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight } from 'lucide-react-native';
-
 import type { EntityWithBalance } from '@/src/types';
-import {
-	formatAmount,
-	parseAmountToMinor,
-	getCurrencySymbol,
-	DEFAULT_CURRENCY,
-} from '@/src/utils/format';
-import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
 import { useStore } from '@/src/store';
-import { TransactionValidationError } from '@/src/utils/transaction-validation';
-import { sharedNumericTextInputProps, styles, textInputClassNames } from '../styles/text-input';
-import { getIcon } from '@/src/constants/icon-registry';
-import { getEntityColors } from '@/src/utils/entity-colors';
-import { colors } from '@/src/theme/colors';
-import { useExpressionInput } from '@/src/hooks/use-expression-input';
-import { OperatorToolbar } from './operator-toolbar';
 import { getReservationForPair } from '@/src/utils/savings-transactions';
-import { InfoPin } from '@/src/components/info-pin';
-import { PageSheetModal } from './page-sheet-modal';
-
+import { InfoPin } from './info-pin';
+import { ReservationForm } from './reservation-form';
 interface ReservationModalProps {
 	visible: boolean;
 	account: EntityWithBalance | null;
 	saving: EntityWithBalance | null;
 	onClose: () => void;
 }
-
-export function ReservationModal({ visible, account, saving, onClose }: ReservationModalProps) {
-	const [amount, setAmount] = useState('');
-	const insets = useSafeAreaInsets();
-	const maxDecimalPlaces = useMemo(
-		() => getCurrencyDecimalPlaces(account?.currency ?? DEFAULT_CURRENCY),
-		[account?.currency]
-	);
-	const amountExpr = useExpressionInput(amount, setAmount, { maxDecimalPlaces });
-
-	const reserveToSaving = useStore((s) => s.reserveToSaving);
+export function ReservationModal(props: ReservationModalProps) {
+	const reserve = useStore((s) => s.reserveToSaving);
 	const transactions = useStore((s) => s.transactions);
-
-	// Derive current reservation for this pair from transactions (minor units)
+	const { account, saving } = props;
 	const currentNetMinor =
 		account && saving ? getReservationForPair(transactions, account.id, saving.id) : 0;
-	const hasExisting = currentNetMinor > 0;
-
-	useEffect(() => {
-		if (visible && account && saving) {
-			setAmount('');
-			const ref = amountExpr.inputRef;
-			setTimeout(() => ref.current?.focus(), 100);
-		}
-	}, [visible, account, saving, amountExpr.inputRef]);
-
-	const handleCancel = useCallback(() => {
-		void KeyboardController.dismiss();
-		onClose();
-	}, [onClose]);
-
-	if (!account || !saving) return null;
-
-	const currency = account.currency;
-	const parsedAmountMinor = parseAmountToMinor(amount, currency);
-	const canSubmit = Number.isFinite(parsedAmountMinor) && parsedAmountMinor > 0;
-
-	const showReservationError = (error: unknown) => {
-		console.error('Reservation failed:', error);
-		Alert.alert(
-			'Reservation failed',
-			error instanceof TransactionValidationError
-				? error.message
-				: 'Could not update the reservation. Please try again.'
-		);
-	};
-
-	const handleSubmit = async () => {
-		if (!canSubmit) return;
-		const resolved = amountExpr.resolve();
-		const finalAmountMinor = parseAmountToMinor(resolved, currency);
-		if (!Number.isFinite(finalAmountMinor) || finalAmountMinor <= 0) return;
-		try {
-			await reserveToSaving(account.id, saving.id, currentNetMinor + finalAmountMinor);
-		} catch (error) {
-			showReservationError(error);
-			return;
-		}
-		void KeyboardController.dismiss();
-		onClose();
-	};
-
-	const handleClear = async () => {
-		try {
-			await reserveToSaving(account.id, saving.id, 0);
-		} catch (error) {
-			showReservationError(error);
-			return;
-		}
-		void KeyboardController.dismiss();
-		onClose();
-	};
-
-	const renderBubble = (entity: EntityWithBalance) => {
-		const IconComponent = getIcon(entity.icon || 'circle');
-		const typeColors = getEntityColors(entity.type, entity.color);
-		return (
-			<View className="flex-1 items-center">
-				<View
-					className="mb-2 h-12 w-12 items-center justify-center rounded-full"
-					style={{ backgroundColor: typeColors.bgColor }}
-				>
-					<IconComponent size={20} color={typeColors.iconColor} />
-				</View>
-				<Text className="text-center font-sans text-sm text-ink-muted" numberOfLines={1}>
-					{entity.name}
-				</Text>
-				<Text
-					className="text-center font-sans text-[10px] text-ink-muted"
-					numberOfLines={1}
-				>
-					{formatAmount(entity.actual, entity.currency)}
-				</Text>
-			</View>
-		);
-	};
-
 	return (
-		<PageSheetModal visible={visible} onRequestClose={handleCancel} testID="reservation-modal">
-			{/* Header */}
-			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-				<Pressable onPress={handleCancel} hitSlop={20} testID="reservation-cancel-button">
-					<Text className="font-sans text-base text-ink-muted">Cancel</Text>
-				</Pressable>
-				<View className="flex-row items-center">
-					<Text className="font-sans-semibold text-base text-ink">Reserve</Text>
-					<InfoPin articleId="reservations" />
-				</View>
-				<View style={{ width: 48 }} />
-			</View>
-			<KeyboardAwareScrollView
-				bottomOffset={50}
-				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-				keyboardShouldPersistTaps="handled"
-				className="flex-1 px-6"
-				contentContainerStyle={{
-					paddingBottom: Math.max(insets.bottom, 16),
-				}}
-			>
-				{/* Header: account → saving */}
-				<View className="mb-6 mt-4 flex-row items-center justify-center">
-					{renderBubble(account)}
-					<ArrowRight
-						size={20}
-						color={colors.ink.muted}
-						style={{ marginHorizontal: 16 }}
-					/>
-					{renderBubble(saving)}
-				</View>
-
-				{/* Amount input */}
-				<View className="mb-4 items-center">
-					<Text
-						className="mb-1 font-sans text-sm text-ink-muted"
-						style={{ letterSpacing: 0.48 }}
-					>
-						Reserve from {account.name}
-					</Text>
-					<View className="flex-row items-baseline">
-						<Text
-							className="text-ink-faint font-sans-semibold"
-							style={{ fontSize: 24 }}
-						>
-							{getCurrencySymbol(currency)}
-						</Text>
-						<TextInput
-							{...sharedNumericTextInputProps}
-							{...amountExpr.inputProps}
-							placeholder="0"
-							className={textInputClassNames.heroAmountInput}
-							style={styles.input}
-							placeholderTextColor={colors.ink.placeholder}
-						/>
-					</View>
-					{amountExpr.preview && (
-						<Text className="mt-1 font-sans text-xs text-ink-muted">
-							{amountExpr.preview}
-						</Text>
-					)}
-					{hasExisting && (
-						<Text className="text-ink-faint mt-1 font-sans text-xs">
-							Currently reserved: {formatAmount(currentNetMinor, currency)}
-						</Text>
-					)}
-				</View>
-
-				{/* Saving goal context */}
-				<View className="mb-6 rounded-xl bg-paper-100 px-4 py-3">
-					<View className="flex-row justify-between">
-						<Text className="font-sans text-sm text-ink-muted">Saved so far</Text>
-						<Text className="font-sans-semibold text-sm text-ink">
-							{formatAmount(saving.actual, currency)}
-						</Text>
-					</View>
-					{saving.planned > 0 && (
-						<View className="mt-1 flex-row justify-between">
-							<Text className="font-sans text-sm text-ink-muted">Goal</Text>
-							<Text className="font-sans-semibold text-sm text-ink">
-								{formatAmount(saving.planned, currency)}
-							</Text>
-						</View>
-					)}
-				</View>
-
-				{/* Actions */}
-				<View className="flex-row gap-3">
-					{hasExisting && (
-						<Pressable
-							onPress={() => {
-								void handleClear();
-							}}
-							testID="reservation-clear-button"
-							className="h-12 items-center justify-center rounded-2xl bg-paper-200 px-5"
-						>
-							<Text className="font-sans-semibold text-base text-negative">
-								Clear
-							</Text>
-						</Pressable>
-					)}
-					<Pressable
-						onPress={() => {
-							void handleSubmit();
-						}}
-						disabled={!canSubmit}
-						testID="reservation-submit-button"
-						className={`h-12 flex-1 items-center justify-center rounded-2xl ${canSubmit ? 'bg-ink' : 'bg-paper-300'}`}
-					>
-						<Text
-							className={`font-sans-semibold text-base ${canSubmit ? 'text-paper-50' : 'text-ink-faint'}`}
-						>
-							Reserve
-						</Text>
-					</Pressable>
-				</View>
-			</KeyboardAwareScrollView>
-
-			<KeyboardExtender enabled={amountExpr.focused}>
-				<OperatorToolbar
-					onOperator={amountExpr.insertOperator}
-					onEquals={amountExpr.resolve}
-				/>
-			</KeyboardExtender>
-		</PageSheetModal>
+		<ReservationForm
+			{...props}
+			currentNetMinor={currentNetMinor}
+			help={<InfoPin articleId="reservations" />}
+			onSubmit={(n) =>
+				account && saving ? reserve(account.id, saving.id, n) : Promise.resolve()
+			}
+		/>
 	);
 }
