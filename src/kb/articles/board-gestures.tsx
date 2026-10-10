@@ -6,7 +6,8 @@ export function BoardGestures() {
 		<View className="px-5 pb-10">
 			<Text className="mb-4 font-sans-bold text-2xl text-ink">Board gestures</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
-				Four gestures cover everything on the Home board.
+				These are the default gestures. Settings lets you swap tap and long-press: one
+				records, the other opens History. Dragging works the same in either preference.
 			</Text>
 
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Tap — record</Text>

@@ -22,7 +22,7 @@ describe('Help article screen', () => {
 	it('renders the requested article body', () => {
 		mockSearchParams = { articleId: 'core-loop' };
 		const { getByText } = render(<ArticleScreen />);
-		expect(getByText('The core loop')).toBeTruthy();
+		expect(getByText('Record money and see where it goes')).toBeTruthy();
 	});
 
 	it('renders a not-found message for unknown ids', () => {

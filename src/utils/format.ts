@@ -86,7 +86,7 @@ export function isOverspent(actual: number, planned: number): boolean {
 // Parse a currency string to a major-unit number, handling both European
 // (1.234,56) and US (1,234.56) formats. Detects the decimal separator from
 // the input pattern rather than relying on locale or currency.
-export function reverseFormatCurrency(amount: string) {
+export function reverseFormatCurrency(amount: string, decimalPlaces = 2) {
 	// Check for negative sign
 	const isNegative = amount.trim().startsWith('-');
 
@@ -101,8 +101,8 @@ export function reverseFormatCurrency(amount: string) {
 
 	// The last separator is the decimal point when both separators are present
 	// (grouping + decimal, e.g. 1.234,56 or 1,234.56) or a lone separator has
-	// ≤2 trailing digits (e.g. 1,15). Otherwise it's a thousands separator.
-	const isDecimal = lastSep !== -1 && (hasBoth || digitsAfter <= 2);
+	// up to the currency precision (default 2) trailing digits. Otherwise it is grouping.
+	const isDecimal = lastSep !== -1 && (hasBoth || digitsAfter <= decimalPlaces);
 
 	const digits = cleaned.replace(/[.,]/g, '');
 	const cut = digits.length - digitsAfter;
@@ -116,7 +116,9 @@ export function reverseFormatCurrency(amount: string) {
 // KII-120: convenience helper for the common pattern of parsing user input
 // straight into minor units. Returns NaN if the string can't be parsed.
 export function parseAmountToMinor(input: string, currency: string): number {
-	const major = reverseFormatCurrency(input);
+	// Editable inputs have no grouping; three-decimal currencies must retain their last digit.
+	// Keep legacy grouping/rounding behavior for zero- and two-decimal currencies.
+	const major = reverseFormatCurrency(input, Math.max(2, getCurrencyDecimalPlaces(currency)));
 	if (!Number.isFinite(major)) return NaN;
 	return toMinor(major, currency);
 }

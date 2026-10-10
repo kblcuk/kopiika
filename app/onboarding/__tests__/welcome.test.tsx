@@ -29,9 +29,15 @@ describe('Onboarding welcome screen', () => {
 		mockSearchParams = {};
 	});
 
-	it('pushes /onboarding/setup when continue is tapped', () => {
+	it('opens practice when continue is tapped', () => {
 		const { getByTestId } = render(<WelcomeScreen />);
 		fireEvent.press(getByTestId('onboarding-welcome-continue'));
+		expect(mockPush).toHaveBeenCalledWith('/onboarding/practice');
+	});
+
+	it('can bypass practice and start personal setup', () => {
+		const ui = render(<WelcomeScreen />);
+		fireEvent.press(ui.getByTestId('onboarding-welcome-setup'));
 		expect(mockPush).toHaveBeenCalledWith('/onboarding/setup');
 	});
 

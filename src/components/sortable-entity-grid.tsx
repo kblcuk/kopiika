@@ -1,7 +1,23 @@
 import { makeMutable, type SharedValue } from 'react-native-reanimated';
 import { useStore } from '@/src/store';
-import * as dropZones from '@/src/utils/drop-zone';
+import {
+	registerDropZone,
+	unregisterDropZone,
+	registerRemeasureCallback,
+	unregisterRemeasureCallback,
+	findDropTarget,
+	remeasureAllDropZones,
+} from '@/src/utils/drop-zone';
 import { EntityBoardGrid, type EntityBoardGridProps } from './entity-board-grid';
+
+const dropZones = {
+	registerDropZone,
+	unregisterDropZone,
+	registerRemeasureCallback,
+	unregisterRemeasureCallback,
+	findDropTarget,
+	remeasureAllDropZones,
+};
 
 let hoveredId: SharedValue<string> | null = null;
 type SortableEntityGridProps = Omit<

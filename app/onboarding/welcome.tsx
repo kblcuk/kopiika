@@ -12,11 +12,12 @@ export default function WelcomeScreen() {
 	const fromSettings = params.fromSettings === 'true';
 
 	const handleContinue = () => {
-		if (fromSettings) {
-			router.push({ pathname: '/onboarding/setup', params: { fromSettings: 'true' } });
-		} else {
-			router.push('/onboarding/setup');
-		}
+		if (fromSettings)
+			router.push({
+				pathname: '/onboarding/practice' as never,
+				params: { origin: 'settings' },
+			});
+		else router.push('/onboarding/practice' as never);
 	};
 
 	const handleSkip = async () => {
@@ -58,7 +59,7 @@ export default function WelcomeScreen() {
 				</View>
 
 				<Text className="mt-10 font-sans text-sm text-ink-muted">
-					No accounts, no sync, no judgement. Your data stays on your device.
+					No bank linking. Start with example money, then set up your own board.
 				</Text>
 			</View>
 
@@ -69,7 +70,17 @@ export default function WelcomeScreen() {
 					className="h-12 items-center justify-center rounded-2xl bg-ink"
 				>
 					<Text className="font-sans-semibold text-base text-paper-50">
-						Set up my money map
+						Try with example money
+					</Text>
+				</Pressable>
+				<Pressable
+					accessibilityRole="button"
+					testID={TestIDs.onboarding.welcomeSetupButton}
+					onPress={() => router.push('/onboarding/setup')}
+					className="mt-3 min-h-12 items-center justify-center rounded-2xl border border-paper-300 px-4 py-3"
+				>
+					<Text className="font-sans-semibold text-base text-ink">
+						Set up my own board
 					</Text>
 				</Pressable>
 				<Pressable

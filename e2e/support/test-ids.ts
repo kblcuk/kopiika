@@ -82,6 +82,15 @@ export const TestIDs = {
 	onboarding: {
 		welcomeScreen: 'onboarding-welcome',
 		welcomeContinueButton: 'onboarding-welcome-continue',
+		welcomeSetupButton: 'onboarding-welcome-setup',
+		practiceScreen: 'practice-screen',
+		practiceExit: 'practice-exit',
+		practiceSheetExit: 'practice-sheet-exit',
+		practiceRecord: 'practice-record',
+		practiceNext: 'practice-next',
+		practiceFinish: 'practice-finish',
+		practiceExplore: 'practice-explore',
+		practiceDemo: 'practice-demo',
 		welcomeSkipLink: 'onboarding-welcome-skip',
 		setupScreen: 'onboarding-setup',
 		setupChip: (key: string) => `onboarding-setup-chip-${key}`,
@@ -112,6 +121,7 @@ export const TestIDs = {
 
 	reservation: {
 		modal: 'reservation-modal',
+		amountInput: 'reservation-amount-input',
 		cancelButton: 'reservation-cancel-button',
 		submitButton: 'reservation-submit-button',
 		clearButton: 'reservation-clear-button',
@@ -123,12 +133,14 @@ export const TestIDs = {
 	},
 
 	dashboardTabButton: 'dashboard-tab-button',
+	settingsTabButton: 'settings-tab-button',
 	historyTabButton: 'history-tab-button',
 	historyScreen: 'history-screen',
 	historyEntityFilterLabel: 'history-entity-filter-label',
 
 	help: {
 		listScreen: 'help-list-screen',
+		replayTutorial: 'help-replay-tutorial',
 		searchInput: 'help-search-input',
 		articleRow: (id: string) => `help-article-row-${id}`,
 		articleScreen: (id: string) => `help-article-screen-${id}`,

@@ -57,6 +57,22 @@ export default function HelpIndexScreen() {
 					/>
 				</View>
 			</View>
+			<Pressable
+				accessibilityRole="button"
+				testID={TestIDs.help.replayTutorial}
+				className="mx-5 my-3 min-h-12 justify-center rounded-2xl bg-paper-100 px-4 py-3"
+				onPress={() =>
+					router.push({
+						pathname: '/onboarding/practice' as never,
+						params: { origin: 'help' },
+					})
+				}
+			>
+				<Text className="font-sans-semibold text-ink">Show tutorial again</Text>
+				<Text className="mt-1 font-sans text-sm text-ink-muted">
+					Try receiving, spending, and saving with example money.
+				</Text>
+			</Pressable>
 			<FlatList data={filtered} keyExtractor={(a) => a.id} renderItem={renderItem} />
 		</SafeAreaView>
 	);

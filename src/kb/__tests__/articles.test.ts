@@ -2,10 +2,6 @@ import { describe, test, expect } from 'bun:test';
 import { KB_ARTICLES_META } from '../articles-meta';
 
 describe('KB_ARTICLES registry', () => {
-	test('contains 10 articles', () => {
-		expect(KB_ARTICLES_META).toHaveLength(10);
-	});
-
 	test('all ids are unique', () => {
 		const ids = KB_ARTICLES_META.map((a) => a.id);
 		expect(new Set(ids).size).toBe(ids.length);
@@ -41,6 +37,11 @@ describe('KB_ARTICLES registry', () => {
 				'recurring',
 				'splits',
 				'investment-accounts',
+				'dashboard',
+				'summary',
+				'history',
+				'settings',
+				'bubble-settings',
 			])
 		);
 	});

@@ -9,7 +9,7 @@ import {
 import { toMinor } from '@/src/utils/money';
 
 export type PracticeLesson = 'receive' | 'spend' | 'save';
-export type PracticePhase = 'action' | 'feedback' | 'complete' | 'explore';
+type PracticePhase = 'action' | 'feedback' | 'complete' | 'explore';
 export interface PracticeSession {
 	entities: Entity[];
 	transactions: Transaction[];

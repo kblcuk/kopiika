@@ -11,7 +11,19 @@ import { Recurring } from './articles/recurring';
 import { Splits } from './articles/splits';
 import { InvestmentAccounts } from './articles/investment-accounts';
 
+import { Dashboard } from './articles/dashboard';
+import { Summary } from './articles/summary';
+import { History } from './articles/history';
+import { SettingsHelp } from './articles/settings';
+import { BubbleSettings } from './articles/bubble-settings';
+
 const BODY_MAP: Record<KbArticleId, ComponentType> = {
+	dashboard: Dashboard,
+	summary: Summary,
+	history: History,
+	settings: SettingsHelp,
+	'bubble-settings': BubbleSettings,
+
 	'core-loop': CoreLoop,
 	'entity-types': EntityTypes,
 	'board-gestures': BoardGestures,

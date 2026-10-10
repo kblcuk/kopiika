@@ -246,12 +246,17 @@ describe('parseAmountToMinor', () => {
 		expect(parseAmountToMinor('', 'EUR')).toBeNaN();
 	});
 
-	// Caveat: `reverseFormatCurrency` treats more than 2 digits after the
-	// last separator as a thousands separator (so `'1.234'` parses to 1234,
-	// not 1.234). This is invisible on the live path because
-	// `sanitizeAmountInput` caps decimals to the per-currency max before
-	// `parseAmountToMinor` ever sees the string. A BHD-aware parser would
-	// be a separate refactor — out of scope for KII-120.
+	test('preserves all three decimal places for KWD and BHD input', () => {
+		expect(parseAmountToMinor('12.345', 'KWD')).toBe(12345);
+		expect(parseAmountToMinor('12,345', 'BHD')).toBe(12345);
+		expect(parseAmountToMinor('1,234.567', 'KWD')).toBe(1234567);
+		expect(parseAmountToMinor('1.234,567', 'BHD')).toBe(1234567);
+	});
+
+	test('retains two-decimal grouping detection for existing inputs', () => {
+		expect(parseAmountToMinor('1,234', 'EUR')).toBe(123400);
+		expect(parseAmountToMinor('1.234', 'EUR')).toBe(123400);
+	});
 });
 
 describe('formatFullDate', () => {

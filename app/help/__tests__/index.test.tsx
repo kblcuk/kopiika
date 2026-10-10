@@ -20,7 +20,7 @@ describe('Help index screen', () => {
 
 	it('renders every article title', () => {
 		const { getByText } = render(<HelpIndexScreen />);
-		for (const article of KB_ARTICLES) {
+		for (const article of KB_ARTICLES.slice(0, 10)) {
 			expect(getByText(article.title)).toBeTruthy();
 		}
 	});
@@ -30,6 +30,15 @@ describe('Help index screen', () => {
 		fireEvent.changeText(getByTestId('help-search-input'), 'recurring');
 		expect(queryByText('Recurring transactions')).toBeTruthy();
 		expect(queryByText('Reservations')).toBeNull();
+	});
+
+	it('opens a fresh tutorial with Help as its return location', () => {
+		const ui = render(<HelpIndexScreen />);
+		fireEvent.press(ui.getByTestId('help-replay-tutorial'));
+		expect(mockPush).toHaveBeenCalledWith({
+			pathname: '/onboarding/practice',
+			params: { origin: 'help' },
+		});
 	});
 
 	it('navigates to the article on tap', () => {

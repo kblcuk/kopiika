@@ -475,14 +475,19 @@ export default function SettingsScreen() {
 					<Pressable
 						testID={TestIDs.settings.tourRow}
 						onPress={() =>
-							router.push('/onboarding/welcome?fromSettings=true' as never)
+							router.push({
+								pathname: '/onboarding/practice' as never,
+								params: { origin: 'settings' },
+							})
 						}
 						className="flex-row items-center justify-between px-4 py-3.5 active:bg-paper-200"
 					>
 						<View>
-							<Text className="font-sans text-base text-ink">Take the tour</Text>
+							<Text className="font-sans text-base text-ink">
+								Show tutorial again
+							</Text>
 							<Text className="font-sans text-sm text-ink-muted">
-								See what new users see
+								Practice with example money
 							</Text>
 						</View>
 						<ChevronRight size={16} color={colors.ink.muted} />

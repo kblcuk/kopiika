@@ -187,6 +187,7 @@ export default function TabLayout() {
 					name="settings"
 					options={{
 						title: 'Settings',
+						tabBarButtonTestID: 'settings-tab-button',
 						tabBarIcon: ({ color }) => (
 							<IconSymbol size={28} name="gearshape.fill" color={color} />
 						),

@@ -47,11 +47,15 @@ export function CreateTransactionForm({
 	const [error, setError] = useState('');
 	const submitting = useRef(false);
 	const active = useRef(false);
+	const openingVersion = useRef(0);
 	const expr = useExpressionInput(amount, setAmount, {
 		maxDecimalPlaces: getCurrencyDecimalPlaces(currency),
 	});
 	useEffect(() => {
+		openingVersion.current++;
 		active.current = visible;
+		submitting.current = false;
+		setBusy(false);
 		setAmount(
 			initialAmountMinor === undefined
 				? ''
@@ -68,6 +72,7 @@ export function CreateTransactionForm({
 	}, [visible, fromEntity.id, toEntity.id, currency, initialAmountMinor, expr.inputRef]);
 	const cancel = () => {
 		active.current = false;
+		openingVersion.current++;
 		void KeyboardController.dismiss();
 		onClose();
 	};
@@ -79,22 +84,26 @@ export function CreateTransactionForm({
 			currency,
 			amount_minor: parseAmountToMinor(expr.resolve(), currency),
 		};
+		const version = openingVersion.current;
 		submitting.current = true;
 		setBusy(true);
 		setError('');
 		try {
 			ensureValid(validateTransaction(input, entities));
 			await onSubmit(input);
-			if (active.current) {
+			if (active.current && version === openingVersion.current) {
+				active.current = false;
 				void KeyboardController.dismiss();
 				onClose();
 			}
 		} catch (e) {
-			if (active.current)
+			if (active.current && version === openingVersion.current)
 				setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
 		} finally {
-			submitting.current = false;
-			if (active.current) setBusy(false);
+			if (version === openingVersion.current) {
+				submitting.current = false;
+				if (active.current) setBusy(false);
+			}
 		}
 	};
 	return (
@@ -104,25 +113,30 @@ export function CreateTransactionForm({
 			testID="practice-transaction-form"
 		>
 			{tutorialHeader}
-			<View className="flex-row items-center justify-between border-b border-paper-300 px-5 py-4">
-				<Pressable
-					testID="transaction-cancel-button"
-					onPress={cancel}
-					hitSlop={16}
-					accessibilityRole="button"
-				>
-					<Text>Cancel</Text>
-				</Pressable>
-				<Text className="font-sans-semibold text-base text-ink">New Transaction</Text>
-				<Pressable
-					testID="transaction-save-button"
-					onPress={() => void submit()}
-					disabled={busy}
-					hitSlop={16}
-					accessibilityRole="button"
-				>
-					<Text>{busy ? 'Saving…' : 'Save'}</Text>
-				</Pressable>
+			<View className="border-b border-paper-300 px-5 py-4">
+				<Text className="mb-3 font-sans-semibold text-base text-ink">New Transaction</Text>
+				<View className="flex-row gap-4">
+					<Pressable
+						testID="transaction-cancel-button"
+						className="min-h-11 flex-1 justify-center"
+						onPress={cancel}
+						hitSlop={16}
+						accessibilityRole="button"
+					>
+						<Text>Cancel</Text>
+					</Pressable>
+
+					<Pressable
+						testID="transaction-save-button"
+						className="min-h-11 flex-1 items-end justify-center"
+						onPress={() => void submit()}
+						disabled={busy}
+						hitSlop={16}
+						accessibilityRole="button"
+					>
+						<Text>{busy ? 'Saving…' : 'Save'}</Text>
+					</Pressable>
+				</View>
 			</View>
 			<KeyboardAwareScrollView
 				className="flex-1 px-5 pt-6"
@@ -131,9 +145,9 @@ export function CreateTransactionForm({
 				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
 			>
 				<View className="mb-8 flex-row items-center justify-between">
-					<Text>{fromEntity.name}</Text>
+					<Text className="flex-1 pr-3">{fromEntity.name}</Text>
 					<Text>→</Text>
-					<Text>{toEntity.name}</Text>
+					<Text className="flex-1 pl-3 text-right">{toEntity.name}</Text>
 				</View>
 				<Text className="mb-2 font-sans text-sm text-ink-muted">Amount</Text>
 				<TransactionEntryFields currency={currency} expression={expr} />

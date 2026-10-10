@@ -11,7 +11,12 @@ export type KbArticleId =
 	| 'refunds'
 	| 'recurring'
 	| 'splits'
-	| 'investment-accounts';
+	| 'investment-accounts'
+	| 'dashboard'
+	| 'summary'
+	| 'history'
+	| 'settings'
+	| 'bubble-settings';
 
 export interface KbArticleMeta {
 	id: KbArticleId;
@@ -22,16 +27,47 @@ export interface KbArticleMeta {
 
 export const KB_ARTICLES_META: KbArticleMeta[] = [
 	{
+		id: 'dashboard',
+		title: 'Dashboard: understand the numbers',
+		summary: 'Understand available, reserved, and total money, plus the three header figures.',
+		related: ['entity-types', 'board-gestures', 'reservations', 'bubble-settings'],
+	},
+	{
+		id: 'summary',
+		title: 'Summary: compare spending and plans',
+		summary: 'Compare monthly spending with plans and see savings progress.',
+		related: ['dashboard', 'history'],
+	},
+	{
+		id: 'history',
+		title: 'History: find and confirm movements',
+		summary: 'Find movements by month, bubble, note, or amount; confirm when money moves.',
+		related: ['refunds', 'recurring', 'splits', 'reservations'],
+	},
+	{
+		id: 'settings',
+		title: 'Settings: make the app work for you',
+		summary:
+			'Choose your currency and gestures, manage reminders and backups, or replay practice.',
+		related: ['board-gestures', 'core-loop'],
+	},
+	{
+		id: 'bubble-settings',
+		title: 'Bubble settings: plans, goals, and accounts',
+		summary: 'Set plans and goals, choose a default account, and track investments.',
+		related: ['dashboard', 'investment-accounts', 'reservations'],
+	},
+	{
 		id: 'core-loop',
-		title: 'The core loop',
+		title: 'Record money and see where it goes',
 		summary: 'Plan vs reality, in one local app.',
 		related: ['entity-types', 'transaction-types'],
 	},
 	{
 		id: 'entity-types',
-		title: 'Entity types',
+		title: 'Income, accounts, spending, and savings',
 		summary: 'Income, accounts, categories, savings.',
-		related: ['core-loop', 'tabs-and-views'],
+		related: ['core-loop', 'dashboard', 'bubble-settings'],
 	},
 	{
 		id: 'board-gestures',
@@ -48,8 +84,8 @@ export const KB_ARTICLES_META: KbArticleMeta[] = [
 	{
 		id: 'tabs-and-views',
 		title: 'Tabs & views',
-		summary: 'Home · Summary · History · Settings.',
-		related: ['board-gestures'],
+		summary: 'Dashboard · Summary · History · Settings.',
+		related: ['dashboard', 'summary', 'history', 'settings'],
 	},
 	{
 		id: 'reservations',

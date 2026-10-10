@@ -63,16 +63,20 @@ export function ReservationForm({
 	const submitting = useRef(false);
 	const [busy, setBusy] = useState(false);
 	const active = useRef(false);
+	const openingVersion = useRef(0);
+	const accountId = account?.id;
+	const savingId = saving?.id;
 	useEffect(() => {
+		openingVersion.current++;
 		active.current = visible;
+		submitting.current = false;
+		setBusy(false);
 		return () => {
 			active.current = false;
 		};
-	}, [visible]);
+	}, [visible, accountId, savingId]);
 	const hasExisting = currentNetMinor > 0;
 
-	const accountId = account?.id;
-	const savingId = saving?.id;
 	const accountCurrency = account?.currency;
 	useEffect(() => {
 		if (visible && accountId && savingId && accountCurrency) {
@@ -89,6 +93,7 @@ export function ReservationForm({
 
 	const handleCancel = useCallback(() => {
 		active.current = false;
+		openingVersion.current++;
 		void KeyboardController.dismiss();
 		onClose();
 	}, [onClose]);
@@ -114,36 +119,44 @@ export function ReservationForm({
 		const resolved = amountExpr.resolve();
 		const finalAmountMinor = parseAmountToMinor(resolved, currency);
 		if (!Number.isFinite(finalAmountMinor) || finalAmountMinor <= 0) return;
+		const version = openingVersion.current;
 		submitting.current = true;
 		setBusy(true);
 		try {
 			await onSubmit(currentNetMinor + finalAmountMinor);
 		} catch (error) {
-			if (active.current) showReservationError(error);
+			if (active.current && version === openingVersion.current) showReservationError(error);
 			return;
 		} finally {
-			submitting.current = false;
-			if (active.current) setBusy(false);
+			if (version === openingVersion.current) {
+				submitting.current = false;
+				if (active.current) setBusy(false);
+			}
 		}
-		if (!active.current) return;
+		if (!active.current || version !== openingVersion.current) return;
+		active.current = false;
 		void KeyboardController.dismiss();
 		onClose();
 	};
 
 	const handleClear = async () => {
 		if (submitting.current || !active.current) return;
+		const version = openingVersion.current;
 		submitting.current = true;
 		setBusy(true);
 		try {
 			await onSubmit(0);
 		} catch (error) {
-			if (active.current) showReservationError(error);
+			if (active.current && version === openingVersion.current) showReservationError(error);
 			return;
 		} finally {
-			submitting.current = false;
-			if (active.current) setBusy(false);
+			if (version === openingVersion.current) {
+				submitting.current = false;
+				if (active.current) setBusy(false);
+			}
 		}
-		if (!active.current) return;
+		if (!active.current || version !== openingVersion.current) return;
+		active.current = false;
 		void KeyboardController.dismiss();
 		onClose();
 	};
@@ -225,6 +238,8 @@ export function ReservationForm({
 							{...sharedNumericTextInputProps}
 							{...amountExpr.inputProps}
 							placeholder="0"
+							testID="reservation-amount-input"
+							accessibilityLabel="Amount"
 							className={textInputClassNames.heroAmountInput}
 							style={styles.input}
 							placeholderTextColor={colors.ink.placeholder}

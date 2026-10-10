@@ -10,7 +10,8 @@ export function Reservations() {
 				which opens the same sheet funded from your Default account, or the first account on
 				your board. Reservations are tracked as real{' '}
 				<Text className="font-sans-semibold">account → saving</Text> transactions — there is
-				no hidden ledger.
+				no hidden ledger. Recording a reservation does not move money at your bank and is
+				not spending. An account with 1,000 total and 100 reserved shows 900 available.
 			</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				To release, drag the saving back to an account, or check the{' '}

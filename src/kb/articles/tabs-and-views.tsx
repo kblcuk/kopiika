@@ -5,7 +5,7 @@ export function TabsAndViews() {
 	return (
 		<View className="px-5 pb-10">
 			<Text className="mb-4 font-sans-bold text-2xl text-ink">Tabs &amp; views</Text>
-			<Text className="mb-2 font-sans-semibold text-base text-ink">Home</Text>
+			<Text className="mb-2 font-sans-semibold text-base text-ink">Dashboard</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				The board. Tap a bubble to record something against it, hold a bubble to see its
 				history, and drag one bubble onto another to move money between them — drag an

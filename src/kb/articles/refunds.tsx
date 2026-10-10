@@ -9,12 +9,13 @@ export function Refunds() {
 			</Text>
 			<Text className="mb-3 font-sans text-base text-ink">
 				Reverse drags trigger refund flows. Drag a category onto an account when someone
-				returns what you bought; drag an account onto an income source when you get
-				reimbursed.
+				returns what you bought; drag an account onto an income source when returning income
+				you previously received.
 			</Text>
 			<Text className="font-sans text-base text-ink">
-				A picker shows existing transactions that match — pick the one to refund. The
-				original stays in History; a new offsetting transaction is added.
+				A picker shows existing transactions that match — pick the one to refund. Choose the
+				amount to reverse and save. The original stays in History; an offsetting transaction
+				is added.
 			</Text>
 		</View>
 	);

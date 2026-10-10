@@ -48,6 +48,7 @@ export interface EntityBoardGridProps {
 	entities: EntityWithBalance[];
 	onDragStart?: (entity: EntityWithBalance) => void;
 	onDragEnd?: (entity: EntityWithBalance, targetId: string | null) => void;
+	onInvalidDrop?: (entity: EntityWithBalance, targetId: string) => void;
 	onTap?: (entity: EntityWithBalance) => void;
 	/**
 	 * Called when a bubble is held in place and released without dragging.
@@ -82,6 +83,7 @@ export function EntityBoardGrid({
 	entities,
 	onDragStart,
 	onDragEnd,
+	onInvalidDrop,
 	onTap,
 	onLongPress,
 	onAdd,
@@ -187,13 +189,24 @@ export function EntityBoardGrid({
 	const entityIdsKey = useMemo(() => sortedEntities.map((e) => e.id).join(','), [sortedEntities]);
 
 	const gridRef = useRef<View>(null);
+	const measurementVersion = useRef(0);
+	const invalidateMeasurements = useCallback(() => {
+		measurementVersion.current++;
+	}, []);
 
 	// Measure grid position and register all drop zones based on horizontal grid layout
 	const registerGridDropZones = useCallback(() => {
 		if (dropZonesDisabled) return;
 
+		const version = measurementVersion.current;
 		gridRef.current?.measureInWindow((gridX, gridY, gridWidth, gridHeight) => {
-			if (!mountedRef.current || gridWidth === 0 || gridHeight === 0) return;
+			if (
+				!mountedRef.current ||
+				version !== measurementVersion.current ||
+				gridWidth === 0 ||
+				gridHeight === 0
+			)
+				return;
 
 			gridBoundsRef.current = { x: gridX, y: gridY, width: gridWidth, height: gridHeight };
 
@@ -229,10 +242,12 @@ export function EntityBoardGrid({
 		registerGridDropZones();
 
 		return () => {
+			invalidateMeasurements();
 			sortedEntities.forEach((e) => unregisterDropZone(e.id));
 			unregisterRemeasureCallback(gridCallbackId);
 		};
 	}, [
+		invalidateMeasurements,
 		entityIdsKey,
 		dropZonesDisabled,
 		registerGridDropZones,
@@ -429,6 +444,15 @@ export function EntityBoardGrid({
 				return;
 			}
 
+			if (
+				outcome.kind === 'none' &&
+				isTransactionMode &&
+				targetId &&
+				targetType &&
+				draggedEntity
+			)
+				onInvalidDrop?.(draggedEntity, targetId);
+
 			if (outcome.kind === 'reorder') {
 				void onReorder?.(type, outcome.orderedIds, rows);
 			}
@@ -441,6 +465,7 @@ export function EntityBoardGrid({
 			type,
 			rows,
 			onDragEnd,
+			onInvalidDrop,
 			onReorder,
 			lookupEntity,
 			findDropTarget,

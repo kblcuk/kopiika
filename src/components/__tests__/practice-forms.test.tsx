@@ -96,7 +96,7 @@ test('canceling a prefilled reservation does not save; accepting adds to current
 	await waitFor(() => expect(submitted).toEqual([6200]));
 });
 
-test('rapid saves are accepted once and rejected submissions remain retryable', async () => {
+test('rapid saves are accepted once', async () => {
 	let resolve!: () => void;
 	const submitted: MutationInput[] = [];
 	const submit = async (input: MutationInput) => {
@@ -125,4 +125,119 @@ test('rapid saves are accepted once and rejected submissions remain retryable', 
 	await act(async () => {
 		resolve();
 	});
+});
+
+test('reservation save settling while canceled does not disable the next opening', async () => {
+	let finish!: () => void;
+	const amounts: number[] = [];
+	const submit = async (amount: number) => {
+		amounts.push(amount);
+		if (amounts.length === 1)
+			await new Promise<void>((resolve) => {
+				finish = resolve;
+			});
+	};
+	const close = jest.fn();
+	const props = {
+		account,
+		saving,
+		currentNetMinor: 0,
+		initialAmountMinor: 10000,
+		onSubmit: submit,
+		onClose: close,
+	};
+	const ui = render(<ReservationForm {...props} visible />);
+	fireEvent.press(ui.getByTestId('reservation-submit-button'));
+	fireEvent.press(ui.getByTestId('reservation-cancel-button'));
+	ui.rerender(<ReservationForm {...props} visible={false} />);
+	await act(async () => {
+		finish();
+	});
+	ui.rerender(<ReservationForm {...props} visible />);
+	fireEvent.press(ui.getByTestId('reservation-submit-button'));
+	await waitFor(() => expect(amounts).toEqual([10000, 10000]));
+});
+
+test('an old reservation completion cannot close a sheet reopened before it settles', async () => {
+	let finish!: () => void;
+	const close = jest.fn();
+	const props = {
+		account,
+		saving,
+		currentNetMinor: 0,
+		initialAmountMinor: 10000,
+		onSubmit: () =>
+			new Promise<void>((resolve) => {
+				finish = resolve;
+			}),
+		onClose: close,
+	};
+	const ui = render(<ReservationForm {...props} visible />);
+	fireEvent.press(ui.getByTestId('reservation-submit-button'));
+	fireEvent.press(ui.getByTestId('reservation-cancel-button'));
+	ui.rerender(<ReservationForm {...props} visible={false} />);
+	ui.rerender(<ReservationForm {...props} visible />);
+	await act(async () => {
+		finish();
+	});
+	expect(close).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+	['JPY', '123', 123],
+	['KWD', '12.345', 12345],
+] as const)(
+	'%s accepts editable amounts at its own precision',
+	async (currency, typed, expected) => {
+		const es = getPracticeEntities(createPracticeSession(currency));
+		const from = es.find((e) => e.type === 'income')!;
+		const to = es.find((e) => e.type === 'account')!;
+		const amounts: number[] = [];
+		const ui = render(
+			<CreateTransactionForm
+				visible
+				fromEntity={from}
+				toEntity={to}
+				entities={es}
+				initialAmountMinor={1000}
+				timestamp={1}
+				onSubmit={async (input) => {
+					amounts.push(input.amount_minor);
+				}}
+				onClose={() => {}}
+			/>
+		);
+		fireEvent.changeText(ui.getByTestId('transaction-amount-input'), typed);
+		fireEvent.press(ui.getByTestId('transaction-save-button'));
+		await waitFor(() => expect(amounts).toEqual([expected]));
+	}
+);
+
+test('a rejected transaction stays editable and can be saved after retry', async () => {
+	let attempts = 0;
+	const amounts: number[] = [];
+	const close = jest.fn();
+	const ui = render(
+		<CreateTransactionForm
+			visible
+			fromEntity={income}
+			toEntity={account}
+			entities={entities}
+			initialAmountMinor={10000}
+			timestamp={1}
+			onSubmit={async (input) => {
+				attempts++;
+				if (attempts === 1) throw new Error('Try again');
+				amounts.push(input.amount_minor);
+			}}
+			onClose={close}
+		/>
+	);
+	fireEvent.press(ui.getByTestId('transaction-save-button'));
+	await waitFor(() => expect(ui.getByText('Try again')).toBeTruthy());
+	expect(close).not.toHaveBeenCalled();
+	fireEvent.changeText(ui.getByTestId('transaction-amount-input'), '111');
+	fireEvent.press(ui.getByTestId('transaction-save-button'));
+	await waitFor(() => expect(amounts).toEqual([11100]));
+	expect(close).toHaveBeenCalledTimes(1);
 });

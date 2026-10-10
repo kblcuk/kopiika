@@ -221,13 +221,15 @@ Non-goals for v1: merchant → category memory or learned auto-categorization, m
 
 ## Onboarding & In-App Knowledge Base
 
-Fresh installs route into `app/onboarding/welcome.tsx` (single-page philosophy intro), then `app/onboarding/setup.tsx` (chip picker over `src/onboarding/presets.ts` — the relocated catalog formerly known as `createDefaultEntities`). Completion writes `hasCompletedOnboarding=true` to `app-prefs.json`. Existing-user migration in `src/hooks/use-migrate-onboarding.ts` flips the flag silently when entities already exist; fresh installs (no user entities, flag false) are redirected into `/onboarding/welcome`.
+Fresh installs route into `app/onboarding/welcome.tsx`, which offers an interactive practice board, personal preset setup, or skip. `app/onboarding/practice.tsx` teaches income → account, account → category, and account → saving with editable example money. Its route-scoped session (`src/onboarding/practice-session.ts`) holds immutable transactions in memory and freezes the example date/month. Shared pure balance derivation (`src/utils/entity-balances.ts`) and store-independent board/form presentation keep practice consistent with ordinary recording without SQLite, sync, notification, or preference writes. Practice has its own drop-zone registry so the mounted personal board cannot supply targets.
 
-The in-app knowledge base lives in `src/kb/articles.ts` (registry of 9 typed React components) and `app/help/` (list + detail screens). Metadata is split into `src/kb/articles-meta.ts` (no React imports) so `bun:test` can verify the registry without pulling in React Native. Contextual `<InfoPin articleId="..." />` (in `src/components/info-pin.tsx`) deep-links into the relevant article from inside reservation/transaction/entity modals.
+Practice completion and exit lead to personal setup on first run; replays return to Settings or Help. Completing practice never marks personal onboarding complete or copies examples into personal data. Personal setup remains the preset chip picker over `src/onboarding/presets.ts`; completion/skip writes `hasCompletedOnboarding=true` to `app-prefs.json`. Existing users bypass first-run onboarding through `src/hooks/use-migrate-onboarding.ts` and `src/hooks/use-onboarding-gate.ts`.
+
+The in-app knowledge base lives in `src/kb/articles.ts` (registry of typed React components) and `app/help/` (list + detail screens). Metadata is split into `src/kb/articles-meta.ts` (no React imports) so `bun:test` can verify the registry without pulling in React Native. Contextual `<InfoPin articleId="..." />` (in `src/components/info-pin.tsx`) deep-links into the relevant article from inside reservation/transaction/entity modals.
 
 The empty-board nudge in `src/components/empty-board-nudge.tsx` covers two states on Home: no entities yet, or entities-but-no-transactions. Explicit ✕ dismissal persists via `emptyBoardNudgeDismissed` in `app-prefs.json`; transactions auto-hide the nudge without writing the pref.
 
-Settings exposes both "Help & how it works" (→ `/help`) and "Take the tour" (→ `/onboarding/welcome?fromSettings=true` — runs the welcome+setup screens in preview mode without re-creating entities).
+Settings exposes "Help & how it works" (→ `/help`) and "Show tutorial again" (→ `/onboarding/practice?origin=settings`). Help also links to a fresh tutorial (`origin=help`). User-facing help covers Dashboard figures, monthly/all-time amounts, Summary, History, Settings, bubble settings, and supported transaction flows. Existing article IDs remain stable for contextual links.
 
 E2E `seedFixture` writes `hasCompletedOnboarding=true` on every fixture load so existing E2E suites bypass the first-launch redirect.
 
