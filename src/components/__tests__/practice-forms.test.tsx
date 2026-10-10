@@ -241,3 +241,71 @@ test('a rejected transaction stays editable and can be saved after retry', async
 	await waitFor(() => expect(amounts).toEqual([11100]));
 	expect(close).toHaveBeenCalledTimes(1);
 });
+
+test('a rapid edit followed by Save records the edited amount before the next render', async () => {
+	const amounts: number[] = [];
+	const ui = render(
+		<CreateTransactionForm
+			visible
+			fromEntity={income}
+			toEntity={account}
+			entities={entities}
+			initialAmountMinor={100000}
+			timestamp={1}
+			onSubmit={async (input) => {
+				amounts.push(input.amount_minor);
+			}}
+			onClose={() => {}}
+		/>
+	);
+	act(() => {
+		fireEvent.changeText(ui.getByTestId('transaction-amount-input'), '125');
+		fireEvent.press(ui.getByTestId('transaction-save-button'));
+	});
+	await waitFor(() => expect(amounts).toEqual([12500]));
+});
+
+test('a rapid reservation edit records the edited amount before the next render', async () => {
+	const amounts: number[] = [];
+	const ui = render(
+		<ReservationForm
+			visible
+			account={account}
+			saving={saving}
+			currentNetMinor={0}
+			initialAmountMinor={10000}
+			onSubmit={async (amount) => {
+				amounts.push(amount);
+			}}
+			onClose={() => {}}
+		/>
+	);
+	act(() => {
+		fireEvent.changeText(ui.getByPlaceholderText('0'), '200');
+		fireEvent.press(ui.getByTestId('reservation-submit-button'));
+	});
+	await waitFor(() => expect(amounts).toEqual([20000]));
+});
+
+test('a rapid expression edit is resolved before Save', async () => {
+	const amounts: number[] = [];
+	const ui = render(
+		<CreateTransactionForm
+			visible
+			fromEntity={income}
+			toEntity={account}
+			entities={entities}
+			initialAmountMinor={100000}
+			timestamp={1}
+			onSubmit={async (input) => {
+				amounts.push(input.amount_minor);
+			}}
+			onClose={() => {}}
+		/>
+	);
+	act(() => {
+		fireEvent.changeText(ui.getByTestId('transaction-amount-input'), '12+3');
+		fireEvent.press(ui.getByTestId('transaction-save-button'));
+	});
+	await waitFor(() => expect(amounts).toEqual([1500]));
+});

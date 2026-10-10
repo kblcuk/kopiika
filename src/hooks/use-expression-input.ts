@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { TextInput } from 'react-native';
 
 import { evaluateExpression } from '@/src/utils/evaluate-expression';
@@ -21,6 +21,12 @@ export function useExpressionInput(
 	opts: { maxDecimalPlaces: number }
 ) {
 	const inputRef = useRef<TextInput>(null);
+	// Native change and Save can share a render batch. Resolve the latest event value,
+	// while layout effects also pick up programmatic fills/resets before the next interaction.
+	const latestInput = useRef(value);
+	useLayoutEffect(() => {
+		latestInput.current = value;
+	}, [value]);
 	const selectionRef = useRef({ start: 0, end: 0 });
 	const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -48,26 +54,32 @@ export function useExpressionInput(
 			const sanitized = sanitizeExpressionInput(v, {
 				maxDecimalPlaces: opts.maxDecimalPlaces,
 			});
-			onChange(EXPR_CHAR_RE.test(sanitized) ? sanitized : normalizeNumericInput(sanitized));
+			const next = EXPR_CHAR_RE.test(sanitized)
+				? sanitized
+				: normalizeNumericInput(sanitized);
+			latestInput.current = next;
+			onChange(next);
 		},
 		[onChange, opts.maxDecimalPlaces]
 	);
 
 	const resolve = useCallback((): string => {
-		if (!isExpression) return value;
-		const evaluated = evaluateExpression(value);
-		if (evaluated === null) return value;
+		const current = latestInput.current;
+		if (!EXPR_CHAR_RE.test(current)) return current;
+		const evaluated = evaluateExpression(current);
+		if (evaluated === null) return current;
 		const factor = 10 ** opts.maxDecimalPlaces;
 		const rounded = Math.round(evaluated * factor) / factor;
 		const resolved = rounded.toString();
+		latestInput.current = resolved;
 		onChange(resolved);
 		return resolved;
-	}, [value, isExpression, onChange, opts.maxDecimalPlaces]);
+	}, [onChange, opts.maxDecimalPlaces]);
 
 	const insertOperator = useCallback(
 		(op: Operator) => {
 			const { start, end } = selectionRef.current;
-			const result = tryInsertOperator(value, op, start, end);
+			const result = tryInsertOperator(latestInput.current, op, start, end);
 			if (!result) return;
 
 			setValue(result.value);
@@ -76,7 +88,7 @@ export function useExpressionInput(
 			setTimeout(() => setSelection(undefined), 0);
 			inputRef.current?.focus();
 		},
-		[value, setValue]
+		[setValue]
 	);
 
 	const onFocus = useCallback((e?: { nativeEvent: { target?: number | null } }) => {

@@ -1,7 +1,14 @@
+import { execFileSync } from 'child_process';
 import { device, element, by, waitFor } from 'detox';
 import { expect as jestExpect } from '@jest/globals';
+import { seedFixture } from '../support/fixture';
 import { TestIDs } from '../support/test-ids';
-import { tapUntilVisible, getAmount, dismissWhatsNewIfPresent } from '../support/helpers';
+import {
+	tapUntilVisible,
+	tapUntilGone,
+	getAmount,
+	dismissWhatsNewIfPresent,
+} from '../support/helpers';
 
 async function tap(id: string) {
 	await waitFor(element(by.id(id)))
@@ -32,25 +39,50 @@ async function saveExample(amount: string, reservation = false) {
 	await waitFor(element(by.id(input)))
 		.toBeVisible()
 		.withTimeout(5000);
+	// Sync is off: let the sheet/focus animation settle, then let RN receive the edited value.
+	await new Promise((resolve) => setTimeout(resolve, 400));
 	await element(by.id(input)).replaceText(amount);
-	await tap(reservation ? TestIDs.reservation.submitButton : TestIDs.transaction.saveButton);
+	await new Promise((resolve) => setTimeout(resolve, 250));
+	await tapUntilVisible(
+		by.id(reservation ? TestIDs.reservation.submitButton : TestIDs.transaction.saveButton),
+		by.id(TestIDs.onboarding.practiceNext)
+	);
 	await waitFor(element(by.id(TestIDs.onboarding.practiceNext)))
 		.toBeVisible()
 		.withTimeout(5000);
-	await tap(TestIDs.onboarding.practiceNext);
+	await tapUntilVisible(
+		by.id(TestIDs.onboarding.practiceNext),
+		by.id(reservation ? TestIDs.onboarding.practiceFinish : TestIDs.onboarding.practiceRecord)
+	);
+}
+
+async function preparePersonalBoard() {
+	await device.launchApp({ newInstance: true });
+	await device.disableSynchronization();
+	await seedFixture({
+		clearEntities: true,
+		clearTransactions: true,
+		entities: [
+			{ type: 'income', name: 'Salary', icon: 'briefcase' },
+			{ type: 'account', name: 'Main Card', icon: 'wallet' },
+			{ type: 'category', name: 'Groceries', icon: 'shopping-cart' },
+		],
+		transactions: [{ from: 'Salary', to: 'Main Card', amount: 123.45 }],
+	});
+	await dismissWhatsNewIfPresent();
 }
 
 describe('Onboarding — first launch and practice', () => {
+	// This first-launch sequence shares state; retrying a step after later steps cannot reconstruct it.
+	jest.retryTimes(0);
 	beforeAll(async () => {
 		await device.launchApp({ delete: true });
 		await device.disableSynchronization();
 	});
-	it('lands on welcome on fresh install', async () => {
+	it('teaches practice on first launch, then creates a personal board and skips onboarding on relaunch', async () => {
 		await waitFor(element(by.id(TestIDs.onboarding.welcomeScreen)))
 			.toBeVisible()
 			.withTimeout(15000);
-	});
-	it('teaches income, spending, and reservations using real gestures and edited amounts', async () => {
 		await tapUntilVisible(
 			by.id(TestIDs.onboarding.welcomeContinueButton),
 			by.id(TestIDs.onboarding.practiceScreen)
@@ -58,7 +90,17 @@ describe('Onboarding — first launch and practice', () => {
 		await tap(TestIDs.onboarding.practiceDemo);
 		await dragExample('Salary', 'Main account');
 		await saveExample('1200');
-		await tap(TestIDs.entityBubble('Groceries'));
+		await device.sendToHome();
+		await device.launchApp({ newInstance: false });
+		await device.disableSynchronization();
+		await waitFor(element(by.id(TestIDs.onboarding.practiceScreen)))
+			.toBeVisible()
+			.withTimeout(10000);
+		jestExpect(await getAmount('Main account')).toBeCloseTo(1200, 2);
+		await tapUntilVisible(
+			by.id(TestIDs.entityBubble('Groceries')),
+			by.id(TestIDs.transaction.amountInput)
+		);
 		await saveExample('50');
 		await dragExample('Main account', 'Vacation');
 		await saveExample('200', true);
@@ -71,8 +113,6 @@ describe('Onboarding — first launch and practice', () => {
 			by.id(TestIDs.onboarding.practiceFinish),
 			by.id(TestIDs.onboarding.setupContinueButton)
 		);
-	});
-	it('creates only personal presets when setup completes and skips onboarding on relaunch', async () => {
 		await tapUntilVisible(
 			by.id(TestIDs.onboarding.setupContinueButton),
 			by.id(TestIDs.homeScreen)
@@ -90,18 +130,22 @@ describe('Onboarding — first launch and practice', () => {
 			.withTimeout(15000);
 	});
 	it('replays fresh, exits an open sheet, and keeps personal balances intact', async () => {
+		await preparePersonalBoard();
 		const before = await getAmount('Main Card');
 		await tap(TestIDs.settingsTabButton);
 		await tap(TestIDs.settings.tapActionRow);
-		await tapUntilVisible(
+		await tapUntilGone(
 			by.id(TestIDs.bubbleGesturePicker.option('history')),
-			by.id(TestIDs.settings.tourRow)
+			by.id(TestIDs.bubbleGesturePicker.sheet)
 		);
 		await tapUntilVisible(
 			by.id(TestIDs.settings.tourRow),
 			by.id(TestIDs.onboarding.practiceScreen)
 		);
-		await tap(TestIDs.onboarding.practiceRecord);
+		await tapUntilVisible(
+			by.id(TestIDs.onboarding.practiceRecord),
+			by.id(TestIDs.onboarding.practiceSheetExit)
+		);
 		await waitFor(element(by.id(TestIDs.onboarding.practiceSheetExit)))
 			.toBeVisible()
 			.withTimeout(5000);
@@ -129,10 +173,70 @@ describe('Onboarding — first launch and practice', () => {
 			.withTimeout(5000);
 		await tap(TestIDs.settingsTabButton);
 		await tap(TestIDs.settings.tapActionRow);
-		await tapUntilVisible(
+		await tapUntilGone(
 			by.id(TestIDs.bubbleGesturePicker.option('add')),
-			by.id(TestIDs.settings.tourRow)
+			by.id(TestIDs.bubbleGesturePicker.sheet)
 		);
 		await tap(TestIDs.dashboardTabButton);
+	});
+	it('keeps the practice Save and Exit actions reachable with enlarged text', async () => {
+		await preparePersonalBoard();
+		const ios = device.getPlatform() === 'ios';
+		const before = ios
+			? execFileSync('xcrun', ['simctl', 'ui', device.id, 'content_size'], {
+					encoding: 'utf8',
+				}).trim()
+			: execFileSync(
+					'adb',
+					['-s', device.id, 'shell', 'settings', 'get', 'system', 'font_scale'],
+					{ encoding: 'utf8' }
+				).trim();
+		const setSize = (value: string) =>
+			ios
+				? execFileSync('xcrun', ['simctl', 'ui', device.id, 'content_size', value])
+				: execFileSync('adb', [
+						'-s',
+						device.id,
+						'shell',
+						'settings',
+						'put',
+						'system',
+						'font_scale',
+						value,
+					]);
+		try {
+			await device.terminateApp();
+			setSize(ios ? 'accessibility-medium' : '1.8');
+			// Enter after font configuration settles, with no sheet left over from another test.
+			await device.launchApp({ newInstance: true });
+			await device.disableSynchronization();
+			await device.openURL({ url: 'kopiika://settings' });
+			await waitFor(element(by.id(TestIDs.settings.tourRow)))
+				.toExist()
+				.withTimeout(10000);
+			await device.openURL({ url: 'kopiika://onboarding/practice?origin=settings' });
+			await tapUntilVisible(
+				by.id(TestIDs.onboarding.practiceRecord),
+				by.id(TestIDs.onboarding.practiceSheetExit)
+			);
+			await tapUntilGone(
+				by.id(TestIDs.transaction.saveButton),
+				by.id(TestIDs.transaction.amountInput)
+			);
+			await waitFor(element(by.id(TestIDs.transaction.amountInput)))
+				.not.toBeVisible()
+				.withTimeout(5000);
+			await tap(TestIDs.onboarding.practiceExit);
+		} finally {
+			// Apply system font changes with the app stopped to avoid activity/configuration races.
+			await device.terminateApp();
+			setSize(before);
+			await device.launchApp({ newInstance: true });
+			await device.disableSynchronization();
+		}
+		await tap(TestIDs.dashboardTabButton);
+		await waitFor(element(by.id(TestIDs.homeScreen)))
+			.toBeVisible()
+			.withTimeout(10000);
 	});
 });
