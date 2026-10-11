@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { act, render } from '@testing-library/react-native';
 import { EntityBoardGrid } from '../entity-board-grid';
 import { createDropZoneRegistry } from '@/src/utils/drop-zone';
@@ -37,6 +38,7 @@ beforeEach(() => jest.useFakeTimers());
 afterEach(() => {
 	act(() => jest.runOnlyPendingTimers());
 	jest.useRealTimers();
+	jest.restoreAllMocks();
 });
 
 test('uses practice lookup and private drop targets during the native drag lifecycle', () => {
@@ -79,10 +81,7 @@ test('a late native measurement cannot restore targets after disabling a grid', 
 		dropZones: registry,
 		hoveredId: { value: '' } as import('react-native-reanimated').SharedValue<string>,
 	};
-	const methods = jest.requireActual<{ default: { measureInWindow: jest.Mock } }>(
-		'react-native/jest/mockNativeMethods'
-	).default;
-	methods.measureInWindow.mockImplementation(
+	jest.spyOn(View.prototype, 'measureInWindow').mockImplementation(
 		(callback: (x: number, y: number, w: number, h: number) => void) =>
 			measurements.push(callback)
 	);
@@ -93,7 +92,6 @@ test('a late native measurement cannot restore targets after disabling a grid', 
 		measurements.forEach((fn) => fn(0, 0, 100, 100));
 	});
 	expect(registry.findDropTarget(50, 50, 'other')).toBeNull();
-	methods.measureInWindow.mockReset();
 });
 
 test('reports dropping onto an unsupported bubble separately from dropping outside', () => {

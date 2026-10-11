@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Switch } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '../settings';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { useStore } from '@/src/store';
@@ -99,13 +99,19 @@ describe('SettingsScreen', () => {
 
 	// Applies overrides onto the shared storeState before rendering, matching
 	// the file's existing pattern of mutating `storeState` ahead of `render`.
-	const renderSettings = (overrides: Partial<typeof storeState> = {}) => {
+	const renderSettings = async (overrides: Partial<typeof storeState> = {}) => {
 		storeState = { ...storeState, ...overrides };
-		return render(<SettingsScreen />);
+		const result = render(<SettingsScreen />);
+		// Settle the preference read started by the mount effect before interacting.
+		await act(async () => {
+			await jest.mocked(getRemindersEnabled).mock.results.at(-1)!.value;
+		});
+		return result;
 	};
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.mocked(getRemindersEnabled).mockResolvedValue(false);
 
 		storeState = {
 			entities: [
@@ -162,7 +168,7 @@ describe('SettingsScreen', () => {
 
 		jest.mocked(getRemindersEnabled).mockResolvedValue(true);
 
-		const { UNSAFE_getByType } = render(<SettingsScreen />);
+		const { UNSAFE_getByType } = await renderSettings();
 
 		await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
 		fireEvent(UNSAFE_getByType(Switch), 'valueChange', false);
@@ -200,7 +206,7 @@ describe('SettingsScreen', () => {
 		jest.mocked(getRemindersEnabled).mockResolvedValue(false);
 		jest.mocked(requestPermission).mockResolvedValue(true);
 
-		const { UNSAFE_getByType } = render(<SettingsScreen />);
+		const { UNSAFE_getByType } = await renderSettings();
 
 		await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
 		fireEvent(UNSAFE_getByType(Switch), 'valueChange', true);
@@ -232,7 +238,7 @@ describe('SettingsScreen', () => {
 			});
 
 		try {
-			const { getByText } = render(<SettingsScreen />);
+			const { getByText } = await renderSettings();
 			await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
 
 			fireEvent.press(getByText('Reset All Data'));
@@ -248,19 +254,19 @@ describe('SettingsScreen', () => {
 		}
 	});
 
-	test('shows the current app currency', () => {
-		const { getByTestId } = renderSettings();
+	test('shows the current app currency', async () => {
+		const { getByTestId } = await renderSettings();
 		// Regex match, not an exact string: the row's text content also includes
 		// the "Currency" label and symbol (matches the precedent in
 		// app/onboarding/__tests__/setup.test.tsx for the same reason).
 		expect(getByTestId(TestIDs.settings.currencyRow)).toHaveTextContent(/EUR/);
 	});
 
-	test('confirms before relabelling existing data, then dispatches', () => {
+	test('confirms before relabelling existing data, then dispatches', async () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
 		try {
 			const setAppCurrency = jest.fn().mockResolvedValue(undefined);
-			const { getByTestId } = renderSettings({ setAppCurrency });
+			const { getByTestId } = await renderSettings({ setAppCurrency });
 
 			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
 			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('GBP')));
@@ -279,10 +285,10 @@ describe('SettingsScreen', () => {
 		}
 	});
 
-	test('says amounts are not converted, with a precision-correct example (KII-166)', () => {
+	test('says amounts are not converted, with a precision-correct example (KII-166)', async () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
 		try {
-			const { getByTestId } = renderSettings();
+			const { getByTestId } = await renderSettings();
 
 			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
 			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
@@ -301,11 +307,11 @@ describe('SettingsScreen', () => {
 		}
 	});
 
-	test('does not prompt when the currency is unchanged', () => {
+	test('does not prompt when the currency is unchanged', async () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
 		try {
 			const setAppCurrency = jest.fn();
-			const { getByTestId } = renderSettings({ setAppCurrency });
+			const { getByTestId } = await renderSettings({ setAppCurrency });
 
 			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
 			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('EUR')));
@@ -321,7 +327,7 @@ describe('SettingsScreen', () => {
 		const alertSpy = jest.spyOn(Alert, 'alert');
 		try {
 			const setAppCurrency = jest.fn().mockResolvedValue(undefined);
-			const { getByTestId } = renderSettings({
+			const { getByTestId } = await renderSettings({
 				entities: [],
 				transactions: [],
 				setAppCurrency,
@@ -345,7 +351,7 @@ describe('SettingsScreen', () => {
 			});
 		try {
 			const setAppCurrency = jest.fn().mockRejectedValue(new Error('write failed'));
-			const { getByTestId } = renderSettings({ setAppCurrency });
+			const { getByTestId } = await renderSettings({ setAppCurrency });
 
 			fireEvent.press(getByTestId(TestIDs.settings.currencyRow));
 			fireEvent.press(getByTestId(TestIDs.currencyPicker.option('JPY')));
@@ -373,7 +379,7 @@ describe('SettingsScreen', () => {
 			})
 		);
 
-		const { getByText } = render(<SettingsScreen />);
+		const { getByText } = await renderSettings();
 		await waitFor(() => expect(getRemindersEnabled).toHaveBeenCalled());
 
 		fireEvent.press(getByText('Export to CSV'));
@@ -399,8 +405,8 @@ describe('SettingsScreen', () => {
 	});
 
 	describe('bubble gesture preference', () => {
-		test('shows the default assignment: tap adds, long-press opens history', () => {
-			const { getByTestId } = renderSettings();
+		test('shows the default assignment: tap adds, long-press opens history', async () => {
+			const { getByTestId } = await renderSettings();
 
 			expect(getByTestId(TestIDs.settings.tapActionRow)).toHaveTextContent(
 				/Add transaction$/
@@ -410,8 +416,10 @@ describe('SettingsScreen', () => {
 			);
 		});
 
-		test('reflects the flipped preference on both rows', () => {
-			const { getByTestId } = renderSettings({ bubbleGestureMode: 'tap-opens-history' });
+		test('reflects the flipped preference on both rows', async () => {
+			const { getByTestId } = await renderSettings({
+				bubbleGestureMode: 'tap-opens-history',
+			});
 
 			expect(getByTestId(TestIDs.settings.tapActionRow)).toHaveTextContent(/Open history$/);
 			expect(getByTestId(TestIDs.settings.longPressActionRow)).toHaveTextContent(
@@ -419,8 +427,8 @@ describe('SettingsScreen', () => {
 			);
 		});
 
-		test('choosing history for tap flips the whole pair', () => {
-			const { getByTestId } = renderSettings();
+		test('choosing history for tap flips the whole pair', async () => {
+			const { getByTestId } = await renderSettings();
 
 			fireEvent.press(getByTestId(TestIDs.settings.tapActionRow));
 			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('history')));
@@ -430,8 +438,8 @@ describe('SettingsScreen', () => {
 
 		// The long-press row writes the same single preference, so picking `add`
 		// there must land on the same mode as picking `history` on the tap row.
-		test('choosing add for long-press flips the whole pair', () => {
-			const { getByTestId } = renderSettings();
+		test('choosing add for long-press flips the whole pair', async () => {
+			const { getByTestId } = await renderSettings();
 
 			fireEvent.press(getByTestId(TestIDs.settings.longPressActionRow));
 			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('add')));
@@ -439,8 +447,8 @@ describe('SettingsScreen', () => {
 			expect(storeState.setBubbleGestureMode).toHaveBeenCalledWith('tap-opens-history');
 		});
 
-		test('re-picking the action a gesture already has keeps the current mode', () => {
-			const { getByTestId } = renderSettings();
+		test('re-picking the action a gesture already has keeps the current mode', async () => {
+			const { getByTestId } = await renderSettings();
 
 			fireEvent.press(getByTestId(TestIDs.settings.tapActionRow));
 			fireEvent.press(getByTestId(TestIDs.bubbleGesturePicker.option('add')));
