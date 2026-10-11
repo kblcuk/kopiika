@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { EntityType, EntityWithBalance } from '@/src/types';
 import type { PracticeLesson } from '@/src/onboarding/practice-session';
+import { getPracticeGestureCue } from '@/src/onboarding/practice-gesture';
 import type { createDropZoneRegistry } from '@/src/utils/drop-zone';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 import { EntityBoardGrid } from './entity-board-grid';
@@ -42,6 +43,7 @@ export function PracticeBoard({
 	incomeVisible?: boolean;
 }) {
 	const hoveredId = useSharedValue('');
+	const [demoHint, setDemoHint] = useState('');
 	const [draggedType, setDraggedType] = useState<EntityType | null>(null);
 	const { width, fontScale } = useWindowDimensions();
 	const inline = width < 360 || fontScale > 1.25;
@@ -73,6 +75,7 @@ export function PracticeBoard({
 	useEffect(() => {
 		if (!demo) {
 			handledDemo.current = 0;
+			setDemoHint('');
 			return;
 		}
 		if (draggedType || handledDemo.current === demo) return;
@@ -95,15 +98,17 @@ export function PracticeBoard({
 			const from = dropZones.getDropZone(fromId);
 			const to = dropZones.getDropZone(toId);
 			if (!from || !to) return;
-			surfaceRef.current?.measureInWindow((x, y) => {
+			surfaceRef.current?.measureInWindow((x, y, width, height) => {
 				if (canceled) return;
-				setCue({
-					fromX: from.x + from.width / 2 - x,
-					fromY: from.y + from.height / 2 - y,
-					toX: to.x + to.width / 2 - x,
-					toY: to.y + to.height / 2 - y,
-					tap: lesson === 'spend',
-				});
+				const positions = getPracticeGestureCue(from, to, { x, y, width, height });
+				if (!positions) {
+					setDemoHint(
+						'Some bubbles are offscreen. Scroll the board, or use the record action above.'
+					);
+					return;
+				}
+				setDemoHint('');
+				setCue({ ...positions, tap: lesson === 'spend' });
 				motion.value = 0;
 				if (!reducedMotion) motion.value = withTiming(1, { duration: 1600 });
 			});
@@ -216,6 +221,14 @@ export function PracticeBoard({
 										</Text>
 									)}
 									{guidance}
+									{!!demoHint && (
+										<Text
+											accessibilityLiveRegion="polite"
+											className="mt-2 font-sans text-xs text-ink-muted"
+										>
+											{demoHint}
+										</Text>
+									)}
 								</View>
 							)}
 						</View>

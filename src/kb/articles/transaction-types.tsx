@@ -34,8 +34,8 @@ export function TransactionTypes() {
 			<Text className="mb-2 font-sans-semibold text-base text-ink">Recurring</Text>
 			<Text className="font-sans text-base text-ink">
 				A template that shows scheduled occurrences ahead of time. Daily, weekly, monthly,
-				or yearly. The first occurrence on or before today is confirmed immediately; future
-				occurrences stay unconfirmed until you confirm them in History.
+				or yearly. Occurrences stay unconfirmed until you confirm that the money moved in
+				History, including entries due today or earlier.
 			</Text>
 		</View>
 	);
