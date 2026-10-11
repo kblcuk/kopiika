@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import Animated, {
 	useSharedValue,
@@ -44,7 +44,11 @@ export function PracticeBoard({
 }) {
 	const hoveredId = useSharedValue('');
 	const [demoHint, setDemoHint] = useState('');
-	const [draggedType, setDraggedType] = useState<EntityType | null>(null);
+	const dragging = useRef(false);
+	const sections = useMemo(
+		() => TYPES.map((type) => entities.filter((entity) => entity.type === type)),
+		[entities]
+	);
 	const { width, fontScale } = useWindowDimensions();
 	const inline = width < 360 || fontScale > 1.25;
 	const reducedMotion = useReducedMotion();
@@ -78,7 +82,7 @@ export function PracticeBoard({
 			setDemoHint('');
 			return;
 		}
-		if (draggedType || handledDemo.current === demo) return;
+		if (dragging.current || handledDemo.current === demo) return;
 		handledDemo.current = demo;
 		let canceled = false;
 		dropZones.remeasureAllDropZones();
@@ -99,7 +103,7 @@ export function PracticeBoard({
 			const to = dropZones.getDropZone(toId);
 			if (!from || !to) return;
 			surfaceRef.current?.measureInWindow((x, y, width, height) => {
-				if (canceled) return;
+				if (canceled || dragging.current) return;
 				const positions = getPracticeGestureCue(from, to, { x, y, width, height });
 				if (!positions) {
 					setDemoHint(
@@ -121,7 +125,7 @@ export function PracticeBoard({
 			clearTimeout(timer);
 			clearTimeout(end);
 		};
-	}, [demo, lesson, dropZones, motion, reducedMotion, draggedType]);
+	}, [demo, lesson, dropZones, motion, reducedMotion]);
 	useEffect(() => () => stopAutoScroll(), [stopAutoScroll]);
 	const cueStyle = useAnimatedStyle(() => ({
 		transform: [
@@ -152,8 +156,6 @@ export function PracticeBoard({
 							key={type}
 							testID={`practice-row-${type}`}
 							style={{
-								zIndex: draggedType === type ? 1000 : 0,
-								elevation: draggedType === type ? 1000 : 0,
 								minHeight:
 									!inline && type === guidanceType
 										? guidanceHeight + 38
@@ -172,7 +174,7 @@ export function PracticeBoard({
 							<EntityBoardGrid
 								title={TITLES[type]}
 								type={type}
-								entities={entities.filter((e) => e.type === type)}
+								entities={sections[i]!}
 								lookupEntity={(id) => entities.find((e) => e.id === id)}
 								dropZones={dropZones}
 								hoveredId={hoveredId}
@@ -180,13 +182,13 @@ export function PracticeBoard({
 								onTap={onTap}
 								onDragStart={() => {
 									setCue(null);
-									setDraggedType(type);
+									dragging.current = true;
 									dropZones.remeasureAllDropZones();
 									auto.setDragSourceIndex(i);
 									auto.startAutoScroll();
 								}}
 								onDragEnd={(entity, target) => {
-									setDraggedType(null);
+									dragging.current = false;
 									auto.stopAutoScroll();
 									onDrop(entity, target);
 								}}

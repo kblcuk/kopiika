@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { BackHandler, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -65,7 +65,7 @@ export default function PracticeScreen() {
 			};
 		}, [exit])
 	);
-	const entities = getPracticeEntities(session);
+	const entities = useMemo(() => getPracticeEntities(session), [session]);
 	const pair = getPracticeLessonPair(form ? { ...session, lesson: form.lesson } : session);
 	const from = entities.find((e) => e.id === pair.fromId)!;
 	const to = entities.find((e) => e.id === pair.toId)!;

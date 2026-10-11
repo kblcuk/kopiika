@@ -210,11 +210,14 @@ describe('Onboarding — first launch and practice', () => {
 			// Enter after font configuration settles, with no sheet left over from another test.
 			await device.launchApp({ newInstance: true });
 			await device.disableSynchronization();
-			await device.openURL({ url: 'kopiika://settings' });
-			await waitFor(element(by.id(TestIDs.settings.tourRow)))
-				.toExist()
-				.withTimeout(10000);
 			await device.openURL({ url: 'kopiika://onboarding/practice?origin=settings' });
+			await waitFor(element(by.id(TestIDs.onboarding.practiceScreen)))
+				.toBeVisible()
+				.withTimeout(10000);
+			await waitFor(element(by.id(TestIDs.onboarding.practiceRecord)))
+				.toBeVisible()
+				.whileElement(by.id(TestIDs.onboarding.practiceScreen))
+				.scroll(150, 'down');
 			await tapUntilVisible(
 				by.id(TestIDs.onboarding.practiceRecord),
 				by.id(TestIDs.onboarding.practiceSheetExit)

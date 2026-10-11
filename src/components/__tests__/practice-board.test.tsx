@@ -1,10 +1,15 @@
 import React from 'react';
 import { Text } from 'react-native';
 import * as ReactNative from 'react-native';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 import { PracticeBoard } from '../practice-board';
 import { createPracticeSession, getPracticeEntities } from '@/src/onboarding/practice-session';
 import { createDropZoneRegistry } from '@/src/utils/drop-zone';
+
+const mockGridProps: Record<
+	string,
+	{ data: ReturnType<typeof getPracticeEntities>; onDragStart: (event: { key: string }) => void }
+> = {};
 
 jest.mock('react-native-sortables', () => {
 	const { View } = jest.requireActual('react-native');
@@ -14,7 +19,13 @@ jest.mock('react-native-sortables', () => {
 			PortalProvider: ({ children }: { children: React.ReactNode }) => (
 				<View testID="drag-portal">{children}</View>
 			),
-			Grid: () => null,
+			Grid: (props: {
+				data: ReturnType<typeof getPracticeEntities>;
+				onDragStart: (event: { key: string }) => void;
+			}) => {
+				if (props.data[0]) mockGridProps[props.data[0].type] = props;
+				return null;
+			},
 			Handle: ({ children }: { children: React.ReactNode }) => children,
 		},
 	};
@@ -95,5 +106,34 @@ test('large text puts guidance inline and leaves its action reachable', () => {
 		expect(ui.getByText('Record instead')).toBeTruthy();
 	} finally {
 		dimensions.mockRestore();
+	}
+});
+
+test('starting a drag preserves the measured grid data instead of resetting sortable layout', () => {
+	jest.useFakeTimers();
+	try {
+		const ui = render(
+			<PracticeBoard
+				entities={getPracticeEntities(createPracticeSession('EUR'))}
+				highlightedIds={[]}
+				dropZones={createDropZoneRegistry()}
+				onTap={() => {}}
+				onDrop={() => {}}
+				guidance={<Text>Try this movement</Text>}
+				guidanceType="income"
+				lesson="receive"
+				demo={0}
+			/>
+		);
+		const measuredData = mockGridProps.income!.data;
+		act(() => {
+			mockGridProps.income!.onDragStart({ key: 'practice-income' });
+			jest.advanceTimersByTime(32);
+		});
+		expect(mockGridProps.income!.data).toBe(measuredData);
+		ui.unmount();
+	} finally {
+		act(() => jest.runOnlyPendingTimers());
+		jest.useRealTimers();
 	}
 });

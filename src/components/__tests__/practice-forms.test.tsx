@@ -32,6 +32,7 @@ test('practice uses the normal transaction sheet endpoints, note and date', () =
 	expect(ui.getByTestId('transaction-to-button')).toBeTruthy();
 	expect(ui.getByTestId('transaction-note-input')).toBeTruthy();
 	expect(ui.getByTestId('transaction-date-field')).toBeTruthy();
+	expect(ui.getByTestId('transaction-date-display')).toHaveTextContent(/1970/);
 });
 
 test.each(['100÷0', '1+2+'])(

@@ -1139,14 +1139,22 @@ export function TransactionForm({
 						>
 							<Calendar size={20} color={colors.ink.muted} />
 							<View className="ml-2">
-								<DateTimePicker
-									value={selectedDate}
-									disabled={!!practice}
-									mode="date"
-									display="compact"
-									onChange={handleDateChange}
-									accentColor={colors.accent.deeper}
-								/>
+								{practice ? (
+									<Text
+										className="font-sans text-base text-ink"
+										testID="transaction-date-display"
+									>
+										{formatFullDate(selectedDate)}
+									</Text>
+								) : (
+									<DateTimePicker
+										value={selectedDate}
+										mode="date"
+										display="compact"
+										onChange={handleDateChange}
+										accentColor={colors.accent.deeper}
+									/>
+								)}
 							</View>
 						</View>
 					) : (
