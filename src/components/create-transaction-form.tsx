@@ -82,7 +82,7 @@ export function CreateTransactionForm({
 			from_entity_id: fromEntity.id,
 			to_entity_id: toEntity.id,
 			currency,
-			amount_minor: parseAmountToMinor(expr.resolve(), currency),
+			amount_minor: parseAmountToMinor(expr.resolve({ rejectInvalid: true }), currency),
 		};
 		const version = openingVersion.current;
 		submitting.current = true;

@@ -63,18 +63,22 @@ export function useExpressionInput(
 		[onChange, opts.maxDecimalPlaces]
 	);
 
-	const resolve = useCallback((): string => {
-		const current = latestInput.current;
-		if (!EXPR_CHAR_RE.test(current)) return current;
-		const evaluated = evaluateExpression(current);
-		if (evaluated === null) return current;
-		const factor = 10 ** opts.maxDecimalPlaces;
-		const rounded = Math.round(evaluated * factor) / factor;
-		const resolved = rounded.toString();
-		latestInput.current = resolved;
-		onChange(resolved);
-		return resolved;
-	}, [onChange, opts.maxDecimalPlaces]);
+	const resolve = useCallback(
+		(options?: { rejectInvalid?: boolean }): string => {
+			const current = latestInput.current;
+			if (!EXPR_CHAR_RE.test(current)) return current;
+			const evaluated = evaluateExpression(current);
+			// Submit callers can reject invalid arithmetic without replacing the user's input.
+			if (evaluated === null) return options?.rejectInvalid ? '' : current;
+			const factor = 10 ** opts.maxDecimalPlaces;
+			const rounded = Math.round(evaluated * factor) / factor;
+			const resolved = rounded.toString();
+			latestInput.current = resolved;
+			onChange(resolved);
+			return resolved;
+		},
+		[onChange, opts.maxDecimalPlaces]
+	);
 
 	const insertOperator = useCallback(
 		(op: Operator) => {

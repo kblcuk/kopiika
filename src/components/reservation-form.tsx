@@ -116,7 +116,7 @@ export function ReservationForm({
 
 	const handleSubmit = async () => {
 		if (!canSubmit || submitting.current || !active.current) return;
-		const resolved = amountExpr.resolve();
+		const resolved = amountExpr.resolve({ rejectInvalid: true });
 		const finalAmountMinor = parseAmountToMinor(resolved, currency);
 		if (!Number.isFinite(finalAmountMinor) || finalAmountMinor <= 0) return;
 		const version = openingVersion.current;
