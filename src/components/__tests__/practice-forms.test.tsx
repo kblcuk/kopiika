@@ -9,8 +9,29 @@ const income = entities.find((e) => e.type === 'income')!;
 const account = entities.find((e) => e.type === 'account')!;
 const saving = entities.find((e) => e.type === 'saving')!;
 
+jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 jest.mock('@/src/store', () => {
 	throw new Error('Practice forms must not import the personal store');
+});
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+
+test('practice uses the normal transaction sheet endpoints, note and date', () => {
+	const ui = render(
+		<CreateTransactionForm
+			visible
+			fromEntity={income}
+			toEntity={account}
+			entities={entities}
+			timestamp={1}
+			initialAmountMinor={100000}
+			onSubmit={async () => {}}
+			onClose={() => {}}
+		/>
+	);
+	expect(ui.getByTestId('transaction-from-button')).toBeTruthy();
+	expect(ui.getByTestId('transaction-to-button')).toBeTruthy();
+	expect(ui.getByTestId('transaction-note-input')).toBeTruthy();
+	expect(ui.getByTestId('transaction-date-field')).toBeTruthy();
 });
 
 test.each(['100÷0', '1+2+'])(

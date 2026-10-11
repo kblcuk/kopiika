@@ -14,6 +14,7 @@ interface DateQuickPresetsProps {
 	value: Date;
 	onSelect: (date: Date) => void;
 	testIDPrefix: string;
+	disabled?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function DateQuickPresets({
 	value,
 	onSelect,
 	testIDPrefix,
+	disabled = false,
 }: DateQuickPresetsProps) {
 	return (
 		<View className="mt-2 flex-row gap-2">
@@ -40,12 +42,13 @@ export function DateQuickPresets({
 				return (
 					<Pressable
 						key={option.key}
+						disabled={disabled}
 						onPress={() => onSelect(option.date)}
 						className={`flex-1 items-center rounded-lg py-2 ${
 							isSelected ? 'bg-accent' : 'bg-paper-200'
 						}`}
 						accessibilityRole="button"
-						accessibilityState={{ selected: isSelected }}
+						accessibilityState={{ selected: isSelected, disabled }}
 						testID={`${testIDPrefix}-${option.key}`}
 					>
 						<Text

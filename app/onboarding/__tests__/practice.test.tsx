@@ -6,6 +6,7 @@ import { useStore } from '@/src/store';
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
 let mockParams: { origin?: string } = {};
+jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ replace: mockReplace, back: mockBack, canGoBack: () => true }),
 	useLocalSearchParams: () => mockParams,
