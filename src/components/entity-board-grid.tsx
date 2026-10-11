@@ -40,7 +40,7 @@ import { isAllowedPair } from '@/src/utils/transaction-validation';
 export interface EntityBoardGridProps {
 	lookupEntity: (id: string) => Entity | undefined;
 	onReorder?: (type: EntityType, ids: string[], rows: number) => void | Promise<void>;
-	dropZones: ReturnType<typeof createDropZoneRegistry>;
+	dropZones: Omit<ReturnType<typeof createDropZoneRegistry>, 'getDropZone'>;
 	hoveredId: SharedValue<string>;
 	highlightedIds?: string[];
 	title: string;

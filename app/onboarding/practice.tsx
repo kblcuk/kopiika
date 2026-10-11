@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '@/src/store';
@@ -18,6 +18,7 @@ import { createDropZoneRegistry } from '@/src/utils/drop-zone';
 import { generateId } from '@/src/utils/ids';
 import { getReservationForPair } from '@/src/utils/savings-transactions';
 import { Text } from '@/src/components/text';
+import { SummaryHeaderView } from '@/src/components/summary-header-view';
 import { PracticeBoard } from '@/src/components/practice-board';
 import { PracticeGuidance } from '@/src/components/practice-guidance';
 import { CreateTransactionForm } from '@/src/components/create-transaction-form';
@@ -35,8 +36,11 @@ export default function PracticeScreen() {
 	const active = useRef(true);
 	const [dropZones] = useState(createDropZoneRegistry);
 	const [hint, setHint] = useState('');
+	const [demo, setDemo] = useState(0);
+	const [incomeVisible, setIncomeVisible] = useState(true);
 	const [form, setForm] = useState<{ lesson: PracticeLesson; submissionId: string } | null>(null);
 	const update = (next: typeof session) => {
+		setDemo(0);
 		sessionRef.current = next;
 		setSession(next);
 		setHint('');
@@ -68,10 +72,11 @@ export default function PracticeScreen() {
 	const open = (lesson = session.lesson) => {
 		if (form || !active.current) return;
 		if (session.phase !== 'action' && session.phase !== 'explore') {
-			setHint('See the result, then continue below.');
+			setHint('See the result beside Main account, then continue.');
 			return;
 		}
 		setHint('');
+		setDemo(0);
 		setForm({ lesson, submissionId: generateId() });
 	};
 	const tap = (entity: EntityWithBalance) => {
@@ -84,7 +89,7 @@ export default function PracticeScreen() {
 						? 'spend'
 						: null;
 		if (lesson && (session.phase === 'explore' || lesson === session.lesson)) open(lesson);
-		else setHint('Try the highlighted movement, or use the action button above.');
+		else setHint('Try the highlighted movement, or use the action beside it.');
 	};
 	const drop = (entity: EntityWithBalance, targetId: string | null) => {
 		if (!targetId) return;
@@ -94,7 +99,7 @@ export default function PracticeScreen() {
 			return p.fromId === entity.id && p.toId === targetId;
 		});
 		if (lesson && (session.phase === 'explore' || lesson === session.lesson)) open(lesson);
-		else setHint('Try the highlighted movement, or use the action button above.');
+		else setHint('Try the highlighted movement, or use the action beside it.');
 	};
 	const submit = async (input: MutationInput) => {
 		if (!active.current || !form) throw new Error('This practice session has ended.');
@@ -125,35 +130,58 @@ export default function PracticeScreen() {
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top', 'bottom']}>
 			{chrome()}
-			<ScrollView
-				testID={TestIDs.onboarding.practiceScreen}
-				contentContainerStyle={{ paddingTop: 20, paddingBottom: 24 }}
-				onScroll={dropZones.remeasureAllDropZones}
-				onContentSizeChange={dropZones.remeasureAllDropZones}
-				scrollEventThrottle={32}
-			>
-				<PracticeGuidance
-					key={`${session.lesson}-${session.phase}`}
-					session={session}
-					hint={hint}
-					onRecord={() => open()}
-					onNext={() => update(advancePracticeLesson(sessionRef.current))}
-					onFinish={exit}
-					onExplore={() => update(startPracticeExploring(sessionRef.current))}
-					finishLabel={label}
-				/>
-				<PracticeBoard
-					entities={entities}
-					highlightedIds={session.phase === 'action' ? [pair.fromId, pair.toId] : []}
-					dropZones={dropZones}
-					onTap={tap}
-					onDrop={drop}
-				/>
-				<Text className="mx-5 mt-3 font-sans text-xs text-ink-muted">
-					Practice uses tap to record. Your own board&apos;s gesture setting stays the
-					same.
-				</Text>
-			</ScrollView>
+			<SummaryHeaderView
+				currency={session.currency}
+				summary={{
+					balance: entities.find((e) => e.type === 'account')!.actual,
+					expenses: entities.find((e) => e.type === 'category')!.actual,
+					remaining: 0,
+				}}
+				incomeVisible={incomeVisible}
+				topInset={false}
+				editMode={false}
+				editDisabled
+				onToggleEditMode={() => {}}
+				onToggleIncome={() => {
+					if (session.lesson === 'receive' && session.phase === 'action') {
+						setHint('Keep Income visible for this lesson.');
+						return;
+					}
+					setIncomeVisible((value) => !value);
+				}}
+			/>
+			<PracticeBoard
+				entities={entities}
+				highlightedIds={session.phase === 'action' ? [pair.fromId, pair.toId] : []}
+				dropZones={dropZones}
+				onTap={tap}
+				onDrop={drop}
+				incomeVisible={incomeVisible}
+				lesson={session.lesson}
+				demo={demo}
+				guidanceType={
+					session.phase !== 'action'
+						? 'account'
+						: session.lesson === 'receive'
+							? 'income'
+							: session.lesson === 'spend'
+								? 'category'
+								: 'account'
+				}
+				guidance={
+					<PracticeGuidance
+						session={session}
+						hint={hint}
+						onRecord={() => open()}
+						onNext={() => update(advancePracticeLesson(sessionRef.current))}
+						onFinish={exit}
+						onExplore={() => update(startPracticeExploring(sessionRef.current))}
+						finishLabel={label}
+						onDemo={() => setDemo((n) => n + 1)}
+					/>
+				}
+			/>
+
 			{form &&
 				(form.lesson === 'save' ? (
 					<ReservationForm
@@ -182,6 +210,14 @@ export default function PracticeScreen() {
 						}
 						onClose={() => setForm(null)}
 						tutorialHeader={chrome(true)}
+						guidance={
+							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
+								<Text className="font-sans text-sm">
+									Change the example amount if you like, then Save. Other options
+									stay fixed for this exercise.
+								</Text>
+							</View>
+						}
 						allowClear={false}
 					/>
 				) : (
@@ -195,6 +231,14 @@ export default function PracticeScreen() {
 						onSubmit={submit}
 						onClose={() => setForm(null)}
 						tutorialHeader={chrome(true)}
+						guidance={
+							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
+								<Text className="font-sans text-sm">
+									Change the example amount if you like, then Save. Other options
+									stay fixed for this exercise.
+								</Text>
+							</View>
+						}
 					/>
 				))}
 		</SafeAreaView>

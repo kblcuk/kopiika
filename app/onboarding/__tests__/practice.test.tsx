@@ -28,10 +28,26 @@ jest.mock('react-native-worklets', () => ({ scheduleOnRN: jest.fn() }));
 jest.mock('react-native-sortables', () => ({
 	__esModule: true,
 	default: {
+		PortalProvider: ({ children }: { children: React.ReactNode }) => children,
 		Grid: () => null,
 		Handle: ({ children }: { children: React.ReactNode }) => children,
 		Touchable: ({ children }: { children: React.ReactNode }) => children,
 	},
+}));
+
+jest.mock('@/src/hooks/use-drag-auto-scroll', () => ({
+	useDragAutoScroll: () => ({
+		outerScrollRef: { current: null },
+		sectionRefs: [],
+		startAutoScroll: jest.fn(),
+		stopAutoScroll: jest.fn(),
+		setDragSourceIndex: jest.fn(),
+		updateDragTouch: jest.fn(),
+		updateSectionBounds: jest.fn(),
+		updateSectionMaxOffset: jest.fn(),
+		handleOuterLayout: jest.fn(),
+		handleOuterContentSizeChange: jest.fn(),
+	}),
 }));
 
 beforeEach(() => {
@@ -79,7 +95,7 @@ test('teaches three movements with entered amounts while personal data remains u
 	await record(ui, '50');
 	await record(ui, '200', true);
 	expect(ui.getByTestId('practice-finish')).toBeTruthy();
-	expect(ui.getByText(/950/)).toBeTruthy();
+	expect(ui.getByText(/Main account: 950/)).toBeTruthy();
 	expect(useStore.getState().entities).toEqual([personal]);
 	expect(useStore.getState().transactions).toEqual([tx]);
 	expect(useStore.getState().bubbleGestureMode).toBe(before.bubbleGestureMode);

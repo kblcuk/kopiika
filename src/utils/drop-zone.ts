@@ -48,6 +48,7 @@ export function createDropZoneRegistry() {
 		unregisterRemeasureCallback,
 		remeasureAllDropZones,
 		findDropTarget,
+		getDropZone: (id: string) => dropZoneRegistry.get(id),
 	};
 }
 

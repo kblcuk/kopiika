@@ -36,6 +36,7 @@ interface ReservationFormProps {
 	initialAmountMinor?: number;
 	onSubmit: (targetTotalMinor: number) => Promise<void>;
 	tutorialHeader?: ReactNode;
+	guidance?: ReactNode;
 	help?: ReactNode;
 	allowClear?: boolean;
 }
@@ -49,6 +50,7 @@ export function ReservationForm({
 	initialAmountMinor,
 	onSubmit,
 	tutorialHeader,
+	guidance,
 	help,
 	allowClear = true,
 }: ReservationFormProps) {
@@ -208,6 +210,7 @@ export function ReservationForm({
 					paddingBottom: Math.max(insets.bottom, 16),
 				}}
 			>
+				{guidance}
 				{/* Header: account → saving */}
 				<View className="mb-6 mt-4 flex-row items-center justify-center">
 					{renderBubble(account)}

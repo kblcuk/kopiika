@@ -42,7 +42,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Sortable from 'react-native-sortables';
+import { BoardScrollSurface } from '@/src/components/board-scroll-surface';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -407,67 +407,113 @@ export default function HomeScreen() {
 				)}
 
 				{/* PortalProvider ensures dragged items render above all other content */}
-				<Sortable.PortalProvider>
-					{/* Content */}
-					<Animated.ScrollView
-						ref={outerScrollRef}
-						testID="home-scroll-view"
-						className="flex-1 overflow-visible"
-						contentContainerClassName="overflow-visible"
-						contentContainerStyle={{ paddingVertical: 12 }}
-						onScroll={scrollHandler}
-						scrollEventThrottle={16}
-						onScrollEndDrag={handleScrollEnd}
-						onMomentumScrollEnd={handleScrollEnd}
-						onLayout={handleOuterLayout}
-						onContentSizeChange={handleOuterContentSizeChange}
-					>
-						<View onLayout={handleContentLayout}>
-							<PerfProfiler id="scroll-content">
-								{/* Always render income section, control visibility with animation */}
-								<Animated.View
-									style={[
-										animatedStyle,
-										{
-											zIndex: isDraggingIncome ? 1000 : 10,
-											elevation: isDraggingIncome ? 1000 : 10,
-										},
-									]}
+
+				{/* Content */}
+				<BoardScrollSurface
+					ref={outerScrollRef}
+					testID="home-scroll-view"
+					className="flex-1 overflow-visible"
+					contentContainerClassName="overflow-visible"
+					contentContainerStyle={{ paddingVertical: 12 }}
+					onScroll={scrollHandler}
+					scrollEventThrottle={16}
+					onScrollEndDrag={handleScrollEnd}
+					onMomentumScrollEnd={handleScrollEnd}
+					onLayout={handleOuterLayout}
+					onContentSizeChange={handleOuterContentSizeChange}
+				>
+					<View onLayout={handleContentLayout}>
+						<PerfProfiler id="scroll-content">
+							{/* Always render income section, control visibility with animation */}
+							<Animated.View
+								style={[
+									animatedStyle,
+									{
+										zIndex: isDraggingIncome ? 1000 : 10,
+										elevation: isDraggingIncome ? 1000 : 10,
+									},
+								]}
+							>
+								<View
+									{...(incomeContentHeight === null && {
+										onLayout: handleIncomeLayout,
+									})}
+									pointerEvents={incomeVisible ? 'auto' : 'none'}
 								>
-									<View
-										{...(incomeContentHeight === null && {
-											onLayout: handleIncomeLayout,
-										})}
-										pointerEvents={incomeVisible ? 'auto' : 'none'}
-									>
-										<PerfProfiler id="grid-income">
-											<SortableEntityGrid
-												title="Income"
-												type="income"
-												entities={income}
-												onDragStart={handleDragStart}
-												onDragEnd={handleDragEnd}
-												onTap={handleTap}
-												onLongPress={handleLongPress}
-												onAdd={createFlow.open}
-												dropZonesDisabled={!incomeVisible}
-												dragBehavior={
-													boardEdit.editing ? 'reorder' : 'transaction'
-												}
-												updateDragTouch={updateDragTouch}
-												sectionScrollRef={sectionRefs[0]}
-												sectionIndex={0}
-												onSectionMaxOffset={updateSectionMaxOffset}
-												onSectionBounds={updateSectionBounds}
-											/>
-										</PerfProfiler>
-									</View>
-								</Animated.View>
-								<PerfProfiler id="grid-account">
+									<PerfProfiler id="grid-income">
+										<SortableEntityGrid
+											title="Income"
+											type="income"
+											entities={income}
+											onDragStart={handleDragStart}
+											onDragEnd={handleDragEnd}
+											onTap={handleTap}
+											onLongPress={handleLongPress}
+											onAdd={createFlow.open}
+											dropZonesDisabled={!incomeVisible}
+											dragBehavior={
+												boardEdit.editing ? 'reorder' : 'transaction'
+											}
+											updateDragTouch={updateDragTouch}
+											sectionScrollRef={sectionRefs[0]}
+											sectionIndex={0}
+											onSectionMaxOffset={updateSectionMaxOffset}
+											onSectionBounds={updateSectionBounds}
+										/>
+									</PerfProfiler>
+								</View>
+							</Animated.View>
+							<PerfProfiler id="grid-account">
+								<SortableEntityGrid
+									title="Accounts"
+									type="account"
+									entities={accounts}
+									onDragStart={handleDragStart}
+									onDragEnd={handleDragEnd}
+									onTap={handleTap}
+									onLongPress={handleLongPress}
+									onAdd={createFlow.open}
+									dragBehavior={boardEdit.editing ? 'reorder' : 'transaction'}
+									updateDragTouch={updateDragTouch}
+									sectionScrollRef={sectionRefs[1]}
+									sectionIndex={1}
+									onSectionMaxOffset={updateSectionMaxOffset}
+									onSectionBounds={updateSectionBounds}
+								/>
+							</PerfProfiler>
+							{revealed >= 1 ? (
+								<PerfProfiler id="grid-category">
 									<SortableEntityGrid
-										title="Accounts"
-										type="account"
-										entities={accounts}
+										title="Categories"
+										type="category"
+										entities={categories}
+										onDragStart={handleDragStart}
+										onDragEnd={handleDragEnd}
+										onTap={handleTap}
+										onLongPress={handleLongPress}
+										onAdd={createFlow.open}
+										maxRows={3}
+										dragBehavior={boardEdit.editing ? 'reorder' : 'transaction'}
+										updateDragTouch={updateDragTouch}
+										sectionScrollRef={sectionRefs[2]}
+										sectionIndex={2}
+										onSectionMaxOffset={updateSectionMaxOffset}
+										onSectionBounds={updateSectionBounds}
+									/>
+								</PerfProfiler>
+							) : (
+								<EntitySectionSkeleton
+									title="Categories"
+									entityCount={categories.length}
+									maxRows={3}
+								/>
+							)}
+							{revealed >= 2 ? (
+								<PerfProfiler id="grid-saving">
+									<SortableEntityGrid
+										title="Savings · Goal"
+										type="saving"
+										entities={savings}
 										onDragStart={handleDragStart}
 										onDragEnd={handleDragEnd}
 										onTap={handleTap}
@@ -475,80 +521,29 @@ export default function HomeScreen() {
 										onAdd={createFlow.open}
 										dragBehavior={boardEdit.editing ? 'reorder' : 'transaction'}
 										updateDragTouch={updateDragTouch}
-										sectionScrollRef={sectionRefs[1]}
-										sectionIndex={1}
+										sectionScrollRef={sectionRefs[3]}
+										sectionIndex={3}
 										onSectionMaxOffset={updateSectionMaxOffset}
 										onSectionBounds={updateSectionBounds}
 									/>
 								</PerfProfiler>
-								{revealed >= 1 ? (
-									<PerfProfiler id="grid-category">
-										<SortableEntityGrid
-											title="Categories"
-											type="category"
-											entities={categories}
-											onDragStart={handleDragStart}
-											onDragEnd={handleDragEnd}
-											onTap={handleTap}
-											onLongPress={handleLongPress}
-											onAdd={createFlow.open}
-											maxRows={3}
-											dragBehavior={
-												boardEdit.editing ? 'reorder' : 'transaction'
-											}
-											updateDragTouch={updateDragTouch}
-											sectionScrollRef={sectionRefs[2]}
-											sectionIndex={2}
-											onSectionMaxOffset={updateSectionMaxOffset}
-											onSectionBounds={updateSectionBounds}
-										/>
-									</PerfProfiler>
-								) : (
-									<EntitySectionSkeleton
-										title="Categories"
-										entityCount={categories.length}
-										maxRows={3}
-									/>
-								)}
-								{revealed >= 2 ? (
-									<PerfProfiler id="grid-saving">
-										<SortableEntityGrid
-											title="Savings · Goal"
-											type="saving"
-											entities={savings}
-											onDragStart={handleDragStart}
-											onDragEnd={handleDragEnd}
-											onTap={handleTap}
-											onLongPress={handleLongPress}
-											onAdd={createFlow.open}
-											dragBehavior={
-												boardEdit.editing ? 'reorder' : 'transaction'
-											}
-											updateDragTouch={updateDragTouch}
-											sectionScrollRef={sectionRefs[3]}
-											sectionIndex={3}
-											onSectionMaxOffset={updateSectionMaxOffset}
-											onSectionBounds={updateSectionBounds}
-										/>
-									</PerfProfiler>
-								) : (
-									<EntitySectionSkeleton
-										title="Savings · Goal"
-										entityCount={savings.length}
-									/>
-								)}
+							) : (
+								<EntitySectionSkeleton
+									title="Savings · Goal"
+									entityCount={savings.length}
+								/>
+							)}
 
-								{entities.length === 0 && (
-									<View className="items-center px-4 py-10">
-										<Text className="text-center font-sans text-ink-muted">
-											Setting up your dashboard...
-										</Text>
-									</View>
-								)}
-							</PerfProfiler>
-						</View>
-					</Animated.ScrollView>
-				</Sortable.PortalProvider>
+							{entities.length === 0 && (
+								<View className="items-center px-4 py-10">
+									<Text className="text-center font-sans text-ink-muted">
+										Setting up your dashboard...
+									</Text>
+								</View>
+							)}
+						</PerfProfiler>
+					</View>
+				</BoardScrollSurface>
 
 				{/* Transaction Modal */}
 				{transactionModalOpened && (

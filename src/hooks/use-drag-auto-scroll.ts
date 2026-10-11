@@ -32,7 +32,8 @@ export function useDragAutoScroll(
 	// useScrollOffset a no-op until the ref attaches, then it re-binds reactively
 	// via animatedRef.observe. Defaults to all-active for callers that mount every
 	// section up front.
-	sectionsActive: readonly boolean[] = [true, true, true, true]
+	sectionsActive: readonly boolean[] = [true, true, true, true],
+	remeasure: () => void = remeasureAllDropZones
 ) {
 	// --- Outer (vertical) scroll ---
 	const outerScrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -94,11 +95,11 @@ export function useDragAutoScroll(
 
 	// Throttled remeasure — runs on JS thread
 	const doRemeasure = useCallback(() => {
-		remeasureAllDropZones();
+		remeasure();
 		setTimeout(() => {
 			remeasurePending.value = false;
 		}, REMEASURE_THROTTLE_MS);
-	}, [remeasurePending]);
+	}, [remeasurePending, remeasure]);
 
 	// --- Worklet helpers (avoid dynamic array indexing of SharedValues) ---
 
@@ -295,18 +296,14 @@ export function useDragAutoScroll(
 	// is clamped to 0 until the user manually scrolls.
 	const handleOuterLayout = useCallback(
 		(e: { nativeEvent: { layout: { height: number } } }) => {
-			if (layoutHeight.value === 0) {
-				layoutHeight.value = e.nativeEvent.layout.height;
-			}
+			layoutHeight.value = e.nativeEvent.layout.height;
 		},
 		[layoutHeight]
 	);
 
 	const handleOuterContentSizeChange = useCallback(
 		(_w: number, h: number) => {
-			if (contentHeight.value === 0) {
-				contentHeight.value = h;
-			}
+			contentHeight.value = h;
 		},
 		[contentHeight]
 	);
