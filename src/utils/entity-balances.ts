@@ -11,6 +11,34 @@ import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import { getTotalReservedForAccount } from './savings-transactions';
 import { isDue } from './due';
 
+export interface SummaryData {
+	balance: number;
+	expenses: number;
+	remaining: number;
+}
+
+/** Dashboard headline numbers from already-derived account and category balances. */
+export function computeSummary(
+	accountsWithBalance: EntityWithBalance[],
+	categoriesWithBalance: EntityWithBalance[]
+): SummaryData {
+	// Balance: sum of account actuals with include_in_total as true (default)
+	const balance = accountsWithBalance
+		.filter((a) => (a.include_in_total ?? true) && a.is_investment !== true)
+		.reduce((sum, a) => sum + a.actual, 0);
+
+	// Expenses: sum of category actuals
+	const expenses = categoriesWithBalance.reduce((sum, c) => sum + c.actual, 0);
+
+	// Remaining: how much is left to spend across categories that have a plan
+	// Overspent categories contribute 0 (not negative) so they don't reduce the total
+	const remaining = categoriesWithBalance
+		.filter((c) => c.planned > 0)
+		.reduce((sum, c) => sum + Math.max(0, c.planned - c.actual), 0);
+
+	return { balance, expenses, remaining };
+}
+
 // Pure function to calculate balances for entities (testable without React)
 export function getEntitiesWithBalance(
 	entities: Entity[],

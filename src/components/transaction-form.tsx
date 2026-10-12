@@ -686,7 +686,7 @@ export function TransactionForm({
 					setIsSubmitting(false);
 					return false;
 				}
-				// No savings releases in edit-mode split: SavingsFundingSection is gated
+				// No savings releases in edit-mode split: SavingsFundingForm is gated
 				// on `!isEditing`, so `fundingRef.current` is null and no funded
 				// reservations can be picked up here.
 				await replaceTransactionWithSplit(existingTransaction.id, txns);
@@ -810,7 +810,7 @@ export function TransactionForm({
 			} else {
 				// Defensive fallback for the partial-selection state: no entity pair
 				// to commit, but a funding ref might still have produced releases.
-				// In edit mode the SavingsFundingSection is unmounted (gated on
+				// In edit mode the SavingsFundingForm is unmounted (gated on
 				// `!isEditing`), so `fundingRef` is null and releases is empty —
 				// this branch effectively no-ops in edit mode.
 				const accountId = selectedFromEntity?.id ?? fromEntity?.id;

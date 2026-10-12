@@ -139,9 +139,9 @@ export interface EntityWithBalance extends Entity {
 // the types barrel. Move to `src/utils/period.ts` (or merge into `format.ts`)
 // so this file stays types-only.
 // Helper to get current period in YYYY-MM format
-export function getCurrentPeriod(): string {
-	const now = new Date();
-	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+export function getCurrentPeriod(now: number = Date.now()): string {
+	const date = new Date(now);
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 // Helper to get period start/end timestamps

@@ -72,12 +72,14 @@ export interface EntityBoardGridProps {
 	onSectionBounds?: (index: number, screenY: number, height: number) => void;
 }
 
+const NO_HIGHLIGHTS: string[] = [];
+
 export function EntityBoardGrid({
 	lookupEntity,
 	onReorder,
 	dropZones,
 	hoveredId,
-	highlightedIds = [],
+	highlightedIds = NO_HIGHLIGHTS,
 	title,
 	type,
 	entities,

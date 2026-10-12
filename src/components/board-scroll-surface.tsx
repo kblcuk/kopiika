@@ -2,6 +2,7 @@ import type { ComponentProps } from 'react';
 import Animated from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 
+/** Board scroll view; its PortalProvider renders dragged bubbles above all other content. */
 export function BoardScrollSurface({
 	children,
 	...props

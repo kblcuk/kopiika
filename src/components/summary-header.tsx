@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useStore, getEntitiesWithBalance } from '@/src/store';
+import { useStore } from '@/src/store';
+import {
+	computeSummary,
+	getEntitiesWithBalance,
+	type SummaryData,
+} from '@/src/utils/entity-balances';
 import { SummaryHeaderView, type SummaryHeaderViewProps } from './summary-header-view';
-export { HEADER_TOGGLE_GAP } from './summary-header-view';
-interface SummaryData {
-	balance: number;
-	expenses: number;
-	remaining: number;
-}
 
 // Hook to compute summary values
 export function useSummary(): SummaryData {
@@ -43,22 +42,7 @@ export function useSummary(): SummaryData {
 			currentPeriod,
 			'category'
 		);
-
-		// Balance: sum of account actuals with include_in_total as true (default)
-		const balance = accountsWithBalance
-			.filter((a) => (a.include_in_total ?? true) && a.is_investment !== true)
-			.reduce((sum, a) => sum + a.actual, 0);
-
-		// Expenses: sum of category actuals
-		const expenses = categoriesWithBalance.reduce((sum, c) => sum + c.actual, 0);
-
-		// Remaining: how much is left to spend across categories that have a plan
-		// Overspent categories contribute 0 (not negative) so they don't reduce the total
-		const remaining = categoriesWithBalance
-			.filter((c) => c.planned > 0)
-			.reduce((sum, c) => sum + Math.max(0, c.planned - c.actual), 0);
-
-		return { balance, expenses, remaining };
+		return computeSummary(accountsWithBalance, categoriesWithBalance);
 	}, [entities, plans, transactions, balanceSeed, currentPeriod]);
 }
 

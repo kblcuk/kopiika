@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 import type { EntityWithBalance } from '@/src/types';
+import { outsideExercise } from '@/src/onboarding/practice-session';
 import { EntityDetailForm } from './entity-detail-form';
-const outsideExercise = async (): Promise<never> => {
-	throw new Error('This option is outside the planning exercise.');
-};
+
 export function PracticePlanForm({
 	visible,
 	entity,

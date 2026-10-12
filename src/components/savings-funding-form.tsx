@@ -32,7 +32,7 @@ export interface SavingsFundingHandle {
 	}[];
 }
 
-export interface SavingsFundingSectionProps {
+export interface SavingsFundingFormProps {
 	accountEntityId: string;
 	currency: string;
 	/** Current entered transaction amount in minor units — default when toggling on */
@@ -46,7 +46,7 @@ const VISIBLE_CAP = 3;
 
 export const SavingsFundingForm = forwardRef<
 	SavingsFundingHandle,
-	SavingsFundingSectionProps & { transactions: Transaction[]; entities: Entity[] }
+	SavingsFundingFormProps & { transactions: Transaction[]; entities: Entity[] }
 >(function SavingsFundingForm(
 	{
 		accountEntityId,

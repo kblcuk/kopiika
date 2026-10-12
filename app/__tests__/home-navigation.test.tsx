@@ -107,14 +107,18 @@ jest.mock('expo-haptics', () => ({
 jest.mock('react-native-safe-area-context', () => ({
 	SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
-jest.mock('@/src/utils/drop-zone', () => ({
-	registerDropZone: jest.fn(),
-	unregisterDropZone: jest.fn(),
-	registerRemeasureCallback: jest.fn(),
-	unregisterRemeasureCallback: jest.fn(),
-	findDropTarget: jest.fn(),
-	remeasureAllDropZones: jest.fn(),
-}));
+jest.mock('@/src/utils/drop-zone', () => {
+	const globalDropZones = {
+		registerDropZone: jest.fn(),
+		unregisterDropZone: jest.fn(),
+		registerRemeasureCallback: jest.fn(),
+		unregisterRemeasureCallback: jest.fn(),
+		findDropTarget: jest.fn(),
+		remeasureAllDropZones: jest.fn(),
+		getDropZone: jest.fn(),
+	};
+	return { globalDropZones, remeasureAllDropZones: globalDropZones.remeasureAllDropZones };
+});
 
 jest.mock('@/src/hooks/use-staggered-reveal', () => ({
 	useStaggeredReveal: jest.fn(() => 2),

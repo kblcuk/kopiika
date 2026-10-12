@@ -51,14 +51,18 @@ jest.mock('expo-haptics', () => ({
 	ImpactFeedbackStyle: { Light: 'light', Medium: 'medium' },
 }));
 
-jest.mock('@/src/utils/drop-zone', () => ({
-	registerDropZone: jest.fn(),
-	unregisterDropZone: jest.fn(),
-	registerRemeasureCallback: jest.fn(),
-	unregisterRemeasureCallback: jest.fn(),
-	findDropTarget: jest.fn(),
-	remeasureAllDropZones: jest.fn(),
-}));
+jest.mock('@/src/utils/drop-zone', () => {
+	const globalDropZones = {
+		registerDropZone: jest.fn(),
+		unregisterDropZone: jest.fn(),
+		registerRemeasureCallback: jest.fn(),
+		unregisterRemeasureCallback: jest.fn(),
+		findDropTarget: jest.fn(),
+		remeasureAllDropZones: jest.fn(),
+		getDropZone: jest.fn(),
+	};
+	return { globalDropZones, remeasureAllDropZones: globalDropZones.remeasureAllDropZones };
+});
 
 jest.mock('@/src/store', () => ({
 	useStore: Object.assign(

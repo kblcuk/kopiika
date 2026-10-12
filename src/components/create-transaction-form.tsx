@@ -5,6 +5,7 @@ import {
 	validateTransaction,
 	type MutationInput,
 } from '@/src/utils/transaction-validation';
+import { outsideExercise } from '@/src/onboarding/practice-session';
 import { TransactionForm } from './transaction-form';
 
 interface CreateTransactionFormProps {
@@ -19,9 +20,6 @@ interface CreateTransactionFormProps {
 	tutorialHeader?: ReactNode;
 	guidance?: ReactNode;
 }
-const outsideExercise = async (): Promise<never> => {
-	throw new Error('This option is outside this exercise.');
-};
 
 /** Binds the app's transaction sheet to example money, without importing personal state. */
 export function CreateTransactionForm({

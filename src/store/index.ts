@@ -54,8 +54,6 @@ import {
 } from '@/src/utils/app-prefs';
 import { DEFAULT_BUBBLE_GESTURE_MODE, type BubbleGestureMode } from '@/src/utils/bubble-gestures';
 
-export { getEntitiesWithBalance } from '@/src/utils/entity-balances';
-
 interface AppState {
 	// Data
 	entities: Entity[];

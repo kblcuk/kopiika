@@ -1,5 +1,6 @@
 import { render, renderHook, fireEvent } from '@testing-library/react-native';
-import { useSummary, SummaryHeader, HEADER_TOGGLE_GAP } from '../summary-header';
+import { useSummary, SummaryHeader } from '../summary-header';
+import { HEADER_TOGGLE_GAP } from '../summary-header-view';
 import { useStore } from '@/src/store';
 import type { Entity, Plan, Transaction } from '@/src/types';
 import { TestIDs } from '@/e2e/support/test-ids';

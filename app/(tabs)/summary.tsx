@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useRouter } from 'expo-router';
 
-import { useStore, getEntitiesWithBalance } from '@/src/store';
+import { useStore } from '@/src/store';
+import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 import { getCurrentPeriod } from '@/src/types';
 import type { EntityWithBalance } from '@/src/types';
 import { PeriodPicker } from '@/src/components/period-picker';

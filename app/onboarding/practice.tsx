@@ -5,8 +5,11 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '@/src/store';
 import {
 	createPracticeSession,
+	findPracticeMovementLesson,
 	getPracticeEntities,
+	getPracticeGuidanceType,
 	getPracticeLessonPair,
+	getPracticeTapLesson,
 	submitPracticeMovement,
 	submitPracticePlan,
 	advancePracticeLesson,
@@ -16,16 +19,37 @@ import {
 import type { EntityWithBalance } from '@/src/types';
 import type { MutationInput } from '@/src/utils/transaction-validation';
 import { createDropZoneRegistry } from '@/src/utils/drop-zone';
+import { computeSummary } from '@/src/utils/entity-balances';
 import { generateId } from '@/src/utils/ids';
 import { getReservationForPair } from '@/src/utils/savings-transactions';
 import { Text } from '@/src/components/text';
 import { SummaryHeaderView } from '@/src/components/summary-header-view';
 import { PracticeBoard } from '@/src/components/practice-board';
-import { PracticeGuidance } from '@/src/components/practice-guidance';
+import { PracticeGuidance, PracticeNote } from '@/src/components/practice-guidance';
 import { CreateTransactionForm } from '@/src/components/create-transaction-form';
 import { PracticePlanForm } from '@/src/components/practice-plan-form';
 import { ReservationForm } from '@/src/components/reservation-form';
 import { TestIDs } from '@/e2e/support/test-ids';
+
+const FIXED_OPTIONS_NOTE =
+	'Change the example amount if you like, then Save. Other options stay fixed for this exercise.';
+const FINISH_LABEL: Record<string, string> = {
+	settings: 'Back to Settings',
+	help: 'Back to Help',
+};
+
+function PracticeChrome({ exitTestID, onExit }: { exitTestID: string; onExit: () => void }) {
+	return (
+		<View className="flex-row items-center justify-between border-b border-paper-300 px-4 py-4">
+			<Text className="mr-3 flex-1 font-sans-semibold text-sm text-ink-muted">
+				Practice · example money
+			</Text>
+			<Pressable accessibilityRole="button" testID={exitTestID} onPress={onExit} hitSlop={12}>
+				<Text className="font-sans text-sm text-ink">Exit tutorial</Text>
+			</Pressable>
+		</View>
+	);
+}
 
 export default function PracticeScreen() {
 	const router = useRouter();
@@ -70,6 +94,14 @@ export default function PracticeScreen() {
 		}, [exit])
 	);
 	const entities = useMemo(() => getPracticeEntities(session), [session]);
+	const summary = useMemo(
+		() =>
+			computeSummary(
+				entities.filter((e) => e.type === 'account'),
+				entities.filter((e) => e.type === 'category')
+			),
+		[entities]
+	);
 	const pair = getPracticeLessonPair(form ? { ...session, lesson: form.lesson } : session);
 	const from = entities.find((e) => e.id === pair.fromId)!;
 	const to = entities.find((e) => e.id === pair.toId)!;
@@ -90,24 +122,13 @@ export default function PracticeScreen() {
 			return;
 		}
 
-		const lesson =
-			entity.type === 'income'
-				? 'receive'
-				: entity.type === 'saving'
-					? 'save'
-					: entity.type === 'category'
-						? 'spend'
-						: null;
+		const lesson = getPracticeTapLesson(entity.type);
 		if (lesson && (session.phase === 'explore' || lesson === session.lesson)) open(lesson);
 		else setHint('Try the highlighted movement, or use the action beside it.');
 	};
 	const drop = (entity: EntityWithBalance, targetId: string | null) => {
 		if (!targetId) return;
-		const lessons: PracticeLesson[] = ['receive', 'spend', 'save'];
-		const lesson = lessons.find((l) => {
-			const p = getPracticeLessonPair({ ...session, lesson: l });
-			return p.fromId === entity.id && p.toId === targetId;
-		});
+		const lesson = findPracticeMovementLesson(entity.id, targetId);
 		if (lesson && (session.phase === 'explore' || lesson === session.lesson)) open(lesson);
 		else setHint('Try the highlighted movement, or use the action beside it.');
 	};
@@ -115,41 +136,16 @@ export default function PracticeScreen() {
 		if (!active.current || !form) throw new Error('This practice session has ended.');
 		update(submitPracticeMovement(sessionRef.current, input, form.submissionId));
 	};
-	const label = replay
-		? origin === 'settings'
-			? 'Back to Settings'
-			: 'Back to Help'
-		: 'Create my board';
-	const chrome = (sheet = false) => (
-		<View className="flex-row items-center justify-between border-b border-paper-300 px-4 py-4">
-			<Text className="mr-3 flex-1 font-sans-semibold text-sm text-ink-muted">
-				Practice · example money
-			</Text>
-			<Pressable
-				accessibilityRole="button"
-				testID={
-					sheet ? TestIDs.onboarding.practiceSheetExit : TestIDs.onboarding.practiceExit
-				}
-				onPress={exit}
-				hitSlop={12}
-			>
-				<Text className="font-sans text-sm text-ink">Exit tutorial</Text>
-			</Pressable>
-		</View>
+	const label = (replay && FINISH_LABEL[origin!]) || 'Create my board';
+	const sheetChrome = (
+		<PracticeChrome exitTestID={TestIDs.onboarding.practiceSheetExit} onExit={exit} />
 	);
 	return (
 		<SafeAreaView className="flex-1 bg-paper-50" edges={['top', 'bottom']}>
-			{chrome()}
+			<PracticeChrome exitTestID={TestIDs.onboarding.practiceExit} onExit={exit} />
 			<SummaryHeaderView
 				currency={session.currency}
-				summary={{
-					balance: entities.find((e) => e.type === 'account')!.actual,
-					expenses: entities.find((e) => e.type === 'category')!.actual,
-					remaining: Math.max(
-						0,
-						entities.find((e) => e.id === 'practice-category')!.remaining
-					),
-				}}
+				summary={summary}
 				incomeVisible={incomeVisible}
 				topInset={false}
 				editMode={editMode}
@@ -173,20 +169,11 @@ export default function PracticeScreen() {
 				lesson={session.lesson}
 				editMode={editMode}
 				demo={demo}
-				guidanceType={
-					session.lesson === 'plan'
-						? 'category'
-						: session.phase !== 'action'
-							? 'account'
-							: session.lesson === 'receive'
-								? 'income'
-								: session.lesson === 'spend'
-									? 'category'
-									: 'account'
-				}
+				guidanceType={getPracticeGuidanceType(session)}
 				guidance={
 					<PracticeGuidance
 						session={session}
+						entities={entities}
 						editMode={editMode}
 						hint={hint}
 						onRecord={() => {
@@ -216,14 +203,12 @@ export default function PracticeScreen() {
 						period={session.period}
 						initialPlannedMinor={pair.suggestedAmountMinor}
 						onClose={() => setForm(null)}
-						tutorialHeader={chrome(true)}
+						tutorialHeader={sheetChrome}
 						guidance={
-							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
-								<Text className="font-sans text-sm">
-									Set the monthly Planned Amount, then Save. A plan is your
-									spending target; it doesn&apos;t move or reserve money.
-								</Text>
-							</View>
+							<PracticeNote>
+								Set the monthly Planned Amount, then Save. A plan is your spending
+								target; it doesn&apos;t move or reserve money.
+							</PracticeNote>
 						}
 						onSubmit={async (amount) => {
 							if (!active.current)
@@ -259,15 +244,8 @@ export default function PracticeScreen() {
 							})
 						}
 						onClose={() => setForm(null)}
-						tutorialHeader={chrome(true)}
-						guidance={
-							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
-								<Text className="font-sans text-sm">
-									Change the example amount if you like, then Save. Other options
-									stay fixed for this exercise.
-								</Text>
-							</View>
-						}
+						tutorialHeader={sheetChrome}
+						guidance={<PracticeNote>{FIXED_OPTIONS_NOTE}</PracticeNote>}
 						allowClear={false}
 					/>
 				) : (
@@ -280,15 +258,8 @@ export default function PracticeScreen() {
 						timestamp={session.now}
 						onSubmit={submit}
 						onClose={() => setForm(null)}
-						tutorialHeader={chrome(true)}
-						guidance={
-							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
-								<Text className="font-sans text-sm">
-									Change the example amount if you like, then Save. Other options
-									stay fixed for this exercise.
-								</Text>
-							</View>
-						}
+						tutorialHeader={sheetChrome}
+						guidance={<PracticeNote>{FIXED_OPTIONS_NOTE}</PracticeNote>}
 					/>
 				))}
 		</SafeAreaView>

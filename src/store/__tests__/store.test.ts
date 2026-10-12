@@ -10,7 +10,8 @@ import {
 } from 'bun:test';
 import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types';
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
-import { useStore, getEntitiesWithBalance, _resetBackfillThrottleForTests } from '../index';
+import { useStore, _resetBackfillThrottleForTests } from '../index';
+import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 import { resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';

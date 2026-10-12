@@ -406,17 +406,11 @@ export default function HomeScreen() {
 					/>
 				)}
 
-				{/* PortalProvider ensures dragged items render above all other content */}
-
 				{/* Content */}
 				<BoardScrollSurface
 					ref={outerScrollRef}
 					testID="home-scroll-view"
-					className="flex-1 overflow-visible"
-					contentContainerClassName="overflow-visible"
-					contentContainerStyle={{ paddingVertical: 12 }}
 					onScroll={scrollHandler}
-					scrollEventThrottle={16}
 					onScrollEndDrag={handleScrollEnd}
 					onMomentumScrollEnd={handleScrollEnd}
 					onLayout={handleOuterLayout}

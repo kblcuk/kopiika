@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
-import type { PracticeSession } from '@/src/onboarding/practice-session';
-import { getPracticeEntities } from '@/src/onboarding/practice-session';
+import type { EntityWithBalance } from '@/src/types';
+import { PRACTICE_LESSONS, type PracticeSession } from '@/src/onboarding/practice-session';
 import { formatAmount } from '@/src/utils/format';
 import { TestIDs } from '@/e2e/support/test-ids';
 import { Text } from './text';
@@ -18,8 +18,18 @@ const ACTIONS = {
 	plan: 'Set a spending plan',
 };
 
+/** Short guidance card shown inside a practice sheet. */
+export function PracticeNote({ children }: { children: string }) {
+	return (
+		<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
+			<Text className="font-sans text-sm">{children}</Text>
+		</View>
+	);
+}
+
 export function PracticeGuidance({
 	session,
+	entities,
 	hint,
 	onRecord,
 	onNext,
@@ -30,6 +40,7 @@ export function PracticeGuidance({
 	editMode = false,
 }: {
 	session: PracticeSession;
+	entities: EntityWithBalance[];
 	hint: string;
 	onRecord: () => void;
 	onNext: () => void;
@@ -39,10 +50,9 @@ export function PracticeGuidance({
 	onDemo: () => void;
 	editMode?: boolean;
 }) {
-	const es = getPracticeEntities(session);
-	const account = es.find((e) => e.type === 'account')!;
-	const category = es.find((e) => e.type === 'category')!;
-	const saving = es.find((e) => e.type === 'saving')!;
+	const account = entities.find((e) => e.type === 'account')!;
+	const category = entities.find((e) => e.type === 'category')!;
+	const saving = entities.find((e) => e.type === 'saving')!;
 	const amount = (n: number) => formatAmount(n, session.currency);
 	const done = session.phase === 'complete' || session.phase === 'explore';
 	const feedback =
@@ -73,7 +83,7 @@ export function PracticeGuidance({
 			<Text className="mb-1 font-sans text-xs text-ink-muted">
 				{done
 					? 'Your money map'
-					: `${['receive', 'spend', 'plan', 'save'].indexOf(session.lesson) + 1} of 4`}
+					: `${PRACTICE_LESSONS.indexOf(session.lesson) + 1} of ${PRACTICE_LESSONS.length}`}
 			</Text>
 			<Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink">
 				{done

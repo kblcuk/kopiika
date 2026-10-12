@@ -52,11 +52,6 @@ export function createDropZoneRegistry() {
 	};
 }
 
-export const {
-	registerDropZone,
-	unregisterDropZone,
-	registerRemeasureCallback,
-	unregisterRemeasureCallback,
-	remeasureAllDropZones,
-	findDropTarget,
-} = createDropZoneRegistry();
+/** The dashboard's app-wide registry; practice boards create their own. */
+export const globalDropZones = createDropZoneRegistry();
+export const { remeasureAllDropZones } = globalDropZones;

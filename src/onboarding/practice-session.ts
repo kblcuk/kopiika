@@ -1,4 +1,5 @@
-import type { Entity, EntityWithBalance, Plan, Transaction } from '@/src/types';
+import type { Entity, EntityType, EntityWithBalance, Plan, Transaction } from '@/src/types';
+import { getCurrentPeriod } from '@/src/types';
 import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 import { buildTransaction } from '@/src/utils/transaction-builder';
 import {
@@ -21,14 +22,29 @@ export interface PracticeSession {
 	phase: PracticePhase;
 	acceptedSubmissionIds: string[];
 }
-const LESSONS: PracticeLesson[] = ['receive', 'spend', 'plan', 'save'];
+export const PRACTICE_LESSONS: PracticeLesson[] = ['receive', 'spend', 'plan', 'save'];
+export const PRACTICE_PAIRS = {
+	receive: { fromId: 'practice-income', toId: 'practice-account', amount: 1000 },
+	spend: { fromId: 'practice-account', toId: 'practice-category', amount: 30 },
+	plan: { fromId: 'practice-category', toId: 'practice-category', amount: 300 },
+	save: { fromId: 'practice-account', toId: 'practice-saving', amount: 100 },
+} as const satisfies Record<PracticeLesson, { fromId: string; toId: string; amount: number }>;
+const MOVEMENT_LESSONS = PRACTICE_LESSONS.filter((lesson) => lesson !== 'plan');
+const LESSON_FOR_TAP: Partial<Record<EntityType, PracticeLesson>> = {
+	income: 'receive',
+	category: 'spend',
+	saving: 'save',
+};
+
+export const outsideExercise = async (): Promise<never> => {
+	throw new Error('This option is outside this exercise.');
+};
 
 export function createPracticeSession(currency: string, now = Date.now()): PracticeSession {
-	const date = new Date(now);
 	return {
 		currency,
 		now,
-		period: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+		period: getCurrentPeriod(now),
 		lesson: 'receive',
 		phase: 'action',
 		transactions: [],
@@ -75,14 +91,8 @@ export function createPracticeSession(currency: string, now = Date.now()): Pract
 	};
 }
 
-export function getPracticeLessonPair(session: PracticeSession) {
-	const pairs = {
-		receive: { fromId: 'practice-income', toId: 'practice-account', amount: 1000 },
-		spend: { fromId: 'practice-account', toId: 'practice-category', amount: 30 },
-		plan: { fromId: 'practice-category', toId: 'practice-category', amount: 300 },
-		save: { fromId: 'practice-account', toId: 'practice-saving', amount: 100 },
-	};
-	const pair = pairs[session.lesson];
+export function getPracticeLessonPair(session: Pick<PracticeSession, 'lesson' | 'currency'>) {
+	const pair = PRACTICE_PAIRS[session.lesson];
 	return {
 		fromId: pair.fromId,
 		toId: pair.toId,
@@ -99,16 +109,8 @@ export function submitPracticeMovement(
 	if (session.phase !== 'action' && session.phase !== 'explore')
 		throw new Error('Continue to the next lesson first.');
 	ensureValid(validateTransaction(input, session.entities));
-	const pair = getPracticeLessonPair(session);
-	const taughtPair = LESSONS.filter((lesson) => lesson !== 'plan').some((lesson) => {
-		const p = getPracticeLessonPair({ ...session, lesson });
-		return p.fromId === input.from_entity_id && p.toId === input.to_entity_id;
-	});
-	if (
-		!taughtPair ||
-		(session.phase === 'action' &&
-			(pair.fromId !== input.from_entity_id || pair.toId !== input.to_entity_id))
-	) {
+	const lesson = findPracticeMovementLesson(input.from_entity_id, input.to_entity_id);
+	if (!lesson || (session.phase === 'action' && lesson !== session.lesson)) {
 		throw new Error('Try the movement in this lesson.');
 	}
 	return {
@@ -122,9 +124,29 @@ export function submitPracticeMovement(
 	};
 }
 
+/** The movement lesson a from→to pair teaches, or undefined when no lesson teaches it. */
+export function findPracticeMovementLesson(fromId: string, toId: string) {
+	return MOVEMENT_LESSONS.find(
+		(lesson) => PRACTICE_PAIRS[lesson].fromId === fromId && PRACTICE_PAIRS[lesson].toId === toId
+	);
+}
+
+/** The movement lesson that tapping a bubble of this type opens, if any. */
+export function getPracticeTapLesson(type: EntityType) {
+	return LESSON_FOR_TAP[type];
+}
+
+/** The board row the guidance tooltip sits beside. */
+export function getPracticeGuidanceType(session: PracticeSession): EntityType {
+	if (session.lesson === 'plan') return 'category';
+	if (session.phase !== 'action') return 'account';
+	if (session.lesson === 'receive') return 'income';
+	return session.lesson === 'spend' ? 'category' : 'account';
+}
+
 export function advancePracticeLesson(session: PracticeSession): PracticeSession {
 	if (session.phase !== 'feedback') return session;
-	const next = LESSONS[LESSONS.indexOf(session.lesson) + 1];
+	const next = PRACTICE_LESSONS[PRACTICE_LESSONS.indexOf(session.lesson) + 1];
 	return next ? { ...session, lesson: next, phase: 'action' } : { ...session, phase: 'complete' };
 }
 

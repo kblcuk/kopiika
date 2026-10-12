@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { generatePerfFixture } from '@/scripts/gen-perf-fixture';
-import { getEntitiesWithBalance } from '../index';
+import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 
 // KII-124: regression guard for the single-pass balance derivation. The old
 // implementation was O(entities × transactions) — each entity re-walked the

@@ -7,7 +7,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import type { EntityType, EntityWithBalance } from '@/src/types';
-import type { PracticeLesson } from '@/src/onboarding/practice-session';
+import { PRACTICE_PAIRS, type PracticeLesson } from '@/src/onboarding/practice-session';
 import { getPracticeGestureCue } from '@/src/onboarding/practice-gesture';
 import type { createDropZoneRegistry } from '@/src/utils/drop-zone';
 import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
@@ -90,20 +90,11 @@ export function PracticeBoard({
 		let canceled = false;
 		dropZones.remeasureAllDropZones();
 		const timer = setTimeout(() => {
-			const fromId =
-				lesson === 'receive'
-					? 'practice-income'
-					: lesson === 'spend'
-						? 'practice-category'
-						: 'practice-account';
-			const toId =
-				lesson === 'receive'
-					? 'practice-account'
-					: lesson === 'spend'
-						? fromId
-						: 'practice-saving';
-			const from = dropZones.getDropZone(fromId);
-			const to = dropZones.getDropZone(toId);
+			// Spending is taught as a tap on the category, so its cue stays on one bubble.
+			const tap = lesson === 'spend';
+			const pair = PRACTICE_PAIRS[lesson];
+			const from = dropZones.getDropZone(tap ? pair.toId : pair.fromId);
+			const to = dropZones.getDropZone(pair.toId);
 			if (!from || !to) return;
 			surfaceRef.current?.measureInWindow((x, y, width, height) => {
 				if (canceled || dragging.current) return;
@@ -115,7 +106,7 @@ export function PracticeBoard({
 					return;
 				}
 				setDemoHint('');
-				setCue({ ...positions, tap: lesson === 'spend' });
+				setCue({ ...positions, tap });
 				motion.value = 0;
 				if (!reducedMotion) motion.value = withTiming(1, { duration: 1600 });
 			});

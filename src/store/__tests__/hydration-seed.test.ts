@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { EntityType, Plan, Transaction } from '@/src/types';
 import { getPeriodRange } from '@/src/types';
-import { getEntitiesWithBalance } from '../index';
+import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 import { buildBalanceSeed, isSameEntitiesWithBalance, partitionForPhase1 } from '../hydration-seed';
 import { generatePerfFixture, REALISTIC_COUNTS } from '../../../scripts/gen-perf-fixture';
 
