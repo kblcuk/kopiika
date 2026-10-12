@@ -6,11 +6,9 @@ import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
-let mockSearchParams: { fromSettings?: string } = {};
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ push: mockPush, replace: mockReplace }),
-	useLocalSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -26,7 +24,6 @@ describe('Onboarding welcome screen', () => {
 		mockPush.mockClear();
 		mockReplace.mockClear();
 		mockedSet.mockClear();
-		mockSearchParams = {};
 	});
 
 	it('opens practice when continue is tapped', () => {
@@ -46,15 +43,5 @@ describe('Onboarding welcome screen', () => {
 		fireEvent.press(getByTestId('onboarding-welcome-skip'));
 		await waitFor(() => expect(mockedSet).toHaveBeenCalledWith(true));
 		expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
-	});
-
-	it('when fromSettings=true, skip returns to settings without writing pref', async () => {
-		mockSearchParams = { fromSettings: 'true' };
-		const { getByTestId } = render(<WelcomeScreen />);
-		fireEvent.press(getByTestId('onboarding-welcome-skip'));
-		await waitFor(() => {
-			expect(mockedSet).not.toHaveBeenCalled();
-		});
-		expect(mockReplace).toHaveBeenCalledWith('/(tabs)/settings');
 	});
 });

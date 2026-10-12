@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ChevronRight, X } from 'lucide-react-native';
 
 import { Text } from '@/src/components/text';
@@ -38,8 +38,6 @@ interface StagedCustom extends EntityDraft {
 
 export default function SetupScreen() {
 	const router = useRouter();
-	const params = useLocalSearchParams<{ fromSettings?: string }>();
-	const fromSettings = params.fromSettings === 'true';
 
 	const addEntity = useStore((s) => s.addEntity);
 	const setPlan = useStore((s) => s.setPlan);
@@ -54,7 +52,6 @@ export default function SetupScreen() {
 	const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
 	const togglePick = (chip: PresetChip) => {
-		if (fromSettings) return;
 		const key = presetKey(chip);
 		setPicked((prev) => {
 			const next = new Set(prev);
@@ -96,10 +93,6 @@ export default function SetupScreen() {
 
 	const handleContinue = async () => {
 		try {
-			if (fromSettings) {
-				router.replace('/(tabs)/settings');
-				return;
-			}
 			const selected = PRESET_CHIPS.filter((c) => picked.has(presetKey(c)));
 			const presetEntities = createEntitiesFromPresets(selected, currency);
 			const entityToPreset = new Map(
@@ -174,10 +167,6 @@ export default function SetupScreen() {
 
 	const handleSkip = async () => {
 		try {
-			if (fromSettings) {
-				router.replace('/(tabs)/settings');
-				return;
-			}
 			await setHasCompletedOnboarding(true);
 			router.replace('/(tabs)');
 		} catch (error) {
@@ -201,7 +190,6 @@ export default function SetupScreen() {
 				<Pressable
 					testID={TestIDs.onboarding.setupCurrencyRow}
 					onPress={() => setCurrencyPickerOpen(true)}
-					disabled={fromSettings}
 					className="mt-6 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3.5 active:bg-paper-200"
 				>
 					<Text className="font-sans text-base text-ink">Currency</Text>
@@ -212,14 +200,6 @@ export default function SetupScreen() {
 						<ChevronRight size={16} color={colors.ink.muted} />
 					</View>
 				</Pressable>
-
-				{fromSettings && (
-					<View className="mt-4 rounded-2xl bg-paper-200 px-4 py-3">
-						<Text className="font-sans text-sm text-ink-muted">
-							This is what new users see — your entities are already set up.
-						</Text>
-					</View>
-				)}
 
 				{SECTIONS.map(({ type, label, optional }) => {
 					const chips = chipsByType.get(type) ?? [];
@@ -241,10 +221,7 @@ export default function SetupScreen() {
 										<Pressable
 											key={key}
 											testID={TestIDs.onboarding.setupChip(key)}
-											accessibilityState={{
-												selected,
-												disabled: fromSettings,
-											}}
+											accessibilityState={{ selected }}
 											onPress={() => togglePick(chip)}
 											className={`rounded-full px-3 py-2 ${
 												selected
@@ -270,17 +247,15 @@ export default function SetupScreen() {
 										onRemove={() => removeCustom(custom.id)}
 									/>
 								))}
-								{!fromSettings && (
-									<Pressable
-										testID={TestIDs.onboarding.setupCustomChip(type)}
-										onPress={() => setCustomModalType(type)}
-										className="rounded-full border border-paper-300 px-3 py-2"
-									>
-										<Text className="font-sans text-sm text-ink-muted">
-											+ Custom
-										</Text>
-									</Pressable>
-								)}
+								<Pressable
+									testID={TestIDs.onboarding.setupCustomChip(type)}
+									onPress={() => setCustomModalType(type)}
+									className="rounded-full border border-paper-300 px-3 py-2"
+								>
+									<Text className="font-sans text-sm text-ink-muted">
+										+ Custom
+									</Text>
+								</Pressable>
 							</View>
 						</View>
 					);
@@ -295,23 +270,19 @@ export default function SetupScreen() {
 					}}
 					className="h-12 items-center justify-center rounded-2xl bg-ink"
 				>
-					<Text className="font-sans-semibold text-base text-paper-50">
-						{fromSettings ? 'Done' : 'Continue'}
+					<Text className="font-sans-semibold text-base text-paper-50">Continue</Text>
+				</Pressable>
+				<Pressable
+					testID={TestIDs.onboarding.setupSkipLink}
+					onPress={() => {
+						void handleSkip();
+					}}
+					className="mt-3 items-center"
+				>
+					<Text className="font-sans text-sm text-ink-muted">
+						Continue without these suggestions
 					</Text>
 				</Pressable>
-				{!fromSettings && (
-					<Pressable
-						testID={TestIDs.onboarding.setupSkipLink}
-						onPress={() => {
-							void handleSkip();
-						}}
-						className="mt-3 items-center"
-					>
-						<Text className="font-sans text-sm text-ink-muted">
-							Continue without these suggestions
-						</Text>
-					</Pressable>
-				)}
 			</View>
 
 			<EntityCreateModal

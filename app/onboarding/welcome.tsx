@@ -1,6 +1,6 @@
 import { Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { Text } from '@/src/components/text';
 import { setHasCompletedOnboarding } from '@/src/utils/app-prefs';
@@ -8,24 +8,9 @@ import { TestIDs } from '@/e2e/support/test-ids';
 
 export default function WelcomeScreen() {
 	const router = useRouter();
-	const params = useLocalSearchParams<{ fromSettings?: string }>();
-	const fromSettings = params.fromSettings === 'true';
-
-	const handleContinue = () => {
-		if (fromSettings)
-			router.push({
-				pathname: '/onboarding/practice' as never,
-				params: { origin: 'settings' },
-			});
-		else router.push('/onboarding/practice' as never);
-	};
 
 	const handleSkip = async () => {
 		try {
-			if (fromSettings) {
-				router.replace('/(tabs)/settings');
-				return;
-			}
 			await setHasCompletedOnboarding(true);
 			router.replace('/(tabs)');
 		} catch (error) {
@@ -66,7 +51,7 @@ export default function WelcomeScreen() {
 			<View className="px-6 pb-6">
 				<Pressable
 					testID={TestIDs.onboarding.welcomeContinueButton}
-					onPress={handleContinue}
+					onPress={() => router.push('/onboarding/practice' as never)}
 					className="h-12 items-center justify-center rounded-2xl bg-ink"
 				>
 					<Text className="font-sans-semibold text-base text-paper-50">
@@ -91,9 +76,7 @@ export default function WelcomeScreen() {
 					className="mt-4 items-center"
 				>
 					<Text className="font-sans text-sm text-ink-muted">
-						{fromSettings
-							? 'Done — back to settings'
-							: "Skip — I'll set things up myself"}
+						Skip — I&apos;ll set things up myself
 					</Text>
 				</Pressable>
 			</View>

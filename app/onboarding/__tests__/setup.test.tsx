@@ -9,11 +9,9 @@ import type { EntityDraft } from '@/src/components/entity-create-modal';
 import type { Entity, EntityType, Plan } from '@/src/types';
 
 const mockReplace = jest.fn();
-let mockSearchParams: { fromSettings?: string } = {};
 
 jest.mock('expo-router', () => ({
 	useRouter: () => ({ replace: mockReplace }),
-	useLocalSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -80,7 +78,6 @@ const mockedSetHasCompleted = jest.mocked(setHasCompletedOnboarding);
 describe('Onboarding setup screen', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		mockSearchParams = {};
 		modalProps = null;
 		mockAppCurrency = 'EUR';
 	});
@@ -141,18 +138,6 @@ describe('Onboarding setup screen', () => {
 			expect(mockedSetHasCompleted).toHaveBeenCalledWith(true);
 			expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
 		});
-	});
-
-	it('preview mode (fromSettings=true) disables chips and shows Done button', () => {
-		mockSearchParams = { fromSettings: 'true' };
-		const { getByTestId, getByText } = render(<SetupScreen />);
-		expect(getByText(/this is what new users see/i)).toBeTruthy();
-		const firstDefault = PRESET_CHIPS.find((c) => c.defaultSelected)!;
-		const chipNode = getByTestId(`onboarding-setup-chip-${presetKey(firstDefault)}`);
-		expect(chipNode.props.accessibilityState?.disabled).toBe(true);
-		fireEvent.press(getByTestId('onboarding-setup-continue'));
-		expect(mockReplace).toHaveBeenCalledWith('/(tabs)/settings');
-		expect(mockAddEntity).not.toHaveBeenCalled();
 	});
 
 	it('+ Custom opens the modal with the matching entity type', () => {
