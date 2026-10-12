@@ -160,6 +160,7 @@ function SummaryItem({ label, value, currency }: SummaryItemProps) {
 		<View className="items-center">
 			<Text className="font-sans text-xs text-ink-muted">{label}</Text>
 			<Text
+				testID={label === 'Planned' ? TestIDs.dashboardPlannedAmount : undefined}
 				className={`font-sans-semibold text-base ${isNegative ? 'text-negative' : 'text-ink'}`}
 			>
 				{formatAmount(value, currency)}

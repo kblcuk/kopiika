@@ -8,9 +8,15 @@ import { Text } from './text';
 const INSTRUCTIONS = {
 	receive: 'Drag Salary onto Main account to record getting paid.',
 	spend: 'Tap Groceries to record an expense.',
+	plan: 'Tap Edit board (the pencil above), then Groceries to set its monthly plan.',
 	save: 'Drag Main account onto Vacation to set money aside.',
 };
-const ACTIONS = { receive: 'Record income', spend: 'Record expense', save: 'Set money aside' };
+const ACTIONS = {
+	receive: 'Record income',
+	spend: 'Record expense',
+	save: 'Set money aside',
+	plan: 'Set a spending plan',
+};
 
 export function PracticeGuidance({
 	session,
@@ -21,6 +27,7 @@ export function PracticeGuidance({
 	onExplore,
 	finishLabel,
 	onDemo,
+	editMode = false,
 }: {
 	session: PracticeSession;
 	hint: string;
@@ -30,9 +37,11 @@ export function PracticeGuidance({
 	onExplore: () => void;
 	finishLabel: string;
 	onDemo: () => void;
+	editMode?: boolean;
 }) {
 	const es = getPracticeEntities(session);
 	const account = es.find((e) => e.type === 'account')!;
+	const category = es.find((e) => e.type === 'category')!;
 	const saving = es.find((e) => e.type === 'saving')!;
 	const amount = (n: number) => formatAmount(n, session.currency);
 	const done = session.phase === 'complete' || session.phase === 'explore';
@@ -41,7 +50,11 @@ export function PracticeGuidance({
 			? `Your account now holds ${amount(account.actual)}. Income tracks what you received this month.`
 			: session.lesson === 'spend'
 				? `Your account has ${amount(account.actual)} left. Groceries tracks this month's spending.`
-				: `${amount(saving.actual)} is reserved for Vacation. You have ${amount(account.actual)} available; ${amount(account.actual + (account.reserved ?? 0))} total. Your bank balance hasn't changed.`;
+				: session.lesson === 'plan'
+					? category.remaining >= 0
+						? `Groceries: ${amount(category.planned)} planned − ${amount(category.actual)} spent = ${amount(category.remaining)} left to spend. Dashboard Planned includes this remaining amount. A plan doesn't move or reserve money.`
+						: `Groceries is ${amount(-category.remaining)} over its ${amount(category.planned)} plan. Dashboard Planned shows zero remaining for this category. Your account balance hasn't changed.`
+					: `${amount(saving.actual)} is reserved for Vacation. You have ${amount(account.actual)} available; ${amount(account.actual + (account.reserved ?? 0))} total. Your bank balance hasn't changed.`;
 	const button = (label: string, id: string, onPress: () => void) => (
 		<Pressable
 			accessibilityRole="button"
@@ -60,14 +73,16 @@ export function PracticeGuidance({
 			<Text className="mb-1 font-sans text-xs text-ink-muted">
 				{done
 					? 'Your money map'
-					: `${['receive', 'spend', 'save'].indexOf(session.lesson) + 1} of 3`}
+					: `${['receive', 'spend', 'plan', 'save'].indexOf(session.lesson) + 1} of 4`}
 			</Text>
 			<Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink">
 				{done
-					? 'You know the three everyday moves.'
+					? 'You know how to record money and plan your spending.'
 					: session.phase === 'feedback'
 						? feedback
-						: INSTRUCTIONS[session.lesson]}
+						: session.lesson === 'plan' && editMode
+							? 'Tap Groceries to set Planned Amount for this month.'
+							: INSTRUCTIONS[session.lesson]}
 			</Text>
 			{done ? (
 				<>

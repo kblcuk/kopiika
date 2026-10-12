@@ -8,6 +8,7 @@ import {
 	getPracticeEntities,
 	getPracticeLessonPair,
 	submitPracticeMovement,
+	submitPracticePlan,
 	advancePracticeLesson,
 	startPracticeExploring,
 	type PracticeLesson,
@@ -22,6 +23,7 @@ import { SummaryHeaderView } from '@/src/components/summary-header-view';
 import { PracticeBoard } from '@/src/components/practice-board';
 import { PracticeGuidance } from '@/src/components/practice-guidance';
 import { CreateTransactionForm } from '@/src/components/create-transaction-form';
+import { PracticePlanForm } from '@/src/components/practice-plan-form';
 import { ReservationForm } from '@/src/components/reservation-form';
 import { TestIDs } from '@/e2e/support/test-ids';
 
@@ -37,10 +39,12 @@ export default function PracticeScreen() {
 	const [dropZones] = useState(createDropZoneRegistry);
 	const [hint, setHint] = useState('');
 	const [demo, setDemo] = useState(0);
+	const [editMode, setEditMode] = useState(false);
 	const [incomeVisible, setIncomeVisible] = useState(true);
 	const [form, setForm] = useState<{ lesson: PracticeLesson; submissionId: string } | null>(null);
 	const update = (next: typeof session) => {
 		setDemo(0);
+		setEditMode(false);
 		sessionRef.current = next;
 		setSession(next);
 		setHint('');
@@ -80,6 +84,12 @@ export default function PracticeScreen() {
 		setForm({ lesson, submissionId: generateId() });
 	};
 	const tap = (entity: EntityWithBalance) => {
+		if (session.lesson === 'plan' && session.phase === 'action') {
+			if (editMode && entity.id === 'practice-category') open('plan');
+			else setHint('Tap Edit board (the pencil above), then Groceries.');
+			return;
+		}
+
 		const lesson =
 			entity.type === 'income'
 				? 'receive'
@@ -135,13 +145,16 @@ export default function PracticeScreen() {
 				summary={{
 					balance: entities.find((e) => e.type === 'account')!.actual,
 					expenses: entities.find((e) => e.type === 'category')!.actual,
-					remaining: 0,
+					remaining: Math.max(
+						0,
+						entities.find((e) => e.id === 'practice-category')!.remaining
+					),
 				}}
 				incomeVisible={incomeVisible}
 				topInset={false}
-				editMode={false}
-				editDisabled
-				onToggleEditMode={() => {}}
+				editMode={editMode}
+				editDisabled={session.lesson !== 'plan' || session.phase !== 'action'}
+				onToggleEditMode={() => setEditMode((value) => !value)}
 				onToggleIncome={() => {
 					if (session.lesson === 'receive' && session.phase === 'action') {
 						setHint('Keep Income visible for this lesson.');
@@ -158,32 +171,69 @@ export default function PracticeScreen() {
 				onDrop={drop}
 				incomeVisible={incomeVisible}
 				lesson={session.lesson}
+				editMode={editMode}
 				demo={demo}
 				guidanceType={
-					session.phase !== 'action'
-						? 'account'
-						: session.lesson === 'receive'
-							? 'income'
-							: session.lesson === 'spend'
-								? 'category'
-								: 'account'
+					session.lesson === 'plan'
+						? 'category'
+						: session.phase !== 'action'
+							? 'account'
+							: session.lesson === 'receive'
+								? 'income'
+								: session.lesson === 'spend'
+									? 'category'
+									: 'account'
 				}
 				guidance={
 					<PracticeGuidance
 						session={session}
+						editMode={editMode}
 						hint={hint}
-						onRecord={() => open()}
+						onRecord={() => {
+							if (session.lesson === 'plan') setEditMode(true);
+							open();
+						}}
 						onNext={() => update(advancePracticeLesson(sessionRef.current))}
 						onFinish={exit}
 						onExplore={() => update(startPracticeExploring(sessionRef.current))}
 						finishLabel={label}
-						onDemo={() => setDemo((n) => n + 1)}
+						onDemo={() =>
+							session.lesson === 'plan'
+								? setHint(
+										'Use the pencil above to enter edit mode, then tap Groceries. Planned Amount is the only field to change here.'
+									)
+								: setDemo((n) => n + 1)
+						}
 					/>
 				}
 			/>
 
 			{form &&
-				(form.lesson === 'save' ? (
+				(form.lesson === 'plan' ? (
+					<PracticePlanForm
+						visible
+						entity={from}
+						period={session.period}
+						initialPlannedMinor={pair.suggestedAmountMinor}
+						onClose={() => setForm(null)}
+						tutorialHeader={chrome(true)}
+						guidance={
+							<View className="my-3 rounded-xl border border-accent/30 bg-paper-100 p-3">
+								<Text className="font-sans text-sm">
+									Set the monthly Planned Amount, then Save. A plan is your
+									spending target; it doesn&apos;t move or reserve money.
+								</Text>
+							</View>
+						}
+						onSubmit={async (amount) => {
+							if (!active.current)
+								throw new Error('This practice session has ended.');
+							update(
+								submitPracticePlan(sessionRef.current, amount, form.submissionId)
+							);
+						}}
+					/>
+				) : form.lesson === 'save' ? (
 					<ReservationForm
 						visible
 						account={from}

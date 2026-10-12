@@ -1,4 +1,4 @@
-import type { Entity, EntityWithBalance, Transaction } from '@/src/types';
+import type { Entity, EntityWithBalance, Plan, Transaction } from '@/src/types';
 import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
 import { buildTransaction } from '@/src/utils/transaction-builder';
 import {
@@ -8,11 +8,12 @@ import {
 } from '@/src/utils/transaction-validation';
 import { toMinor } from '@/src/utils/money';
 
-export type PracticeLesson = 'receive' | 'spend' | 'save';
+export type PracticeLesson = 'receive' | 'spend' | 'plan' | 'save';
 type PracticePhase = 'action' | 'feedback' | 'complete' | 'explore';
 export interface PracticeSession {
 	entities: Entity[];
 	transactions: Transaction[];
+	plans: Plan[];
 	currency: string;
 	now: number;
 	period: string;
@@ -20,7 +21,7 @@ export interface PracticeSession {
 	phase: PracticePhase;
 	acceptedSubmissionIds: string[];
 }
-const LESSONS: PracticeLesson[] = ['receive', 'spend', 'save'];
+const LESSONS: PracticeLesson[] = ['receive', 'spend', 'plan', 'save'];
 
 export function createPracticeSession(currency: string, now = Date.now()): PracticeSession {
 	const date = new Date(now);
@@ -31,6 +32,7 @@ export function createPracticeSession(currency: string, now = Date.now()): Pract
 		lesson: 'receive',
 		phase: 'action',
 		transactions: [],
+		plans: [],
 		acceptedSubmissionIds: [],
 		entities: [
 			{
@@ -77,6 +79,7 @@ export function getPracticeLessonPair(session: PracticeSession) {
 	const pairs = {
 		receive: { fromId: 'practice-income', toId: 'practice-account', amount: 1000 },
 		spend: { fromId: 'practice-account', toId: 'practice-category', amount: 30 },
+		plan: { fromId: 'practice-category', toId: 'practice-category', amount: 300 },
 		save: { fromId: 'practice-account', toId: 'practice-saving', amount: 100 },
 	};
 	const pair = pairs[session.lesson];
@@ -97,7 +100,7 @@ export function submitPracticeMovement(
 		throw new Error('Continue to the next lesson first.');
 	ensureValid(validateTransaction(input, session.entities));
 	const pair = getPracticeLessonPair(session);
-	const taughtPair = LESSONS.some((lesson) => {
+	const taughtPair = LESSONS.filter((lesson) => lesson !== 'plan').some((lesson) => {
 		const p = getPracticeLessonPair({ ...session, lesson });
 		return p.fromId === input.from_entity_id && p.toId === input.to_entity_id;
 	});
@@ -133,7 +136,7 @@ export function getPracticeEntities(session: PracticeSession): EntityWithBalance
 	return (['income', 'account', 'category', 'saving'] as const).flatMap((type) =>
 		getEntitiesWithBalance(
 			session.entities,
-			[],
+			session.plans,
 			session.transactions,
 			session.period,
 			type,
@@ -141,4 +144,30 @@ export function getPracticeEntities(session: PracticeSession): EntityWithBalance
 			session.now
 		)
 	);
+}
+
+export function submitPracticePlan(
+	session: PracticeSession,
+	plannedAmountMinor: number,
+	submissionId: string
+): PracticeSession {
+	if (session.acceptedSubmissionIds.includes(submissionId)) return session;
+	if (session.lesson !== 'plan' || session.phase !== 'action')
+		throw new Error('Continue to the planning lesson first.');
+	if (!Number.isSafeInteger(plannedAmountMinor) || plannedAmountMinor <= 0)
+		throw new Error('Enter a positive plan amount.');
+	return {
+		...session,
+		plans: [
+			{
+				id: 'practice-category-plan',
+				entity_id: 'practice-category',
+				period: 'all-time',
+				period_start: session.period,
+				planned_amount_minor: plannedAmountMinor,
+			},
+		],
+		acceptedSubmissionIds: [...session.acceptedSubmissionIds, submissionId],
+		phase: 'feedback',
+	};
 }

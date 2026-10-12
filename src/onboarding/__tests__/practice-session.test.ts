@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	createPracticeSession,
+	submitPracticePlan,
 	submitPracticeMovement,
 	advancePracticeLesson,
 	startPracticeExploring,
@@ -37,6 +38,13 @@ describe('practice session', () => {
 			s = advancePracticeLesson(save(s, income, 'a'));
 			expect(getPracticeLessonPair(s).suggestedAmountMinor).toBe(expense);
 			s = advancePracticeLesson(save(s, expense, 'b'));
+			s = advancePracticeLesson(
+				submitPracticePlan(
+					s,
+					300 * (currency === 'JPY' ? 1 : currency === 'KWD' ? 1000 : 100),
+					'plan'
+				)
+			);
 			expect(getPracticeLessonPair(s).suggestedAmountMinor).toBe(saving);
 		}
 	);
@@ -47,6 +55,7 @@ describe('practice session', () => {
 		expect(initial.transactions).toEqual([]);
 		s = advancePracticeLesson(s);
 		s = advancePracticeLesson(save(s, 3000, 'b'));
+		s = advancePracticeLesson(submitPracticePlan(s, 30000, 'plan'));
 		s = save(s, 10000, 'c');
 		const byName = new Map(getPracticeEntities(s).map((e) => [e.name, e]));
 		expect(byName.get('Salary')?.actual).toBe(100000);
@@ -84,6 +93,7 @@ describe('practice session', () => {
 		let s = createPracticeSession('EUR', now);
 		s = advancePracticeLesson(save(s, 1000, 'a'));
 		s = advancePracticeLesson(save(s, 3000, 'b'));
+		s = advancePracticeLesson(submitPracticePlan(s, 30000, 'plan'));
 		s = advancePracticeLesson(save(s, 100, 'c'));
 		s = startPracticeExploring(s);
 		const es = getPracticeEntities(s);
@@ -114,4 +124,37 @@ describe('practice session', () => {
 			)
 		).toThrow();
 	});
+});
+
+test('a plan reduces remaining spending without moving money', () => {
+	let s = createPracticeSession('EUR', now);
+	s = advancePracticeLesson(save(s, 100000, 'income'));
+	s = advancePracticeLesson(save(s, 3000, 'expense'));
+	expect(s.lesson).toBe('plan');
+	const transactions = s.transactions;
+	const accountBefore = getPracticeEntities(s).find((e) => e.id === 'practice-account')!.actual;
+	const planned = submitPracticePlan(s, 30000, 'plan');
+	expect(planned.plans).toHaveLength(1);
+	expect(s.plans).toEqual([]);
+	expect(planned.transactions).toBe(transactions);
+	expect(getPracticeEntities(planned).find((e) => e.id === 'practice-account')!.actual).toBe(
+		accountBefore
+	);
+	expect(getPracticeEntities(planned).find((e) => e.id === 'practice-category')).toMatchObject({
+		planned: 30000,
+		actual: 3000,
+		remaining: 27000,
+	});
+	expect(submitPracticePlan(planned, 30000, 'plan')).toBe(planned);
+	expect(() => submitPracticePlan(s, NaN, 'invalid')).toThrow();
+	expect(() => submitPracticePlan(s, 0, 'zero')).toThrow();
+	expect(advancePracticeLesson(planned).lesson).toBe('save');
+});
+
+test('a plan below spending keeps overspending visible without changing cash', () => {
+	let s = advancePracticeLesson(save(createPracticeSession('EUR', now), 100000, 'income'));
+	s = advancePracticeLesson(save(s, 3000, 'expense'));
+	s = submitPracticePlan(s, 2000, 'budget');
+	expect(getPracticeEntities(s).find((e) => e.id === 'practice-category')!.remaining).toBe(-1000);
+	expect(getPracticeEntities(s).find((e) => e.id === 'practice-account')!.actual).toBe(97000);
 });

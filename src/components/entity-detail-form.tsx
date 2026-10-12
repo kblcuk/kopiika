@@ -1,0 +1,1034 @@
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
+import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
+import { View, TextInput, Pressable, Platform, Alert, Switch } from 'react-native';
+import { Text } from './text';
+import {
+	KeyboardAwareScrollView,
+	KeyboardController,
+	KeyboardExtender,
+} from 'react-native-keyboard-controller';
+
+import { PageSheetModal } from './page-sheet-modal';
+
+import type { EntityWithBalance, Transaction, EntityColorKey } from '@/src/types';
+import {
+	formatAmount,
+	formatAmountForInput,
+	parseAmountToMinor,
+	getCurrencySymbol,
+	DEFAULT_CURRENCY,
+} from '@/src/utils/format';
+import type { useStore } from '@/src/store';
+
+import { ICON_OPTIONS, DEFAULT_ICONS } from '@/src/constants/icons';
+import { getIcon } from '@/src/constants/icon-registry';
+import { getEntityColors } from '@/src/utils/entity-colors';
+import {
+	sharedNumericTextInputProps,
+	sharedTextInputProps,
+	styles,
+	textInputClassNames,
+} from '../styles/text-input';
+import { colors } from '@/src/theme/colors';
+import { generateId } from '@/src/utils/ids';
+import { TransactionValidationError } from '@/src/utils/transaction-validation';
+import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { EntityIconPicker } from '@/src/components/entity-icon-picker';
+import { EntityColorPicker } from '@/src/components/entity-color-picker';
+import { ReservationForm } from '@/src/components/reservation-form';
+import { AllocationPieChart, type AllocationPieSlice } from '@/src/components/allocation-pie-chart';
+import { assignSliceColors } from '@/src/utils/chart-slice-colors';
+import { useExpressionInput } from '@/src/hooks/use-expression-input';
+import {
+	getReservationForPair,
+	getReservationsForSaving,
+	getReservationsForAccount,
+} from '@/src/utils/savings-transactions';
+import { InfoPin } from '@/src/components/info-pin';
+import { OperatorToolbar } from './operator-toolbar';
+
+type EntityBindings = Pick<
+	ReturnType<typeof useStore.getState>,
+	| 'plans'
+	| 'currentPeriod'
+	| 'transactions'
+	| 'entities'
+	| 'setPlan'
+	| 'deletePlan'
+	| 'deleteEntity'
+	| 'updateEntity'
+	| 'updateEntityWithOptions'
+	| 'addTransaction'
+	| 'setDefaultAccount'
+	| 'recurrenceTemplates'
+	| 'deactivateTemplatesForEntity'
+	| 'addMarketValueSnapshot'
+	| 'marketValueSnapshots'
+	| 'reserveToSaving'
+> & { accounts: EntityWithBalance[]; savings: EntityWithBalance[] };
+export interface EntityDetailFormProps {
+	bindings: EntityBindings;
+	practice?: {
+		initialPlannedMinor: number;
+		header?: ReactNode;
+		guidance?: ReactNode;
+		onSubmit: (amount: number) => Promise<void>;
+	};
+	visible: boolean;
+	entity: EntityWithBalance | null;
+	onClose: () => void;
+}
+
+const MAX_NAME_LENGTH = 100;
+
+export function EntityDetailForm({
+	visible,
+	entity,
+	onClose,
+	bindings,
+	practice,
+}: EntityDetailFormProps) {
+	const [name, setName] = useState('');
+	const [nameError, setNameError] = useState<string | null>(null);
+	const [selectedIcon, setSelectedIcon] = useState('');
+	const [showIconPicker, setShowIconPicker] = useState(false);
+	const [selectedColor, setSelectedColor] = useState<EntityColorKey | null>(null);
+	const [plannedAmount, setPlannedAmount] = useState('');
+	const [actualAmount, setActualAmount] = useState('');
+	const [isEditingActual, setIsEditingActual] = useState(false);
+	const [includeInTotal, setIncludeInTotal] = useState(true);
+	const [isDefault, setIsDefault] = useState(false);
+	const [isInvestment, setIsInvestment] = useState(false);
+	const [marketValueAmount, setMarketValueAmount] = useState('');
+	// Reservation modal state
+	const [reservationAccount, setReservationAccount] = useState<EntityWithBalance | null>(null);
+	const [reservationSaving, setReservationSaving] = useState<EntityWithBalance | null>(null);
+	const maxDecimalPlaces = useMemo(
+		() => getCurrencyDecimalPlaces(entity?.currency ?? DEFAULT_CURRENCY),
+		[entity?.currency]
+	);
+
+	const actualExpr = useExpressionInput(
+		actualAmount,
+		(v) => {
+			setActualAmount(v);
+			setIsEditingActual(true);
+		},
+		{ maxDecimalPlaces }
+	);
+	const plannedExpr = useExpressionInput(plannedAmount, setPlannedAmount, { maxDecimalPlaces });
+	const marketValueExpr = useExpressionInput(marketValueAmount, setMarketValueAmount, {
+		maxDecimalPlaces,
+	});
+	// Show toolbar when either amount input is focused
+	const showExprToolbar = actualExpr.focused || plannedExpr.focused;
+
+	const {
+		plans,
+		currentPeriod,
+		transactions,
+		entities,
+		setPlan,
+		deletePlan,
+		deleteEntity,
+		updateEntity,
+		updateEntityWithOptions,
+		addTransaction,
+		setDefaultAccount,
+		recurrenceTemplates,
+		deactivateTemplatesForEntity,
+		addMarketValueSnapshot,
+		marketValueSnapshots,
+		reserveToSaving,
+		accounts,
+		savings,
+	} = bindings;
+	const active = useRef(false);
+	const submitting = useRef(false);
+	const openingVersion = useRef(0);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState('');
+
+	// For saving entities: derive per-account reservation amounts from transactions
+	const savingReservations = useMemo(() => {
+		if (!entity || entity.type !== 'saving') return [];
+
+		return getReservationsForSaving(transactions, entities, entity.id)
+			.map(({ accountEntityId, amount }) => {
+				const account = accounts.find((a) => a.id === accountEntityId);
+				return account ? { amount, account } : null;
+			})
+			.filter(Boolean) as {
+			amount: number;
+			account: EntityWithBalance;
+		}[];
+	}, [entity, transactions, entities, accounts]);
+
+	// For account entities: derive per-saving reservation amounts from transactions
+	const accountReservations = useMemo(() => {
+		if (!entity || entity.type !== 'account') return [];
+
+		return getReservationsForAccount(transactions, entities, entity.id)
+			.map(({ savingEntityId, amount }) => {
+				const saving = savings.find((s) => s.id === savingEntityId);
+				return saving ? { amount, saving } : null;
+			})
+			.filter(Boolean) as {
+			amount: number;
+			saving: EntityWithBalance;
+		}[];
+	}, [entity, transactions, entities, savings]);
+
+	const accountReservationChartSlices = useMemo<AllocationPieSlice[]>(() => {
+		const slices = accountReservations.map(({ amount, saving }) => ({
+			id: saving.id,
+			label: saving.name,
+			value: amount,
+		}));
+		const sliceColors = assignSliceColors(slices);
+		return slices.map((slice, index) => ({ ...slice, color: sliceColors[index]! }));
+	}, [accountReservations]);
+
+	// Find existing plan for this entity - all plans use 'all-time' period
+	const existingPlan = entity
+		? plans.find((p) => p.entity_id === entity.id && p.period === 'all-time')
+		: null;
+
+	const guided = !!practice;
+	const latestEntity = useRef(entity);
+	latestEntity.current = entity;
+	const openingPlan = practice?.initialPlannedMinor ?? existingPlan?.planned_amount_minor;
+	// Reset on opening/identity/plan changes, without discarding edits for balance-only updates.
+	useEffect(() => {
+		openingVersion.current++;
+		active.current = visible;
+		submitting.current = false;
+		setBusy(false);
+		setError('');
+		const entity = latestEntity.current;
+		if (visible && entity) {
+			setName(entity.name);
+			setSelectedIcon(entity.icon || DEFAULT_ICONS[entity.type]);
+			setPlannedAmount(
+				openingPlan != null && openingPlan > 0
+					? formatAmountForInput(openingPlan, entity.currency)
+					: ''
+			);
+			setActualAmount(formatAmountForInput(entity.actual, entity.currency));
+			setIsEditingActual(false);
+			setIncludeInTotal(entity.include_in_total !== false);
+			setIsDefault(entity.is_default === true);
+			setIsInvestment(entity.is_investment === true);
+			setMarketValueAmount('');
+			setNameError(null);
+			setShowIconPicker(false);
+			setSelectedColor((entity.color as EntityColorKey) ?? null);
+		}
+		const timer = setTimeout(() => {
+			if (guided && active.current) plannedExpr.inputRef.current?.focus();
+		}, 100);
+		return () => {
+			active.current = false;
+			clearTimeout(timer);
+		};
+	}, [visible, entity?.id, entity?.currency, openingPlan, guided, plannedExpr.inputRef]);
+
+	// Validate name on change
+	const handleNameChange = (text: string) => {
+		setName(text);
+
+		if (text.trim().length === 0) {
+			// Don't show error for empty field, but validation will fail
+			setNameError(null);
+		} else if (text.length > MAX_NAME_LENGTH) {
+			setNameError(`Name is too long (max ${MAX_NAME_LENGTH} characters)`);
+		} else {
+			setNameError(null);
+		}
+	};
+
+	// Validation state
+	const isNameValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH;
+	const canSave = isNameValid;
+
+	const handleCancel = useCallback(() => {
+		active.current = false;
+		openingVersion.current++;
+		void KeyboardController.dismiss();
+		onClose();
+	}, [onClose]);
+
+	if (!entity) return null;
+
+	// Get the icon component from registry for live preview
+	const IconComponent = getIcon(selectedIcon || 'circle');
+	const PencilIcon = getIcon('pencil');
+
+	const handleSave = async () => {
+		if (!canSave || submitting.current || !active.current) return;
+		const version = openingVersion.current;
+		submitting.current = true;
+		setBusy(true);
+		setError('');
+		try {
+			if (practice) {
+				const amount = parseAmountToMinor(
+					plannedExpr.resolve({ rejectInvalid: true }),
+					entity.currency
+				);
+				if (!Number.isSafeInteger(amount) || amount <= 0)
+					throw new Error('Enter a positive plan amount or a valid expression.');
+				await practice.onSubmit(amount);
+				if (active.current && version === openingVersion.current) {
+					active.current = false;
+					void KeyboardController.dismiss();
+					onClose();
+				}
+				return;
+			}
+
+			const trimmedName = name.trim();
+			const shouldDeleteSnapshots =
+				entity.type === 'account' && entity.is_investment === true && !isInvestment;
+
+			// Validate icon is in allowed list, fallback to default if not
+			const allowedIcons = ICON_OPTIONS[entity.type];
+			const validIcon = allowedIcons.includes(selectedIcon)
+				? selectedIcon
+				: DEFAULT_ICONS[entity.type];
+
+			// Update entity
+			const updatedEntity = {
+				...entity,
+				name: trimmedName,
+				icon: validIcon,
+				color: selectedColor,
+				include_in_total: includeInTotal,
+				is_investment: isInvestment,
+			};
+
+			if (shouldDeleteSnapshots) {
+				await updateEntityWithOptions(updatedEntity, { deleteMarketValueSnapshots: true });
+			} else {
+				await updateEntity(updatedEntity);
+			}
+
+			if (entity.type !== 'account') {
+				const amountMinor = parseAmountToMinor(plannedExpr.resolve(), entity.currency);
+				if (Number.isInteger(amountMinor) && amountMinor > 0) {
+					await setPlan({
+						id: existingPlan?.id ?? generateId(),
+						entity_id: entity.id,
+						// All plans use 'all-time' period - static budget/goal
+						period: 'all-time',
+						// If updating existing plan, preserve original period_start; otherwise use current period
+						period_start: existingPlan?.period_start ?? currentPeriod,
+						planned_amount_minor: amountMinor,
+					});
+				} else if (existingPlan) {
+					await deletePlan(existingPlan.id);
+				}
+			}
+
+			// Handle default account toggle
+			if (entity.type === 'account' && isDefault !== (entity.is_default === true)) {
+				await setDefaultAccount(isDefault ? entity.id : null);
+			}
+
+			// Handle balance adjustment for accounts
+			if (entity.type === 'account' && isEditingActual) {
+				const currentBalanceMinor = entity.actual;
+				const targetBalanceMinor =
+					parseAmountToMinor(actualExpr.resolve(), entity.currency) || 0;
+				const adjustmentMinor = targetBalanceMinor - currentBalanceMinor;
+
+				if (adjustmentMinor !== 0) {
+					const adjustmentTransaction: Transaction = {
+						id: generateId(),
+						from_entity_id:
+							adjustmentMinor > 0 ? BALANCE_ADJUSTMENT_ENTITY_ID : entity.id,
+						to_entity_id:
+							adjustmentMinor > 0 ? entity.id : BALANCE_ADJUSTMENT_ENTITY_ID,
+						amount_minor: Math.abs(adjustmentMinor),
+						currency: entity.currency,
+						timestamp: Date.now(),
+						note: `Balance correction: ${formatAmount(currentBalanceMinor, entity.currency)} → ${formatAmount(targetBalanceMinor, entity.currency)}`,
+					};
+
+					try {
+						await addTransaction(adjustmentTransaction);
+					} catch (error) {
+						console.error('Balance adjustment failed:', error);
+						Alert.alert(
+							'Balance update failed',
+							error instanceof TransactionValidationError
+								? error.message
+								: 'Could not record the balance adjustment.'
+						);
+						return;
+					}
+				}
+			}
+
+			// Handle market value snapshot for investment accounts
+			if (entity.type === 'account' && isInvestment && marketValueAmount.trim()) {
+				const amountMinor = parseAmountToMinor(marketValueAmount, entity.currency);
+				if (Number.isInteger(amountMinor)) {
+					const today = new Date();
+					today.setHours(0, 0, 0, 0);
+					const date = today.getTime();
+
+					// Skip creating a duplicate snapshot if the latest one on the same day has the same amount
+					const latestToday = marketValueSnapshots
+						.filter((s) => s.entity_id === entity.id && s.date === date)
+						.sort((a, b) => b.date - a.date)[0];
+					if (!latestToday || latestToday.amount_minor !== amountMinor) {
+						await addMarketValueSnapshot({
+							id: generateId(),
+							entity_id: entity.id,
+							amount_minor: amountMinor,
+							currency: entity.currency,
+							date,
+						});
+					}
+				}
+			}
+
+			void KeyboardController.dismiss();
+			onClose();
+		} catch (error) {
+			console.error('Failed to save entity:', error);
+			if (active.current && version === openingVersion.current) {
+				if (practice)
+					setError(error instanceof Error ? error.message : 'Could not save the plan.');
+				else Alert.alert('Save failed', 'Could not save your changes. Please try again.');
+			}
+		} finally {
+			if (version === openingVersion.current) {
+				submitting.current = false;
+				if (active.current) setBusy(false);
+			}
+		}
+	};
+
+	const handleDelete = () => {
+		const runDelete = async (deleter: () => Promise<unknown>) => {
+			try {
+				await deleter();
+			} catch (error) {
+				console.error('Failed to delete entity:', error);
+				Alert.alert('Delete failed', 'Could not delete this entity. Please try again.');
+			}
+		};
+		const activeTemplates = recurrenceTemplates.filter(
+			(t) => !t.is_deleted && (t.from_entity_id === entity.id || t.to_entity_id === entity.id)
+		);
+
+		if (activeTemplates.length > 0) {
+			Alert.alert(
+				'Entity Used in Recurring Transactions',
+				`"${entity.name}" is used in ${activeTemplates.length} recurring transaction series. Also delete future occurrences and stop the recurrence?`,
+				[
+					{ text: 'Cancel', style: 'cancel' },
+					{
+						text: 'Keep recurring',
+						onPress: () => {
+							onClose();
+							void runDelete(async () => {
+								await new Promise((resolve) => setTimeout(resolve, 300));
+								await deleteEntity(entity.id);
+							});
+						},
+					},
+					{
+						text: 'Stop & delete future',
+						style: 'destructive',
+						onPress: () => {
+							onClose();
+							void runDelete(async () => {
+								await new Promise((resolve) => setTimeout(resolve, 300));
+								await deactivateTemplatesForEntity(entity.id);
+								await deleteEntity(entity.id);
+							});
+						},
+					},
+				]
+			);
+			return;
+		}
+
+		const deleteConsequences = {
+			income: 'Past transactions will stay in History and this income source will be shown as removed.',
+			account:
+				'Past transactions will stay in History and any funds reserved from this account will be removed from linked savings goals.',
+			category:
+				'Past transactions will stay in History and this category will be shown as removed.',
+			saving: 'Past transactions will stay in History and any reserved money for this goal will be released back to its linked accounts.',
+		} satisfies Record<typeof entity.type, string>;
+
+		Alert.alert(
+			'Delete Entity',
+			`Are you sure you want to delete "${entity.name}"? ${deleteConsequences[entity.type]}`,
+			[
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Delete',
+					style: 'destructive',
+					onPress: () => {
+						// Close modal first so user can see the gap-closing animation
+						onClose();
+						void runDelete(async () => {
+							// Small delay to allow modal close animation to complete
+							await new Promise((resolve) => setTimeout(resolve, 300));
+							// Now delete - user will see entities slide to close the gap
+							await deleteEntity(entity.id);
+						});
+					},
+				},
+			]
+		);
+	};
+
+	const typeLabel = {
+		income: 'Income Source',
+		account: 'Account',
+		category: 'Expense Category',
+		saving: 'Savings Goal',
+	}[entity.type];
+	const shouldShowRemaining =
+		entity.type !== 'account' && entity.type !== 'income' && entity.planned > 0;
+
+	return (
+		<PageSheetModal visible={visible} onRequestClose={handleCancel}>
+			{practice?.header}
+			{/* Header */}
+			<View className="border-b border-paper-300 px-5 py-4">
+				<Text className="font-sans-semibold text-base text-ink">Edit Entity</Text>
+				<View className="mt-3 flex-row items-center justify-between">
+					<Pressable
+						onPress={handleCancel}
+						hitSlop={20}
+						testID="entity-detail-cancel-button"
+					>
+						<Text className="font-sans text-base text-ink-muted">Cancel</Text>
+					</Pressable>
+
+					<Pressable
+						onPress={() => {
+							void handleSave();
+						}}
+						disabled={!canSave || busy}
+						hitSlop={20}
+						testID="entity-detail-save-button"
+					>
+						<Text
+							className={`font-sans-semibold text-base ${canSave ? 'text-accent' : 'text-ink-muted'}`}
+						>
+							{busy ? 'Saving…' : 'Save'}
+						</Text>
+					</Pressable>
+				</View>
+			</View>
+
+			{/* Content */}
+			<KeyboardAwareScrollView
+				bottomOffset={50}
+				keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+				keyboardShouldPersistTaps="handled"
+				className="flex-1 px-5 pt-6"
+			>
+				{practice?.guidance}
+				{!!error && (
+					<Text accessibilityRole="alert" className="mb-3 text-negative">
+						{error}
+					</Text>
+				)}
+				{/* Entity icon with edit indicator */}
+				<View className="mb-6 items-center">
+					<Pressable
+						onPress={() => setShowIconPicker(!showIconPicker)}
+						disabled={!!practice}
+						className="mb-3"
+						testID="entity-detail-icon-picker-toggle"
+					>
+						<View
+							className="relative h-20 w-20 items-center justify-center rounded-full"
+							style={{
+								backgroundColor: getEntityColors(entity.type, selectedColor)
+									.bgColor,
+							}}
+						>
+							<IconComponent
+								size={36}
+								color={getEntityColors(entity.type, selectedColor).iconColor}
+							/>
+							{/* Pencil edit indicator */}
+							<View className="absolute bottom-0 right-0 h-7 w-7 items-center justify-center rounded-full bg-paper-50/90">
+								<PencilIcon size={14} color={colors.ink.muted} />
+							</View>
+						</View>
+					</Pressable>
+					<Text className="font-sans text-sm text-ink-muted">{typeLabel}</Text>
+				</View>
+
+				{/* Icon picker (expandable) */}
+				{showIconPicker && (
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Choose Icon
+						</Text>
+						<EntityIconPicker
+							key={`${entity.id}-${showIconPicker ? 'open' : 'closed'}`}
+							icons={ICON_OPTIONS[entity.type]}
+							selectedIcon={selectedIcon}
+							onSelect={(icon) => {
+								setSelectedIcon(icon);
+								setShowIconPicker(false);
+							}}
+							optionTestIDPrefix="entity-detail-icon-option"
+						/>
+					</View>
+				)}
+
+				{/* Color picker */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Color
+					</Text>
+					<View
+						pointerEvents={practice ? 'none' : 'auto'}
+						accessibilityElementsHidden={!!practice}
+						importantForAccessibility={practice ? 'no-hide-descendants' : 'auto'}
+					>
+						<EntityColorPicker
+							entityType={entity.type}
+							selectedColor={selectedColor}
+							onSelect={setSelectedColor}
+						/>
+					</View>
+				</View>
+
+				{/* Name input */}
+				<View className="mb-6">
+					<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+						Name
+					</Text>
+					<View
+						className={[textInputClassNames.container, nameError && 'border-negative']
+							.filter(Boolean)
+							.join(' ')}
+					>
+						<TextInput
+							{...sharedTextInputProps}
+							value={name}
+							onChangeText={handleNameChange}
+							placeholder="Enter entity name"
+							className={textInputClassNames.input}
+							style={styles.input}
+							placeholderTextColor={colors.ink.placeholder}
+							maxLength={MAX_NAME_LENGTH}
+							testID="entity-detail-name-input"
+							editable={!practice}
+						/>
+					</View>
+					{nameError && (
+						<Text className="mt-1 font-sans text-xs text-negative">{nameError}</Text>
+					)}
+				</View>
+
+				{/* Current status - editable for accounts */}
+				{entity.type === 'account' ? (
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Current Balance
+						</Text>
+						<View className={textInputClassNames.inlineContainer}>
+							<TextInput
+								{...sharedNumericTextInputProps}
+								{...actualExpr.inputProps}
+								placeholder="0"
+								className={textInputClassNames.primaryAmountInput}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="entity-detail-actual-input"
+							/>
+							<Text className={textInputClassNames.suffixLarge}>
+								{getCurrencySymbol(entity.currency)}
+							</Text>
+						</View>
+						<Text className="mt-1 font-sans text-xs text-ink-muted">
+							Correct your account balance. An adjustment transaction will be created.
+						</Text>
+
+						{!!entity.reserved && entity.reserved > 0 && (
+							<View className="mt-4 items-center rounded-lg bg-paper-100 px-4 py-3">
+								<Text className="font-sans text-xs text-ink-muted">
+									Total (incl. savings)
+								</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.actual + entity.reserved < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.actual + entity.reserved, entity.currency)}
+								</Text>
+							</View>
+						)}
+
+						{/* Include in total toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<View className="flex-row items-center">
+									<Text className="font-sans text-base text-ink">
+										Include in total balance
+									</Text>
+									<InfoPin articleId="entity-types" />
+								</View>
+								<Text className="font-sans text-xs text-ink-muted">
+									Turn off to exclude from summary header
+								</Text>
+							</View>
+							<Switch
+								value={includeInTotal}
+								onValueChange={setIncludeInTotal}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-include-in-total-switch"
+							/>
+						</View>
+
+						{/* Default account toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<Text className="font-sans text-base text-ink">
+									Default account
+								</Text>
+								<Text className="font-sans text-xs text-ink-muted">
+									Pre-selected when adding transactions
+								</Text>
+							</View>
+							<Switch
+								value={isDefault}
+								onValueChange={setIsDefault}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-is-default-switch"
+							/>
+						</View>
+
+						{/* Investment account toggle */}
+						<View className="mt-4 flex-row items-center justify-between rounded-lg bg-paper-100 px-4 py-3">
+							<View className="flex-1 pr-4">
+								<View className="flex-row items-center">
+									<Text className="font-sans text-base text-ink">
+										Investment account
+									</Text>
+									<InfoPin articleId="investment-accounts" />
+								</View>
+								<Text className="font-sans text-xs text-ink-muted">
+									Track purchase value and market value
+								</Text>
+							</View>
+							<Switch
+								value={isInvestment}
+								onValueChange={(value) => {
+									const hasSnapshots = marketValueSnapshots.some(
+										(s) => s.entity_id === entity.id
+									);
+									if (!value && hasSnapshots) {
+										Alert.alert(
+											'Turn Off Investment Account?',
+											'Turning this off will remove all saved market value snapshots when you save.',
+											[
+												{
+													text: 'Cancel',
+													style: 'cancel',
+													onPress: () => {},
+												},
+												{
+													text: 'Confirm',
+													style: 'destructive',
+													onPress: () => {
+														setIsInvestment(false);
+													},
+												},
+											]
+										);
+									} else {
+										setIsInvestment(value);
+									}
+								}}
+								trackColor={{
+									false: colors.border.DEFAULT,
+									true: colors.accent.DEFAULT,
+								}}
+								thumbColor={colors.paper.warm}
+								testID="entity-detail-investment-switch"
+							/>
+						</View>
+
+						{/* Market value input — visible only for investment accounts */}
+						{isInvestment && (
+							<View className="mt-4">
+								<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+									Market Value
+								</Text>
+								<View className={textInputClassNames.inlineContainer}>
+									<TextInput
+										{...sharedNumericTextInputProps}
+										{...marketValueExpr.inputProps}
+										value={marketValueAmount}
+										onChangeText={setMarketValueAmount}
+										placeholder="0"
+										className={textInputClassNames.primaryAmountInput}
+										style={styles.input}
+										placeholderTextColor={colors.ink.placeholder}
+										testID="entity-detail-market-value-input"
+									/>
+									<Text className={textInputClassNames.suffixLarge}>
+										{getCurrencySymbol(entity.currency)}
+									</Text>
+								</View>
+								<Text className="mt-1 font-sans text-xs text-ink-muted">
+									Enter today&apos;s market value to save a new snapshot.
+								</Text>
+							</View>
+						)}
+
+						{/* Reserved for — per-saving breakdown */}
+						<View className="mt-4" testID="account-reservations-section">
+							<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+								Reserved for
+							</Text>
+							{accountReservations.length > 0 ? (
+								<>
+									<AllocationPieChart
+										slices={accountReservationChartSlices}
+										currency={entity.currency}
+										totalLabel="Reserved"
+										onSlicePress={(slice) => {
+											const reservation = accountReservations.find(
+												(r) => r.saving.id === slice.id
+											);
+											if (reservation) {
+												setReservationSaving(reservation.saving);
+											}
+										}}
+										containerClassName="pb-4"
+										testID="account-reservations-pie-chart"
+									/>
+									<View className="rounded-lg bg-paper-100">
+										{accountReservations.map(({ amount, saving }, index) => {
+											const SavingIcon = getIcon(saving.icon || 'circle');
+											const savingColors = getEntityColors(
+												'saving',
+												saving.color
+											);
+											return (
+												<Pressable
+													key={saving.id}
+													onPress={() => setReservationSaving(saving)}
+													className={`flex-row items-center px-4 py-3 ${
+														index > 0 ? 'border-t border-paper-300' : ''
+													}`}
+													testID={`account-reservation-row-${saving.id}`}
+												>
+													<View
+														className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+														style={{
+															backgroundColor: savingColors.bgColor,
+														}}
+													>
+														<SavingIcon
+															size={16}
+															color={savingColors.iconColor}
+														/>
+													</View>
+													<Text className="flex-1 font-sans text-base text-ink">
+														{saving.name}
+													</Text>
+													<Text
+														className="font-sans-semibold text-base text-ink"
+														style={{
+															fontVariant: ['tabular-nums'],
+														}}
+													>
+														{formatAmount(amount, entity.currency)}
+													</Text>
+												</Pressable>
+											);
+										})}
+									</View>
+								</>
+							) : (
+								<Text className="text-ink-faint font-sans text-sm">
+									Drag a savings goal onto this account to reserve funds
+								</Text>
+							)}
+						</View>
+					</View>
+				) : (
+					/* Original read-only status for other entity types */
+					<View className="mb-6 flex-row justify-around rounded-lg bg-paper-100 px-4 py-4">
+						<View className="items-center">
+							<Text className="font-sans text-xs text-ink-muted">Actual</Text>
+							<Text className="font-sans-semibold text-lg text-ink">
+								{formatAmount(entity.actual, entity.currency)}
+							</Text>
+						</View>
+						{shouldShowRemaining && (
+							<View className="items-center">
+								<Text className="font-sans text-xs text-ink-muted">Remaining</Text>
+								<Text
+									className={`font-sans-semibold text-lg ${entity.remaining < 0 ? 'text-negative' : 'text-ink'}`}
+								>
+									{formatAmount(entity.remaining, entity.currency)}
+								</Text>
+							</View>
+						)}
+					</View>
+				)}
+
+				{/* Planned amount input — not applicable for accounts */}
+				{entity.type !== 'account' && (
+					<View className="mb-6">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Planned Amount
+						</Text>
+						<View className={textInputClassNames.inlineContainer}>
+							<TextInput
+								{...sharedNumericTextInputProps}
+								{...plannedExpr.inputProps}
+								placeholder="0"
+								className={textInputClassNames.primaryAmountInput}
+								style={styles.input}
+								placeholderTextColor={colors.ink.placeholder}
+								testID="entity-detail-amount-input"
+							/>
+							<Text className={textInputClassNames.suffixLarge}>
+								{getCurrencySymbol(entity.currency)}
+							</Text>
+						</View>
+					</View>
+				)}
+
+				{/* Reservations section — saving entities only */}
+				{entity.type === 'saving' && (
+					<View className="mb-6" testID="saving-reservations-section">
+						<Text className="mb-2 font-sans text-sm uppercase tracking-wider text-ink-muted">
+							Reserved from
+						</Text>
+						{savingReservations.length > 0 ? (
+							<View className="rounded-lg bg-paper-100">
+								{savingReservations.map(({ amount, account }, index) => {
+									const AccountIcon = getIcon(account.icon || 'circle');
+									const accountColors = getEntityColors('account', account.color);
+									return (
+										<Pressable
+											key={account.id}
+											onPress={() => setReservationAccount(account)}
+											className={`flex-row items-center px-4 py-3 ${
+												index > 0 ? 'border-t border-paper-300' : ''
+											}`}
+											testID={`saving-reservation-row-${account.id}`}
+										>
+											<View
+												className="mr-3 h-8 w-8 items-center justify-center rounded-full"
+												style={{
+													backgroundColor: accountColors.bgColor,
+												}}
+											>
+												<AccountIcon
+													size={16}
+													color={accountColors.iconColor}
+												/>
+											</View>
+											<Text className="flex-1 font-sans text-base text-ink">
+												{account.name}
+											</Text>
+											<Text
+												className="font-sans-semibold text-base text-ink"
+												style={{ fontVariant: ['tabular-nums'] }}
+											>
+												{formatAmount(amount, entity.currency)}
+											</Text>
+										</Pressable>
+									);
+								})}
+							</View>
+						) : (
+							<Text className="text-ink-faint font-sans text-sm">
+								Drag an account onto this saving to reserve funds
+							</Text>
+						)}
+					</View>
+				)}
+
+				{/* Delete button */}
+				<Pressable
+					onPress={handleDelete}
+					disabled={!!practice}
+					className="mb-8 items-center rounded-lg border border-negative/30 bg-negative/10 py-3"
+					testID="entity-detail-delete-button"
+				>
+					<Text className="font-sans-semibold text-base text-negative">
+						Delete Entity
+					</Text>
+				</Pressable>
+			</KeyboardAwareScrollView>
+
+			{/* Reservation edit modal — opens from saving detail when tapping a reservation row */}
+			{entity.type === 'saving' && (
+				<ReservationForm
+					visible={reservationAccount !== null}
+					currentNetMinor={
+						reservationAccount
+							? getReservationForPair(transactions, reservationAccount.id, entity.id)
+							: 0
+					}
+					help={<InfoPin articleId="reservations" />}
+					onSubmit={(n) =>
+						reservationAccount
+							? reserveToSaving(reservationAccount.id, entity.id, n)
+							: Promise.resolve()
+					}
+					account={reservationAccount}
+					saving={entity}
+					onClose={() => setReservationAccount(null)}
+				/>
+			)}
+			{/* Reservation edit modal — opens from account detail when tapping a reservation row */}
+			{entity.type === 'account' && (
+				<ReservationForm
+					visible={reservationSaving !== null}
+					currentNetMinor={
+						reservationSaving
+							? getReservationForPair(transactions, entity.id, reservationSaving.id)
+							: 0
+					}
+					help={<InfoPin articleId="reservations" />}
+					onSubmit={(n) =>
+						reservationSaving
+							? reserveToSaving(entity.id, reservationSaving.id, n)
+							: Promise.resolve()
+					}
+					account={entity}
+					saving={reservationSaving}
+					onClose={() => setReservationSaving(null)}
+				/>
+			)}
+			<KeyboardExtender enabled={showExprToolbar}>
+				<OperatorToolbar
+					onOperator={
+						actualExpr.focused ? actualExpr.insertOperator : plannedExpr.insertOperator
+					}
+					onEquals={actualExpr.focused ? actualExpr.resolve : plannedExpr.resolve}
+				/>
+			</KeyboardExtender>
+		</PageSheetModal>
+	);
+}

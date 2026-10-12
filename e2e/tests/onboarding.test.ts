@@ -102,6 +102,29 @@ describe('Onboarding — first launch and practice', () => {
 			by.id(TestIDs.transaction.amountInput)
 		);
 		await saveExample('50');
+		await tap(TestIDs.boardEditToggle);
+		await tapUntilVisible(
+			by.id(TestIDs.entityBubble('Groceries')),
+			by.id(TestIDs.entityDetail.amountInput)
+		);
+		await waitFor(element(by.id(TestIDs.entityDetail.amountInput)))
+			.toBeVisible()
+			.withTimeout(5000);
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		await element(by.id(TestIDs.entityDetail.amountInput)).replaceText('300');
+		await tapUntilVisible(
+			by.id(TestIDs.entityDetail.saveButton),
+			by.id(TestIDs.onboarding.practiceNext)
+		);
+		const planned = (await element(by.id(TestIDs.dashboardPlannedAmount)).getAttributes()) as {
+			text: string;
+		};
+		jestExpect(Number(planned.text.replace(/\s/g, '').replace(',', '.'))).toBeCloseTo(250, 2);
+		jestExpect(await getAmount('Main account')).toBeCloseTo(1150, 2);
+		await tapUntilVisible(
+			by.id(TestIDs.onboarding.practiceNext),
+			by.id(TestIDs.onboarding.practiceRecord)
+		);
 		await dragExample('Main account', 'Vacation');
 		await saveExample('200', true);
 		await waitFor(element(by.id(TestIDs.onboarding.practiceFinish)))
@@ -222,13 +245,32 @@ describe('Onboarding — first launch and practice', () => {
 				by.id(TestIDs.onboarding.practiceRecord),
 				by.id(TestIDs.onboarding.practiceSheetExit)
 			);
-			await tapUntilGone(
-				by.id(TestIDs.transaction.saveButton),
+			await saveExample('1000');
+			await waitFor(element(by.id(TestIDs.onboarding.practiceRecord)))
+				.toBeVisible()
+				.whileElement(by.id(TestIDs.onboarding.practiceScreen))
+				.scroll(150, 'down');
+			await tapUntilVisible(
+				by.id(TestIDs.onboarding.practiceRecord),
 				by.id(TestIDs.transaction.amountInput)
 			);
-			await waitFor(element(by.id(TestIDs.transaction.amountInput)))
-				.not.toBeVisible()
+			await saveExample('30');
+			await waitFor(element(by.id(TestIDs.onboarding.practiceRecord)))
+				.toBeVisible()
+				.whileElement(by.id(TestIDs.onboarding.practiceScreen))
+				.scroll(150, 'down');
+			await tapUntilVisible(
+				by.id(TestIDs.onboarding.practiceRecord),
+				by.id(TestIDs.entityDetail.amountInput)
+			);
+			await waitFor(element(by.id(TestIDs.entityDetail.amountInput)))
+				.toBeVisible()
 				.withTimeout(5000);
+			await tapUntilGone(
+				by.id(TestIDs.entityDetail.saveButton),
+				by.id(TestIDs.onboarding.practiceSheetExit)
+			);
+			await new Promise((resolve) => setTimeout(resolve, 400));
 			await tap(TestIDs.onboarding.practiceExit);
 		} finally {
 			// Apply system font changes with the app stopped to avoid activity/configuration races.

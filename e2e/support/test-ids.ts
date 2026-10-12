@@ -78,6 +78,7 @@ export const TestIDs = {
 	incomeToggleButton: 'income-toggle-button',
 	/** KII-148: the single board-wide edit-mode pencil in the summary header. */
 	boardEditToggle: 'board-edit-toggle',
+	dashboardPlannedAmount: 'dashboard-planned-amount',
 
 	onboarding: {
 		welcomeScreen: 'onboarding-welcome',

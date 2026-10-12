@@ -14,6 +14,7 @@ import { useDragAutoScroll } from '@/src/hooks/use-drag-auto-scroll';
 import { EntityBoardGrid } from './entity-board-grid';
 import { BoardScrollSurface } from './board-scroll-surface';
 import { Text } from './text';
+import { colors } from '@/src/theme/colors';
 import { TestIDs } from '@/e2e/support/test-ids';
 
 const TYPES = ['income', 'account', 'category', 'saving'] as const;
@@ -30,6 +31,7 @@ export function PracticeBoard({
 	lesson,
 	demo,
 	incomeVisible = true,
+	editMode = false,
 }: {
 	entities: EntityWithBalance[];
 	highlightedIds: string[];
@@ -41,6 +43,7 @@ export function PracticeBoard({
 	lesson: PracticeLesson;
 	demo: number;
 	incomeVisible?: boolean;
+	editMode?: boolean;
 }) {
 	const hoveredId = useSharedValue('');
 	const [demoHint, setDemoHint] = useState('');
@@ -77,7 +80,7 @@ export function PracticeBoard({
 		dropZones.remeasureAllDropZones();
 	}, [guidanceType, lesson, dropZones, outerScrollRef]);
 	useEffect(() => {
-		if (!demo) {
+		if (!demo || lesson === 'plan') {
 			handledDemo.current = 0;
 			setDemoHint('');
 			return;
@@ -136,7 +139,12 @@ export function PracticeBoard({
 		opacity: cue ? 1 : 0,
 	}));
 	return (
-		<View ref={surfaceRef} className="flex-1" testID="practice-board">
+		<View
+			ref={surfaceRef}
+			className="flex-1"
+			style={{ backgroundColor: editMode ? colors.paper.edit : colors.paper[50] }}
+			testID="practice-board"
+		>
 			<BoardScrollSurface
 				ref={outerScrollRef}
 				testID={TestIDs.onboarding.practiceScreen}
@@ -173,6 +181,7 @@ export function PracticeBoard({
 						>
 							<EntityBoardGrid
 								title={TITLES[type]}
+								dragBehavior={editMode ? 'reorder' : 'transaction'}
 								type={type}
 								entities={sections[i]!}
 								lookupEntity={(id) => entities.find((e) => e.id === id)}
@@ -184,6 +193,7 @@ export function PracticeBoard({
 									setCue(null);
 									dragging.current = true;
 									dropZones.remeasureAllDropZones();
+									if (editMode) return;
 									auto.setDragSourceIndex(i);
 									auto.startAutoScroll();
 								}}

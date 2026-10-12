@@ -56,11 +56,21 @@ beforeEach(() => {
 	mockBack.mockClear();
 	mockParams = {};
 });
-async function record(ui: ReturnType<typeof render>, amount: string, reservation = false) {
+async function record(
+	ui: ReturnType<typeof render>,
+	amount: string,
+	reservation: boolean | 'plan' = false
+) {
 	fireEvent.press(ui.getByTestId('practice-record'));
 	fireEvent.changeText(ui.getByPlaceholderText('0'), amount);
 	fireEvent.press(
-		ui.getByTestId(reservation ? 'reservation-submit-button' : 'transaction-save-button')
+		ui.getByTestId(
+			reservation === 'plan'
+				? 'entity-detail-save-button'
+				: reservation
+					? 'reservation-submit-button'
+					: 'transaction-save-button'
+		)
 	);
 	await waitFor(() => expect(ui.getByTestId('practice-next')).toBeTruthy());
 	fireEvent.press(ui.getByTestId('practice-next'));
@@ -93,10 +103,12 @@ test('teaches three movements with entered amounts while personal data remains u
 	const ui = render(<PracticeScreen />);
 	await record(ui, '1200');
 	await record(ui, '50');
+	await record(ui, '300', 'plan');
 	await record(ui, '200', true);
 	expect(ui.getByTestId('practice-finish')).toBeTruthy();
 	expect(ui.getByText(/Main account: 950/)).toBeTruthy();
 	expect(useStore.getState().entities).toEqual([personal]);
+	expect(useStore.getState().plans).toEqual(before.plans);
 	expect(useStore.getState().transactions).toEqual([tx]);
 	expect(useStore.getState().bubbleGestureMode).toBe(before.bubbleGestureMode);
 	fireEvent.press(ui.getByTestId('practice-finish'));
@@ -112,15 +124,44 @@ test('replay exit is reachable inside an open sheet and starts fresh on next vis
 	expect(mockBack).toHaveBeenCalledTimes(1);
 	ui.unmount();
 	const fresh = render(<PracticeScreen />);
-	expect(fresh.getByText('1 of 3')).toBeTruthy();
+	expect(fresh.getByText('1 of 4')).toBeTruthy();
 });
 
 test('cancel and demo do not advance the lesson', async () => {
 	const ui = render(<PracticeScreen />);
 	fireEvent.press(ui.getByTestId('practice-demo'));
-	expect(ui.getByText('1 of 3')).toBeTruthy();
+	expect(ui.getByText('1 of 4')).toBeTruthy();
 	fireEvent.press(ui.getByTestId('practice-record'));
 	fireEvent.press(ui.getByTestId('transaction-cancel-button'));
 	expect(ui.queryByTestId('practice-next')).toBeNull();
-	expect(ui.getByText('1 of 3')).toBeTruthy();
+	expect(ui.getByText('1 of 4')).toBeTruthy();
+});
+
+test('canceling the plan editor leaves edit mode ready to reopen and preserves personal plans', async () => {
+	const ownedCategory = {
+		id: 'owned-category',
+		name: 'Own groceries',
+		type: 'category' as const,
+		currency: 'EUR',
+		row: 0,
+		position: 0,
+	};
+	const ownedPlan = {
+		id: 'owned-plan',
+		entity_id: ownedCategory.id,
+		period: 'all-time',
+		period_start: '2026-10',
+		planned_amount_minor: 88800,
+	};
+	useStore.setState({ entities: [ownedCategory], plans: [ownedPlan] });
+	const ui = render(<PracticeScreen />);
+	await record(ui, '1000');
+	await record(ui, '30');
+	fireEvent.press(ui.getByTestId('board-edit-toggle'));
+	expect(ui.getByText('Tap Groceries to set Planned Amount for this month.')).toBeTruthy();
+	fireEvent.press(ui.getByTestId('practice-record'));
+	fireEvent.press(ui.getByTestId('entity-detail-cancel-button'));
+	expect(ui.getByText('Tap Groceries to set Planned Amount for this month.')).toBeTruthy();
+	expect(ui.queryByTestId('practice-next')).toBeNull();
+	expect(useStore.getState().plans).toEqual([ownedPlan]);
 });
