@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.38](/codeberg.org/kblcuk/kopiika/compare/v0.3.37...v0.3.38) (2026-10-13)
+
+### Features
+
+* **onboarding:** Add isolated practice session ([7b5efa4](/codeberg.org/kblcuk/kopiika/commit/7b5efa468bc68d818ead720a3289b3d6a28cf079))
+* **onboarding:** Guide practice on the shared dashboard board ([9caa618](/codeberg.org/kblcuk/kopiika/commit/9caa61853aa517950f960f06604fd09ca195fb6d))
+* **onboarding:** Teach money flows on a practice board ([7654c1d](/codeberg.org/kblcuk/kopiika/commit/7654c1d802e15e4ccdeae8c4ecd3c4dc40605001))
+* **onboarding:** Teach monthly spending plans in practice ([5c0dcf4](/codeberg.org/kblcuk/kopiika/commit/5c0dcf46dfb1e416aab5f18fa74f3c2202f662f5))
+
+### Bug Fixes
+
+* **board:** Preserve normal bubble spacing ([cd8a2bd](/codeberg.org/kblcuk/kopiika/commit/cd8a2bd124f8100ef5b084617ac0a077cb7e8f3c))
+* **input:** Resolve the latest edited amount before saving ([f50cc39](/codeberg.org/kblcuk/kopiika/commit/f50cc3972e9cc27efb803db4074e1acc2cd82b96))
+* **onboarding:** Keep gesture demos inside the visible board ([f0e147c](/codeberg.org/kblcuk/kopiika/commit/f0e147c51695f93decb642d8f50cf3f871fc410c))
+* **onboarding:** Preserve drag layout and show the example date ([4ef96ea](/codeberg.org/kblcuk/kopiika/commit/4ef96eaadcea91b433262eb4442208ea097f5d06))
+* **onboarding:** Reject invalid arithmetic before recording ([5e6e0d9](/codeberg.org/kblcuk/kopiika/commit/5e6e0d969fa43a6e3417fe5befe5ace58c486adc))
+
 ## [0.3.37](/codeberg.org/kblcuk/kopiika/compare/v0.3.36...v0.3.37) (2026-09-21)
 
 ### Bug Fixes
