@@ -1,6 +1,6 @@
 import { eq, max, and, ne } from 'drizzle-orm';
 import type { Entity, EntityType } from '@/src/types';
-import { getDrizzleDb } from './drizzle-client';
+import { getDrizzleDb, type DrizzleTx } from './drizzle-client';
 import { entities, marketValueSnapshots, plans } from './drizzle-schema';
 
 export async function getAllEntities(): Promise<Entity[]> {
@@ -93,32 +93,27 @@ export async function updateEntity(
 }
 
 export async function deleteEntity(id: string): Promise<Entity | null> {
-	return softDeleteEntity(id);
+	const db = await getDrizzleDb();
+	return db.transaction((tx) => softDeleteEntity(tx, id));
 }
 
-async function softDeleteEntity(id: string): Promise<Entity | null> {
-	const db = await getDrizzleDb();
-	// KII-132: TOCTOU between this read and the UPDATE inside the transaction —
-	// a concurrent caller can re-delete. Move the guard into the UPDATE's WHERE
-	// (`is_deleted = false`) and check `changes > 0`.
-	const entity = await getEntityById(id);
-	if (!entity || entity.is_deleted) {
-		return null;
-	}
+/**
+ * Soft-delete an entity and drop its plans and market value snapshots. The
+ * `is_deleted = false` guard lives in the UPDATE itself, so a missing or
+ * already-deleted entity yields no row and nothing else is touched.
+ */
+function softDeleteEntity(tx: DrizzleTx, id: string): Entity | null {
+	const [row] = tx
+		.update(entities)
+		.set({ is_deleted: true, updated_at: Date.now() })
+		.where(and(eq(entities.id, id), eq(entities.is_deleted, false)))
+		.returning()
+		.all();
+	if (!row) return null;
 
-	return db.transaction((tx) => {
-		const [row] = tx
-			.update(entities)
-			.set({ is_deleted: true, updated_at: Date.now() })
-			.where(eq(entities.id, id))
-			.returning()
-			.all();
-
-		tx.delete(marketValueSnapshots).where(eq(marketValueSnapshots.entity_id, id)).run();
-
-		tx.delete(plans).where(eq(plans.entity_id, id)).run();
-		return row ?? null;
-	});
+	tx.delete(marketValueSnapshots).where(eq(marketValueSnapshots.entity_id, id)).run();
+	tx.delete(plans).where(eq(plans.entity_id, id)).run();
+	return row;
 }
 
 export async function getNextPosition(type: EntityType, row: number): Promise<number> {
@@ -139,39 +134,25 @@ export async function updateEntityPositions(
 ): Promise<Entity[]> {
 	if (updates.length === 0) return [];
 	const db = await getDrizzleDb();
+	return db.transaction((tx) => applyEntityPositions(tx, updates));
+}
+
+function applyEntityPositions(
+	tx: DrizzleTx,
+	updates: { id: string; row: number; position: number }[]
+): Entity[] {
 	const now = Date.now();
-	return db.transaction((tx) => {
-		const stamped: Entity[] = [];
-		for (const update of updates) {
-			const [row] = tx
-				.update(entities)
-				.set({ row: update.row, position: update.position, updated_at: now })
-				.where(eq(entities.id, update.id))
-				.returning()
-				.all();
-			if (row) stamped.push(row);
-		}
-		return stamped;
-	});
-}
-
-async function getEntitiesInRow(type: EntityType, row: number): Promise<Entity[]> {
-	const db = await getDrizzleDb();
-	return await db
-		.select()
-		.from(entities)
-		.where(and(eq(entities.type, type), eq(entities.row, row), eq(entities.is_deleted, false)))
-		.orderBy(entities.position);
-}
-
-async function reindexRow(type: EntityType, row: number): Promise<Entity[]> {
-	const entitiesInRow = await getEntitiesInRow(type, row);
-	const updates = entitiesInRow.map((entity, index) => ({
-		id: entity.id,
-		row: row,
-		position: index,
-	}));
-	return updateEntityPositions(updates);
+	const stamped: Entity[] = [];
+	for (const update of updates) {
+		const [row] = tx
+			.update(entities)
+			.set({ row: update.row, position: update.position, updated_at: now })
+			.where(eq(entities.id, update.id))
+			.returning()
+			.all();
+		if (row) stamped.push(row);
+	}
+	return stamped;
 }
 
 /**
@@ -218,20 +199,36 @@ export async function setDefaultAccount(accountId: string | null): Promise<Entit
 }
 
 /**
- * Soft-delete an entity and reindex remaining entities in the same row.
- * Returns all entities whose row position was touched, so callers can
- * replace the affected slice of in-memory state with the stamped rows.
+ * Soft-delete an entity and reindex remaining entities in the same row, in a
+ * single SQLite transaction so a failure can't leave a position gap (KII-177).
+ * Only entities whose position actually shifts are rewritten and returned, so
+ * callers can replace the affected slice of in-memory state with the stamped rows.
  */
 export async function deleteEntityAndReindex(entityId: string): Promise<{
 	deleted: Entity | null;
 	reindexed: Entity[];
 }> {
-	const entity = await getEntityById(entityId);
-	if (!entity || entity.is_deleted) {
-		return { deleted: null, reindexed: [] };
-	}
+	const db = await getDrizzleDb();
+	return db.transaction((tx) => {
+		const deleted = softDeleteEntity(tx, entityId);
+		if (!deleted) return { deleted: null, reindexed: [] };
 
-	const deleted = await softDeleteEntity(entityId);
-	const reindexed = await reindexRow(entity.type, entity.row);
-	return { deleted, reindexed };
+		const remaining = tx
+			.select({ id: entities.id, position: entities.position })
+			.from(entities)
+			.where(
+				and(
+					eq(entities.type, deleted.type),
+					eq(entities.row, deleted.row),
+					eq(entities.is_deleted, false)
+				)
+			)
+			.orderBy(entities.position)
+			.all();
+		const shifted = remaining.flatMap((entity, position) =>
+			entity.position === position ? [] : [{ id: entity.id, row: deleted.row, position }]
+		);
+		const reindexed = applyEntityPositions(tx, shifted);
+		return { deleted, reindexed };
+	});
 }

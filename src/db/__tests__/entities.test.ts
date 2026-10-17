@@ -1,4 +1,5 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
+import { sql } from 'drizzle-orm';
 import type { Entity, EntityType, Transaction } from '@/src/types';
 import {
 	getAllEntities,
@@ -7,13 +8,14 @@ import {
 	createEntity,
 	updateEntity,
 	deleteEntity,
+	deleteEntityAndReindex,
 	getNextPosition,
 	updateEntityPositions,
 } from '../entities';
 import { upsertPlan, getPlanForEntity } from '../plans';
 import { createTransaction, getAllTransactions } from '../transactions';
 import { createMarketValueSnapshot, getMarketValueSnapshots } from '../market-values';
-import { resetDrizzleDb } from '../drizzle-client';
+import { getDrizzleDb, resetDrizzleDb } from '../drizzle-client';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 describe('entities.ts', () => {
@@ -677,6 +679,73 @@ describe('entities.ts', () => {
 
 			expect(await getEntityById('a')).toMatchObject({ row: 0, position: 0 });
 			expect(await getEntityById('b')).toMatchObject({ row: 0, position: 1 });
+		});
+	});
+
+	describe('deleteEntityAndReindex', () => {
+		const category = (id: string, row: number, position: number): Entity => ({
+			id,
+			type: 'category',
+			name: id,
+			currency: 'USD',
+			row,
+			position,
+		});
+
+		test('soft-deletes the entity and closes the position gap in its row', async () => {
+			await createEntity(category('a', 0, 0));
+			await createEntity(category('b', 0, 1));
+			await createEntity(category('c', 0, 2));
+			await createEntity(category('d', 0, 3));
+			await createEntity(category('other-row', 1, 0));
+
+			const { deleted, reindexed } = await deleteEntityAndReindex('b');
+
+			expect(deleted).toMatchObject({ id: 'b', is_deleted: true });
+			// 'a' already sits at its final position, so it is not rewritten.
+			expect(reindexed.map((e) => [e.id, e.position])).toEqual([
+				['c', 1],
+				['d', 2],
+			]);
+			expect(await getEntityById('a')).toMatchObject({ row: 0, position: 0 });
+			expect(await getEntityById('c')).toMatchObject({ row: 0, position: 1 });
+			expect(await getEntityById('d')).toMatchObject({ row: 0, position: 2 });
+			expect(await getEntityById('other-row')).toMatchObject({ row: 1, position: 0 });
+		});
+
+		test('returns nothing for a missing or already-deleted entity', async () => {
+			await createEntity(category('a', 0, 0));
+			const first = await deleteEntity('a');
+
+			await expect(deleteEntityAndReindex('a')).resolves.toEqual({
+				deleted: null,
+				reindexed: [],
+			});
+			expect((await getEntityById('a'))?.updated_at).toBe(first?.updated_at);
+			await expect(deleteEntityAndReindex('missing')).resolves.toEqual({
+				deleted: null,
+				reindexed: [],
+			});
+		});
+
+		// KII-177: the soft-delete and the reindex used to commit separately, so a
+		// reindex failure left the entity deleted with a gap in its row. A trigger
+		// aborts the reindex of 'c'; the soft-delete of 'a' must roll back too.
+		test('is atomic: a reindex failure rolls back the soft-delete', async () => {
+			await createEntity(category('a', 0, 0));
+			await createEntity(category('b', 0, 1));
+			await createEntity(category('c', 0, 2));
+			const db = await getDrizzleDb();
+			db.run(
+				sql.raw(`CREATE TRIGGER fail_reindex BEFORE UPDATE OF position ON entities
+					WHEN NEW.id = 'c' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+			);
+
+			await expect(deleteEntityAndReindex('a')).rejects.toThrow();
+
+			expect(await getEntityById('a')).toMatchObject({ is_deleted: false, position: 0 });
+			expect(await getEntityById('b')).toMatchObject({ position: 1 });
+			expect(await getEntityById('c')).toMatchObject({ position: 2 });
 		});
 	});
 });

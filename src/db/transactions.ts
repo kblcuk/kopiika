@@ -14,7 +14,7 @@ import {
 	isNotNull,
 } from 'drizzle-orm';
 import type { BalanceSeedGroup, Transaction } from '@/src/types';
-import { getDrizzleDb } from './drizzle-client';
+import { getDrizzleDb, type DrizzleTx } from './drizzle-client';
 import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizzle-schema';
 
 /**
@@ -24,11 +24,6 @@ import { transactions, recurrenceTemplates, recurrenceExclusions } from './drizz
  * by the helper; `created_at` must never change after insert.
  */
 export type TransactionUpdate = Omit<Partial<Transaction>, 'id' | 'created_at' | 'updated_at'>;
-
-/** The transaction handle drizzle passes to a `db.transaction((tx) => …)` callback. */
-type DrizzleTx = Parameters<
-	Parameters<Awaited<ReturnType<typeof getDrizzleDb>>['transaction']>[0]
->[0];
 
 /**
  * Whether a recurrence template row exists, probed inside an open transaction.
@@ -492,25 +487,29 @@ export async function updateTransactionNotificationId(
 	return row ?? null;
 }
 
-// KII-132: N awaited round-trips, no transaction wrap. Replace with a
-// `CASE`-based bulk UPDATE or wrap the loop in `db.transaction(...)` so all
-// rows commit atomically.
+/**
+ * Set `notification_id` on many transactions in one SQLite transaction, so a
+ * mid-batch failure rolls back every row (KII-177).
+ */
 export async function updateTransactionNotificationIdsBatch(
 	updates: { id: string; notificationId: string | null }[]
 ): Promise<Transaction[]> {
 	if (updates.length === 0) return [];
 	const db = await getDrizzleDb();
 	const now = Date.now();
-	const rows: Transaction[] = [];
-	for (const { id, notificationId } of updates) {
-		const [row] = await db
-			.update(transactions)
-			.set({ notification_id: notificationId, updated_at: now })
-			.where(eq(transactions.id, id))
-			.returning();
-		if (row) rows.push(row);
-	}
-	return rows;
+	return db.transaction((tx) => {
+		const rows: Transaction[] = [];
+		for (const { id, notificationId } of updates) {
+			const [row] = tx
+				.update(transactions)
+				.set({ notification_id: notificationId, updated_at: now })
+				.where(eq(transactions.id, id))
+				.returning()
+				.all();
+			if (row) rows.push(row);
+		}
+		return rows;
+	});
 }
 
 export async function replaceTransactionAtomic(

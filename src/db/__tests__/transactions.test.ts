@@ -1,4 +1,5 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
+import { sql } from 'drizzle-orm';
 import type { Transaction, Entity, BalanceSeedGroup } from '@/src/types';
 import {
 	getAllTransactions,
@@ -24,7 +25,7 @@ import {
 	getTransactionsPageAfter,
 } from '../transactions';
 import { createEntity } from '../entities';
-import { resetDrizzleDb } from '../drizzle-client';
+import { getDrizzleDb, resetDrizzleDb } from '../drizzle-client';
 import { partitionForPhase1 } from '@/src/store/hydration-seed';
 
 describe('transactions.ts', () => {
@@ -1163,6 +1164,48 @@ describe('transactions.ts', () => {
 			all = await getAllTransactions();
 			expect(all.find((t) => t.id === 'notif-batch-1')?.notification_id).toBe('notif-a');
 			expect(all.find((t) => t.id === 'notif-batch-2')?.notification_id).toBe('notif-b');
+		});
+		// KII-177: the batch used to await each UPDATE separately, so a failure
+		// midway left earlier rows committed. A trigger aborts the second update;
+		// the first must roll back with it.
+		test('updateTransactionNotificationIdsBatch is atomic: a mid-batch failure rolls back every row', async () => {
+			const [first] = await createTransactionBatch([
+				{
+					id: 'notif-atomic-1',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount_minor: 1000,
+					currency: 'USD',
+					timestamp: Date.now(),
+				},
+				{
+					id: 'notif-atomic-2',
+					from_entity_id: 'account-1',
+					to_entity_id: 'category-1',
+					amount_minor: 2000,
+					currency: 'USD',
+					timestamp: Date.now() + 1,
+				},
+			]);
+			const db = await getDrizzleDb();
+			db.run(
+				sql.raw(`CREATE TRIGGER fail_notif BEFORE UPDATE OF notification_id ON transactions
+					WHEN NEW.id = 'notif-atomic-2' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+			);
+
+			await expect(
+				updateTransactionNotificationIdsBatch([
+					{ id: 'notif-atomic-1', notificationId: 'notif-a' },
+					{ id: 'notif-atomic-2', notificationId: 'notif-b' },
+				])
+			).rejects.toThrow();
+
+			const all = await getAllTransactions();
+			expect(all.find((t) => t.id === 'notif-atomic-1')).toMatchObject({
+				notification_id: null,
+				updated_at: first?.updated_at,
+			});
+			expect(all.find((t) => t.id === 'notif-atomic-2')?.notification_id).toBeNull();
 		});
 	});
 
