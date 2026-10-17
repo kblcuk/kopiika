@@ -12,7 +12,7 @@ export type TxFixture = {
 	/** Offset from Date.now() in ms. Negative => past, positive => future. */
 	timestampOffsetMs?: number;
 };
-export type EntityFixture = {
+type EntityFixture = {
 	type: 'income' | 'account' | 'category' | 'saving';
 	name: string;
 	icon?: string;

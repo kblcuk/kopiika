@@ -1,0 +1,9 @@
+{
+	"$schema": "./node_modules/knip/schema.json",
+	"entry": [
+		"e2e/tests/**/*.test.ts",
+		".detoxrc.js",
+		"plugins/**/*.js",
+		"scripts/**/*.{js,mjs,ts}"
+	]
+}

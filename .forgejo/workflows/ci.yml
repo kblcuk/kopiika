@@ -38,34 +38,8 @@ jobs:
                   BUN_CONFIG_DNS_PREFER: ipv4
               run: bun install --frozen-lockfile
 
-            # Runs all four concurrently and collects every exit code, so one run
-            # reports every failing check rather than stopping at the first. That
-            # is strictly more than `bun run checks` (&&-chained) or `mise run
-            # checks` (first failure SIGTERMs its siblings) can report.
             - name: Static checks
-              run: |
-                  set -u
-                  CHECKS="fmt:check lint types unused"
-                  for t in $CHECKS; do
-                      (bun run "$t" > "/tmp/$t.log" 2>&1; echo $? > "/tmp/$t.rc") &
-                  done
-                  wait
-                  fail=0
-                  for t in $CHECKS; do
-                      rc=$(cat "/tmp/$t.rc")
-                      if [ "$rc" = 0 ]; then
-                          echo "----- PASS $t -----"
-                      else
-                          echo "----- FAIL $t (exit $rc) -----"
-                          fail=1
-                      fi
-                      cat "/tmp/$t.log"
-                  done
-                  echo "----- summary -----"
-                  for t in $CHECKS; do
-                      echo "$t: $([ "$(cat /tmp/$t.rc)" = 0 ] && echo PASS || echo FAIL)"
-                  done
-                  exit $fail
+              run: bun run checks
 
             - name: Unit and component tests
               run: bun run test
