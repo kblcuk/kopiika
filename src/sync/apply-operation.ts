@@ -408,7 +408,8 @@ export async function applyOperation(
 							note: txn.note ?? null,
 							series_id: txn.series_id ?? null,
 							split_id: txn.split_id ?? null,
-							is_confirmed: txn.is_confirmed ?? true,
+							is_confirmed:
+								txn.is_confirmed ?? defaultIsConfirmed(txn.timestamp, now),
 							created_at: txn.created_at ?? now,
 							updated_at: txn.updated_at ?? now,
 						})

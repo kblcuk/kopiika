@@ -1102,6 +1102,35 @@ describe('applyOperation — import.replace_all', () => {
 		expect(all.find((t) => t.id === 'leg-b')?.split_id).toBe('sp-1');
 		expect(all.find((t) => t.id === 'solo')?.split_id ?? null).toBeNull();
 	});
+
+	test('defaults a missing is_confirmed like the other insert sites (KII-175)', async () => {
+		// Explicit values win; a missing flag falls back to `defaultIsConfirmed`,
+		// not a blanket `true` that would confirm a row dated a later day.
+		const nextWeek = Date.now() + 7 * 86_400_000;
+		await applyOperation(
+			{
+				kind: 'import.replace_all',
+				entities: [account, category],
+				plans: [],
+				transactions: [
+					makeTx({ id: 'past-unset', is_confirmed: undefined }),
+					makeTx({ id: 'future-unset', timestamp: nextWeek, is_confirmed: undefined }),
+					makeTx({ id: 'future-true', timestamp: nextWeek, is_confirmed: true }),
+					makeTx({ id: 'past-false', is_confirmed: false }),
+				],
+				recurrenceTemplates: [],
+				marketValueSnapshots: [],
+			},
+			'local',
+			{ entities: [], transactions: [], recurrenceTemplates: [] }
+		);
+
+		const all = await db.getAllTransactions();
+		expect(all.find((t) => t.id === 'past-unset')?.is_confirmed).toBe(true);
+		expect(all.find((t) => t.id === 'future-unset')?.is_confirmed).toBe(false);
+		expect(all.find((t) => t.id === 'future-true')?.is_confirmed).toBe(true);
+		expect(all.find((t) => t.id === 'past-false')?.is_confirmed).toBe(false);
+	});
 });
 
 describe('applyOperation — currency.set_all', () => {
