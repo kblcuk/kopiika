@@ -1,7 +1,7 @@
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, or, gte, lt, max } from 'drizzle-orm';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import { getDrizzleDb } from './drizzle-client';
-import { recurrenceTemplates } from './drizzle-schema';
+import { recurrenceTemplates, transactions } from './drizzle-schema';
 
 /**
  * Update-input shape. Forbidding `id`, `created_at`, and `updated_at` at
@@ -87,14 +87,63 @@ export async function updateRecurrenceTemplate(
 	return row ?? null;
 }
 
-export async function softDeleteRecurrenceTemplate(id: string): Promise<RecurrenceTemplate | null> {
+/**
+ * Delete a series' occurrences from `fromTimestamp` onward and retire its
+ * template, in a single SQLite transaction (KII-198). Committed separately, a
+ * failure in between left the occurrences gone but the template active and
+ * unbounded, so backfill re-materialized them on next launch.
+ *
+ * - `'end_date'` (recurrence.delete_future): end the series at its last
+ *   surviving occurrence, or soft-delete it when none survive. The survivor is
+ *   read here rather than from the store, whose transactions can still be the
+ *   partial phase-1 snapshot (KII-144).
+ * - `'soft_delete'` (recurrence.deactivate): soft-delete unconditionally.
+ *
+ * The `is_deleted = false` guard lives in the UPDATE itself, so a missing or
+ * already-deleted template returns `null` and keeps its `updated_at`.
+ */
+export async function deleteSeriesFuture(
+	seriesId: string,
+	fromTimestamp: number,
+	retire: 'end_date' | 'soft_delete'
+): Promise<RecurrenceTemplate | null> {
 	const db = await getDrizzleDb();
-	const [row] = await db
-		.update(recurrenceTemplates)
-		.set({ is_deleted: true, updated_at: Date.now() })
-		.where(eq(recurrenceTemplates.id, id))
-		.returning();
-	return row ?? null;
+	return db.transaction((tx) => {
+		tx.delete(transactions)
+			.where(
+				and(
+					eq(transactions.series_id, seriesId),
+					gte(transactions.timestamp, fromTimestamp)
+				)
+			)
+			.run();
+
+		const lastSurvivor =
+			retire === 'end_date'
+				? tx
+						.select({ timestamp: max(transactions.timestamp) })
+						.from(transactions)
+						.where(
+							and(
+								eq(transactions.series_id, seriesId),
+								lt(transactions.timestamp, fromTimestamp)
+							)
+						)
+						.all()[0]?.timestamp
+				: null;
+		const [row] = tx
+			.update(recurrenceTemplates)
+			.set({
+				...(lastSurvivor == null ? { is_deleted: true } : { end_date: lastSurvivor }),
+				updated_at: Date.now(),
+			})
+			.where(
+				and(eq(recurrenceTemplates.id, seriesId), eq(recurrenceTemplates.is_deleted, false))
+			)
+			.returning()
+			.all();
+		return row ?? null;
+	});
 }
 
 export async function getActiveTemplatesForEntity(entityId: string): Promise<RecurrenceTemplate[]> {

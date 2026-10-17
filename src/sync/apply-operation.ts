@@ -231,24 +231,15 @@ export async function applyOperation(
 			return { kind: 'recurrence.update_future', template, transactions };
 		}
 		case 'recurrence.delete_future': {
-			await db.deleteTransactionsBySeriesFuture(op.seriesId, op.fromTimestamp);
-			const remaining = ctx.transactions.filter(
-				(t) => t.series_id === op.seriesId && t.timestamp < op.fromTimestamp
-			);
-			let template: RecurrenceTemplate | null;
-			if (remaining.length === 0) {
-				template = await db.softDeleteRecurrenceTemplate(op.seriesId);
-			} else {
-				const lastRemaining = Math.max(...remaining.map((t) => t.timestamp));
-				template = await db.updateRecurrenceTemplate(op.seriesId, {
-					end_date: lastRemaining,
-				});
-			}
+			const template = await db.deleteSeriesFuture(op.seriesId, op.fromTimestamp, 'end_date');
 			return { kind: 'recurrence.delete_future', template };
 		}
 		case 'recurrence.deactivate': {
-			await db.deleteTransactionsBySeriesFuture(op.seriesId, op.fromTimestamp);
-			const template = await db.softDeleteRecurrenceTemplate(op.seriesId);
+			const template = await db.deleteSeriesFuture(
+				op.seriesId,
+				op.fromTimestamp,
+				'soft_delete'
+			);
 			return { kind: 'recurrence.deactivate', template };
 		}
 		case 'market_value.create': {

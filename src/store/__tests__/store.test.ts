@@ -5425,8 +5425,8 @@ describe('Store Data Integrity', () => {
 
 			// Two materialized occurrences sharing an orphaned series_id (template
 			// row gone). "Delete this and all future" must remove the selected row
-			// and the later one; softDeleteRecurrenceTemplate on the missing template
-			// returns null and the state map is a no-op rather than throwing.
+			// and the later one; deleteSeriesFuture finds no template row to retire,
+			// so it returns null and the state map is a no-op rather than throwing.
 			const earlier: Transaction = {
 				id: 'orphan-future-1',
 				from_entity_id: account.id,

@@ -37,8 +37,8 @@ import {
 import { getPlanForEntity, upsertPlan } from '../plans';
 import {
 	createRecurrenceTemplate,
+	deleteSeriesFuture,
 	getRecurrenceTemplateById,
-	softDeleteRecurrenceTemplate,
 	updateRecurrenceTemplate,
 } from '../recurrence-templates';
 import {
@@ -304,11 +304,11 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			expect(after?.created_at).toBe(before!.created_at);
 		});
 
-		test('softDeleteRecurrenceTemplate bumps updated_at', async () => {
+		test('deleteSeriesFuture bumps the retired template updated_at', async () => {
 			await createRecurrenceTemplate(baseTemplate('tpl-1'));
 			const before = await getRecurrenceTemplateById('tpl-1');
 			await sleep(2);
-			await softDeleteRecurrenceTemplate('tpl-1');
+			await deleteSeriesFuture('tpl-1', 0, 'soft_delete');
 			const after = await getRecurrenceTemplateById('tpl-1');
 			expect(after?.is_deleted).toBe(true);
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);

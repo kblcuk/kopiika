@@ -912,6 +912,27 @@ describe('applyOperation — recurrence.delete_future', () => {
 		expect(result.template?.is_deleted).toBe(true);
 		expect(await db.getAllTransactions()).toHaveLength(0);
 	});
+
+	// KII-198: the store's transactions can be the partial phase-1 snapshot
+	// (KII-144). The surviving occurrence lives only in the DB here, so the
+	// template must be end-dated, not soft-deleted.
+	test('derives the surviving occurrences from the DB, not the in-memory snapshot', async () => {
+		const { entities, past, anchor } = await seedSeries();
+
+		const result = await applyOperation(
+			{
+				kind: 'recurrence.delete_future',
+				seriesId: past.series_id!,
+				fromTimestamp: anchor.timestamp,
+			},
+			'local',
+			{ entities, transactions: [anchor], recurrenceTemplates: [] }
+		);
+
+		if (result.kind !== 'recurrence.delete_future') throw new Error('wrong kind');
+		expect(result.template?.end_date).toBe(past.timestamp);
+		expect(result.template?.is_deleted).toBe(false);
+	});
 });
 
 describe('applyOperation — recurrence.deactivate', () => {

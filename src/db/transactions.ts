@@ -387,18 +387,6 @@ export async function getTransactionsBySeriesId(seriesId: string): Promise<Trans
 		.orderBy(transactions.timestamp);
 }
 
-export async function deleteTransactionsBySeriesFuture(
-	seriesId: string,
-	fromTimestamp: number
-): Promise<void> {
-	const db = await getDrizzleDb();
-	await db
-		.delete(transactions)
-		.where(
-			and(eq(transactions.series_id, seriesId), gte(transactions.timestamp, fromTimestamp))
-		);
-}
-
 export async function updateTransactionsBySeriesFuture(
 	seriesId: string,
 	fromTimestamp: number,

@@ -1,13 +1,14 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
-import type { Entity } from '@/src/types';
+import { sql } from 'drizzle-orm';
+import type { Entity, Transaction } from '@/src/types';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
 import {
 	createRecurrenceTemplate,
 	getAllRecurrenceTemplates,
 	getRecurrenceTemplateById,
 	updateRecurrenceTemplate,
-	softDeleteRecurrenceTemplate,
 	getActiveTemplatesForEntity,
+	deleteSeriesFuture,
 } from '../recurrence-templates';
 import {
 	addExclusion,
@@ -15,7 +16,8 @@ import {
 	getAllExclusionsByTemplate,
 } from '../recurrence-exclusions';
 import { createEntity } from '../entities';
-import { resetDrizzleDb } from '../drizzle-client';
+import { createTransactionBatch, getTransactionsBySeriesId } from '../transactions';
+import { getDrizzleDb, resetDrizzleDb } from '../drizzle-client';
 
 const makeEntity = (id: string, type: Entity['type']): Entity => ({
 	id,
@@ -70,13 +72,94 @@ describe('recurrence-templates.ts', () => {
 		expect(result!.note).toBe('Updated');
 	});
 
-	test('softDeleteRecurrenceTemplate', async () => {
-		await createRecurrenceTemplate(baseTemplate);
-		await softDeleteRecurrenceTemplate('rec-1');
-		const result = await getRecurrenceTemplateById('rec-1');
-		expect(result!.is_deleted).toBe(true);
-		const all = await getAllRecurrenceTemplates();
-		expect(all.length).toBe(0);
+	describe('deleteSeriesFuture', () => {
+		const occurrence = (id: string, timestamp: number): Transaction => ({
+			id,
+			from_entity_id: 'account-1',
+			to_entity_id: 'category-1',
+			amount_minor: 5000,
+			currency: 'USD',
+			timestamp,
+			series_id: 'rec-1',
+		});
+		const seriesIds = async () => (await getTransactionsBySeriesId('rec-1')).map((t) => t.id);
+
+		beforeEach(async () => {
+			await createRecurrenceTemplate({ ...baseTemplate, updated_at: 1 });
+			await createTransactionBatch([
+				occurrence('occ-1', 1000),
+				occurrence('occ-2', 2000),
+				occurrence('occ-3', 3000),
+			]);
+		});
+
+		test.each([
+			{
+				label: "'end_date' ends the series at the last survivor",
+				from: 2500,
+				retire: 'end_date',
+				template: { end_date: 2000, is_deleted: false },
+				survivors: ['occ-1', 'occ-2'],
+			},
+			{
+				label: "'end_date' soft-deletes when no occurrence survives",
+				from: 1000,
+				retire: 'end_date',
+				template: { end_date: null, is_deleted: true },
+				survivors: [],
+			},
+			{
+				label: "'soft_delete' soft-deletes even when occurrences survive",
+				from: 2500,
+				retire: 'soft_delete',
+				template: { end_date: null, is_deleted: true },
+				survivors: ['occ-1', 'occ-2'],
+			},
+		] as const)('$label', async ({ from, retire, template, survivors }) => {
+			expect(await deleteSeriesFuture('rec-1', from, retire)).toMatchObject({
+				id: 'rec-1',
+				...template,
+			});
+			expect(await getAllRecurrenceTemplates()).toHaveLength(template.is_deleted ? 0 : 1);
+			expect(await seriesIds()).toEqual([...survivors]);
+		});
+
+		test('still deletes the occurrences but leaves a missing or already-deleted template alone', async () => {
+			await deleteSeriesFuture('rec-1', 9999, 'soft_delete');
+			const deletedAt = (await getRecurrenceTemplateById('rec-1'))!.updated_at;
+
+			expect(await deleteSeriesFuture('rec-1', 2500, 'end_date')).toBeNull();
+			expect(await seriesIds()).toEqual(['occ-1', 'occ-2']);
+			expect(await getRecurrenceTemplateById('rec-1')).toMatchObject({
+				updated_at: deletedAt,
+				end_date: null,
+			});
+			expect(await deleteSeriesFuture('missing', 0, 'soft_delete')).toBeNull();
+		});
+
+		// KII-198: the occurrence delete and the template write used to commit
+		// separately, so a failure in between left the occurrences gone and the
+		// template active and unbounded. A trigger aborts the template write; the
+		// occurrence delete must roll back with it.
+		test.each(['end_date', 'soft_delete'] as const)(
+			"'%s' is atomic: a failed template write rolls back the occurrence delete",
+			async (retire) => {
+				const db = await getDrizzleDb();
+				db.run(
+					sql.raw(`CREATE TRIGGER fail_retire BEFORE UPDATE ON recurrence_templates
+						BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+				);
+
+				await expect(deleteSeriesFuture('rec-1', 2500, retire)).rejects.toThrow();
+
+				expect(await seriesIds()).toEqual(['occ-1', 'occ-2', 'occ-3']);
+				expect(await getRecurrenceTemplateById('rec-1')).toMatchObject({
+					is_deleted: false,
+					end_date: null,
+					updated_at: 1,
+				});
+			}
+		);
 	});
 
 	test('addExclusion writes one row per (template_id, timestamp)', async () => {
@@ -119,12 +202,12 @@ describe('recurrence-templates.ts', () => {
 		expect(grouped.get('rec-2')).toEqual([3000]);
 	});
 
-	test('softDeleteRecurrenceTemplate does not cascade-delete exclusions (template still present)', async () => {
+	test('soft-deleting a template does not cascade-delete exclusions (template still present)', async () => {
 		// Soft-delete keeps the template row, so its exclusions stick around too.
 		// Hard-delete via FK CASCADE is exercised by the migration test instead.
 		await createRecurrenceTemplate(baseTemplate);
 		await addExclusion('rec-1', 1000);
-		await softDeleteRecurrenceTemplate('rec-1');
+		await deleteSeriesFuture('rec-1', 0, 'soft_delete');
 		expect(await getExclusionsForTemplate('rec-1')).toEqual([1000]);
 	});
 

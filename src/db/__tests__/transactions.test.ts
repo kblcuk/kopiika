@@ -12,7 +12,6 @@ import {
 	getEntityActual,
 	getBatchEntityActuals,
 	getTransactionsBySeriesId,
-	deleteTransactionsBySeriesFuture,
 	updateTransactionsBySeriesFuture,
 	createTransactionBatch,
 	confirmTransaction,
@@ -913,14 +912,6 @@ describe('transactions.ts', () => {
 			const result = await getTransactionsBySeriesId(seriesId);
 			expect(result.length).toBe(5);
 			expect(result.every((t) => t.series_id === seriesId)).toBe(true);
-		});
-
-		test('deleteTransactionsBySeriesFuture deletes from cutoff onward', async () => {
-			const cutoff = seriesBaseTime + 2 * 86400000; // tx-2 and beyond
-			await deleteTransactionsBySeriesFuture(seriesId, cutoff);
-			const remaining = await getTransactionsBySeriesId(seriesId);
-			expect(remaining.length).toBe(2); // only tx-0 and tx-1
-			expect(remaining.every((t) => t.timestamp < cutoff)).toBe(true);
 		});
 
 		test('updateTransactionsBySeriesFuture updates from cutoff onward', async () => {
