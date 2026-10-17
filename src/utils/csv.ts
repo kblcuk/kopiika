@@ -20,7 +20,7 @@ export function parseCsv(text: string, delimiter = ',', maxRecords = Infinity): 
 		field = '';
 	};
 
-	for (let i = text.startsWith('﻿') ? 1 : 0; i < text.length; i++) {
+	for (let i = text.charCodeAt(0) === 0xfeff ? 1 : 0; i < text.length; i++) {
 		const ch = text[i];
 		if (inQuotes) {
 			if (ch !== '"') field += ch;

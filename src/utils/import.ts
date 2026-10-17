@@ -52,7 +52,15 @@ type ParseResult =
 
 const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
 
-const SECTION_KEYS = {
+type SectionKey =
+	| 'entities'
+	| 'plans'
+	| 'transactions'
+	| 'recurrenceTemplates'
+	| 'recurrenceExclusions'
+	| 'marketValueSnapshots';
+
+const SECTION_KEYS: Record<string, SectionKey> = {
 	'# ENTITIES': 'entities',
 	'# PLANS': 'plans',
 	'# TRANSACTIONS': 'transactions',
@@ -61,9 +69,7 @@ const SECTION_KEYS = {
 	// inline on the templates rows; new ones use a dedicated section.
 	'# RECURRENCE_EXCLUSIONS': 'recurrenceExclusions',
 	'# MARKET_VALUE_SNAPSHOTS': 'marketValueSnapshots',
-} as const;
-
-type SectionKey = (typeof SECTION_KEYS)[keyof typeof SECTION_KEYS];
+};
 
 /**
  * Group the combined CSV's records under their # ENTITIES / # PLANS / ...
@@ -78,9 +84,9 @@ function splitSections(content: string): Record<SectionKey, string[][]> | null {
 	let current: string[][] | null = null;
 
 	for (const record of parseCsv(content)) {
-		const marker = record.length === 1 ? record[0]!.trim() : '';
+		const marker = record.length === 1 ? (record[0] ?? '').trim() : '';
 		if (marker.startsWith('# ')) {
-			const key: SectionKey | undefined = SECTION_KEYS[marker as keyof typeof SECTION_KEYS];
+			const key = SECTION_KEYS[marker];
 			current = key ? (sections[key] = []) : null;
 		} else {
 			current?.push(record);
@@ -90,12 +96,13 @@ function splitSections(content: string): Record<SectionKey, string[][]> | null {
 	const { entities, plans, transactions } = sections;
 	if (!entities || !plans || !transactions) return null;
 	return {
+		recurrenceTemplates: [],
+		recurrenceExclusions: [],
+		marketValueSnapshots: [],
+		...sections,
 		entities,
 		plans,
 		transactions,
-		recurrenceTemplates: sections.recurrenceTemplates ?? [],
-		recurrenceExclusions: sections.recurrenceExclusions ?? [],
-		marketValueSnapshots: sections.marketValueSnapshots ?? [],
 	};
 }
 

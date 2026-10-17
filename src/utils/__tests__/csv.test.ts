@@ -33,7 +33,7 @@ describe('parseCsv', () => {
 	});
 
 	test('drops blank lines and a leading BOM', () => {
-		expect(parseCsv('﻿a,b\n\n   \nc,d\n')).toEqual([
+		expect(parseCsv('\uFEFFa,b\n\n   \nc,d\n')).toEqual([
 			['a', 'b'],
 			['c', 'd'],
 		]);
