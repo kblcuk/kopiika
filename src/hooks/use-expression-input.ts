@@ -2,9 +2,8 @@ import { useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { TextInput } from 'react-native';
 
 import { evaluateExpression } from '@/src/utils/evaluate-expression';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { normalizeNumericInput, sanitizeExpressionInput } from '@/src/utils/amount-input';
 import { tryInsertOperator } from '@/src/utils/expression-input';
-import { sanitizeExpressionInput } from '@/src/utils/sanitize-amount';
 import { OPERATORS, type Operator } from '@/src/components/operator-toolbar';
 
 const EXPR_CHAR_RE = new RegExp(`[${OPERATORS.map((c) => `\\${c}`).join('')}]`);

@@ -246,6 +246,11 @@ describe('parseAmountToMinor', () => {
 		expect(parseAmountToMinor('', 'EUR')).toBeNaN();
 	});
 
+	test('treats a lone decimal separator as zero', () => {
+		expect(parseAmountToMinor('.', 'EUR')).toBe(0);
+		expect(parseAmountToMinor(',', 'EUR')).toBe(0);
+	});
+
 	test('preserves all three decimal places for KWD and BHD input', () => {
 		expect(parseAmountToMinor('12.345', 'KWD')).toBe(12345);
 		expect(parseAmountToMinor('12,345', 'BHD')).toBe(12345);

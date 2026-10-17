@@ -10,8 +10,7 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { InfoPin } from '@/src/components/info-pin';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
-import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
+import { normalizeNumericInput, sanitizeAmountInput } from '@/src/utils/amount-input';
 import { getReservationsForAccount } from '@/src/utils/savings-transactions';
 
 // KII-120: All `*Minor` fields are integer minor units; the raw string `amount`

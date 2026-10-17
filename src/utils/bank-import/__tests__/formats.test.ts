@@ -43,9 +43,15 @@ describe('parseDecimalToMinor', () => {
 	it('parses comma-decimal with thousands dots', () => {
 		expect(parseDecimalToMinor('1.234,56', ',')).toBe(123456);
 	});
+	it('parses repeated thousands dots with comma decimals', () => {
+		expect(parseDecimalToMinor('1.234.567', ',', 2)).toBe(123456700);
+	});
 	it('keeps sign and handles negative', () => {
 		expect(parseDecimalToMinor('-250.00', '.')).toBe(-25000);
 		expect(parseDecimalToMinor('−250,00', ',')).toBe(-25000); // unicode minus
+	});
+	it('rounds negative half-minor values the same as positive values', () => {
+		expect(parseDecimalToMinor('-2.345', '.', 2)).toBe(-235);
 	});
 	it('strips currency symbols and spaces', () => {
 		expect(parseDecimalToMinor('€ 1 200,50', ',')).toBe(120050);

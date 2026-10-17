@@ -1,5 +1,31 @@
 import { describe, expect, test } from 'bun:test';
-import { sanitizeAmountInput, sanitizeExpressionInput } from '../sanitize-amount';
+import {
+	normalizeNumericInput,
+	sanitizeAmountInput,
+	sanitizeExpressionInput,
+} from '../amount-input';
+
+describe('normalizeNumericInput', () => {
+	test('removes a leading zero before whole numbers', () => {
+		expect(normalizeNumericInput('05')).toBe('5');
+		expect(normalizeNumericInput('0005')).toBe('5');
+	});
+
+	test('preserves zero for decimal values', () => {
+		expect(normalizeNumericInput('0.5')).toBe('0.5');
+		expect(normalizeNumericInput('0,5')).toBe('0,5');
+	});
+
+	test('keeps negative values valid while removing redundant zeroes', () => {
+		expect(normalizeNumericInput('-05')).toBe('-5');
+		expect(normalizeNumericInput('-0.5')).toBe('-0.5');
+	});
+
+	test('collapses multiple zeroes to a single zero', () => {
+		expect(normalizeNumericInput('0')).toBe('0');
+		expect(normalizeNumericInput('000')).toBe('0');
+	});
+});
 
 describe('sanitizeAmountInput', () => {
 	const dp2 = { maxDecimalPlaces: 2 };

@@ -75,8 +75,8 @@ export function StepMapColumns({
 	const columnLabel = (c: number) => headers[c] ?? `Column ${c + 1}`;
 	const amount = mapping.amount;
 	const preview = useMemo(
-		() => parseBankRows(rawText, mapping).rows.slice(0, 3),
-		[rawText, mapping]
+		() => parseBankRows(rawText, mapping, currency).rows.slice(0, 3),
+		[rawText, mapping, currency]
 	);
 
 	return (

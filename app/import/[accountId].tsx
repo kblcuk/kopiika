@@ -96,7 +96,7 @@ export default function ImportScreen() {
 	// this account's existing transactions to flag likely-duplicate rows.
 	const enterReview = useCallback(() => {
 		if (!rawText || !mapping || !account) return;
-		const { rows } = parseBankRows(rawText, mapping);
+		const { rows } = parseBankRows(rawText, mapping, account.currency);
 		const acctTxns = transactions.filter(
 			(t) => t.from_entity_id === account.id || t.to_entity_id === account.id
 		);

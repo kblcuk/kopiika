@@ -1,11 +1,14 @@
 import { splitCsvLine } from '@/src/utils/import';
+import { getCurrencyDecimalPlaces } from '../currency-precision';
 import { parseFlexibleDate, parseDecimalToMinor } from './formats';
 import type { ColumnMapping, ParsedBankRow, SkippedRow } from './types';
 
 export function parseBankRows(
 	rawText: string,
-	mapping: ColumnMapping
+	mapping: ColumnMapping,
+	currency: string
 ): { rows: ParsedBankRow[]; skipped: SkippedRow[] } {
+	const fractionDigits = getCurrencyDecimalPlaces(currency);
 	const lines = rawText
 		.replace(/^﻿/, '')
 		.split(/\r\n|\r|\n/)
@@ -26,7 +29,8 @@ export function parseBankRows(
 		if (mapping.amount.kind === 'signed') {
 			amountMinor = parseDecimalToMinor(
 				cells[mapping.amount.column] ?? '',
-				mapping.decimalSeparator
+				mapping.decimalSeparator,
+				fractionDigits
 			);
 		} else {
 			// Sign convention: for debit/credit columns the COLUMN (not the cell's own sign)
@@ -34,11 +38,13 @@ export function parseBankRows(
 			// Parsed values are treated as magnitudes via Math.abs by design.
 			const debit = parseDecimalToMinor(
 				cells[mapping.amount.debitColumn] ?? '',
-				mapping.decimalSeparator
+				mapping.decimalSeparator,
+				fractionDigits
 			);
 			const credit = parseDecimalToMinor(
 				cells[mapping.amount.creditColumn] ?? '',
-				mapping.decimalSeparator
+				mapping.decimalSeparator,
+				fractionDigits
 			);
 			if (debit === null && credit === null) {
 				skipped.push({ rowIndex, reason: 'unparseable amount', raw: line });

@@ -1,3 +1,13 @@
+export function normalizeNumericInput(value: string): string {
+	if (!value) return value;
+	const isNegative = value.startsWith('-');
+	const unsignedValue = isNegative ? value.slice(1) : value;
+	if (!unsignedValue || unsignedValue.startsWith('0.') || unsignedValue.startsWith('0,'))
+		return value;
+	const normalized = unsignedValue.replace(/^0+(?=\d)/, '');
+	return `${isNegative ? '-' : ''}${normalized || '0'}`;
+}
+
 /**
  * Sanitize a plain-number input string into a valid amount for the given
  * currency precision. First decimal separator wins; subsequent separators are

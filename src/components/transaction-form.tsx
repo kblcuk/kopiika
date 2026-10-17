@@ -58,11 +58,10 @@ import { getIcon } from '@/src/constants/icon-registry';
 import { getEntityColors } from '@/src/utils/entity-colors';
 import { colors } from '@/src/theme/colors';
 import { getEntityDisplayName, isEntityActive } from '@/src/utils/entity-display';
-import { normalizeNumericInput } from '@/src/utils/numeric-input';
+import { normalizeNumericInput, sanitizeAmountInput } from '@/src/utils/amount-input';
 import { useExpressionInput } from '@/src/hooks/use-expression-input';
 
 import { getCurrencyDecimalPlaces } from '@/src/utils/currency-precision';
-import { sanitizeAmountInput } from '@/src/utils/sanitize-amount';
 import { InfoPin } from '@/src/components/info-pin';
 import {
 	getQuickAddKind,

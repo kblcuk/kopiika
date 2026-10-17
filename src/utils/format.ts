@@ -1,6 +1,6 @@
 import { CURRENCY_SYMBOLS } from '@/src/constants/currencies';
 import { getCurrencyDecimalPlaces } from './currency-precision';
-import { toMajor, toMinor } from './money';
+import { decimalStringToMinor, toMajor } from './money';
 
 export const DEFAULT_CURRENCY = 'EUR';
 
@@ -87,13 +87,18 @@ export function isOverspent(actual: number, planned: number): boolean {
 // (1.234,56) and US (1,234.56) formats. Detects the decimal separator from
 // the input pattern rather than relying on locale or currency.
 export function reverseFormatCurrency(amount: string, decimalPlaces = 2) {
+	const normalized = normalizeCurrencyText(amount, decimalPlaces);
+	return normalized === null ? NaN : Number(normalized);
+}
+
+function normalizeCurrencyText(amount: string, decimalPlaces: number): string | null {
 	// Check for negative sign
 	const isNegative = amount.trim().startsWith('-');
 
 	// Remove any non-numeric characters except . and ,
 	const cleaned = amount.replace(/[^\d.,]/g, '');
 
-	if (!cleaned) return NaN;
+	if (!cleaned) return null;
 
 	const lastSep = Math.max(cleaned.lastIndexOf('.'), cleaned.lastIndexOf(','));
 	const hasBoth = cleaned.includes('.') && cleaned.includes(',');
@@ -105,20 +110,18 @@ export function reverseFormatCurrency(amount: string, decimalPlaces = 2) {
 	const isDecimal = lastSep !== -1 && (hasBoth || digitsAfter <= decimalPlaces);
 
 	const digits = cleaned.replace(/[.,]/g, '');
+	if (!isDecimal) return `${isNegative ? '-' : ''}${digits}`;
 	const cut = digits.length - digitsAfter;
-	const result = isDecimal
-		? parseFloat(`${digits.slice(0, cut)}.${digits.slice(cut)}`)
-		: parseFloat(digits);
-
-	return isNegative ? -result : result;
+	return `${isNegative ? '-' : ''}${digits.slice(0, cut) || '0'}.${digits.slice(cut)}`;
 }
 
 // KII-120: convenience helper for the common pattern of parsing user input
 // straight into minor units. Returns NaN if the string can't be parsed.
 export function parseAmountToMinor(input: string, currency: string): number {
-	// Editable inputs have no grouping; three-decimal currencies must retain their last digit.
-	// Keep legacy grouping/rounding behavior for zero- and two-decimal currencies.
-	const major = reverseFormatCurrency(input, Math.max(2, getCurrencyDecimalPlaces(currency)));
-	if (!Number.isFinite(major)) return NaN;
-	return toMinor(major, currency);
+	// The max(2, dp) only sets the grouping-vs-decimal threshold: three-decimal
+	// currencies must keep their last digit, while zero- and two-decimal currencies
+	// keep the legacy grouping heuristic. Rounding always uses the currency's dp.
+	const dp = getCurrencyDecimalPlaces(currency);
+	const normalized = normalizeCurrencyText(input, Math.max(2, dp));
+	return normalized === null ? NaN : decimalStringToMinor(normalized, dp);
 }

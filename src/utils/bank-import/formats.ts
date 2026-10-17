@@ -1,4 +1,5 @@
 import type { DateFormat } from './types';
+import { decimalStringToMinor } from '../money';
 
 const DATE_PARSERS: Record<DateFormat, RegExp> = {
 	'YYYY-MM-DD': /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
@@ -43,8 +44,7 @@ export function parseDecimalToMinor(
 	s = s.replace(decimalSeparator, '.'); // canonical decimal point
 	s = s.replace(/[^0-9.]/g, ''); // drop currency symbols, spaces, sign
 	if (!/[0-9]/.test(s)) return null;
-	const num = Number.parseFloat(s);
-	if (!Number.isFinite(num)) return null;
-	const minor = Math.round(num * 10 ** fractionDigits);
+	const minor = decimalStringToMinor(s, fractionDigits);
+	if (!Number.isFinite(minor)) return null;
 	return negative ? -minor : minor;
 }

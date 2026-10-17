@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { toMinor, toMajor } from '../money';
+import { decimalStringToMinor, toMinor, toMajor } from '../money';
 
 describe('money', () => {
 	describe('toMinor', () => {
@@ -38,18 +38,28 @@ describe('money', () => {
 			expect(toMinor(-Infinity, 'EUR')).toBeNaN();
 		});
 
+		it('rounds positive and negative half-minor values away from zero', () => {
+			expect(toMinor(2.345, 'EUR')).toBe(235);
+			expect(toMinor(-2.345, 'EUR')).toBe(-235);
+		});
+
+		it('rejects values whose minor units exceed the safe integer range', () => {
+			expect(decimalStringToMinor('90071992547409.91', 2)).toBe(Number.MAX_SAFE_INTEGER);
+			expect(decimalStringToMinor('90071992547409.92', 2)).toBeNaN();
+		});
+
+		it('rejects an exponent without a significand digit', () => {
+			expect(decimalStringToMinor('e5', 2)).toBeNaN();
+		});
+
 		it('preserves sign on negative input', () => {
 			expect(toMinor(-43.21, 'EUR')).toBe(-4321);
 			expect(toMinor(-0.01, 'EUR')).toBe(-1);
 		});
 
-		it('rounds half toward +infinity (JS Math.round semantics)', () => {
-			// Math.round rounds .5 towards +infinity. Document the asymmetry
-			// so a future maintainer hitting it knows it's intentional.
+		it('rounds half values away from zero', () => {
 			expect(toMinor(0.005, 'EUR')).toBe(1); // 0.5 cents → 1
-			// -0.5 cents → 0; toBe(0) succeeds because -0 === 0 in JS, but use
-			// Object.is to assert the absolute value matches expectation.
-			expect(Math.abs(toMinor(-0.005, 'EUR'))).toBe(0);
+			expect(toMinor(-0.005, 'EUR')).toBe(-1);
 		});
 
 		it('handles large amounts without precision loss', () => {
