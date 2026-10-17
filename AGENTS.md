@@ -23,7 +23,7 @@ Offline-first, local-first personal finance tracker. Expo/React Native, TypeScri
 
 ## Running and verifying
 
-- `bun test` (bare) runs Bun's own test runner over every test file, Jest ones included — produces false `jest.mock` failures. Use `bun run test`, or `bun run test:unit` / `bun run test:component` individually.
+- `bun test` (bare or with a path) runs only the unit tests: `bunfig.toml` ignores `app/`, `src/components/`, `src/hooks/` and `e2e/`. Jest component/screen tests run only via `bun run test:component`; `bun run test` runs both.
 - CI runs static checks and `bun run test`, but not Detox E2E — run `bun run test:e2e:ios` / `:android` locally before merging changes touching native gestures, drag-and-drop, or app lifecycle.
 
 ## Conventions that differ from defaults
@@ -37,7 +37,7 @@ Offline-first, local-first personal finance tracker. Expo/React Native, TypeScri
 
 - Combining `removeClippedSubviews` with per-row `GestureDetector` taps kills taps after scrolling — Jest can't catch it (RNGH is mocked). Keep it `false` on interactive lists (`app/(tabs)/history.tsx`).
 - `router.replace()` from a root `_layout.tsx` effect is silently dropped on iOS — render `<Redirect>` from a child layout instead.
-- Fish eats backticks in inline commit messages — pass `git commit -m` a quoted heredoc, verify with `git log -1`.
+- The agent shell (zsh) command-substitutes backticks inside double-quoted `git commit -m` messages, silently dropping words. Use `git commit -F - <<'EOF'` (quoted delimiter), verify with `git log -1`.
 - Transactions have four insert sites; the one inside `import.replace_all` in `src/sync/apply-operation.ts` is easy to miss and silently NULLs a new column on CSV restore.
 - Native iOS builds: never `rm -rf ios/build` (breaks arm64 simulator builds — use `expo prebuild --clean`); Release `xcodebuild` also reuses a stale `main.jsbundle`, same fix.
 - Detox: scroll-then-tap on a virtualized list races RN's render with sync disabled suite-wide — scope `device.enableSynchronization()` tightly around the scroll+tap, not globally.
