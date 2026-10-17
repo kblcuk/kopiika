@@ -10,14 +10,15 @@ import {
 	RECURRENCE_EXCLUSION_HEADERS,
 	MARKET_VALUE_SNAPSHOT_HEADERS,
 } from './csv-spec';
+import { csvRow } from './csv';
 
 // Convert entities to CSV
 function entitiesToCsv(entities: Entity[]): string {
 	const rows = entities.map((e) =>
-		[
+		csvRow([
 			e.id,
 			e.type,
-			e.name ? `"${e.name.replace(/"/g, '""')}"` : '',
+			e.name,
 			e.currency,
 			e.icon ?? '',
 			e.color ?? '',
@@ -27,7 +28,7 @@ function entitiesToCsv(entities: Entity[]): string {
 			e.is_deleted === true,
 			e.is_default === true,
 			e.is_investment === true,
-		].join(',')
+		])
 	);
 	return [ENTITY_HEADERS.join(','), ...rows].join('\n');
 }
@@ -35,7 +36,7 @@ function entitiesToCsv(entities: Entity[]): string {
 // Convert plans to CSV
 function plansToCsv(plans: Plan[]): string {
 	const rows = plans.map((p) =>
-		[p.id, p.entity_id, p.period, p.period_start, p.planned_amount_minor].join(',')
+		csvRow([p.id, p.entity_id, p.period, p.period_start, p.planned_amount_minor])
 	);
 	return [PLAN_HEADERS.join(','), ...rows].join('\n');
 }
@@ -43,38 +44,38 @@ function plansToCsv(plans: Plan[]): string {
 // Convert transactions to CSV
 function transactionsToCsv(transactions: Transaction[]): string {
 	const rows = transactions.map((t) =>
-		[
+		csvRow([
 			t.id,
 			t.from_entity_id,
 			t.to_entity_id,
 			t.amount_minor,
 			t.currency,
 			t.timestamp,
-			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
+			t.note ?? '',
 			t.series_id ?? '',
 			t.split_id ?? '',
 			t.is_confirmed !== false,
-		].join(',')
+		])
 	);
 	return [TRANSACTION_HEADERS.join(','), ...rows].join('\n');
 }
 
 function recurrenceTemplatesToCsv(templates: RecurrenceTemplate[]): string {
 	const rows = templates.map((t) =>
-		[
+		csvRow([
 			t.id,
 			t.from_entity_id,
 			t.to_entity_id,
 			t.amount_minor,
 			t.currency,
-			t.note ? `"${t.note.replace(/"/g, '""')}"` : '',
-			`"${t.rule.replace(/"/g, '""')}"`,
+			t.note ?? '',
+			t.rule,
 			t.start_date,
 			t.end_date ?? '',
 			t.end_count ?? '',
 			t.is_deleted === true,
 			t.created_at,
-		].join(',')
+		])
 	);
 	return [RECURRENCE_TEMPLATE_HEADERS.join(','), ...rows].join('\n');
 }
@@ -97,19 +98,19 @@ function recurrenceExclusionsToCsv(templates: RecurrenceTemplate[]): string {
 		if (a.templateId !== b.templateId) return a.templateId < b.templateId ? -1 : 1;
 		return a.timestamp - b.timestamp;
 	});
-	const lines = rows.map((r) => `${r.templateId},${r.timestamp}`);
+	const lines = rows.map((r) => csvRow([r.templateId, r.timestamp]));
 	return [RECURRENCE_EXCLUSION_HEADERS.join(','), ...lines].join('\n');
 }
 
 function marketValueSnapshotsToCsv(marketValueSnapshots: MarketValueSnapshot[]): string {
 	const rows = marketValueSnapshots.map((snapshot) =>
-		[
+		csvRow([
 			snapshot.id,
 			snapshot.entity_id,
 			snapshot.amount_minor,
 			snapshot.currency,
 			snapshot.date,
-		].join(',')
+		])
 	);
 	return [MARKET_VALUE_SNAPSHOT_HEADERS.join(','), ...rows].join('\n');
 }

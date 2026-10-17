@@ -100,3 +100,16 @@ describe('parseBankRows currency precision', () => {
 		expect(rows[0]?.amountMinor).toBe(1234);
 	});
 });
+
+describe('parseBankRows quoted fields', () => {
+	it('keeps a quoted multi-line description in one row', () => {
+		const csv =
+			'Date,Description,Amount\n2026-07-12,"ATB, Market\nKyiv",-250.00\n2026-07-11,Salary,10.00';
+		const { rows, skipped } = parseBankRows(csv, SIGNED, 'EUR');
+		expect(skipped).toEqual([]);
+		expect(rows.map((r) => [r.description, r.amountMinor])).toEqual([
+			['ATB, Market\nKyiv', -25000],
+			['Salary', 1000],
+		]);
+	});
+});

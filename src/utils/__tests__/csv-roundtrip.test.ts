@@ -170,6 +170,34 @@ describe('csv roundtrip', () => {
 		expect(result.data.marketValueSnapshots).toEqual(FULL_FIXTURE.marketValueSnapshots);
 	});
 
+	test('KII-173: free text with line breaks, quotes, commas and section markers survives', () => {
+		// A quoted field holding a newline used to be torn in two by a
+		// line-first split, and a note containing "# ENTITIES" was taken for
+		// the section marker by a plain indexOf.
+		const tricky = {
+			...FULL_FIXTURE,
+			entities: FULL_FIXTURE.entities.map((e) =>
+				e.id === 'e2' ? { ...e, name: 'Food\n# PLANS\nand "drinks", too' } : e
+			),
+			transactions: FULL_FIXTURE.transactions.map((t) =>
+				t.id === 't1' ? { ...t, note: 'line one\n# ENTITIES\nid,type,"x"\r\nlast' } : t
+			),
+			recurrenceTemplates: FULL_FIXTURE.recurrenceTemplates.map((t) =>
+				t.id === 'rt1' ? { ...t, note: '# TRANSACTIONS\n\n,,\n' } : t
+			),
+		};
+
+		const result = parseImportCsv(buildCombinedCsv(tricky));
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.entities).toEqual(tricky.entities);
+		expect(result.data.plans).toEqual(tricky.plans);
+		expect(result.data.transactions).toEqual(tricky.transactions);
+		expect(result.data.recurrenceTemplates).toEqual(tricky.recurrenceTemplates);
+		expect(result.data.marketValueSnapshots).toEqual(tricky.marketValueSnapshots);
+	});
+
 	test('KII-123/KII-139 back-compat: legacy CSV with inline `exclusions`, `order`, and `horizon` columns still imports', () => {
 		// Pre-KII-123 exports embedded exclusions as a JSON array directly on the
 		// recurrence_templates row. Users with backup CSVs on disk must still be

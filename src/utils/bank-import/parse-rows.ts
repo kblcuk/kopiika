@@ -1,4 +1,4 @@
-import { splitCsvLine } from '@/src/utils/import';
+import { parseCsv } from '../csv';
 import { getCurrencyDecimalPlaces } from '../currency-precision';
 import { parseFlexibleDate, parseDecimalToMinor } from './formats';
 import type { ColumnMapping, ParsedBankRow, SkippedRow } from './types';
@@ -9,19 +9,18 @@ export function parseBankRows(
 	currency: string
 ): { rows: ParsedBankRow[]; skipped: SkippedRow[] } {
 	const fractionDigits = getCurrencyDecimalPlaces(currency);
-	const lines = rawText
-		.replace(/^﻿/, '')
-		.split(/\r\n|\r|\n/)
-		.filter((l) => l.trim().length > 0);
-	const dataLines = mapping.hasHeader ? lines.slice(1) : lines;
+	const records = parseCsv(rawText, mapping.delimiter);
+	const dataRows = mapping.hasHeader ? records.slice(1) : records;
 	const rows: ParsedBankRow[] = [];
 	const skipped: SkippedRow[] = [];
 
-	dataLines.forEach((line, rowIndex) => {
-		const cells = splitCsvLine(line, mapping.delimiter);
+	dataRows.forEach((cells, rowIndex) => {
+		const skip = (reason: string) =>
+			skipped.push({ rowIndex, reason, raw: cells.join(mapping.delimiter) });
+
 		const dateMs = parseFlexibleDate(cells[mapping.dateColumn] ?? '', mapping.dateFormat);
 		if (dateMs === null) {
-			skipped.push({ rowIndex, reason: 'unparseable date', raw: line });
+			skip('unparseable date');
 			return;
 		}
 
@@ -47,13 +46,13 @@ export function parseBankRows(
 				fractionDigits
 			);
 			if (debit === null && credit === null) {
-				skipped.push({ rowIndex, reason: 'unparseable amount', raw: line });
+				skip('unparseable amount');
 				return;
 			}
 			const debitSet = debit !== null && debit !== 0;
 			const creditSet = credit !== null && credit !== 0;
 			if (debitSet && creditSet) {
-				skipped.push({ rowIndex, reason: 'ambiguous debit/credit', raw: line });
+				skip('ambiguous debit/credit');
 				return;
 			}
 			if (debitSet) amountMinor = -Math.abs(debit as number);
@@ -61,11 +60,11 @@ export function parseBankRows(
 			else amountMinor = 0;
 		}
 		if (amountMinor === null) {
-			skipped.push({ rowIndex, reason: 'unparseable amount', raw: line });
+			skip('unparseable amount');
 			return;
 		}
 		if (amountMinor === 0) {
-			skipped.push({ rowIndex, reason: 'zero amount', raw: line });
+			skip('zero amount');
 			return;
 		}
 

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { parseImportCsv, parseCsvLine, formatImportNotices } from '../import';
+import { parseImportCsv, formatImportNotices } from '../import';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 
 const VALID_CSV = `# ENTITIES
@@ -58,32 +58,6 @@ id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note
 # MARKET_VALUE_SNAPSHOTS
 id,entity_id,amount_minor,currency,date
 s1,e1,750000,USD,1736899200000`;
-
-describe('parseCsvLine', () => {
-	test('parses simple fields', () => {
-		expect(parseCsvLine('a,b,c')).toEqual(['a', 'b', 'c']);
-	});
-
-	test('handles quoted fields with commas', () => {
-		expect(parseCsvLine('a,"hello, world",c')).toEqual(['a', 'hello, world', 'c']);
-	});
-
-	test('handles escaped quotes inside quoted fields', () => {
-		expect(parseCsvLine('a,"say ""hello""",c')).toEqual(['a', 'say "hello"', 'c']);
-	});
-
-	test('handles empty fields', () => {
-		expect(parseCsvLine('a,,c,')).toEqual(['a', '', 'c', '']);
-	});
-
-	test('handles single field', () => {
-		expect(parseCsvLine('hello')).toEqual(['hello']);
-	});
-
-	test('handles empty quoted field', () => {
-		expect(parseCsvLine('"",b')).toEqual(['', 'b']);
-	});
-});
 
 describe('parseImportCsv', () => {
 	test('parses valid combined CSV with all three sections', () => {

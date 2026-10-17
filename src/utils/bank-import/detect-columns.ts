@@ -1,4 +1,4 @@
-import { splitCsvLine } from '@/src/utils/import';
+import { parseCsv } from '../csv';
 import { parseFlexibleDate, parseDecimalToMinor } from './formats';
 import type { DateFormat, DetectionResult } from './types';
 
@@ -27,20 +27,11 @@ const AMOUNT_HINTS = hintRegex('amount|sum|сума|сумма|value|total');
 const DEBIT_HINTS = hintRegex('debit|витрати|дебет|withdrawal|outflow');
 const CREDIT_HINTS = hintRegex('credit|надходження|кредит|deposit|inflow');
 
-function splitLines(rawText: string): string[] {
-	return rawText
-		.replace(/^﻿/, '')
-		.split(/\r\n|\r|\n/)
-		.filter((l) => l.trim().length > 0);
-}
-
-function pickDelimiter(lines: string[]): string {
+function pickDelimiter(rawText: string): string {
 	let best = ',';
 	let bestCount = -1;
-	const firstLine = lines[0];
-	if (firstLine === undefined) return best;
 	for (const d of DELIMITERS) {
-		const count = splitCsvLine(firstLine, d).length;
+		const count = parseCsv(rawText, d, 1)[0]?.length ?? 0;
 		if (count > bestCount) {
 			bestCount = count;
 			best = d;
@@ -121,14 +112,11 @@ function detectDecimalSeparator(dataRows: string[][], cols: number[]): '.' | ','
 }
 
 export function detectColumns(rawText: string): DetectionResult | null {
-	const lines = splitLines(rawText);
-	if (lines.length === 0) return null;
-
-	const delimiter = pickDelimiter(lines);
-	const rows = lines.map((l) => splitCsvLine(l, delimiter));
-	const columnCount = Math.max(...rows.map((r) => r.length));
+	const delimiter = pickDelimiter(rawText);
+	const rows = parseCsv(rawText, delimiter);
 	const firstRow = rows[0];
 	if (firstRow === undefined) return null;
+	const columnCount = Math.max(...rows.map((r) => r.length));
 	const hasHeader = looksLikeHeader(firstRow);
 	const headerCells = hasHeader ? firstRow : firstRow.map((_, i) => `Column ${i + 1}`);
 	const dataRows = hasHeader ? rows.slice(1) : rows;

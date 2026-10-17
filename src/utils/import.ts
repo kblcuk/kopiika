@@ -7,6 +7,7 @@ import {
 import { validateTransaction } from './transaction-validation';
 import { defaultIsConfirmed } from './transaction-builder';
 import { resolveAppCurrency } from './app-currency';
+import { parseCsv } from './csv';
 
 export interface ParsedImportData {
 	entities: Entity[];
@@ -51,150 +52,61 @@ type ParseResult =
 
 const VALID_ENTITY_TYPES = new Set(['income', 'account', 'category', 'saving']);
 
-/**
- * Parse a single CSV line, handling quoted fields with "" escapes.
- * Supports custom delimiters for semicolon-separated, tab-separated, etc.
- * Needed because entity names and transaction notes can contain commas/quotes.
- */
-export function splitCsvLine(line: string, delimiter = ','): string[] {
-	const fields: string[] = [];
-	let current = '';
-	let inQuotes = false;
-	let i = 0;
-
-	while (i < line.length) {
-		const ch = line[i];
-
-		if (inQuotes) {
-			if (ch === '"') {
-				// Escaped quote ("") or end of quoted field
-				if (i + 1 < line.length && line[i + 1] === '"') {
-					current += '"';
-					i += 2;
-				} else {
-					inQuotes = false;
-					i++;
-				}
-			} else {
-				current += ch;
-				i++;
-			}
-		} else if (ch === '"') {
-			inQuotes = true;
-			i++;
-		} else if (ch === delimiter) {
-			fields.push(current);
-			current = '';
-			i++;
-		} else {
-			current += ch;
-			i++;
-		}
-	}
-	fields.push(current);
-	return fields;
-}
-
-/**
- * Parse a single CSV line on comma delimiter.
- * Delegates to splitCsvLine for backward compatibility.
- */
-export function parseCsvLine(line: string): string[] {
-	return splitCsvLine(line, ',');
-}
-
-/**
- * Split combined CSV content into sections by # ENTITIES / # PLANS / # TRANSACTIONS markers.
- * Returns null with error message if markers are missing.
- */
-function splitSections(content: string): {
-	entities: string;
-	plans: string;
-	transactions: string;
-	recurrenceTemplates: string;
-	recurrenceExclusions: string;
-	marketValueSnapshots: string;
-} | null {
-	const entitiesIdx = content.indexOf('# ENTITIES');
-	const plansIdx = content.indexOf('# PLANS');
-	const transactionsIdx = content.indexOf('# TRANSACTIONS');
-	const recurrenceTemplatesIdx = content.indexOf('# RECURRENCE_TEMPLATES');
+const SECTION_KEYS = {
+	'# ENTITIES': 'entities',
+	'# PLANS': 'plans',
+	'# TRANSACTIONS': 'transactions',
+	'# RECURRENCE_TEMPLATES': 'recurrenceTemplates',
 	// KII-123: optional section. Older exports (pre-KII-123) put exclusions
 	// inline on the templates rows; new ones use a dedicated section.
-	const recurrenceExclusionsIdx = content.indexOf('# RECURRENCE_EXCLUSIONS');
-	const marketValueSnapshotsIdx = content.indexOf('# MARKET_VALUE_SNAPSHOTS');
+	'# RECURRENCE_EXCLUSIONS': 'recurrenceExclusions',
+	'# MARKET_VALUE_SNAPSHOTS': 'marketValueSnapshots',
+} as const;
 
-	if (entitiesIdx === -1 || plansIdx === -1 || transactionsIdx === -1) {
-		return null;
+type SectionKey = (typeof SECTION_KEYS)[keyof typeof SECTION_KEYS];
+
+/**
+ * Group the combined CSV's records under their # ENTITIES / # PLANS / ...
+ * markers. A marker is a whole single-field record, never a substring, so a
+ * note that merely contains "# ENTITIES" stays in its row (KII-173). An
+ * unknown "# ..." marker starts a section that is ignored rather than
+ * absorbed into the one before it. Returns null if a required marker is
+ * missing.
+ */
+function splitSections(content: string): Record<SectionKey, string[][]> | null {
+	const sections: Partial<Record<SectionKey, string[][]>> = {};
+	let current: string[][] | null = null;
+
+	for (const record of parseCsv(content)) {
+		const marker = record.length === 1 ? record[0]!.trim() : '';
+		if (marker.startsWith('# ')) {
+			const key: SectionKey | undefined = SECTION_KEYS[marker as keyof typeof SECTION_KEYS];
+			current = key ? (sections[key] = []) : null;
+		} else {
+			current?.push(record);
+		}
 	}
 
-	// Pick the earliest downstream marker after each section to bound its slice.
-	const firstAfter = (start: number, candidates: number[]): number | undefined => {
-		const later = candidates.filter((c) => c > start);
-		return later.length > 0 ? Math.min(...later) : undefined;
-	};
-	const downstreamFromTransactions = firstAfter(transactionsIdx, [
-		recurrenceTemplatesIdx,
-		recurrenceExclusionsIdx,
-		marketValueSnapshotsIdx,
-	]);
-	const downstreamFromTemplates =
-		recurrenceTemplatesIdx === -1
-			? undefined
-			: firstAfter(recurrenceTemplatesIdx, [
-					recurrenceExclusionsIdx,
-					marketValueSnapshotsIdx,
-				]);
-	const downstreamFromExclusions =
-		recurrenceExclusionsIdx === -1
-			? undefined
-			: firstAfter(recurrenceExclusionsIdx, [marketValueSnapshotsIdx]);
-
+	const { entities, plans, transactions } = sections;
+	if (!entities || !plans || !transactions) return null;
 	return {
-		entities: content.slice(entitiesIdx + '# ENTITIES'.length, plansIdx).trim(),
-		plans: content.slice(plansIdx + '# PLANS'.length, transactionsIdx).trim(),
-		transactions: content
-			.slice(transactionsIdx + '# TRANSACTIONS'.length, downstreamFromTransactions)
-			.trim(),
-		recurrenceTemplates:
-			recurrenceTemplatesIdx === -1
-				? ''
-				: content
-						.slice(
-							recurrenceTemplatesIdx + '# RECURRENCE_TEMPLATES'.length,
-							downstreamFromTemplates
-						)
-						.trim(),
-		recurrenceExclusions:
-			recurrenceExclusionsIdx === -1
-				? ''
-				: content
-						.slice(
-							recurrenceExclusionsIdx + '# RECURRENCE_EXCLUSIONS'.length,
-							downstreamFromExclusions
-						)
-						.trim(),
-		marketValueSnapshots:
-			marketValueSnapshotsIdx === -1
-				? ''
-				: content.slice(marketValueSnapshotsIdx + '# MARKET_VALUE_SNAPSHOTS'.length).trim(),
+		entities,
+		plans,
+		transactions,
+		recurrenceTemplates: sections.recurrenceTemplates ?? [],
+		recurrenceExclusions: sections.recurrenceExclusions ?? [],
+		marketValueSnapshots: sections.marketValueSnapshots ?? [],
 	};
 }
 
 /**
- * Parse rows from a CSV section (header + data lines).
- * Returns array of objects keyed by header names.
+ * Turn a section's records (header first) into objects keyed by header name.
  */
-function parseSection(csv: string): Record<string, string>[] {
-	if (!csv) return [];
+function parseSection(records: string[][]): Record<string, string>[] {
+	const [headers, ...rows] = records;
+	if (!headers) return [];
 
-	const lines = csv.split('\n').filter((l) => l.trim() !== '');
-	const [headerLine, ...dataLines] = lines;
-	if (!headerLine) return [];
-
-	const headers = parseCsvLine(headerLine);
-	return dataLines.map((line) => {
-		const values = parseCsvLine(line);
+	return rows.map((values) => {
 		const obj: Record<string, string> = {};
 		headers.forEach((h, i) => {
 			obj[h] = values[i] ?? '';
