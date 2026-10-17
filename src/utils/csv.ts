@@ -11,6 +11,10 @@ export function parseCsv(text: string, delimiter = ',', maxRecords = Infinity): 
 	let record: string[] = [];
 	let field = '';
 	let inQuotes = false;
+	// Only a quote that opens a field starts quoting (RFC 4180). A stray one
+	// mid-field, like `5" pizza` in a bank description, stays literal instead
+	// of swallowing every record after it.
+	let fieldStart = true;
 
 	const endRecord = () => {
 		record.push(field);
@@ -22,19 +26,23 @@ export function parseCsv(text: string, delimiter = ',', maxRecords = Infinity): 
 
 	for (let i = text.charCodeAt(0) === 0xfeff ? 1 : 0; i < text.length; i++) {
 		const ch = text[i];
+		const atFieldStart = fieldStart;
+		fieldStart = false;
 		if (inQuotes) {
 			if (ch !== '"') field += ch;
 			else if (text[i + 1] === '"') {
 				field += '"';
 				i++;
 			} else inQuotes = false;
-		} else if (ch === '"') inQuotes = true;
+		} else if (ch === '"' && atFieldStart) inQuotes = true;
 		else if (ch === delimiter) {
 			record.push(field);
 			field = '';
+			fieldStart = true;
 		} else if (ch === '\n' || ch === '\r') {
 			if (ch === '\r' && text[i + 1] === '\n') i++;
 			endRecord();
+			fieldStart = true;
 			if (records.length >= maxRecords) return records;
 		} else field += ch;
 	}

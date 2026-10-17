@@ -60,37 +60,33 @@ type SectionKey =
 	| 'recurrenceExclusions'
 	| 'marketValueSnapshots';
 
-const SECTION_KEYS: Record<string, SectionKey> = {
-	'# ENTITIES': 'entities',
-	'# PLANS': 'plans',
-	'# TRANSACTIONS': 'transactions',
-	'# RECURRENCE_TEMPLATES': 'recurrenceTemplates',
+const SECTION_KEYS = new Map<string, SectionKey>([
+	['# ENTITIES', 'entities'],
+	['# PLANS', 'plans'],
+	['# TRANSACTIONS', 'transactions'],
+	['# RECURRENCE_TEMPLATES', 'recurrenceTemplates'],
 	// KII-123: optional section. Older exports (pre-KII-123) put exclusions
 	// inline on the templates rows; new ones use a dedicated section.
-	'# RECURRENCE_EXCLUSIONS': 'recurrenceExclusions',
-	'# MARKET_VALUE_SNAPSHOTS': 'marketValueSnapshots',
-};
+	['# RECURRENCE_EXCLUSIONS', 'recurrenceExclusions'],
+	['# MARKET_VALUE_SNAPSHOTS', 'marketValueSnapshots'],
+]);
 
 /**
  * Group the combined CSV's records under their # ENTITIES / # PLANS / ...
  * markers. A marker is a whole single-field record, never a substring, so a
- * note that merely contains "# ENTITIES" stays in its row (KII-173). An
- * unknown "# ..." marker starts a section that is ignored rather than
- * absorbed into the one before it. Returns null if a required marker is
- * missing.
+ * note that merely contains "# ENTITIES" stays in its row (KII-173). Anything
+ * else, an unknown "# ..." line or a repeated marker's header, lands in the
+ * current section as a row, so it fails validation loudly instead of
+ * silently dropping data. Returns null if a required marker is missing.
  */
 function splitSections(content: string): Record<SectionKey, string[][]> | null {
 	const sections: Partial<Record<SectionKey, string[][]>> = {};
 	let current: string[][] | null = null;
 
 	for (const record of parseCsv(content)) {
-		const marker = record.length === 1 ? (record[0] ?? '').trim() : '';
-		if (marker.startsWith('# ')) {
-			const key = SECTION_KEYS[marker];
-			current = key ? (sections[key] = []) : null;
-		} else {
-			current?.push(record);
-		}
+		const key = record.length === 1 ? SECTION_KEYS.get((record[0] ?? '').trim()) : undefined;
+		if (key) current = sections[key] ??= [];
+		else current?.push(record);
 	}
 
 	const { entities, plans, transactions } = sections;

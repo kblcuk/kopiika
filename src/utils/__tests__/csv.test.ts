@@ -25,6 +25,13 @@ describe('parseCsv', () => {
 		]);
 	});
 
+	test('keeps a quote that does not open its field literal', () => {
+		expect(parseCsv('a,5" pizza,Joe\'s "Bar"\nd,e,f')).toEqual([
+			['a', '5" pizza', 'Joe\'s "Bar"'],
+			['d', 'e', 'f'],
+		]);
+	});
+
 	test('honors a custom delimiter', () => {
 		expect(parseCsv('a;b;c\n"x;y";z', ';')).toEqual([
 			['a', 'b', 'c'],

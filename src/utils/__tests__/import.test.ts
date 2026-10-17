@@ -145,6 +145,18 @@ describe('parseImportCsv', () => {
 		expect(result.errors[0]).toContain('section markers');
 	});
 
+	test('fails an unknown section rather than silently dropping its rows', () => {
+		const result = parseImportCsv(`${VALID_CSV}\n\n# FUTURE_SECTION\nid,value\nf1,42`);
+		expect(result.ok).toBe(false);
+	});
+
+	test('fails a repeated section marker rather than overwriting the first block', () => {
+		const result = parseImportCsv(
+			`${INVESTMENT_EXPORT_CSV}\n\n# MARKET_VALUE_SNAPSHOTS\nid,entity_id,amount_minor,currency,date\ns2,e1,1,USD,1736899200000`
+		);
+		expect(result.ok).toBe(false);
+	});
+
 	test('accepts imports without market value snapshots section', () => {
 		const result = parseImportCsv(CURRENT_EXPORT_STYLE_CSV);
 		expect(result.ok).toBe(true);
