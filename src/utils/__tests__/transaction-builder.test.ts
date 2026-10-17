@@ -33,14 +33,23 @@ describe('transaction-builder', () => {
 	});
 
 	describe('defaultIsConfirmed', () => {
-		test('past timestamp → confirmed', () => {
-			expect(defaultIsConfirmed(1000, 5000)).toBe(true);
+		// Local-component constructor: the default follows the device's civil
+		// calendar (KII-175), so UTC fixtures would make these TZ-dependent.
+		const at = (y: number, m: number, d: number, h = 0, min = 0) =>
+			new Date(y, m - 1, d, h, min, 0, 0).getTime();
+		const now = at(2026, 8, 3, 15, 42);
+
+		test('earlier day → confirmed', () => {
+			expect(defaultIsConfirmed(at(2026, 8, 2, 23, 59), now)).toBe(true);
 		});
-		test('equal timestamp → confirmed', () => {
-			expect(defaultIsConfirmed(5000, 5000)).toBe(true);
+		test('same instant → confirmed', () => {
+			expect(defaultIsConfirmed(now, now)).toBe(true);
 		});
-		test('future timestamp → unconfirmed', () => {
-			expect(defaultIsConfirmed(10_000, 5000)).toBe(false);
+		test('later today → confirmed, matching isDue', () => {
+			expect(defaultIsConfirmed(at(2026, 8, 3, 23, 0), now)).toBe(true);
+		});
+		test('next day → unconfirmed', () => {
+			expect(defaultIsConfirmed(at(2026, 8, 4, 0, 0), now)).toBe(false);
 		});
 	});
 
@@ -94,7 +103,8 @@ describe('transaction-builder', () => {
 					to_entity_id: 'b',
 					amount_minor: 500,
 					currency: 'USD',
-					timestamp: 10_000,
+					// Two days out: a later civil day in every timezone.
+					timestamp: 2_000 + 2 * 86_400_000,
 				},
 				2_000
 			);

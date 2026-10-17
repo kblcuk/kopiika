@@ -289,6 +289,9 @@ function parseTransactions(
 	droppable: ImportNotice[]
 ): Transaction[] {
 	const result: Transaction[] = [];
+	// One instant for the whole file, so an import straddling midnight defaults
+	// every row's `is_confirmed` against the same day.
+	const now = Date.now();
 
 	for (const [idx, row] of rows.entries()) {
 		const lineNum = idx + 1;
@@ -375,7 +378,7 @@ function parseTransactions(
 					? true
 					: row.is_confirmed === 'false'
 						? false
-						: defaultIsConfirmed(timestamp),
+						: defaultIsConfirmed(timestamp, now),
 		});
 	}
 

@@ -1,5 +1,6 @@
 import type { Transaction } from '@/src/types';
 import type { RecurrenceRule, RecurrenceTemplate } from '@/src/types/recurrence';
+import { isDue } from './due';
 import { generateId } from './ids';
 import { parseAmountToMinor } from './format';
 import type { MutationInput } from './transaction-validation';
@@ -41,9 +42,9 @@ export function normalizeCreateTimestamp(date: Date, now: Date = new Date()): nu
 	return result.getTime();
 }
 
-/** Past or now → confirmed; future → unconfirmed. */
+/** Due by civil day (`isDue`) → confirmed; a later day → unconfirmed (KII-175). */
 export function defaultIsConfirmed(timestamp: number, now: number = Date.now()): boolean {
-	return timestamp <= now;
+	return isDue(timestamp, now);
 }
 
 export function buildTransaction(draft: TransactionDraft, now: number = Date.now()): Transaction {

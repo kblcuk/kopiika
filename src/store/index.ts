@@ -929,9 +929,9 @@ export const useStore = create<AppState>((set, get) => {
 			// so this guard never trips at runtime — it exists to narrow the union for TS.
 			if (result.kind !== 'transaction.create') return;
 			set((state) => ({ transactions: [result.created, ...state.transactions] }));
-			// Badge included (KII-163): `buildTransaction` defaults a future
-			// timestamp to unconfirmed, and "later today" is future yet already due,
-			// so a plain add can raise the unconfirmed-and-due count.
+			// Badge included (KII-163): the caller sets `is_confirmed`, and an
+			// unconfirmed row that is already due raises the unconfirmed-and-due
+			// count.
 			await syncNotificationSurfaces(get);
 		},
 

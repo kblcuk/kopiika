@@ -129,7 +129,7 @@ export interface EntityWithBalance extends Entity {
 	planned: number;
 	actual: number;
 	remaining: number;
-	upcoming: number; // sum of future-dated transactions (timestamp > now)
+	upcoming: number; // sum of not-yet-due transactions (dated after today, `isDue`)
 	unconfirmed?: number; // sum of past-due unconfirmed transactions
 	reserved?: number; // accounts only: total reserved across savings goals
 	latestMarketValue?: number | null; // accounts only: latest market value snapshot

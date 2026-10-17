@@ -167,13 +167,13 @@ Series scope rules:
 
 ## Transaction Confirmation
 
-Future-dated and recurring transactions use an `is_confirmed` boolean column (default `true`). Transactions created with a future timestamp are set to `is_confirmed = false`. They remain excluded from actual balances until the user confirms them.
+Future-dated and recurring transactions use an `is_confirmed` boolean column (default `true`). Due-ness is a civil-day comparison, `isDue(timestamp, now)` in `src/utils/due.ts` (KII-159): a row dated today is due whatever its time of day. Transactions created or imported without an explicit flag default to `is_confirmed = isDue(timestamp, now)` (`defaultIsConfirmed`, KII-175), so only rows dated a later day start unconfirmed. They remain excluded from actual balances until the user confirms them.
 
 Three transaction states:
 
-- **Upcoming**: `timestamp > now` — counted in `upcoming` balance only
-- **Needs confirmation**: `timestamp <= now` AND `is_confirmed = false` — excluded from `actual`, shown in a dedicated "Needs Confirmation" section in History
-- **Confirmed**: `timestamp <= now` AND `is_confirmed = true` — counted in `actual` balance
+- **Upcoming**: not due (dated after today) — counted in `upcoming` balance only
+- **Needs confirmation**: due AND `is_confirmed = false` — excluded from `actual`, shown in a dedicated "Needs Confirmation" section in History
+- **Confirmed**: due AND `is_confirmed = true` — counted in `actual` balance
 
 Recurring transactions generated via backfill always start as `is_confirmed = false`. The History tab provides per-transaction "Confirm" buttons and a bulk "Confirm All" action.
 

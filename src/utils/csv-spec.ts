@@ -31,9 +31,10 @@ export const PLAN_HEADERS = [
 
 // `is_confirmed` is exported as `"true"` / `"false"` but is treated as
 // optional on import: a missing column or empty cell falls back to
-// `defaultIsConfirmed(timestamp)` (past → confirmed, future → unconfirmed).
-// This keeps hand-edited / third-party CSVs from silently marking
-// future-dated rows as confirmed.
+// `defaultIsConfirmed(timestamp)` (today or earlier → confirmed, a later day →
+// unconfirmed).
+// This keeps hand-edited / third-party CSVs from silently marking rows dated a
+// later day as confirmed.
 export const TRANSACTION_HEADERS = [
 	'id',
 	'from_entity_id',

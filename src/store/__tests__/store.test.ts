@@ -3382,7 +3382,7 @@ describe('Store Data Integrity', () => {
 
 			const N = 1000;
 			// Anchor every timestamp safely in the past so each row is
-			// `is_confirmed: true` (defaultIsConfirmed flips on `<= now`).
+			// `is_confirmed: true` (defaultIsConfirmed confirms anything due).
 			const baseTs = Date.now() - N - 1000;
 			const batch: Transaction[] = [];
 			for (let i = 0; i < N; i++) {

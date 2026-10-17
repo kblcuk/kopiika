@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { parseImportCsv, formatImportNotices } from '../import';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
+import { endOfLocalDay } from '../due';
 
 const VALID_CSV = `# ENTITIES
 id,type,name,currency,icon,color,owner_id,order,row,position,include_in_total
@@ -474,6 +475,20 @@ t2,e1,e2,2000,EUR,${FUTURE},`;
 			if (!result.ok) return;
 			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(true);
 			expect(result.data.transactions.find((t) => t.id === 't2')!.is_confirmed).toBe(false);
+		});
+
+		test('missing value later today defaults to confirmed (KII-175)', () => {
+			// Due by civil day, so it must not land under "Needs confirmation".
+			const laterToday = endOfLocalDay(Date.now());
+			const csv =
+				ENTITIES +
+				`id,from_entity_id,to_entity_id,amount_minor,currency,timestamp,note,series_id,is_confirmed
+t1,e1,e2,1000,EUR,${laterToday},,,`;
+
+			const result = parseImportCsv(csv);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.data.transactions.find((t) => t.id === 't1')!.is_confirmed).toBe(true);
 		});
 	});
 
