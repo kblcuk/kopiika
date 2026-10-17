@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.39](/codeberg.org/kblcuk/kopiika/compare/v0.3.38...v0.3.39) (2026-10-17)
+
+### Bug Fixes
+
+* **confirm:** Default is_confirmed by civil day ([bdf2b03](/codeberg.org/kblcuk/kopiika/commit/bdf2b03cfe90ade232925a925ed88f31c937c89b))
+* **csv:** Contain stray quotes and fail unknown sections loudly ([127d35a](/codeberg.org/kblcuk/kopiika/commit/127d35aa1a830377913f9c86d6544b079002c612))
+* **csv:** Share one record-level CSV tokenizer ([72352cd](/codeberg.org/kblcuk/kopiika/commit/72352cd4cae5b5fa4b1e0598c44b5c241fe5ac22))
+* **db:** Make entity delete and notification batch atomic ([efe3db7](/codeberg.org/kblcuk/kopiika/commit/efe3db7a5ce636fc05911dadfede0949bcef547d))
+* **db:** Make recurrence delete_future and deactivate atomic ([52d5a32](/codeberg.org/kblcuk/kopiika/commit/52d5a32e0df610b7d268d534c2f0bd1a82eafe4a))
+* **money:** Parse decimal input safely ([6cdf854](/codeberg.org/kblcuk/kopiika/commit/6cdf8542bc098207bd36fd1391b75cf499c42efd))
+* **sync:** Default is_confirmed on CSV restore inserts ([da55b25](/codeberg.org/kblcuk/kopiika/commit/da55b25f6964ac358ad22446f4129672d8e49d8c))
+
 ## [0.3.38](/codeberg.org/kblcuk/kopiika/compare/v0.3.37...v0.3.38) (2026-10-13)
 
 ### Features
