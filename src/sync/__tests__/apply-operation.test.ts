@@ -959,7 +959,11 @@ describe('applyOperation — recurrence.deactivate', () => {
 		);
 
 		const result = await applyOperation(
-			{ kind: 'recurrence.deactivate', seriesId: template.id, fromTimestamp: 1699000000000 },
+			{
+				kind: 'recurrence.deactivate',
+				seriesIds: [template.id],
+				fromTimestamp: 1699000000000,
+			},
 			'local',
 			{ entities, transactions: [past, future], recurrenceTemplates: [] }
 		);
@@ -967,7 +971,7 @@ describe('applyOperation — recurrence.deactivate', () => {
 		if (result.kind !== 'recurrence.deactivate') throw new Error('wrong kind');
 		// Unconditional soft-delete even though a past row remains — this is what
 		// distinguishes deactivate from delete_future.
-		expect(result.template?.is_deleted).toBe(true);
+		expect(result.templates).toMatchObject([{ id: template.id, is_deleted: true }]);
 
 		const all = await db.getAllTransactions();
 		expect(all.find((t) => t.id === 'deact-past')).toBeDefined();

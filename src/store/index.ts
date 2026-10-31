@@ -238,6 +238,18 @@ async function syncNotificationSurfaces(get: () => AppState): Promise<void> {
 	await syncReminders(get);
 }
 
+/** Cancel the scheduled reminders of `txs`, logging rather than throwing per row. */
+async function cancelNotifications(txs: Transaction[]): Promise<void> {
+	for (const tx of txs) {
+		if (!tx.notification_id) continue;
+		try {
+			await cancelNotification(tx.notification_id);
+		} catch (e) {
+			console.warn('Failed to cancel notification', e);
+		}
+	}
+}
+
 /**
  * The timestamp to record a series exclusion under when a materialized
  * occurrence is deleted or split. Keyed to the occurrence's SLOT (read from its
@@ -1305,22 +1317,6 @@ export const useStore = create<AppState>((set, get) => {
 			// scope === 'future'
 			const seriesId = transaction.series_id;
 
-			// Cancel notifications for all future transactions in this series —
-			// side effect, local only by construction.
-			const futureTxs = state.transactions.filter(
-				(t) =>
-					t.series_id === seriesId &&
-					t.timestamp >= transaction.timestamp &&
-					t.notification_id
-			);
-			for (const tx of futureTxs) {
-				try {
-					await cancelNotification(tx.notification_id!);
-				} catch (e) {
-					console.warn('Failed to cancel notification', e);
-				}
-			}
-
 			const result = await applyOperation(
 				{
 					kind: 'recurrence.delete_future',
@@ -1343,6 +1339,13 @@ export const useStore = create<AppState>((set, get) => {
 						: t
 				),
 			}));
+			// Side effect, local only by construction. Only after the commit: a
+			// rolled-back delete keeps the rows, and they keep their reminders (KII-199).
+			await cancelNotifications(
+				state.transactions.filter(
+					(t) => t.series_id === seriesId && t.timestamp >= transaction.timestamp
+				)
+			);
 			// "Future" is anchored on the tapped row, which can itself be past-due —
 			// so this can drop several unconfirmed due rows at once (KII-163).
 			await syncNotificationSurfaces(get);
@@ -1357,46 +1360,28 @@ export const useStore = create<AppState>((set, get) => {
 			);
 			if (templates.length === 0) return;
 
-			// Cancel notifications for future transactions being deleted —
-			// side effect, local only by construction.
+			// One op, so all of the entity's series commit or roll back together and
+			// the store can't fall out of step with a half-applied loop (KII-199).
 			const templateIds = new Set(templates.map((t) => t.id));
-			const futureTxs = state.transactions.filter(
-				(t) =>
-					t.series_id &&
-					templateIds.has(t.series_id) &&
-					t.timestamp >= now &&
-					t.notification_id
+			const result = await applyOperation(
+				{ kind: 'recurrence.deactivate', seriesIds: [...templateIds], fromTimestamp: now },
+				'local',
+				buildApplyContext()
 			);
-			for (const tx of futureTxs) {
-				try {
-					await cancelNotification(tx.notification_id!);
-				} catch (e) {
-					console.warn('Failed to cancel notification', e);
-				}
-			}
+			if (result.kind !== 'recurrence.deactivate') return;
 
-			const stampedTemplates: RecurrenceTemplate[] = [];
-			for (const template of templates) {
-				const result = await applyOperation(
-					{ kind: 'recurrence.deactivate', seriesId: template.id, fromTimestamp: now },
-					'local',
-					buildApplyContext()
-				);
-				if (result.kind === 'recurrence.deactivate' && result.template) {
-					stampedTemplates.push(result.template);
-				}
-			}
-
-			const stampedMap = new Map(stampedTemplates.map((t) => [t.id, t]));
+			const stampedMap = new Map(result.templates.map((t) => [t.id, t]));
+			const isRemoved = (t: Transaction) =>
+				!!t.series_id && templateIds.has(t.series_id) && t.timestamp >= now;
 			set((state) => ({
-				transactions: state.transactions.filter(
-					(t) => !(t.series_id && templateIds.has(t.series_id) && t.timestamp >= now)
-				),
+				transactions: state.transactions.filter((t) => !isRemoved(t)),
 				recurrenceTemplates: state.recurrenceTemplates.map((t) => {
 					const stamped = stampedMap.get(t.id);
 					return stamped ? { ...stamped, exclusions: t.exclusions ?? [] } : t;
 				}),
 			}));
+			// Side effect, local only by construction; after the commit (KII-199).
+			await cancelNotifications(state.transactions.filter(isRemoved));
 			// Rows from `now` onward go, and anything left today is still due, so the
 			// count can drop even though nothing strictly in the past is touched (KII-163).
 			await syncNotificationSurfaces(get);

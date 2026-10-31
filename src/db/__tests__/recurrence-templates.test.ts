@@ -116,25 +116,36 @@ describe('recurrence-templates.ts', () => {
 				survivors: ['occ-1', 'occ-2'],
 			},
 		] as const)('$label', async ({ from, retire, template, survivors }) => {
-			expect(await deleteSeriesFuture('rec-1', from, retire)).toMatchObject({
-				id: 'rec-1',
-				...template,
-			});
+			expect(await deleteSeriesFuture(['rec-1'], from, retire)).toMatchObject([
+				{ id: 'rec-1', ...template },
+			]);
 			expect(await getAllRecurrenceTemplates()).toHaveLength(template.is_deleted ? 0 : 1);
 			expect(await seriesIds()).toEqual([...survivors]);
 		});
 
 		test('still deletes the occurrences but leaves a missing or already-deleted template alone', async () => {
-			await deleteSeriesFuture('rec-1', 9999, 'soft_delete');
+			await deleteSeriesFuture(['rec-1'], 9999, 'soft_delete');
 			const deletedAt = (await getRecurrenceTemplateById('rec-1'))!.updated_at;
 
-			expect(await deleteSeriesFuture('rec-1', 2500, 'end_date')).toBeNull();
+			expect(await deleteSeriesFuture(['rec-1'], 2500, 'end_date')).toEqual([]);
 			expect(await seriesIds()).toEqual(['occ-1', 'occ-2']);
 			expect(await getRecurrenceTemplateById('rec-1')).toMatchObject({
 				updated_at: deletedAt,
 				end_date: null,
 			});
-			expect(await deleteSeriesFuture('missing', 0, 'soft_delete')).toBeNull();
+			expect(await deleteSeriesFuture(['missing'], 0, 'soft_delete')).toEqual([]);
+		});
+
+		test('retires several series together', async () => {
+			await createRecurrenceTemplate({ ...baseTemplate, id: 'rec-2' });
+			await createTransactionBatch([{ ...occurrence('occ-4', 3000), series_id: 'rec-2' }]);
+
+			const retired = await deleteSeriesFuture(['rec-1', 'rec-2'], 2500, 'soft_delete');
+
+			expect(retired.map((t) => t.id)).toEqual(['rec-1', 'rec-2']);
+			expect(await getAllRecurrenceTemplates()).toHaveLength(0);
+			expect(await seriesIds()).toEqual(['occ-1', 'occ-2']);
+			expect(await getTransactionsBySeriesId('rec-2')).toEqual([]);
 		});
 
 		// KII-198: the occurrence delete and the template write used to commit
@@ -150,7 +161,7 @@ describe('recurrence-templates.ts', () => {
 						BEGIN SELECT RAISE(ABORT, 'boom'); END`)
 				);
 
-				await expect(deleteSeriesFuture('rec-1', 2500, retire)).rejects.toThrow();
+				await expect(deleteSeriesFuture(['rec-1'], 2500, retire)).rejects.toThrow();
 
 				expect(await seriesIds()).toEqual(['occ-1', 'occ-2', 'occ-3']);
 				expect(await getRecurrenceTemplateById('rec-1')).toMatchObject({
@@ -160,6 +171,27 @@ describe('recurrence-templates.ts', () => {
 				});
 			}
 		);
+
+		// KII-199: a failure on a later series must roll back the earlier ones,
+		// which used to commit in their own transaction.
+		test('a failure on a later series rolls back the earlier ones', async () => {
+			await createRecurrenceTemplate({ ...baseTemplate, id: 'rec-2', updated_at: 1 });
+			const db = await getDrizzleDb();
+			db.run(
+				sql.raw(`CREATE TRIGGER fail_retire BEFORE UPDATE ON recurrence_templates
+					WHEN NEW.id = 'rec-2' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+			);
+
+			await expect(
+				deleteSeriesFuture(['rec-1', 'rec-2'], 2500, 'soft_delete')
+			).rejects.toThrow();
+
+			expect(await seriesIds()).toEqual(['occ-1', 'occ-2', 'occ-3']);
+			expect(await getRecurrenceTemplateById('rec-1')).toMatchObject({
+				is_deleted: false,
+				updated_at: 1,
+			});
+		});
 	});
 
 	test('addExclusion writes one row per (template_id, timestamp)', async () => {
@@ -207,7 +239,7 @@ describe('recurrence-templates.ts', () => {
 		// Hard-delete via FK CASCADE is exercised by the migration test instead.
 		await createRecurrenceTemplate(baseTemplate);
 		await addExclusion('rec-1', 1000);
-		await deleteSeriesFuture('rec-1', 0, 'soft_delete');
+		await deleteSeriesFuture(['rec-1'], 0, 'soft_delete');
 		expect(await getExclusionsForTemplate('rec-1')).toEqual([1000]);
 	});
 

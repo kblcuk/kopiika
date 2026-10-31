@@ -308,7 +308,7 @@ describe('updated_at advances on every mutation (KII-126)', () => {
 			await createRecurrenceTemplate(baseTemplate('tpl-1'));
 			const before = await getRecurrenceTemplateById('tpl-1');
 			await sleep(2);
-			await deleteSeriesFuture('tpl-1', 0, 'soft_delete');
+			await deleteSeriesFuture(['tpl-1'], 0, 'soft_delete');
 			const after = await getRecurrenceTemplateById('tpl-1');
 			expect(after?.is_deleted).toBe(true);
 			expect(after?.updated_at).toBeGreaterThan(before!.updated_at as number);

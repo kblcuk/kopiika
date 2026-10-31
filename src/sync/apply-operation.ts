@@ -231,16 +231,20 @@ export async function applyOperation(
 			return { kind: 'recurrence.update_future', template, transactions };
 		}
 		case 'recurrence.delete_future': {
-			const template = await db.deleteSeriesFuture(op.seriesId, op.fromTimestamp, 'end_date');
+			const [template = null] = await db.deleteSeriesFuture(
+				[op.seriesId],
+				op.fromTimestamp,
+				'end_date'
+			);
 			return { kind: 'recurrence.delete_future', template };
 		}
 		case 'recurrence.deactivate': {
-			const template = await db.deleteSeriesFuture(
-				op.seriesId,
+			const templates = await db.deleteSeriesFuture(
+				op.seriesIds,
 				op.fromTimestamp,
 				'soft_delete'
 			);
-			return { kind: 'recurrence.deactivate', template };
+			return { kind: 'recurrence.deactivate', templates };
 		}
 		case 'market_value.create': {
 			const created = await db.createMarketValueSnapshot(op.snapshot);

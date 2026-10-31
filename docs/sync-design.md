@@ -193,7 +193,7 @@ Editing UX:
 
 ## Operation Model
 
-As of KII-134, the authoritative op union lives in `src/sync/ops.ts` and supersedes the sketch below where they differ: (1) `recurrence.update` split into `update_future`, `exclude`, and `deactivate`; (2) `market_value.snapshot` expanded to `{create,update,delete,delete_all}`; (3) `transaction.confirm` takes `ids[]` not a single id; (4) `plan.delete` keys by plan id not entity id. Additions like `transaction.split` and `import.replace_all` are also implemented. KII-155 added a 25th op kind, `currency.set_all`, described below.
+As of KII-134, the authoritative op union lives in `src/sync/ops.ts` and supersedes the sketch below where they differ: (1) `recurrence.update` split into `update_future`, `exclude`, and `deactivate`; (2) `market_value.snapshot` expanded to `{create,update,delete,delete_all}`; (3) `transaction.confirm` takes `ids[]` not a single id, and `recurrence.deactivate` takes `seriesIds[]` so an entity's series retire in one SQLite transaction (KII-199); (4) `plan.delete` keys by plan id not entity id. Additions like `transaction.split` and `import.replace_all` are also implemented. KII-155 added a 25th op kind, `currency.set_all`, described below.
 
 ### The Op union
 

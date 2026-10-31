@@ -88,10 +88,12 @@ export async function updateRecurrenceTemplate(
 }
 
 /**
- * Delete a series' occurrences from `fromTimestamp` onward and retire its
- * template, in a single SQLite transaction (KII-198). Committed separately, a
- * failure in between left the occurrences gone but the template active and
- * unbounded, so backfill re-materialized them on next launch.
+ * Delete each series' occurrences from `fromTimestamp` onward and retire its
+ * template, all in a single SQLite transaction. Committed separately, a failure
+ * in between left the occurrences gone but the template active and unbounded,
+ * so backfill re-materialized them on next launch (KII-198). Batching several
+ * series keeps a mid-way failure from committing the earlier ones while the
+ * store still shows them (KII-199).
  *
  * - `'end_date'` (recurrence.delete_future): end the series at its last
  *   surviving occurrence, or soft-delete it when none survive. The survivor is
@@ -100,49 +102,56 @@ export async function updateRecurrenceTemplate(
  * - `'soft_delete'` (recurrence.deactivate): soft-delete unconditionally.
  *
  * The `is_deleted = false` guard lives in the UPDATE itself, so a missing or
- * already-deleted template returns `null` and keeps its `updated_at`.
+ * already-deleted template is left out of the result and keeps its `updated_at`.
  */
 export async function deleteSeriesFuture(
-	seriesId: string,
+	seriesIds: readonly string[],
 	fromTimestamp: number,
 	retire: 'end_date' | 'soft_delete'
-): Promise<RecurrenceTemplate | null> {
+): Promise<RecurrenceTemplate[]> {
 	const db = await getDrizzleDb();
 	return db.transaction((tx) => {
-		tx.delete(transactions)
-			.where(
-				and(
-					eq(transactions.series_id, seriesId),
-					gte(transactions.timestamp, fromTimestamp)
+		const retired: RecurrenceTemplate[] = [];
+		for (const seriesId of seriesIds) {
+			tx.delete(transactions)
+				.where(
+					and(
+						eq(transactions.series_id, seriesId),
+						gte(transactions.timestamp, fromTimestamp)
+					)
 				)
-			)
-			.run();
+				.run();
 
-		const lastSurvivor =
-			retire === 'end_date'
-				? tx
-						.select({ timestamp: max(transactions.timestamp) })
-						.from(transactions)
-						.where(
-							and(
-								eq(transactions.series_id, seriesId),
-								lt(transactions.timestamp, fromTimestamp)
+			const lastSurvivor =
+				retire === 'end_date'
+					? tx
+							.select({ timestamp: max(transactions.timestamp) })
+							.from(transactions)
+							.where(
+								and(
+									eq(transactions.series_id, seriesId),
+									lt(transactions.timestamp, fromTimestamp)
+								)
 							)
-						)
-						.all()[0]?.timestamp
-				: null;
-		const [row] = tx
-			.update(recurrenceTemplates)
-			.set({
-				...(lastSurvivor == null ? { is_deleted: true } : { end_date: lastSurvivor }),
-				updated_at: Date.now(),
-			})
-			.where(
-				and(eq(recurrenceTemplates.id, seriesId), eq(recurrenceTemplates.is_deleted, false))
-			)
-			.returning()
-			.all();
-		return row ?? null;
+							.all()[0]?.timestamp
+					: null;
+			const [row] = tx
+				.update(recurrenceTemplates)
+				.set({
+					...(lastSurvivor == null ? { is_deleted: true } : { end_date: lastSurvivor }),
+					updated_at: Date.now(),
+				})
+				.where(
+					and(
+						eq(recurrenceTemplates.id, seriesId),
+						eq(recurrenceTemplates.is_deleted, false)
+					)
+				)
+				.returning()
+				.all();
+			if (row) retired.push(row);
+		}
+		return retired;
 	});
 }
 

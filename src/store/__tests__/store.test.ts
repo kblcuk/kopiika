@@ -12,7 +12,8 @@ import type { Entity, Plan, Transaction, MarketValueSnapshot } from '@/src/types
 import { getCurrentPeriod, getPeriodRange } from '@/src/types';
 import { useStore, _resetBackfillThrottleForTests } from '../index';
 import { getEntitiesWithBalance } from '@/src/utils/entity-balances';
-import { resetDrizzleDb } from '@/src/db/drizzle-client';
+import { sql } from 'drizzle-orm';
+import { getDrizzleDb, resetDrizzleDb } from '@/src/db/drizzle-client';
 import * as db from '@/src/db';
 import { BALANCE_ADJUSTMENT_ENTITY_ID } from '@/src/constants/system-entities';
 import type { RecurrenceTemplate } from '@/src/types/recurrence';
@@ -5710,6 +5711,7 @@ describe('Store Data Integrity', () => {
 					currency: 'USD',
 					timestamp: new Date('2026-02-01').getTime(),
 					series_id: template.id,
+					notification_id: 'notif-deactivate-future',
 				},
 			];
 
@@ -5724,6 +5726,8 @@ describe('Store Data Integrity', () => {
 				marketValueSnapshots: [],
 			});
 
+			const cancelSpy = spyOn(notifications, 'cancelNotification');
+
 			await useStore.getState().deactivateTemplatesForEntity(account.id);
 
 			expect((await db.getTransactionsBySeriesId(template.id)).map((tx) => tx.id)).toEqual([
@@ -5735,8 +5739,102 @@ describe('Store Data Integrity', () => {
 			expect(useStore.getState().transactions.map((tx) => tx.id)).toEqual([
 				'deactivate-past',
 			]);
+			expect(cancelSpy).toHaveBeenCalledWith('notif-deactivate-future');
 
 			mock.restore();
+		});
+
+		// KII-199: a failed DB write must leave the DB and the store in agreement,
+		// and must not cancel the reminders of rows that survive the rollback.
+		describe('when the recurrence write fails', () => {
+			const now = new Date('2026-01-15').getTime();
+			const account = makeEntity('account-1', 'account');
+			const category = makeEntity('category-1', 'category');
+			const makeTemplate = (id: string): RecurrenceTemplate => ({
+				id,
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				rule: JSON.stringify({ type: 'monthly' }),
+				start_date: new Date('2026-01-01').getTime(),
+				created_at: now,
+				is_deleted: false,
+			});
+			const makeOccurrence = (seriesId: string, date: string): Transaction => ({
+				id: `${seriesId}-${date}`,
+				from_entity_id: account.id,
+				to_entity_id: category.id,
+				amount_minor: 10000,
+				currency: 'USD',
+				timestamp: new Date(date).getTime(),
+				series_id: seriesId,
+				notification_id: `notif-${seriesId}-${date}`,
+			});
+
+			// Two series, so the entity path has a "first one succeeds, second one
+			// fails" order. The trigger aborts only the second template's write.
+			const templates = [makeTemplate('series-a'), makeTemplate('series-b')];
+			const transactions = templates.flatMap((t) => [
+				makeOccurrence(t.id, '2026-01-01'),
+				makeOccurrence(t.id, '2026-02-01'),
+				makeOccurrence(t.id, '2026-03-01'),
+			]);
+			let cancelSpy: ReturnType<typeof spyOn>;
+
+			beforeEach(async () => {
+				spyOn(Date, 'now').mockReturnValue(now);
+				cancelSpy = spyOn(notifications, 'cancelNotification');
+				for (const entity of [account, category]) {
+					await db.createEntity(entity);
+				}
+				for (const template of templates) {
+					await db.createRecurrenceTemplate(template);
+				}
+				await db.createTransactionBatch(transactions);
+				useStore.setState({
+					entities: [account, category],
+					plans: [],
+					transactions,
+					recurrenceTemplates: templates,
+					marketValueSnapshots: [],
+				});
+				const drizzle = await getDrizzleDb();
+				drizzle.run(
+					sql.raw(`CREATE TRIGGER fail_retire BEFORE UPDATE ON recurrence_templates
+						WHEN NEW.id = 'series-b' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+				);
+			});
+
+			afterEach(() => {
+				mock.restore();
+			});
+
+			const expectNothingChanged = async () => {
+				const dbIds = (await db.getAllTransactions()).map((t) => t.id).sort();
+				expect(dbIds).toEqual(transactions.map((t) => t.id).sort());
+				expect((await db.getAllRecurrenceTemplates()).map((t) => t.id).sort()).toEqual([
+					'series-a',
+					'series-b',
+				]);
+				expect(useStore.getState().transactions).toEqual(transactions);
+				expect(useStore.getState().recurrenceTemplates).toEqual(templates);
+				expect(cancelSpy).not.toHaveBeenCalled();
+			};
+
+			test('deactivateTemplatesForEntity rolls back every series', async () => {
+				await expect(
+					useStore.getState().deactivateTemplatesForEntity(account.id)
+				).rejects.toThrow();
+				await expectNothingChanged();
+			});
+
+			test("deleteTransactionWithScope 'future' keeps the rows and their reminders", async () => {
+				await expect(
+					useStore.getState().deleteTransactionWithScope('series-b-2026-02-01', 'future')
+				).rejects.toThrow();
+				await expectNothingChanged();
+			});
 		});
 	});
 
