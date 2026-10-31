@@ -1058,6 +1058,49 @@ describe('HistoryScreen search params', () => {
 			});
 		});
 
+		it('allows today’s snapshot after the mounted screen crosses midnight', async () => {
+			const updateMarketValueSnapshot = jest.fn();
+			useStore.setState({
+				entities: [mockInvestmentAccount],
+				plans: [],
+				transactions: [],
+				marketValueSnapshots: [
+					{
+						id: 'snap-1',
+						entity_id: 'inv-account',
+						amount_minor: 750000,
+						currency: 'USD',
+						date: new Date(2026, 0, 15).getTime(),
+					},
+				],
+				updateMarketValueSnapshot,
+				currentPeriod: '2026-01',
+				isLoading: false,
+			});
+
+			jest.setSystemTime(new Date(2026, 0, 15, 23, 59).getTime());
+			setPendingHistoryFilter({ period: '2026-01', entityId: 'inv-account' });
+
+			const { getByTestId, getByText, rerender } = render(<HistoryScreen />);
+			await waitFor(() =>
+				expect(getByTestId('market-value-snapshot-row-snap-1')).toBeTruthy()
+			);
+
+			fireEvent.press(getByTestId('market-value-snapshot-row-snap-1'));
+			fireEvent.changeText(getByTestId('snapshot-edit-amount-input'), '8100');
+			act(() => jest.setSystemTime(new Date(2026, 0, 16, 0, 1).getTime()));
+			rerender(<HistoryScreen />);
+			fireEvent.changeText(getByTestId('snapshot-edit-date-input'), '2026-01-16');
+			fireEvent.press(getByText('Save'));
+
+			await waitFor(() => {
+				expect(updateMarketValueSnapshot).toHaveBeenCalledWith('snap-1', {
+					amount_minor: 810000,
+					date: new Date(2026, 0, 16).setHours(0, 0, 0, 0),
+				});
+			});
+		});
+
 		it('edits market value snapshot amount and date from history', async () => {
 			const updateMarketValueSnapshot = jest.fn();
 			useStore.setState({

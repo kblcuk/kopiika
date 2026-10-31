@@ -331,14 +331,9 @@ export default function HistoryScreen() {
 		() => parseSnapshotDateInput(editingSnapshotDate),
 		[editingSnapshotDate]
 	);
-	// KII-132: memoized with `[]` deps — stale after midnight if the screen
-	// stays mounted across the day boundary. Either drop the memo (cheap to
-	// recompute) or document the limitation explicitly.
-	const todayStart = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		return today.getTime();
-	}, []);
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const todayStart = today.getTime();
 	const isSnapshotAmountValid =
 		!Number.isNaN(parsedSnapshotAmountMinor) && parsedSnapshotAmountMinor >= 0;
 	const isSnapshotDateValid = parsedSnapshotDate !== null && parsedSnapshotDate <= todayStart;
